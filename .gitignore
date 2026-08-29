@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# intelligence engine run logs (keep directory, ignore log files)
+intelligence-runs/*.json
+
+# local agent cache
+.claude/

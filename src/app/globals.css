@@ -1,26 +1,220 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f6f3;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --primary: #ea580c;
+  --primary-hover: #c2410c;
+  --primary-foreground: #ffffff;
+  --secondary: #f95738;
+  --secondary-foreground: #ffffff;
+  --accent-surface: #fff7ed;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  --border: #e2e8f0;
+  --border-warm: #fed7aa;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent-surface: var(--accent-surface);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-border-warm: var(--border-warm);
+  --font-sans: var(--font-plus-jakarta), system-ui, -apple-system, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Light mode base resets */
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Continuous Horizontal Ticker Animation */
+@keyframes ticker {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-ticker {
+  display: flex;
+  width: max-content;
+  animation: ticker 38s linear infinite;
+  will-change: transform;
+}
+
+.animate-ticker:hover,
+.animate-ticker:focus-within {
+  animation-play-state: paused;
+}
+
+/* Slow Cinematic Ken Burns Effect for Hero Background */
+@keyframes kenBurns {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: scale(1.03) translate3d(0, 0, 0);
+  }
+}
+
+.animate-ken-burns {
+  animation: kenBurns 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* Organic Idle Floating Animation for Cards */
+@keyframes floatOrganic {
+  0% {
+    transform: translateY(2px) scale(1) rotate(-0.1deg);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.005) rotate(0.1deg);
+  }
+  100% {
+    transform: translateY(2px) scale(1) rotate(-0.1deg);
+  }
+}
+
+/* Staggered Floating Classes */
+.idle-float-1 {
+  animation: floatOrganic 6.2s ease-in-out infinite 0s;
+}
+
+.idle-float-2 {
+  animation: floatOrganic 7.1s ease-in-out infinite 0.8s;
+}
+
+.idle-float-3 {
+  animation: floatOrganic 5.8s ease-in-out infinite 1.5s;
+}
+
+/* Ambient Soft Aura Breathing */
+@keyframes auraBreathe {
+  0%, 100% {
+    box-shadow: 0 2px 10px rgba(234, 88, 12, 0.03), 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(234, 88, 12, 0.08), 0 2px 6px rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* Central Hub Scale-Only Breathing */
+@keyframes hubBreathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.012);
+  }
+}
+
+.animate-hub-breathe {
+  animation: hubBreathe 8s ease-in-out infinite;
+}
+
+/* Flowing Traveling Border for Featured Priority Cards */
+@keyframes flowBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.flowing-border {
+  position: relative;
+  border: 1px solid transparent;
+  background: linear-gradient(#ffffff, #ffffff) padding-box,
+              linear-gradient(90deg, #FED7AA, #EA580C, #F95738, #FED7AA) border-box;
+  background-size: 200% 200%;
+  animation: flowBorder 5s ease infinite;
+}
+
+/* Light-sweep hover shimmer effect on CTA buttons & featured cards */
+.shimmer-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-hover::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -150%;
+  width: 100%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 70%
+  );
+  transform: rotate(25deg);
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.shimmer-hover:hover::after {
+  transform: translate(260%, 60%) rotate(25deg);
+}
+
+/* Viewport Scroll Reveal Items */
+.reveal-item {
+  opacity: 0;
+  transform: translateY(22px) scale(0.98);
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-item.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Accessibility: Respect Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-ticker,
+  .animate-ken-burns,
+  .animate-hub-breathe,
+  .idle-float-1,
+  .idle-float-2,
+  .idle-float-3,
+  .flowing-border {
+    animation: none !important;
+  }
+  .shimmer-hover::after {
+    display: none !important;
+  }
+  .reveal-item {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
 }

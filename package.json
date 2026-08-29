@@ -4,14 +4,33 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "validate": "npx tsx --tsconfig tsconfig.json scripts/validate.ts",
+    "intelligence:check": "npx tsx --tsconfig tsconfig.json scripts/intelligence-check.ts",
+    "intelligence:test": "npx tsx --tsconfig tsconfig.json tests/intelligence/extractor.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/confirmer.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/confirmation-harness.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue-e2e.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue-hardening.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/scheduler.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/review-cli.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/writer.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/review-policy.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/warning-policy.test.ts",
+    "intelligence:hardening-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue-hardening.test.ts",
+    "intelligence:scheduler": "npx tsx --tsconfig tsconfig.json scripts/intelligence-scheduler.ts",
+    "intelligence:scheduler-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/scheduler.test.ts",
+    "intelligence:review": "npx tsx --tsconfig tsconfig.json scripts/intelligence-review.ts",
+    "intelligence:review-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-cli.test.ts",
+    "intelligence:writer-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/writer.test.ts",
+    "intelligence:writer-ops": "npx tsx --tsconfig tsconfig.json tests/intelligence/writer-ops.ts",
+    "intelligence:policy-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-policy.test.ts",
+    "intelligence:warning-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/warning-policy.test.ts",
+    "intelligence:confirm-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/confirmer.test.ts",
+    "intelligence:harness": "npx tsx --tsconfig tsconfig.json tests/intelligence/confirmation-harness.test.ts",
+    "intelligence:queue-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue.test.ts",
+    "intelligence:e2e-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue-e2e.test.ts",
+    "build": "npm run validate && next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.31.0",
     "next": "16.3.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
