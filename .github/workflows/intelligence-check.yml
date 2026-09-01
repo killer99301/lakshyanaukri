@@ -1,0 +1,92 @@
+name: Intelligence — Scheduled Check
+
+# Runs the intelligence pipeline on a schedule.
+# Discovers new recruitments and creates GitHub PRs for human review.
+#
+# Pipeline: discover → verify → Trust Gate → PR → human merge → Vercel deploy
+#
+# SAFETY RULES:
+#   - No canonical data is modified automatically
+#   - Every new recruitment requires human approval (PR merge)
+#   - The Trust Gate must pass before any PR is created
+#   - GITHUB_TOKEN is provided automatically; no additional secrets needed
+#
+# DO NOT enable the schedule until:
+#   1. The source-probe workflow has been run and results reviewed
+#   2. A manual workflow_dispatch test has been successful
+#   3. The resulting PR and Vercel deployment have been inspected
+
+on:
+  schedule:
+    # Every 3 hours, matching DEFAULT_INTERVAL_MS in the scheduler
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — discover but do not create PRs'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+# Only one intelligence run at a time
+concurrency:
+  group: intelligence-check
+  cancel-in-progress: false
+
+jobs:
+  intelligence-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: write      # push discovery-candidates.json audit commit
+      pull-requests: write # create PRs for new recruitments
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Use the default GITHUB_TOKEN — sufficient for push + PR creation
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0    # full history for git operations
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure git identity
+        run: |
+          git config user.email "intelligence@lakshyanaukri.in"
+          git config user.name "LakshyaNaukri Intelligence Engine"
+
+      - name: Run intelligence check
+        run: npm run intelligence:check
+
+      - name: Create PRs for new recruitments
+        if: ${{ github.event_name == 'schedule' || inputs.dry_run == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: npx tsx --tsconfig tsconfig.json scripts/create-pr-for-new-recruit.ts
+
+      - name: Dry run — show candidates only
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: npx tsx --tsconfig tsconfig.json scripts/create-pr-for-new-recruit.ts --dry-run
+
+      - name: Commit audit log updates
+        run: |
+          git add intelligence-runs/.gitkeep || true
+          # Only commit if there are staged changes
+          git diff --cached --quiet || git commit -m "chore: intelligence run $(date -u +%Y-%m-%dT%H:%M:%SZ) [skip ci]"
+          git push origin HEAD || true

@@ -431,6 +431,180 @@ export const SOURCE_REGISTRY: MonitoredSource[] = [
       "Identifiers: cse 2026 (formal), 'cse' (Pattern 6 title+notif code). " +
       "Note: UPSC.gov.in returns HTTP 403; this secondary source provides early warning.",
   },
+
+  // ══════════════════════════════════════════════════════════
+  // Phase 7A: ORG_DISCOVERY sources — Wave 1
+  // ══════════════════════════════════════════════════════════
+  //
+  // These sources scan for NEW recruitments from an organization,
+  // not for updates to known canonical records.
+  // mode: "ORG_DISCOVERY", linkedOpportunityIds: []
+  //
+  // Reachability from GitHub Actions (Ubuntu runner) is to be
+  // confirmed via the source-probe workflow before enabling.
+  // Sources marked PROBE_REQUIRED are disabled until probed.
+  //
+  // Wave 2 sources (IBPS, SBI, RBI, NABARD, LIC, India Post)
+  // are defined below with enabled: false — architecture is
+  // ready for them; reachability must be established first.
+  // ══════════════════════════════════════════════════════════
+
+  // ── SSC org-discovery ────────────────────────────────────
+  // ssc.gov.in/home/latestNotices was confirmed reachable locally (Phase 6).
+  // GitHub Actions reachability: assumed — to be confirmed via source-probe.
+
+  {
+    id: "ssc-org-discovery",
+    name: "SSC Notification Index (org-discovery)",
+    url: "https://ssc.gov.in/home/latestNotices",
+    tier: 3,
+    documentType: "WEBSITE_INDEX",
+    organizationId: "ssc",
+    mode: "ORG_DISCOVERY",
+    linkedOpportunityIds: [],      // scans for any new SSC recruitment
+    enabled: true,
+    polling: DEFAULT_TIER3_POLLING,
+    notes:
+      "Phase 7A: ORG_DISCOVERY source for SSC. Scans notification listing for new " +
+      "recruitment advertisements not yet in the canonical dataset. " +
+      "URL confirmed reachable locally (Phase 6). GitHub Actions reachability: PROBE_REQUIRED. " +
+      "Disable if source-probe returns non-200 from GitHub Actions environment.",
+  },
+
+  // ── RRB org-discovery ────────────────────────────────────
+  // indianrailways.gov.in was confirmed reachable locally (Phase 6).
+  // CEN notifications are listed at the railway board's recruitment page.
+
+  {
+    id: "rrb-org-discovery",
+    name: "Indian Railways Recruitment (org-discovery)",
+    url: "https://indianrailways.gov.in/railwayboard/view_section.jsp?lang=0&id=0,1,304,366,554",
+    tier: 3,
+    documentType: "WEBSITE_INDEX",
+    organizationId: "rrb",
+    mode: "ORG_DISCOVERY",
+    linkedOpportunityIds: [],
+    enabled: true,
+    polling: DEFAULT_TIER3_POLLING,
+    notes:
+      "Phase 7A: ORG_DISCOVERY source for RRB. Scans the Indian Railways recruitment section " +
+      "for new CEN notifications. Domain confirmed reachable locally. " +
+      "GitHub Actions reachability: PROBE_REQUIRED. " +
+      "If this page URL changes, update to the current recruitment listing URL.",
+  },
+
+  // ── UPSC org-discovery ───────────────────────────────────
+  // upsc.gov.in returns HTTP 403 from local environment (Phase 6).
+  // Disabled pending source-probe from GitHub Actions — may differ from local.
+
+  {
+    id: "upsc-org-discovery",
+    name: "UPSC Active Examinations (org-discovery)",
+    url: "https://upsc.gov.in/examinations/active-examinations/",
+    tier: 3,
+    documentType: "WEBSITE_INDEX",
+    organizationId: "upsc",
+    mode: "ORG_DISCOVERY",
+    linkedOpportunityIds: [],
+    enabled: false,               // BLOCKED locally (HTTP 403) — enable after GH Actions probe
+    polling: DEFAULT_TIER3_POLLING,
+    notes:
+      "Phase 7A: ORG_DISCOVERY source for UPSC. upsc.gov.in returns HTTP 403 from local " +
+      "environment (Phase 6 audit). Enable only if source-probe confirms GitHub Actions " +
+      "can reach this URL. Until then, UPSC new-recruitment discovery is unavailable.",
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // Phase 7A: ORG_DISCOVERY sources — Wave 2 (architecture ready, disabled)
+  // ══════════════════════════════════════════════════════════
+  // Reachability from GitHub Actions must be established via source-probe
+  // before enabling any of these. Do not enable without a confirmed probe result.
+
+  {
+    id: "ibps-org-discovery",
+    name: "IBPS Latest Notifications (org-discovery)",
+    url: "https://www.ibps.in",
+    tier: 3,
+    documentType: "WEBSITE_INDEX",
+    organizationId: "ibps",
+    mode: "ORG_DISCOVERY",
+    linkedOpportunityIds: [],
+    enabled: false,               // BLOCKED locally (network-level) — probe required
+    polling: DEFAULT_TIER3_POLLING,
+    notes:
+      "Phase 7A Wave 2: IBPS org-discovery. ibps.in is network-blocked from local " +
+      "environment (Phase 6 audit). Enable only after source-probe confirms reachability.",
+  },
+
+  {
+    id: "sbi-org-discovery",
+    name: "SBI Careers (org-discovery)",
+    url: "https://bank.sbi/web/careers",
+    tier: 3,
+    documentType: "WEBSITE_INDEX",
+    organizationId: "sbi",
+    mode: "ORG_DISCOVERY",
+    linkedOpportunityIds: [],
+    enabled: false,               // not yet probed
+    polling: DEFAULT_TIER3_POLLING,
+    notes: "Phase 7A Wave 2: SBI org-discovery. URL to be confirmed via source-probe.",
+  },
+
+  {
+    id: "rbi-org-discovery",
+    name: "RBI Opportunities (org-discovery)",
+    url: "https://www.rbi.org.in/Scripts/Opportunities.aspx",
+    tier: 3,
+    documentType: "WEBSITE_INDEX",
+    organizationId: "rbi",
+    mode: "ORG_DISCOVERY",
+    linkedOpportunityIds: [],
+    enabled: false,
+    polling: DEFAULT_TIER3_POLLING,
+    notes: "Phase 7A Wave 2: RBI org-discovery. URL to be confirmed via source-probe.",
+  },
+
+  {
+    id: "nabard-org-discovery",
+    name: "NABARD Recruitment (org-discovery)",
+    url: "https://www.nabard.org/content1.aspx?id=580&catid=23&mid=24",
+    tier: 3,
+    documentType: "WEBSITE_INDEX",
+    organizationId: "nabard",
+    mode: "ORG_DISCOVERY",
+    linkedOpportunityIds: [],
+    enabled: false,
+    polling: DEFAULT_TIER3_POLLING,
+    notes: "Phase 7A Wave 2: NABARD org-discovery. URL to be confirmed via source-probe.",
+  },
+
+  {
+    id: "lic-org-discovery",
+    name: "LIC Recruitment (org-discovery)",
+    url: "https://licindia.in/recruitment",
+    tier: 3,
+    documentType: "WEBSITE_INDEX",
+    organizationId: "lic",
+    mode: "ORG_DISCOVERY",
+    linkedOpportunityIds: [],
+    enabled: false,
+    polling: DEFAULT_TIER3_POLLING,
+    notes: "Phase 7A Wave 2: LIC org-discovery. URL to be confirmed via source-probe.",
+  },
+
+  {
+    id: "indiapost-org-discovery",
+    name: "India Post Recruitment (org-discovery)",
+    url: "https://www.indiapost.gov.in/Recruitment",
+    tier: 3,
+    documentType: "WEBSITE_INDEX",
+    organizationId: "indiapost",
+    mode: "ORG_DISCOVERY",
+    linkedOpportunityIds: [],
+    enabled: false,
+    polling: DEFAULT_TIER3_POLLING,
+    notes: "Phase 7A Wave 2: India Post org-discovery. URL to be confirmed via source-probe.",
+  },
 ];
 
 // ─── Registry Accessors ──────────────────────────────────────
@@ -455,4 +629,9 @@ export function getSourcesForOpportunity(opportunityId: string): MonitoredSource
 
 export function getEnabledSourcesForOpportunity(opportunityId: string): MonitoredSource[] {
   return getSourcesForOpportunity(opportunityId).filter((s) => s.enabled);
+}
+
+// Phase 7A: ORG_DISCOVERY accessor
+export function getEnabledDiscoverySources(): MonitoredSource[] {
+  return SOURCE_REGISTRY.filter((s) => s.enabled && s.mode === "ORG_DISCOVERY");
 }

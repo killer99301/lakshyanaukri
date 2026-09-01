@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
-import { ChevronRight, Bell, CheckCircle2, ArrowRight } from "lucide-react";
+import { ChevronRight, Bell, ArrowRight } from "lucide-react";
 import { Card } from "../ui/Card";
-import { Button } from "../ui/Button";
-import { Input } from "../ui/Input";
 import { cn } from "@/lib/utils";
 
 interface JobsRightSidebarProps {
@@ -17,17 +15,6 @@ export const JobsRightSidebar: React.FC<JobsRightSidebarProps> = ({
   onQuickCategoryClick,
   className,
 }) => {
-  const [alertEmail, setAlertEmail] = useState("");
-  const [alertSubmitted, setAlertSubmitted] = useState(false);
-
-  const handleAlertSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (alertEmail.trim()) {
-      setAlertSubmitted(true);
-      setAlertEmail("");
-    }
-  };
-
   const quickLinks = [
     { label: "Latest Jobs", href: "/jobs" },
     { label: "Jobs by Category", category: "state-psc" },
@@ -92,31 +79,9 @@ export const JobsRightSidebar: React.FC<JobsRightSidebarProps> = ({
           </p>
         </div>
 
-        {alertSubmitted ? (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span>Alerts enabled!</span>
-          </div>
-        ) : (
-          <form onSubmit={handleAlertSubmit} className="space-y-2">
-            <Input
-              type="text"
-              required
-              value={alertEmail}
-              onChange={(e) => setAlertEmail(e.target.value)}
-              placeholder="Enter email or WhatsApp #"
-              className="h-8 text-xs bg-white"
-            />
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
-              className="w-full justify-center text-xs font-bold py-2 shadow-2xs cursor-pointer"
-            >
-              Enable Alerts
-            </Button>
-          </form>
-        )}
+        <div className="bg-slate-50 border border-slate-200 text-slate-500 p-2.5 rounded-xl text-center text-xs font-semibold">
+          Job alerts coming soon
+        </div>
       </Card>
 
       {/* 3. TOP HIRING ORGANIZATIONS POD */}

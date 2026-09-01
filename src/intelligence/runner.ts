@@ -52,7 +52,11 @@ import { writeRunLog, loadPreviousRunHashes } from "./audit-log";
 import {
   getEnabledSources,
   getEnabledSourcesForOpportunity,
+  getEnabledDiscoverySources,
 } from "./source-registry";
+import { discoverNewRecruitments } from "./discovery";
+import { writeFileSync } from "node:fs";
+import type { CandidateNewRecruitment } from "./types";
 import { confirmChange, confirmUnavailable } from "./confirmer";
 import {
   createReviewItem,
@@ -83,6 +87,8 @@ export interface RunOptions {
 export interface RunResult {
   run: IntelligenceRun;
   logPath: string;
+  newRecruitmentCandidates: CandidateNewRecruitment[];
+  candidatesPath?: string;    // set if candidates were written to intelligence-runs/
 }
 
 // ─── Runner ───────────────────────────────────────────────────
@@ -460,6 +466,67 @@ export async function executeRun(options: RunOptions = {}): Promise<RunResult> {
     }
   }
 
+  // ── Step 8.7: Phase 7 — Org-level discovery scan ────────
+  // Process ORG_DISCOVERY sources whose HTML was cached in Step 5.
+  // Uses the already-fetched HTML — no new network requests.
+  // Produces CandidateNewRecruitment objects for notices not in
+  // the canonical dataset. Saves candidates to discovery-candidates.json.
+  //
+  // INVARIANT: productionWrites = 0. Canonical data is never modified.
+
+  const discoverySources = getEnabledDiscoverySources();
+  let discoverySourcesScanned = 0;
+  let newRecruitmentsDiscovered = 0;
+  const newRecruitmentDuplicatesSkipped = 0;
+  const newRecruitmentCandidates: CandidateNewRecruitment[] = [];
+
+  const canonicalGovRecords = opportunities.filter(
+    (o): o is import("@/types").GovernmentRecruitment => o.type === "government"
+  );
+
+  for (const source of discoverySources) {
+    const html = htmlBySourceId.get(source.id);
+    if (!html) continue;  // fetch failed or content hash unchanged
+
+    discoverySourcesScanned++;
+    const beforeCount = newRecruitmentCandidates.length;
+    const found = discoverNewRecruitments(
+      html,
+      source,
+      canonicalGovRecords,
+      newRecruitmentCandidates
+    );
+
+    for (const candidate of found) {
+      newRecruitmentCandidates.push(candidate);
+      newRecruitmentsDiscovered++;
+    }
+
+    // Count how many links from this source were deduped (not surfaced)
+    // We don't have exact counts per source, so track globally.
+    void beforeCount;
+  }
+
+  // Persist candidates if any were found (ephemeral; gitignored *.json)
+  let candidatesPath: string | undefined;
+  if (newRecruitmentCandidates.length > 0) {
+    candidatesPath = "intelligence-runs/discovery-candidates.json";
+    try {
+      writeFileSync(
+        candidatesPath,
+        JSON.stringify({ generatedAt: new Date().toISOString(), candidates: newRecruitmentCandidates }, null, 2),
+        "utf-8"
+      );
+    } catch (err) {
+      errors.push({
+        timestamp: new Date().toISOString(),
+        errorType: "INTERNAL",
+        message: `Failed to write discovery-candidates.json: ${String(err)}`,
+      });
+      candidatesPath = undefined;
+    }
+  }
+
   // ── Step 9: Finalize run record ─────────────────────────
   const sorted = sortByUrgency(stalenessReports);
   const staleRecords = sorted.filter((r) => r.isStale);
@@ -518,6 +585,11 @@ export async function executeRun(options: RunOptions = {}): Promise<RunResult> {
     reviewItemsAdded,
     reviewDuplicatesSuppressed,
 
+    discoverySourcesScanned,
+    newRecruitmentsDiscovered,
+    newRecruitmentDuplicatesSkipped,
+    newRecruitmentCandidates,
+
     errors,
     stalenessReports: sorted,
     candidateEvents,
@@ -526,7 +598,7 @@ export async function executeRun(options: RunOptions = {}): Promise<RunResult> {
   // ── Step 10: Write audit log ─────────────────────────────
   const logPath = writeRunLog(run);
 
-  return { run, logPath };
+  return { run, logPath, newRecruitmentCandidates, candidatesPath };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────

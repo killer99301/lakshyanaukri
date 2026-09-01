@@ -50,7 +50,7 @@ export default function PrivacyPolicyPage() {
               LakshyaNaukri is an open public career intelligence and recruitment notification platform. We do not require users to create mandatory accounts or submit sensitive identity documents to browse job notices, exam dates, or download links.
             </p>
             <p>
-              When you voluntarily subscribe to our newsletter or job alert channels, we collect only your email address or contact handle solely for delivering requested recruitment notifications.
+              LakshyaNaukri does not currently collect email addresses or other personal data for subscriptions or alerts. When a notification or alert service becomes available, this policy will be updated to reflect what data is collected and how it is used.
             </p>
           </section>
 

@@ -45,3 +45,5 @@ intelligence-runs/*.json
 
 # local agent cache
 .claude/
+
+.vercel

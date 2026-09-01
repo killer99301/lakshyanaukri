@@ -48,6 +48,19 @@ export type DisambiguationScore = "STRONG" | "MODERATE" | "AMBIGUOUS";
 
 export type SourceTier = 1 | 2 | 3 | 4 | 5;
 
+// ─── Phase 7: Discovery Mode ─────────────────────────────────
+//
+// OPPORTUNITY_MONITOR (default): watches specific canonical records
+//   via linkedOpportunityIds. Existing pipeline behaviour.
+//
+// ORG_DISCOVERY: scans an organization's notification index page for
+//   ANY new recruitment notice not yet in the canonical dataset.
+//   linkedOpportunityIds is empty for this mode.
+//   A discovered notice produces a CandidateNewRecruitment, never a
+//   CandidateChangeEvent — the existing update pipeline is untouched.
+
+export type DiscoveryMode = "OPPORTUNITY_MONITOR" | "ORG_DISCOVERY";
+
 export type SourceDocumentType =
   | "NOTIFICATION_PDF"    // Tier 1: official recruitment notification PDF
   | "CORRIGENDUM_PDF"     // Tier 1: corrigendum amending a prior notification
@@ -78,6 +91,7 @@ export interface MonitoredSource {
   enabled: boolean;                     // false = defined but not yet active
   polling: PollingConfig;
   notes?: string;
+  mode?: DiscoveryMode;                 // defaults to OPPORTUNITY_MONITOR when absent
 }
 
 // ─── Source Adapter Interface ────────────────────────────────
@@ -269,6 +283,58 @@ export interface ChangeReviewQueue {
   version: "1";
   lastUpdatedAt: string;
   items: ReviewItem[];
+}
+
+// ─── Phase 7: Candidate New Recruitment ──────────────────────
+//
+// Created when an ORG_DISCOVERY source finds a notification not
+// in the canonical dataset. Persisted to intelligence-runs/discovery-candidates.json.
+//
+// INVARIANT: A CandidateNewRecruitment is NEVER automatically inserted
+//            into canonical data. It must pass Trust Gate AND receive
+//            human approval (PR merge) before appendNewRecord() may write it.
+//
+// Missing fields must remain explicitly absent — never inferred or fabricated.
+// The PR body will note which fields could not be extracted.
+
+export interface CandidateNewRecruitment {
+  candidateId: string;                // sha256(orgId + "::" + normalizedNotifNumber)[:16]
+
+  // Source information
+  discoverySourceId: string;          // MonitoredSource.id
+  discoverySourceUrl: string;         // URL where this notice was found
+  discoverySourceTier: SourceTier;
+  discoveredAt: string;               // ISO timestamp
+
+  // Organization (from source registry)
+  organizationId: string;
+  organizationName: string;
+
+  // Extracted fields — absent means extraction failed, not that the value is zero/empty
+  title?: string;
+  notificationNumber?: string;        // raw string as found on the page
+  notifPdfUrl?: string;               // direct link to notification PDF
+  postDate?: string;                  // ISO date of the notice
+  applicationOpenDate?: string;       // ISO date
+  applicationCloseDate?: string;      // ISO date
+  totalVacancies?: number;
+  govType?: "Central Govt" | "State Govt" | "PSU Bank";
+
+  // Dedup fingerprints — always set (fallback to title-derived values if necessary)
+  normalizedNotifNumber: string;      // uppercase, stripped, for dedup
+  sourceUrlFingerprint: string;       // normalized PDF/notice URL
+  pdfContentHash?: string;            // SHA-256 of PDF content if fetched
+  titleSimilarityKey: string;         // lowercase alphanum, for bigram fuzzy match
+
+  // Evidence
+  rawExcerpt: string;                 // ≤500 chars of surrounding context
+  confidence: number;                 // 0–1 composite confidence
+
+  // Lifecycle
+  status: "PENDING_REVIEW" | "PR_CREATED" | "APPROVED" | "REJECTED";
+  prNumber?: number;                  // GitHub PR number once created
+  prUrl?: string;                     // GitHub PR URL
+  rejectionReason?: string;
 }
 
 // ─── Verification State Machine ──────────────────────────────
@@ -497,6 +563,12 @@ export interface IntelligenceRun {
   // Phase 4: Change Review Queue
   reviewItemsAdded: number;          // CONFIRMED_CHANGE events appended to queue this run
   reviewDuplicatesSuppressed: number; // CONFIRMED_CHANGE events already in queue (dedup)
+
+  // Phase 7: New Recruitment Discovery
+  discoverySourcesScanned: number;      // ORG_DISCOVERY sources with extractable HTML
+  newRecruitmentsDiscovered: number;    // notices found that are not in canonical dataset
+  newRecruitmentDuplicatesSkipped: number; // notices already in canonical data or in-flight candidates
+  newRecruitmentCandidates: CandidateNewRecruitment[]; // full list for audit
 
   errors: RunError[];
 

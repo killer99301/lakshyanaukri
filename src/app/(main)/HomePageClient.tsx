@@ -389,15 +389,10 @@ export default function HomePage() {
               <p className="text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
                 Join our Telegram channel for instant alerts on new job notifications, exam date changes, admit cards, and results — directly from official sources.
               </p>
-              <a
-                href={siteConfig.links.telegram}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#EA580C] text-white font-bold text-sm hover:bg-[#c2410c] transition-colors shadow-md mt-2"
-              >
+              <div className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-600 text-slate-300 font-bold text-sm shadow-md mt-2 cursor-not-allowed select-none">
                 <Send className="h-4 w-4" />
-                <span>Join LakshyaNaukri on Telegram</span>
-              </a>
+                <span>Telegram — Launching Soon</span>
+              </div>
               <p className="text-[11px] text-slate-400 mt-1">Free. No spam. Verified government updates only.</p>
             </div>
           </div>

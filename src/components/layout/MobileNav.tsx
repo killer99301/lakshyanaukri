@@ -91,17 +91,11 @@ export const MobileNav: React.FC = () => {
                   Browse All Jobs & Recruitments
                 </Button>
               </Link>
-              <a
-                href="https://t.me/careercampus"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setIsOpen(false)}
-                className="block w-full"
-              >
-                <Button variant="outline" className="w-full justify-center text-xs font-bold py-2.5 border-slate-300">
-                  Join Official Telegram Channel ↗
+              <div className="block w-full cursor-not-allowed" title="Telegram channel launching soon">
+                <Button variant="outline" disabled className="w-full justify-center text-xs font-bold py-2.5 border-slate-300 opacity-50 pointer-events-none">
+                  Telegram — Coming Soon
                 </Button>
-              </a>
+              </div>
             </div>
           </div>
         </div>

@@ -1,0 +1,48 @@
+name: Intelligence — Source Probe
+
+# Run this MANUALLY before enabling scheduled discovery.
+# Tests each target URL from GitHub Actions (Ubuntu runner) and reports
+# HTTP status, response time, and word count extracted.
+#
+# Run via: GitHub Actions → source-probe → Run workflow
+# Results appear in the workflow log — not committed to the repo.
+#
+# After reviewing results, update source-registry.ts:
+#   - enabled: true   → confirmed reachable with good content
+#   - enabled: false  → blocked, timeout, or insufficient content
+
+on:
+  workflow_dispatch:
+    inputs:
+      wave:
+        description: 'Which sources to probe'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - wave1
+          - wave2
+
+jobs:
+  probe-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run source probe
+        env:
+          PROBE_WAVE: ${{ inputs.wave }}
+        run: npx tsx --tsconfig tsconfig.json scripts/probe-sources.ts

@@ -9,6 +9,7 @@ import {
   Compass,
 } from "lucide-react";
 import { getBySlug, getAllSlugs, getRelated } from "@/lib/repository";
+import { siteConfig } from "@/config/site";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobSectionTabs } from "@/components/jobs/JobSectionTabs";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
@@ -84,12 +85,12 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
     description:
       job.shortDescription ||
       `Check eligibility, application dates, vacancies, exam pattern, and official notifications for ${job.title}.`,
-    url: `https://lakshyanaukri.in/jobs/${job.slug}`,
+    url: `${siteConfig.url}/jobs/${job.slug}`,
     dateModified: job.provenance.lastVerifiedAt,
     publisher: {
       "@type": "Organization",
       name: "LakshyaNaukri",
-      url: "https://lakshyanaukri.in",
+      url: siteConfig.url,
     },
     breadcrumb: {
       "@type": "BreadcrumbList",
@@ -98,19 +99,19 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
           "@type": "ListItem",
           position: 1,
           name: "Home",
-          item: "https://lakshyanaukri.in",
+          item: siteConfig.url,
         },
         {
           "@type": "ListItem",
           position: 2,
           name: "Jobs",
-          item: "https://lakshyanaukri.in/jobs",
+          item: `${siteConfig.url}/jobs`,
         },
         {
           "@type": "ListItem",
           position: 3,
           name: job.title,
-          item: `https://lakshyanaukri.in/jobs/${job.slug}`,
+          item: `${siteConfig.url}/jobs/${job.slug}`,
         },
       ],
     },

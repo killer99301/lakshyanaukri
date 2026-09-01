@@ -109,10 +109,9 @@ export const HOMEPAGE_RESULTS: ResultItem[] = [
     resultType: "Final Merit List",
     statusText: "Declared",
     officialUrl: "https://bpsc.bih.nic.in",
-    documentUrl: "https://bpsc.bih.nic.in/docs/bpsc-71st-final-result.pdf",
   },
   {
-    id: "res-[#b001]",
+    id: "res-ssc-chsl-2025-tier2",
     slug: "ssc-chsl-2025-tier-2-result",
     title: "SSC CHSL 2025 Tier II Exam Scorecard & Cutoff",
     organization: "Staff Selection Commission",
@@ -121,7 +120,6 @@ export const HOMEPAGE_RESULTS: ResultItem[] = [
     resultType: "Tier II Scorecard",
     statusText: "Declared",
     officialUrl: "https://ssc.gov.in",
-    documentUrl: "https://ssc.gov.in/docs/chsl-2025-tier2-result.pdf",
   },
   {
     id: "res-ibps-po-xiv",
@@ -133,7 +131,6 @@ export const HOMEPAGE_RESULTS: ResultItem[] = [
     resultType: "Mains Result",
     statusText: "Declared",
     officialUrl: "https://ibps.in",
-    documentUrl: "https://ibps.in/docs/po-xiv-mains-result.pdf",
   },
 ];
 
@@ -281,7 +278,7 @@ export const UPCOMING_EXAMS: UpcomingExamItem[] = [
     admitCardDateIso: "2026-08-01",
     category: "government",
     state: "All India",
-    statusText: "Mains In Progress",
+    statusText: "Mains Conducted — Interview Date Awaited",
     officialUrl: "https://upsc.gov.in",
   },
   {
@@ -315,7 +312,7 @@ export const UPCOMING_EXAMS: UpcomingExamItem[] = [
     slug: "ssc-cgl-combined-graduate-level-2026",
     title: "SSC CGL Tier 1 Computer Based Exam 2026",
     organization: "Staff Selection Commission",
-    examDateIso: "2026-09-01",
+    examDateIso: "2026-09-20",
     admitCardDateIso: "",
     category: "ssc",
     state: "All India",

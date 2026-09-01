@@ -570,13 +570,12 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       {
         name: "Preliminary Examination",
         order: 1,
-        status: "SCHEDULED",
+        status: "CONDUCTED",
         certainty: "CONFIRMED",
         dateDisplay: "22–23 Aug 2026",
         dateIso: "2026-08-22",
-        dateProvenance: "IBPS Admit Card Notice (14 Aug 2026)",
-        notes: "Admit cards released 14 Aug 2026. Download from ibps.in.",
-        noticeUrl: "https://www.ibps.in",
+        dateProvenance: "IBPS Official Notification / Admit Card Notice",
+        notes: "Conducted 22–23 Aug 2026.",
       },
       {
         name: "Mains Examination",
@@ -622,14 +621,13 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
 
     howToApply: [
       "Application period for CRP PO/MT-XVI has ended.",
-      "Prelims scheduled 22–23 Aug 2026. Download admit card from ibps.in.",
+      "Prelims conducted 22–23 Aug 2026. Mains examination scheduled 4 Oct 2026.",
     ],
 
     links: {
-      // ibps.in is the official IBPS portal and also hosts the notification PDF.
-      // The homepage URL is intentional here — the specific PDF changes each cycle.
-      // Candidates can access the notification from the IBPS homepage directly.
-      notification: "https://www.ibps.in",
+      // No verified PDF URL for CRP XVI notification — set to undefined.
+      // Candidates should access the notification from ibps.in directly.
+      notification: undefined,
       apply: "https://ibpsonline.ibps.in/",
       website: "https://www.ibps.in/",
     },
@@ -641,7 +639,7 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       primarySourceType: "OFFICIAL_WEBSITE",
       notes:
         "7,365 vacancies confirmed from ibps.in. Notification 1 Jul 2026, apps closed 26 Jul 2026 confirmed. " +
-        "Prelims 22–23 Aug 2026 confirmed. Admit cards released 14 Aug 2026 confirmed. " +
+        "Prelims 22–23 Aug 2026 conducted — confirmed. " +
         "Mains 4 Oct 2026 confirmed. Exact vacancy breakdown by bank not yet available — omitted per Rule 2.",
     },
 
@@ -694,12 +692,12 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       {
         name: "Mains Written Examination",
         order: 2,
-        status: "SCHEDULED",
+        status: "CONDUCTED",
         certainty: "CONFIRMED",
-        dateDisplay: "Starting 21 Aug 2026",
+        dateDisplay: "21–28 Aug 2026",
         dateIso: "2026-08-21",
         dateProvenance: "UPSC Official Examination Timetable",
-        notes: "Mains commences 21 Aug 2026 over multiple days.",
+        notes: "Mains examination conducted 21–28 Aug 2026.",
       },
       {
         name: "Personality Test / Interview",
@@ -736,7 +734,7 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
 
     howToApply: [
       "Application period for CSE 2026 has ended.",
-      "Prelims conducted 24 May 2026. Mains begins 21 Aug 2026.",
+      "Prelims conducted 24 May 2026. Mains conducted Aug 2026. Await Personality Test / Interview schedule from upsc.gov.in.",
       "Check upsconline.nic.in for e-admit cards and updates.",
     ],
 
@@ -755,7 +753,7 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       primarySourceType: "OFFICIAL_WEBSITE",
       notes:
         "Notification 4 Feb 2026 confirmed from upsc.gov.in. Prelims 24 May 2026 conducted — confirmed. " +
-        "Mains commencing 21 Aug 2026 confirmed. Vacancy count 1056 is from secondary sources — " +
+        "Mains commenced 21 Aug 2026, concluded Aug 2026 — confirmed. Vacancy count 1056 is from secondary sources — " +
         "UPSC typically declares final vacancy with results. Display shows 'Not specified' per Rule 2.",
     },
 

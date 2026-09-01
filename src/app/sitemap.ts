@@ -3,7 +3,7 @@ import { getAllVerifiedOpportunities } from "@/lib/repository";
 import { siteConfig } from "@/config/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = siteConfig.url || "https://careercampus.in";
+  const baseUrl = siteConfig.url;
   const opportunities = getAllVerifiedOpportunities();
 
   // Dynamic job pages

@@ -4,8 +4,7 @@ import { Container } from "../ui/Container";
 import { Button } from "../ui/Button";
 import { MainNav } from "./MainNav";
 import { MobileNav } from "./MobileNav";
-import { ArrowRight, Send } from "lucide-react";
-import { siteConfig } from "@/config/site";
+import { ArrowRight } from "lucide-react";
 
 export const Header: React.FC = () => {
   return (
@@ -44,15 +43,6 @@ export const Header: React.FC = () => {
         {/* Action Buttons & Mobile Toggle */}
         <div className="flex items-center space-x-3">
           <div className="hidden sm:flex items-center space-x-2">
-            <a
-              href={siteConfig.links.telegram}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#475569] hover:text-[#EA580C] hover:bg-[#FFF7ED] rounded-full transition-colors border border-transparent hover:border-[#FED7AA]"
-            >
-              <Send className="h-3 w-3 text-[#EA580C]" />
-              <span>Telegram</span>
-            </a>
             <Link href="/jobs">
               <Button variant="primary" size="sm" className="rounded-full px-4 text-xs font-bold gap-1 shadow-xs">
                 <span>Explore Jobs</span>

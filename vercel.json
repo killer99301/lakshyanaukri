@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
+  "ignoreCommand": "git diff HEAD~1 HEAD --name-only | grep -qE '^src/' || exit 0; exit 1",
   "headers": [
     {
       "source": "/(.*)",

@@ -83,3 +83,28 @@ export function runTrustGateBaseline(
     warnings: errors.filter((e) => e.severity === "warning"),
   };
 }
+
+/**
+ * Run the Trust Gate with a proposed NEW record appended to the dataset.
+ *
+ * Phase 7 usage: Before create-pr-for-new-recruit.ts creates a GitHub PR,
+ * this validates the full dataset including the candidate draft record.
+ * If the Trust Gate fails, no PR is created.
+ *
+ * @param currentDataset - All current canonical opportunities (read-only)
+ * @param newRecord      - The new GovernmentRecruitment draft to validate
+ */
+export function runTrustGateWithNewRecord(
+  currentDataset: Opportunity[],
+  newRecord: Opportunity
+): TrustGateResult {
+  // Append the new record — do not replace any existing entry
+  const proposed = [...currentDataset, newRecord];
+  const errors = validateAllRecords(proposed);
+
+  return {
+    passed: !errors.some((e) => e.severity === "error"),
+    errors: errors.filter((e) => e.severity === "error"),
+    warnings: errors.filter((e) => e.severity === "warning"),
+  };
+}

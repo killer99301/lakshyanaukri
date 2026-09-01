@@ -23,7 +23,7 @@ import { join } from "node:path";
 import type { Opportunity, GovernmentRecruitment, UpdateType } from "@/types";
 import { GOVERNMENT_RECRUITMENTS } from "@/data/government";
 import { generateProposedRecord } from "./review-queue";
-import { runTrustGateWithProposal } from "./trust-gate";
+import { runTrustGateWithProposal, runTrustGateWithNewRecord } from "./trust-gate";
 import { checkWarningPolicy } from "./warning-policy";
 import type { ReviewItem } from "./types";
 
@@ -184,6 +184,104 @@ export function commitApprovedChange(
     skippedFields: skippedPaths,
     consistencyWarnings: postTgWarnings,
     acknowledgedWarnings: proposal.acknowledgedWarnings ?? [],
+  };
+}
+
+// ─── Phase 7C: Append a new canonical record ─────────────────
+//
+// Used by scripts/create-pr-for-new-recruit.ts to write the proposed
+// government.ts content to a PR branch. Never called from the scheduler.
+//
+// Guards (all must pass):
+//   1. draft.type === "government"
+//   2. draft.id is non-empty
+//   3. draft.slug is non-empty
+//   4. draft.id does not already exist in canonical records
+//   5. draft.slug does not already exist in canonical records
+//   6. Trust Gate passes with draft appended to full dataset
+//
+// After all guards pass: appends draft to governmentRecords and writes.
+
+/**
+ * Append a new GovernmentRecruitment draft to canonical data.
+ *
+ * INVARIANTS:
+ *   - Never called from the scheduler or discovery pipeline
+ *   - Only callable after a CandidateNewRecruitment has been built into a draft
+ *   - The caller (create-pr-for-new-recruit.ts) is responsible for git operations
+ *   - governmentRecords defaults to the live GOVERNMENT_RECRUITMENTS;
+ *     inject a smaller array in tests to avoid touching the real file
+ */
+export function appendNewRecord(
+  draft: GovernmentRecruitment,
+  options: {
+    dataPath?: string;
+    governmentRecords?: GovernmentRecruitment[];
+    opportunities?: Opportunity[];
+  } = {}
+): CommitResult {
+  const dataPath = options.dataPath ?? DEFAULT_DATA_PATH;
+  const govRecords = options.governmentRecords ?? GOVERNMENT_RECRUITMENTS;
+  const allOpportunities = options.opportunities ?? (govRecords as Opportunity[]);
+
+  const refuse = (reason: string): CommitResult => ({
+    committed: false,
+    refuseReason: reason,
+    opportunityId: draft.id,
+    changeType: "NEW_NOTICE",
+    fieldsWritten: [],
+    skippedFields: [],
+    consistencyWarnings: [],
+    acknowledgedWarnings: [],
+  });
+
+  // Guard 1: must be a government record
+  if (draft.type !== "government") {
+    return refuse(`draft.type is "${draft.type}", expected "government"`);
+  }
+
+  // Guard 2: id must be set and non-empty
+  if (!draft.id || !draft.id.trim()) {
+    return refuse("draft.id is empty or blank");
+  }
+
+  // Guard 3: slug must be set and non-empty
+  if (!draft.slug || !draft.slug.trim()) {
+    return refuse("draft.slug is empty or blank");
+  }
+
+  // Guard 4: id must not already exist
+  if (govRecords.some((r) => r.id === draft.id)) {
+    return refuse(`a canonical record with id "${draft.id}" already exists`);
+  }
+
+  // Guard 5: slug must not already exist
+  if (govRecords.some((r) => r.slug === draft.slug)) {
+    return refuse(`a canonical record with slug "${draft.slug}" already exists`);
+  }
+
+  // Guard 6: Trust Gate must pass with draft appended to full dataset
+  const tgResult = runTrustGateWithNewRecord(allOpportunities, draft as Opportunity);
+  if (!tgResult.passed) {
+    return refuse(
+      `Trust Gate failed: ${tgResult.errors.map((e) => e.message).join("; ")}`
+    );
+  }
+
+  // All guards passed — append and write
+  const updatedRecords = [...govRecords, draft];
+  writeGovernmentData(updatedRecords, dataPath);
+
+  const coreFields = ["id", "slug", "type", "title", "organizationId", "notificationNumber", "provenance"];
+
+  return {
+    committed: true,
+    opportunityId: draft.id,
+    changeType: "NEW_NOTICE",
+    fieldsWritten: coreFields,
+    skippedFields: [],
+    consistencyWarnings: tgResult.warnings.map((w) => w.message),
+    acknowledgedWarnings: [],
   };
 }
 

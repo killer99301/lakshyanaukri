@@ -34,35 +34,6 @@ export const Footer: React.FC = () => {
             <p className="text-xs sm:text-sm text-[#475569] leading-relaxed max-w-sm">
               Your trusted partner for finding career opportunities, government recruitment updates, competitive exam guides, and smart preparation tools.
             </p>
-            <div className="flex items-center space-x-3 pt-2">
-              <a
-                href={siteConfig.links.telegram}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Telegram"
-                className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-[#475569] hover:bg-[#FFF7ED] hover:text-[#EA580C] transition-colors"
-              >
-                <span className="text-xs font-bold">TG</span>
-              </a>
-              <a
-                href={siteConfig.links.youtube}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="YouTube"
-                className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-[#475569] hover:bg-[#FFF7ED] hover:text-[#EA580C] transition-colors"
-              >
-                <span className="text-xs font-bold">YT</span>
-              </a>
-              <a
-                href={siteConfig.links.twitter}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Twitter"
-                className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-[#475569] hover:bg-[#FFF7ED] hover:text-[#EA580C] transition-colors"
-              >
-                <span className="text-xs font-bold">X</span>
-              </a>
-            </div>
           </div>
 
           {/* Column 1: Explore */}
