@@ -462,13 +462,13 @@ export const SOURCE_REGISTRY: MonitoredSource[] = [
     organizationId: "ssc",
     mode: "ORG_DISCOVERY",
     linkedOpportunityIds: [],      // scans for any new SSC recruitment
-    enabled: true,
+    enabled: false,               // PROBE 2026-09-01: HTTP 200 but only 7 words — JS-rendered
     polling: DEFAULT_TIER3_POLLING,
     notes:
-      "Phase 7A: ORG_DISCOVERY source for SSC. Scans notification listing for new " +
-      "recruitment advertisements not yet in the canonical dataset. " +
-      "URL confirmed reachable locally (Phase 6). GitHub Actions reachability: PROBE_REQUIRED. " +
-      "Disable if source-probe returns non-200 from GitHub Actions environment.",
+      "Phase 7A: ORG_DISCOVERY source for SSC. " +
+      "Source-probe 2026-09-01: HTTP 200 from GH Actions Ubuntu but only 7 words extracted. " +
+      "Page content is JavaScript-rendered; our HTML fetcher cannot see notification links. " +
+      "Disabled until an alternative static URL is found or a headless-browser approach is added.",
   },
 
   // ── RRB org-discovery ────────────────────────────────────
@@ -488,8 +488,9 @@ export const SOURCE_REGISTRY: MonitoredSource[] = [
     polling: DEFAULT_TIER3_POLLING,
     notes:
       "Phase 7A: ORG_DISCOVERY source for RRB. Scans the Indian Railways recruitment section " +
-      "for new CEN notifications. Domain confirmed reachable locally. " +
-      "GitHub Actions reachability: PROBE_REQUIRED. " +
+      "for new CEN notifications. " +
+      "Source-probe 2026-09-01: CONFIRMED — HTTP 200, 678 words, keywords: notification, " +
+      "recruitment, vacancy. Reachable from GH Actions Ubuntu in 8.4s. " +
       "If this page URL changes, update to the current recruitment listing URL.",
   },
 
@@ -509,9 +510,9 @@ export const SOURCE_REGISTRY: MonitoredSource[] = [
     enabled: false,               // BLOCKED locally (HTTP 403) — enable after GH Actions probe
     polling: DEFAULT_TIER3_POLLING,
     notes:
-      "Phase 7A: ORG_DISCOVERY source for UPSC. upsc.gov.in returns HTTP 403 from local " +
-      "environment (Phase 6 audit). Enable only if source-probe confirms GitHub Actions " +
-      "can reach this URL. Until then, UPSC new-recruitment discovery is unavailable.",
+      "Phase 7A: ORG_DISCOVERY source for UPSC. upsc.gov.in returned HTTP 403 locally. " +
+      "Source-probe 2026-09-01: timed out after 56s from GH Actions Ubuntu (no response). " +
+      "Keep disabled. Try alternative UPSC URL in a future probe.",
   },
 
   // ══════════════════════════════════════════════════════════
@@ -561,7 +562,10 @@ export const SOURCE_REGISTRY: MonitoredSource[] = [
     linkedOpportunityIds: [],
     enabled: false,
     polling: DEFAULT_TIER3_POLLING,
-    notes: "Phase 7A Wave 2: RBI org-discovery. URL to be confirmed via source-probe.",
+    notes:
+      "Phase 7A Wave 2: RBI org-discovery. " +
+      "Source-probe 2026-09-01: REACHABLE from GH Actions Ubuntu — HTTP 200, 337 words, " +
+      "keyword 'notification' found. Enable when Wave 2 discovery is activated.",
   },
 
   {
@@ -575,7 +579,9 @@ export const SOURCE_REGISTRY: MonitoredSource[] = [
     linkedOpportunityIds: [],
     enabled: false,
     polling: DEFAULT_TIER3_POLLING,
-    notes: "Phase 7A Wave 2: NABARD org-discovery. URL to be confirmed via source-probe.",
+    notes:
+      "Phase 7A Wave 2: NABARD org-discovery. " +
+      "Source-probe 2026-09-01: timed out after 56s from GH Actions Ubuntu. Keep disabled.",
   },
 
   {
@@ -589,7 +595,10 @@ export const SOURCE_REGISTRY: MonitoredSource[] = [
     linkedOpportunityIds: [],
     enabled: false,
     polling: DEFAULT_TIER3_POLLING,
-    notes: "Phase 7A Wave 2: LIC org-discovery. URL to be confirmed via source-probe.",
+    notes:
+      "Phase 7A Wave 2: LIC org-discovery. " +
+      "Source-probe 2026-09-01: HTTP 404 from GH Actions Ubuntu — URL is wrong. " +
+      "Find the correct LIC recruitment listing URL before enabling.",
   },
 
   {
@@ -603,7 +612,10 @@ export const SOURCE_REGISTRY: MonitoredSource[] = [
     linkedOpportunityIds: [],
     enabled: false,
     polling: DEFAULT_TIER3_POLLING,
-    notes: "Phase 7A Wave 2: India Post org-discovery. URL to be confirmed via source-probe.",
+    notes:
+      "Phase 7A Wave 2: India Post org-discovery. " +
+      "Source-probe 2026-09-01: HTTP 404 from GH Actions Ubuntu — URL is wrong. " +
+      "Find the correct India Post recruitment listing URL before enabling.",
   },
 ];
 
