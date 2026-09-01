@@ -484,14 +484,23 @@ export const SOURCE_REGISTRY: MonitoredSource[] = [
     organizationId: "rrb",
     mode: "ORG_DISCOVERY",
     linkedOpportunityIds: [],
-    enabled: true,
+    enabled: false,               // CONFIRMED IP-BLOCK 2026-09-01 — see notes
     polling: DEFAULT_TIER3_POLLING,
     notes:
-      "Phase 7A: ORG_DISCOVERY source for RRB. Scans the Indian Railways recruitment section " +
-      "for new CEN notifications. " +
-      "Source-probe 2026-09-01: CONFIRMED — HTTP 200, 678 words, keywords: notification, " +
-      "recruitment, vacancy. Reachable from GH Actions Ubuntu in 8.4s. " +
-      "If this page URL changes, update to the current recruitment listing URL.",
+      "Phase 7A: ORG_DISCOVERY source for RRB. " +
+      "Source-probe 2026-09-01 (run 33527021843): CONFIRMED reachable — HTTP 200, 678 words, 8.4s. " +
+      "Reliability investigation 2026-09-01 (run 33530387966): ALL 5 fetch experiments failed with " +
+      "'TypeError: fetch failed' in <800ms each. E1 (isolated, no prior state) also failed — " +
+      "ruling out sequential-fetch rate-limiting as the cause. " +
+      "Root cause: indianrailways.gov.in is hosted on NIC (National Informatics Centre) " +
+      "infrastructure, which blocks outbound connections from Azure cloud IP ranges. " +
+      "GitHub Actions ubuntu-latest runners use an Azure East US IP pool; most of these IPs " +
+      "are blocked at the TCP layer. The source-probe succeeded because it drew an unblocked IP " +
+      "from the pool — behavior is non-deterministic across runs (~50-80% failure rate). " +
+      "No code change (delay, dedup, timeout increase, retry) can fix an IP-layer block. " +
+      "MANUAL DISCOVERY PATH: when a new CEN is announced, add it manually via " +
+      "appendNewRecord() / PR workflow. Check: " +
+      "https://indianrailways.gov.in/railwayboard/view_section.jsp?lang=0&id=0,1,304,366,554",
   },
 
   // ── UPSC org-discovery ───────────────────────────────────
