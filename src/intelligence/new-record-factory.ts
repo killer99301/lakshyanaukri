@@ -102,8 +102,12 @@ export function generateSlug(
     .filter((w) => w.length > 1 && !SLUG_STOP_WORDS.has(w))
     .slice(0, 6);
 
-  const yearSuffix = year ?? extractYear(title) ?? new Date().getFullYear().toString();
-  const base = [orgId, ...words, yearSuffix]
+  // Do NOT fall back to new Date().getFullYear() — that fabricates a year into the slug,
+  // producing an unstable identifier that changes meaning if the notification spans years.
+  const yearSuffix = year ?? extractYear(title);
+  const parts: string[] = [orgId, ...words];
+  if (yearSuffix) parts.push(yearSuffix);
+  const base = parts
     .join("-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
@@ -177,11 +181,13 @@ export function buildDraftGovernmentRecruitment(
     ? `${candidate.totalVacancies} Vacancies`
     : "Vacancies not specified — verify from official notification";
 
-  // application dates — default to today so schema validates;
-  // reviewer MUST correct these before PARTIALLY_VERIFIED
-  const notificationDate = candidate.postDate ?? today;
-  const openDate = candidate.applicationOpenDate ?? today;
-  const closeDate = candidate.applicationCloseDate ?? today;
+  // application dates — missing dates use "TBA" sentinel (not today), which passes the
+  // date sanity check (Invalid Date comparisons are false) and is honest to the reviewer.
+  // postDate is left undefined rather than fabricated; reviewer must fill it in.
+  const notificationDate = candidate.postDate;
+  const openDate = candidate.applicationOpenDate ?? "TBA";
+  const closeDate = candidate.applicationCloseDate ?? "TBA";
+  if (!candidate.postDate) missingFields.push("postDate");
   if (!candidate.applicationOpenDate) missingFields.push("application.openDate");
   if (!candidate.applicationCloseDate) missingFields.push("application.closeDate");
 
@@ -193,11 +199,15 @@ export function buildDraftGovernmentRecruitment(
   };
   if (!candidate.notifPdfUrl) missingFields.push("links.notification");
 
-  // slug and ID
+  // slug and ID — year derived from most authoritative available date (no fabrication)
+  const slugYear =
+    candidate.postDate?.slice(0, 4) ??
+    candidate.applicationOpenDate?.slice(0, 4) ??
+    candidate.applicationCloseDate?.slice(0, 4);
   const slug = generateSlug(
     candidate.organizationId,
     title,
-    candidate.postDate?.slice(0, 4),
+    slugYear,
     existingSlugs
   );
   const id = generateRecordId(candidate.organizationId, candidate.normalizedNotifNumber);
@@ -213,7 +223,7 @@ export function buildDraftGovernmentRecruitment(
     category: ORG_CATEGORY[candidate.organizationId] ?? "government",
     state: "All India",
     qualification: ORG_QUALIFICATION[candidate.organizationId] ?? "Graduate",
-    postDate: notificationDate,
+    postDate: candidate.postDate,
     notificationNumber,
     govType,
     totalVacancies,
@@ -228,6 +238,7 @@ export function buildDraftGovernmentRecruitment(
         name: "Details not yet declared",
         order: 1,
         status: "NOT_DECLARED",
+        certainty: "TBA",
       },
     ],
     links,

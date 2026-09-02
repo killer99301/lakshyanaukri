@@ -141,4 +141,31 @@ check("NRF12f: PR body contains missing fields section", prBody.includes("Missin
 const incompleteBody = generatePrBody(incompleteCandidate, incompleteDraft, incompleteMissing);
 check("NRF12g: incomplete candidate lists missing fields", incompleteBody.includes("title") && incompleteBody.includes("notificationNumber"));
 
+// ─── NRF13: No fabricated dates (regression for PR #1 bug) ───
+
+console.log("\nNRF13: Missing postDate must not be fabricated from new Date()");
+
+const noDatesCandidate = makeCandidate({
+  candidateId: buildCandidateId("ibps", normalizeNotificationNumber("CRP PO/MT-XV")),
+  organizationId: "ibps",
+  organizationName: "Institute of Banking Personnel Selection",
+  title: "Common Recruitment Process for Probationary Officers",
+  notificationNumber: "CRP PO/MT-XV",
+  notifPdfUrl: "https://www.ibps.in/wp-content/uploads/notification.pdf",
+  postDate: undefined,
+  applicationOpenDate: "2025-07-01",
+  applicationCloseDate: "2025-07-21",
+  normalizedNotifNumber: normalizeNotificationNumber("CRP PO/MT-XV"),
+});
+
+const { draft: noDraft, missingFields: noMissing } = buildDraftGovernmentRecruitment(noDatesCandidate);
+
+check("NRF13: 'postDate' not in missingFields when candidate.postDate is extracted", !fullMissing.includes("postDate"));
+check("NRF13b: draft.postDate is undefined when not extracted", noDraft.postDate === undefined);
+check("NRF13c: draft.application.notificationDate is undefined when not extracted", noDraft.application.notificationDate === undefined);
+check("NRF13d: 'postDate' is in missingFields", noMissing.includes("postDate"));
+check("NRF13e: slug year derives from applicationOpenDate when postDate absent", noDraft.slug.includes("2025"));
+check("NRF13f: applicationOpenDate and closeDate preserved", noDraft.application.openDate === "2025-07-01" && noDraft.application.closeDate === "2025-07-21");
+check("NRF13g: draft.postDate is not today", noDraft.postDate !== new Date().toISOString().slice(0, 10));
+
 console.log("\n✅ All NRF tests passed.\n");
