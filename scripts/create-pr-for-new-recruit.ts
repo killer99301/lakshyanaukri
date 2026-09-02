@@ -51,7 +51,10 @@ function err(msg: string) { console.error(`[PR-SCRIPT][ERROR] ${msg}`); }
 
 function exec(cmd: string, opts: { silent?: boolean } = {}): string {
   try {
-    return execSync(cmd, { encoding: "utf-8", stdio: opts.silent ? "pipe" : "inherit" }).trim();
+    // stdio: "inherit" routes output to the terminal and execSync returns null (not a string).
+    // Coerce to empty string before trimming so non-silent calls don't throw on .trim().
+    const out = execSync(cmd, { encoding: "utf-8", stdio: opts.silent ? "pipe" : "inherit" });
+    return (out ?? "").trim();
   } catch (e) {
     throw new Error(`Command failed: ${cmd}\n${String(e)}`);
   }

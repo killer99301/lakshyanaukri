@@ -18,7 +18,7 @@
 // Only after all 6 guards pass does the writer modify government.ts.
 // ═══════════════════════════════════════════════════════════
 
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Opportunity, GovernmentRecruitment, UpdateType } from "@/types";
 import { GOVERNMENT_RECRUITMENTS } from "@/data/government";
@@ -268,9 +268,16 @@ export function appendNewRecord(
     );
   }
 
-  // All guards passed — append and write
-  const updatedRecords = [...govRecords, draft];
-  writeGovernmentData(updatedRecords, dataPath);
+  // All guards passed — append the new record.
+  // When the file already exists (production path), append as raw text to produce a
+  // minimal git diff that leaves all existing record formatting untouched.
+  // When the file does not exist (test temp files), fall back to a full-write so the
+  // govRecords baseline content is present for test assertions.
+  if (existsSync(dataPath)) {
+    appendRecordText(draft, dataPath);
+  } else {
+    writeGovernmentData([...govRecords, draft], dataPath);
+  }
 
   const coreFields = ["id", "slug", "type", "title", "organizationId", "notificationNumber", "provenance"];
 
@@ -313,6 +320,32 @@ const FILE_HEADER =
   "\n" +
   "export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = ";
 
+/**
+ * Appends a single new record to the government.ts array without rewriting the file.
+ * Finds the last `\n];` and inserts the JSON-serialized record before it, preserving
+ * all existing record formatting exactly and producing a minimal git diff.
+ */
+function appendRecordText(record: GovernmentRecruitment, filePath: string): void {
+  // Normalize to LF so the append produces a clean diff regardless of OS line endings.
+  // Without this, core.autocrlf=true on Windows causes every existing line to appear changed.
+  const existing = readFileSync(filePath, "utf-8").replace(/\r\n/g, "\n");
+  const closingIdx = existing.lastIndexOf("\n];");
+  if (closingIdx === -1) {
+    throw new Error(`Cannot locate array closing "];\\n" in: ${filePath}`);
+  }
+  const recordJson = JSON.stringify(record, null, 2)
+    .split("\n")
+    .map((line) => "  " + line)
+    .join("\n");
+  const prefix = existing.slice(0, closingIdx);
+  // If the last element already has a trailing comma, don't add another.
+  const separator = prefix.trimEnd().endsWith(",") ? "\n" : ",\n";
+  const newContent = prefix + separator + recordJson + existing.slice(closingIdx);
+  writeFileSync(filePath, newContent, "utf-8");
+}
+
+// Full-file rewrite used as fallback when the target file does not yet exist.
+// Produces a JSON-normalized representation that TypeScript accepts unchanged.
 function writeGovernmentData(records: GovernmentRecruitment[], path: string): void {
   const body = JSON.stringify(records, null, 2);
   writeFileSync(path, FILE_HEADER + body + ";\n", "utf-8");

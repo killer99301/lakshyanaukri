@@ -318,7 +318,10 @@ export function deriveStatusBadge(opp: Opportunity, now: Date): StatusBadgeInfo 
     };
   }
 
-  // 5. Newly announced (posted within last 7 days)
+  // 5. Newly announced (posted within last 7 days) — skip if postDate not extracted
+  if (!opp.postDate) {
+    return { label: "Open", badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200", isClosed: false };
+  }
   const postDate = stripTime(new Date(opp.postDate));
   const today = stripTime(now);
   const daysSincePost = diffCalendarDays(postDate, today);

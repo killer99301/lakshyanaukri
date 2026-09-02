@@ -91,7 +91,7 @@ export type ApplicationStatus =
   | "APPLICATIONS_CLOSED";
 
 export interface ApplicationWindow {
-  notificationDate: string;       // ISO
+  notificationDate?: string;      // ISO — optional: not always extractable from source
   openDate: string;               // ISO
   closeDate: string;              // ISO
   extendedCloseDate?: string;     // ISO — if officially extended
@@ -196,7 +196,7 @@ export interface BaseOpportunity {
   category: Category;
   state: string;                  // "Bihar", "All India", "Karnataka"
   qualification: Qualification;
-  postDate: string;               // ISO
+  postDate?: string;              // ISO — optional: not always known at discovery time
 
   provenance: Provenance;
   updates?: UpdateRecord[];
