@@ -761,5 +761,44 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       careerCampus2: "https://cc2.careercampus.in/upsc-cse-prep",
       calcInfinityAge: "https://calcinfinity.com/age-calculator?cutoff=2026-08-01",
     },
-  },
+  },,
+  {
+    "id": "ibps-crppomtxv",
+    "slug": "ibps-common-process-probationary-officers-management-trainees-2025",
+    "type": "government",
+    "title": "COMMON RECRUITMENT PROCESS FOR RECRUITMENT OF PROBATIONARY OFFICERS/ MANAGEMENT TRAINEES",
+    "organizationId": "ibps",
+    "organizationName": "Institute of Banking Personnel Selection",
+    "shortDescription": "Institute of Banking Personnel Selection recruitment notification discovered on 2026-09-02. Complete details pending verification.",
+    "category": "banking",
+    "state": "All India",
+    "qualification": "Graduate",
+    "notificationNumber": "CRP PO/MT -XV",
+    "govType": "PSU Bank",
+    "totalVacancies": 202,
+    "vacanciesDisplay": "202 Vacancies",
+    "application": {
+      "openDate": "2025-07-01",
+      "closeDate": "2025-07-21"
+    },
+    "examStages": [
+      {
+        "name": "Details not yet declared",
+        "order": 1,
+        "status": "NOT_DECLARED"
+      }
+    ],
+    "links": {
+      "notification": "https://www.ibps.in/wp-content/uploads/Detailed-Notification_CRP-PO-XV_10.7.25.pdf",
+      "apply": "https://ibps.in",
+      "website": "https://ibps.in"
+    },
+    "provenance": {
+      "status": "NOT_VERIFIED",
+      "lastVerifiedAt": "2026-09-02",
+      "primarySourceUrl": "https://www.ibps.in/wp-content/uploads/Detailed-Notification_CRP-PO-XV_10.7.25.pdf",
+      "primarySourceType": "OFFICIAL_NOTIFICATION",
+      "notes": "Auto-discovered from https://www.ibps.in/wp-content/uploads/Detailed-Notification_CRP-PO-XV_10.7.25.pdf on 2026-09-02 (source tier 3). Confidence: 100%. Missing fields: postDate. STATUS: Requires human verification against official notification before setting to PARTIALLY_VERIFIED."
+    }
+  }
 ];
