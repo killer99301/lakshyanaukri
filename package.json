@@ -22,6 +22,8 @@
     "intelligence:writer-new-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/writer-new-record.test.ts",
     "intake": "npx tsx --tsconfig tsconfig.json scripts/intake.ts",
     "intelligence:intake-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/intake.test.ts",
+    "intelligence:discover": "npx tsx --tsconfig tsconfig.json scripts/run-multi-source-discovery.ts",
+    "intelligence:discover-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/multi-source/clusterer.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/multi-source/rss-adapter.test.ts",
     "intelligence:confirm-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/confirmer.test.ts",
     "intelligence:harness": "npx tsx --tsconfig tsconfig.json tests/intelligence/confirmation-harness.test.ts",
     "intelligence:queue-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue.test.ts",
@@ -32,6 +34,7 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "fast-xml-parser": "^5.11.1",
     "lucide-react": "^1.31.0",
     "next": "16.3.1",
     "pdf-parse": "^2.4.5",
