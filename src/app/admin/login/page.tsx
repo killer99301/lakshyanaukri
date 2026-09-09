@@ -9,7 +9,6 @@
 // ═══════════════════════════════════════════════════════════
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -226,7 +225,6 @@ function useCountdown(initialSeconds: number) {
 // ─── Main page ────────────────────────────────────────────
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [stage, setStage] = useState<Stage>(1);
   const [showRecovery, setShowRecovery] = useState(false);
 
@@ -263,7 +261,7 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ identity, password }),
       });
       if (res.ok) {
-        router.push("/admin/history");
+        window.location.href = "/admin/history";
       } else {
         const data = await res.json().catch(() => ({ error: "Login failed" }));
         setError(data.error ?? "Login failed");
