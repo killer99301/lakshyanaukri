@@ -801,5 +801,47 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       "primarySourceType": "OFFICIAL_NOTIFICATION",
       "notes": "Auto-discovered from https://www.ibps.in/wp-content/uploads/Detailed-Notification_CRP-PO-XV_10.7.25.pdf on 2026-09-02 (source tier 3). Confidence: 100%. Missing fields: postDate. STATUS: Requires human verification against official notification before setting to PARTIALLY_VERIFIED."
     }
+  },
+  {
+    "id": "ibps-crprrbsxv",
+    "slug": "ibps-common-process-officers-scale-ii-iii-2026",
+    "type": "government",
+    "title": "Common Recruitment Process for Recruitment of Officers (Scale-I, II & III) and Office Assistants (Multipurpose) in Regional Rural Banks (RRBs)",
+    "organizationId": "ibps",
+    "organizationName": "Institute of Banking Personnel Selection",
+    "shortDescription": "Institute of Banking Personnel Selection recruitment notification discovered on 2026-09-09. Complete details pending verification.",
+    "category": "banking",
+    "state": "All India",
+    "qualification": "Graduate",
+    "postDate": "2026-09-01",
+    "notificationNumber": "CRP RRBs XV",
+    "govType": "PSU Bank",
+    "totalVacancies": 13706,
+    "vacanciesDisplay": "13706 Vacancies",
+    "application": {
+      "notificationDate": "2026-09-01",
+      "openDate": "2026-09-01",
+      "closeDate": "2026-09-21"
+    },
+    "examStages": [
+      {
+        "name": "Details not yet declared",
+        "order": 1,
+        "status": "NOT_DECLARED",
+        "certainty": "TBA"
+      }
+    ],
+    "links": {
+      "notification": "https://www.ibps.in/wp-content/uploads/CRP-RRBs-XV-notification.pdf",
+      "apply": "https://ibps.in",
+      "website": "https://ibps.in"
+    },
+    "provenance": {
+      "status": "NOT_VERIFIED",
+      "lastVerifiedAt": "2026-09-09",
+      "primarySourceUrl": "https://www.ibps.in/wp-content/uploads/CRP-RRBs-XV-notification.pdf",
+      "primarySourceType": "OFFICIAL_NOTIFICATION",
+      "notes": "Vacancy total: 13,706 indicative (Annexure I, CRP-RRBs-XV notification PDF pages 45-54). Tripura Gramin Bank NR (Not Reported) across all post types — excluded from total. Breakdown: Office Assistants 7,423 + Officer Scale-I 3,937 + Officer Scale-II 666 + Officer Scale-III 220 = 13,246 (NR-adjusted). Advertised figure 13,706 per notification cover. Correction: value 1979 in PDF is from 'Ex-Servicemen Rules, 1979' (legal citation), not a vacancy count. STATUS: Requires human verification before setting to PARTIALLY_VERIFIED."
+    }
   }
 ];
