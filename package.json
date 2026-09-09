@@ -33,6 +33,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "@node-rs/argon2": "^2.2.0",
+    "@upstash/redis": "^1.38.4",
     "clsx": "^2.1.1",
     "fast-xml-parser": "^5.11.1",
     "lucide-react": "^1.31.0",
@@ -40,6 +43,7 @@
     "pdf-parse": "^2.4.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "resend": "^6.26.0",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
