@@ -101,6 +101,21 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     // Session valid — pass through with admin ID header
     const response = NextResponse.next();
     response.headers.set("x-admin-id", session.admin_id);
+
+    // Refresh last_used_at (idle timeout reset) — fire-and-forget so it does
+    // not add latency to every request. Does NOT extend expires_at (absolute
+    // expiry stays fixed). Guards on revoked_at IS NULL and expires_at > now()
+    // so a revoked or expired session never gets a phantom refresh.
+    void sql`
+      UPDATE admin_sessions
+      SET last_used_at = ${new Date().toISOString()}
+      WHERE id = ${session.id}
+        AND revoked_at IS NULL
+        AND expires_at > ${new Date().toISOString()}
+    `.catch((err: unknown) => {
+      console.error("[middleware] Failed to refresh last_used_at:", err);
+    });
+
     return response;
   } catch (err) {
     console.error("[middleware] DB error:", err);
