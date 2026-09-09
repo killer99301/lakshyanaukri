@@ -762,4 +762,46 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       calcInfinityAge: "https://calcinfinity.com/age-calculator?cutoff=2026-08-01",
     },
   },
+  {
+    "id": "ibps-crprrbsxv",
+    "slug": "ibps-common-process-officers-scale-ii-iii-2026",
+    "type": "government",
+    "title": "Common Recruitment Process for Recruitment of Officers (Scale-I, II & III) and Office Assistants (Multipurpose) in Regional Rural Banks (RRBs)",
+    "organizationId": "ibps",
+    "organizationName": "Institute of Banking Personnel Selection",
+    "shortDescription": "Institute of Banking Personnel Selection recruitment notification discovered on 2026-09-09. Complete details pending verification.",
+    "category": "banking",
+    "state": "All India",
+    "qualification": "Graduate",
+    "postDate": "2026-09-01",
+    "notificationNumber": "CRP RRBs XV",
+    "govType": "PSU Bank",
+    "totalVacancies": 13706,
+    "vacanciesDisplay": "13706 Vacancies",
+    "application": {
+      "notificationDate": "2026-09-01",
+      "openDate": "2026-09-01",
+      "closeDate": "2026-09-21"
+    },
+    "examStages": [
+      {
+        "name": "Details not yet declared",
+        "order": 1,
+        "status": "NOT_DECLARED",
+        "certainty": "TBA"
+      }
+    ],
+    "links": {
+      "notification": "https://www.ibps.in/wp-content/uploads/CRP-RRBs-XV-notification.pdf",
+      "apply": "https://ibps.in",
+      "website": "https://ibps.in"
+    },
+    "provenance": {
+      "status": "NOT_VERIFIED",
+      "lastVerifiedAt": "2026-09-09",
+      "primarySourceUrl": "https://www.ibps.in/wp-content/uploads/CRP-RRBs-XV-notification.pdf",
+      "primarySourceType": "OFFICIAL_NOTIFICATION",
+      "notes": "Auto-discovered from https://ibps.in/crp-rrb-xv/ on 2026-09-09 (source tier 3). Confidence: 100%. Missing fields: none. STATUS: Requires human verification against official notification before setting to PARTIALLY_VERIFIED."
+    }
+  }
 ];
