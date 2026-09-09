@@ -169,6 +169,38 @@ const realPath = join(process.cwd(), "src", "data", "government.ts");
 const realContentsAfter = readFileSync(realPath, "utf-8");
 check("WNR8: real government.ts was not modified", !realContentsAfter.includes(g7draft.id));
 
+// ─── WNR9: Minimal-diff append to existing file ──────────────
+// When the target file already exists (production path), appendNewRecord must use
+// the text-append strategy: insert the new record before "\n];" without touching
+// anything else. Existing record formatting must be character-for-character identical.
+
+console.log("\nWNR9: Text-append strategy preserves existing file content");
+
+import { writeFileSync as _writeFileSync } from "node:fs";
+
+const g9existing = makeExistingRecord();
+const g9draft = makeMinimalDraft();
+const g9path = track(tmpPath());
+
+// Write a minimal government.ts-style file with one record already in it
+const g9initial =
+  'import type { GovernmentRecruitment } from "@/types";\n' +
+  "export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [\n" +
+  `  ${JSON.stringify(g9existing, null, 2).split("\n").join("\n  ")}\n` +
+  "];\n";
+_writeFileSync(g9path, g9initial, "utf-8");
+
+const g9result = appendNewRecord(g9draft, { dataPath: g9path, governmentRecords: [g9existing] });
+
+const g9content = readFileSync(g9path, "utf-8");
+check("WNR9: committed is true", g9result.committed);
+check("WNR9b: existing record id is still in file", g9content.includes(g9existing.id));
+check("WNR9c: new draft id appears in file", g9content.includes(g9draft.id));
+// The initial content up to the closing bracket must be unchanged
+const initialBeforeClose = g9initial.slice(0, g9initial.lastIndexOf("\n];"));
+check("WNR9d: existing content is unchanged (minimal diff)", g9content.startsWith(initialBeforeClose));
+check("WNR9e: file still ends with \\n];\\n", g9content.endsWith("\n];\n"));
+
 // ─── Cleanup ──────────────────────────────────────────────────
 
 for (const p of tempFiles) {

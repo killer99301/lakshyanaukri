@@ -142,6 +142,8 @@ const NOTIF_RE = [
   /\b(advt\.?\s*no\.?\s*[\d\/\-]+(?:\/\d{4})?)/i,
   /\b(no\.?\s*\d[\d\/\-]+(?:\/\d{4})?)/i,
   /\b(cen[\-\s]?\d+\/\d{4})\b/i,
+  // Handles compound codes like BCECEB(BSFC)-2026/01 — org code + optional parenthesised suffix + year/seq
+  /\b([A-Z]{2,10}(?:\([A-Z]{2,8}\))?[\-\/]\d{4}(?:\/\d{1,2})?)\b/,
   /\b([A-Z]{2,10}[\-\/]\d{2,4}(?:\/\d{4})?)\b/,
   /\b([A-Z]{2,8}[\-\s]?\d{4})\b/,
 ];

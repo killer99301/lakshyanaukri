@@ -211,7 +211,11 @@ export function sortOpportunities(
   switch (sortBy) {
     case "latest":
       return sorted.sort(
-        (a, b) => new Date(b.postDate).getTime() - new Date(a.postDate).getTime()
+        (a, b) => {
+          const aTime = a.postDate ? new Date(a.postDate).getTime() : 0;
+          const bTime = b.postDate ? new Date(b.postDate).getTime() : 0;
+          return bTime - aTime;
+        }
       );
 
     case "deadline":
