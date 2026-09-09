@@ -28,25 +28,14 @@ import {
   isDuplicateOfCanonical,
   isDuplicateCandidate,
 } from "./dedup";
+import {
+  RECRUITMENT_KEYWORDS,
+  OPERATIONAL_KEYWORDS,
+  deriveOrgName,
+} from "./org-registry";
 
-// ─── Keyword filters ──────────────────────────────────────────
-
-// A notice is a NEW RECRUITMENT candidate if it hits at least one of these.
-const RECRUITMENT_KEYWORDS = [
-  "notification", "advertisement", "advt", "recruitment", "vacancy",
-  "vacancies", "bharti", "engagement", "selection post", "apply",
-  "online application", "direct recruitment",
-];
-
-// Operational update keywords — if present the notice is NOT a new recruitment.
-// These belong to the existing field-update pipeline.
-const OPERATIONAL_KEYWORDS = [
-  "result", "merit list", "final list", "answer key", "admit card",
-  "hall ticket", "cut off", "waiting list", "interview letter",
-  "date sheet", "time table", "postpone", "cancelled", "corrigendum",
-  "erratum", "extension of date", "joining instructions", "appointment",
-  "downloading", "download link", "link activated",
-];
+// Re-export so intake.ts can keep importing deriveOrgName from this module.
+export { deriveOrgName };
 
 // ─── Internal link representation ────────────────────────────
 
@@ -167,23 +156,7 @@ export function isNewRecruitmentNotice(text: string): boolean {
 }
 
 // ─── Org name registry ────────────────────────────────────────
-
-const ORG_NAMES: Record<string, string> = {
-  ssc:       "Staff Selection Commission",
-  rrb:       "Railway Recruitment Boards",
-  upsc:      "Union Public Service Commission",
-  bpsc:      "Bihar Public Service Commission",
-  ibps:      "Institute of Banking Personnel Selection",
-  sbi:       "State Bank of India",
-  rbi:       "Reserve Bank of India",
-  nabard:    "National Bank for Agriculture and Rural Development",
-  lic:       "Life Insurance Corporation of India",
-  indiapost: "India Post",
-};
-
-export function deriveOrgName(orgId: string): string {
-  return ORG_NAMES[orgId] ?? orgId.toUpperCase();
-}
+// Defined in org-registry.ts; re-exported above so existing callers are unaffected.
 
 // ─── Main discovery function ──────────────────────────────────
 

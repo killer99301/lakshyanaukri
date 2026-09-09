@@ -20,62 +20,17 @@
 //   Collision-safe: if slug exists, appends "-<candidateId[:4]>".
 // ═══════════════════════════════════════════════════════════
 
-import type { GovernmentRecruitment, Category, Qualification } from "@/types";
+import type { GovernmentRecruitment } from "@/types";
 import type { CandidateNewRecruitment } from "./types";
+import {
+  ORG_CATEGORY,
+  ORG_GOV_TYPE,
+  ORG_DOMAIN,
+  ORG_QUALIFICATION,
+} from "./org-registry";
 
 // ─── Org metadata registry ────────────────────────────────────
-
-const ORG_CATEGORY: Record<string, Category> = {
-  ssc:       "ssc",
-  rrb:       "railway",
-  upsc:      "state-psc",
-  bpsc:      "state-psc",
-  ibps:      "banking",
-  sbi:       "banking",
-  rbi:       "banking",
-  nabard:    "banking",
-  lic:       "government",
-  indiapost: "government",
-};
-
-const ORG_GOV_TYPE: Record<string, "Central Govt" | "State Govt" | "PSU Bank"> = {
-  ssc:       "Central Govt",
-  rrb:       "Central Govt",
-  upsc:      "Central Govt",
-  bpsc:      "State Govt",
-  ibps:      "PSU Bank",
-  sbi:       "PSU Bank",
-  rbi:       "Central Govt",
-  nabard:    "PSU Bank",
-  lic:       "Central Govt",
-  indiapost: "Central Govt",
-};
-
-const ORG_DOMAIN: Record<string, string> = {
-  ssc:       "ssc.gov.in",
-  rrb:       "indianrailways.gov.in",
-  upsc:      "upsc.gov.in",
-  bpsc:      "bpsc.bih.nic.in",
-  ibps:      "ibps.in",
-  sbi:       "sbi.co.in",
-  rbi:       "rbi.org.in",
-  nabard:    "nabard.org",
-  lic:       "licindia.in",
-  indiapost: "indiapost.gov.in",
-};
-
-const ORG_QUALIFICATION: Record<string, Qualification> = {
-  ssc:       "Graduate",
-  rrb:       "Graduate",
-  upsc:      "Graduate",
-  bpsc:      "Graduate",
-  ibps:      "Graduate",
-  sbi:       "Graduate",
-  rbi:       "Graduate",
-  nabard:    "Graduate",
-  lic:       "Graduate",
-  indiapost: "10th Pass",
-};
+// Defined in org-registry.ts and imported above.
 
 // ─── Slug generation ──────────────────────────────────────────
 

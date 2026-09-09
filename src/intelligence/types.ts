@@ -320,6 +320,9 @@ export interface CandidateNewRecruitment {
   totalVacancies?: number;
   govType?: "Central Govt" | "State Govt" | "PSU Bank";
 
+  // Multi-source corroboration (Phase 9A)
+  additionalSourceIds?: string[];     // other sourceIds that also found this recruitment
+
   // Dedup fingerprints — always set (fallback to title-derived values if necessary)
   normalizedNotifNumber: string;      // uppercase, stripped, for dedup
   sourceUrlFingerprint: string;       // normalized PDF/notice URL
