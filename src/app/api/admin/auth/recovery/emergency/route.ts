@@ -87,10 +87,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  // Mark code as used
-  await sql`
-    UPDATE recovery_codes SET used_at = now() WHERE id = ${matchedCodeId}
+  // Atomic mark-as-used: guard ensures a concurrent request that already
+  // consumed this code (between the SELECT above and this UPDATE) is rejected.
+  // 0 rows → another request won the race first.
+  const updateResult = await sql`
+    UPDATE recovery_codes
+    SET used_at = now()
+    WHERE id = ${matchedCodeId}
+      AND used_at IS NULL
+    RETURNING id
   `;
+
+  if (!updateResult.length) {
+    await audit("emergency_code.failed", { adminId, ip });
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  }
 
   await revokeAllSessions(adminId);
 

@@ -67,11 +67,17 @@ export async function createRecoveryTransaction(
 /**
  * Verify an OTP for a transaction.
  * Returns: 'ok' | 'expired' | 'used' | 'exhausted' | 'invalid'
+ *
+ * Uses atomic UPDATE … RETURNING to prevent TOCTOU race conditions.
+ * Two concurrent correct-OTP requests will each try to win the
+ * "mark as used" UPDATE; only the one that finds used_at IS NULL will
+ * get a row back — the other gets 0 rows and returns "used".
  */
 export async function verifyOtp(
   transactionId: string,
   otp: string
 ): Promise<"ok" | "expired" | "used" | "exhausted" | "invalid"> {
+  // Step 1: SELECT the transaction — we need otp_hash to verify the HMAC.
   const rows = await sql`
     SELECT id, admin_id, otp_hash, attempts, expires_at, used_at, superseded_at
     FROM recovery_transactions
@@ -83,40 +89,52 @@ export async function verifyOtp(
 
   const tx = rows[0];
 
-  // Already used
+  // Step 2: Pre-check state (fast path — avoids unnecessary DB writes).
   if (tx.used_at) return "used";
-
-  // Superseded
   if (tx.superseded_at) return "expired";
-
-  // Expired
   if (new Date(tx.expires_at) < new Date()) return "expired";
-
-  // Exhausted
   if (tx.attempts >= MAX_OTP_ATTEMPTS) return "exhausted";
 
-  // Validate hash
+  // Step 3: Compute expected hash and compare.
   const expectedHash = hashOtp(otp, transactionId);
   const valid = expectedHash === tx.otp_hash;
 
   if (!valid) {
-    // Increment attempts
-    await sql`
+    // Step 4: Atomic attempt increment — guard prevents double-consuming.
+    // Returns 0 rows if a concurrent request already consumed the transaction.
+    const incRows = await sql`
       UPDATE recovery_transactions
       SET attempts = attempts + 1
       WHERE id = ${transactionId}
+        AND used_at IS NULL
+        AND superseded_at IS NULL
+        AND expires_at > now()
+      RETURNING attempts
     `;
-    // Check if now exhausted
-    if (tx.attempts + 1 >= MAX_OTP_ATTEMPTS) return "exhausted";
+    if (!incRows.length) {
+      // A concurrent request consumed the transaction first.
+      return "used";
+    }
+    if (incRows[0].attempts >= MAX_OTP_ATTEMPTS) return "exhausted";
     return "invalid";
   }
 
-  // Mark used
-  await sql`
+  // Step 5: Atomic mark-as-used — only one concurrent winner possible.
+  // If used_at IS NULL is false (another request won the race), 0 rows returned.
+  const usedRows = await sql`
     UPDATE recovery_transactions
     SET used_at = now()
     WHERE id = ${transactionId}
+      AND used_at IS NULL
+      AND superseded_at IS NULL
+      AND expires_at > now()
+    RETURNING id
   `;
+
+  if (!usedRows.length) {
+    // Another concurrent request beat us to it.
+    return "used";
+  }
 
   return "ok";
 }
@@ -151,31 +169,30 @@ export async function createResetToken(
   return rawToken;
 }
 
-/** Validate a reset token. Returns adminId + tokenId or null. Marks used_at. */
+/**
+ * Validate a reset token. Returns adminId + tokenId or null. Marks used_at.
+ *
+ * Uses a single atomic UPDATE … RETURNING to eliminate the SELECT-then-UPDATE
+ * race: two concurrent calls with the same token will each attempt the UPDATE,
+ * but only the first finds used_at IS NULL — the second gets 0 rows → null.
+ */
 export async function verifyResetToken(
   resetToken: string
 ): Promise<{ adminId: string; tokenId: string } | null> {
   const tokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
 
+  // Atomic: mark as used only when not already used and not expired.
+  // 0 rows → already used, expired, or never existed.
   const rows = await sql`
-    SELECT id, admin_id, expires_at, used_at
-    FROM recovery_reset_tokens
+    UPDATE recovery_reset_tokens
+    SET used_at = now()
     WHERE token_hash = ${tokenHash}
-    LIMIT 1
+      AND used_at IS NULL
+      AND expires_at > now()
+    RETURNING id, admin_id
   `;
 
   if (!rows.length) return null;
 
-  const tok = rows[0];
-
-  if (tok.used_at) return null;
-  if (new Date(tok.expires_at) < new Date()) return null;
-
-  await sql`
-    UPDATE recovery_reset_tokens
-    SET used_at = now()
-    WHERE id = ${tok.id}
-  `;
-
-  return { adminId: tok.admin_id, tokenId: tok.id };
+  return { adminId: rows[0].admin_id, tokenId: rows[0].id };
 }
