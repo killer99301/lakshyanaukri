@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// Real-implementation auth tests — AUTH-R1 through AUTH-R26
+// Real-implementation auth tests — AUTH-R1 through AUTH-R27
 // ═══════════════════════════════════════════════════════════
 //
 // Run with:
@@ -69,7 +69,7 @@ async function test(
 
 async function main(): Promise<void> {
   console.log("\n════════════════════════════════════════");
-  console.log("  Auth Real-Implementation Tests — AUTH-R1–AUTH-R26");
+  console.log("  Auth Real-Implementation Tests — AUTH-R1–AUTH-R27");
   console.log("════════════════════════════════════════\n");
 
   // Dynamic imports — safe because DATABASE_URL is confirmed set above.
@@ -429,6 +429,31 @@ async function main(): Promise<void> {
     await revokeSession(token);
     return finalExpiry === initialExpiry;
   }, "absolute expiry (expires_at) not extended by idle refresh");
+
+  await test("AUTH-R27", async () => {
+    // Regression: proxy date comparison must handle Date objects returned by Neon.
+    // Before fix: `session.expires_at > isoString` evaluated to false because
+    // `Date > string` coerces the string to NaN — rejecting every valid session.
+    // After fix: `new Date(session.expires_at) > new Date(...)` — Date vs Date.
+    const token = await createSession(testAdminId, "127.0.0.1", "regression-ua");
+    const tokenHash = hashToken(token);
+    const rows = await sql`
+      SELECT expires_at, last_used_at
+      FROM admin_sessions
+      WHERE token_hash = ${tokenHash}
+      LIMIT 1
+    `;
+    await revokeSession(token);
+    if (!rows.length) return false;
+    const session = rows[0];
+    const now = new Date();
+    const idleDeadline = new Date(Date.now() - 30 * 60 * 1000);
+    // Fixed comparison — must be true for a freshly created session
+    const fixedValid = new Date(session.expires_at) > now && new Date(session.last_used_at) > idleDeadline;
+    // Broken comparison — must be false (proves the old bug was real)
+    const brokenValid = (session.expires_at as unknown) > now.toISOString() && (session.last_used_at as unknown) > idleDeadline.toISOString();
+    return fixedValid === true && brokenValid === false;
+  }, "proxy date comparison: new Date(session.expires_at) > now handles Neon Date objects (regression for Date>string NaN bug)");
 
   // ─── Cleanup ─────────────────────────────────────────────────────────
 

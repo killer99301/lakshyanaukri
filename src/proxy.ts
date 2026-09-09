@@ -117,10 +117,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       try {
         const tokenHash = await sha256Hex(token);
         const sql = neon(dbUrl);
-        const now = new Date().toISOString();
-        const idleDeadline = new Date(
-          Date.now() - 30 * 60 * 1000
-        ).toISOString(); // 30 min ago
+        const now = new Date();
+        const idleDeadline = new Date(Date.now() - 30 * 60 * 1000); // 30 min ago
 
         const rows = await sql`
           SELECT id, admin_id, expires_at, last_used_at, revoked_at
@@ -133,8 +131,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
           const session = rows[0];
           const isValid =
             !session.revoked_at &&
-            session.expires_at > now &&
-            session.last_used_at > idleDeadline;
+            new Date(session.expires_at) > now &&
+            new Date(session.last_used_at) > idleDeadline;
 
           if (isValid) {
             const response = NextResponse.next();
