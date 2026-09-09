@@ -263,7 +263,7 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ identity, password }),
       });
       if (res.ok) {
-        router.push("/admin/intake");
+        router.push("/admin/history");
       } else {
         const data = await res.json().catch(() => ({ error: "Login failed" }));
         setError(data.error ?? "Login failed");
