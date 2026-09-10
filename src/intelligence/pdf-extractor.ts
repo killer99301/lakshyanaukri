@@ -37,6 +37,15 @@
 //     use the extracted text.
 // ═══════════════════════════════════════════════════════════
 
+// pdfjs-dist executes `new DOMMatrix()` at module scope; absent on Vercel Lambda.
+if (typeof globalThis.DOMMatrix === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).DOMMatrix = class DOMMatrix {
+    a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+    constructor(_init?: string | number[]) {}
+  };
+}
+
 // Injectable PDF fetch function — used by tests to avoid live network calls.
 // Tests return a pre-built text fixture; production uses defaultExtractPdf.
 export type FetchPdfFn = (url: string) => Promise<{
