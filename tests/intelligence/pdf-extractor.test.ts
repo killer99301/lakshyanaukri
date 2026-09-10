@@ -90,3 +90,31 @@ test("PEX3: extractPdfFromBuffer returns ok=false for empty buffer", async () =>
     "expected non-empty error message"
   );
 });
+
+test("PEX4: pdfjs-dist GlobalWorkerOptions accessible and workerSrc is non-empty (Phase 9G regression)", async () => {
+  // Regression for: Cannot find module '/var/task/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+  // Root cause: pdfjs-dist was bundled by Turbopack, so import.meta.url inside pdfjs-dist
+  // pointed to the bundle directory rather than node_modules. The default relative
+  // workerSrc ("./pdf.worker.mjs") then resolved to a nonexistent path inside the bundle.
+  // Fix: pdfjs-dist added to serverExternalPackages so Node.js loads it from node_modules
+  // at Lambda runtime, making workerSrc resolve correctly to the actual worker file.
+  //
+  // This test verifies that pdfjs-dist is importable (resolves from node_modules), that
+  // GlobalWorkerOptions.workerSrc is set to a non-empty path (worker mode is available),
+  // and that extractPdfFromBuffer succeeds — confirming both paths work together.
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { GlobalWorkerOptions } = await import("pdfjs-dist/legacy/build/pdf.mjs") as any;
+
+  assert.ok(
+    GlobalWorkerOptions && typeof GlobalWorkerOptions.workerSrc === "string" && GlobalWorkerOptions.workerSrc.length > 0,
+    `GlobalWorkerOptions.workerSrc must be a non-empty string; got: ${JSON.stringify(GlobalWorkerOptions?.workerSrc)}`
+  );
+
+  const { extractPdfFromBuffer } = await import("@/intelligence/pdf-extractor");
+  const fixturePath = join(process.cwd(), "tests", "fixtures", "minimal-test.pdf");
+  const buf = readFileSync(fixturePath);
+
+  const result = await extractPdfFromBuffer(buf);
+  assert.ok(result.ok, `expected ok=true with default workerSrc, got: ${result.error}`);
+});
