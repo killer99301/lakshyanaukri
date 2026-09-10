@@ -23,7 +23,7 @@ export const MULTI_SOURCE_CONFIGS: MultiSourceConfig[] = [
     tier: 5,
     enabled: true,
     rateLimitDelayMs: 8_000,
-    notes: "WordPress RSS. Items cover all major govt orgs. Classified by org keyword.",
+    notes: "WordPress RSS (application/rss+xml). Items cover all major govt orgs. Classified by org keyword. Phase 9A dry run showed UNAVAILABLE because the fetcher only decoded text/html; fixed in hardening pass to also decode application/rss+xml and other xml/* content types.",
   },
   {
     id: "sarkariresult-latest",
@@ -66,10 +66,10 @@ export const MULTI_SOURCE_CONFIGS: MultiSourceConfig[] = [
     type: "HTML_LINKS",
     url: "https://ssc.gov.in/",
     tier: 3,
-    enabled: true,
+    enabled: false,
     orgFilter: ["ssc"],
     rateLimitDelayMs: 10_000,
-    notes: "Official SSC site.",
+    notes: "DISABLED — Phase 9A dry run: HTTP 200 but EMPTY (0 recruitment links). ssc.gov.in renders notification lists via JavaScript (React SPA). The HTML_LINKS adapter parses only static HTML and cannot see JS-injected content. To restore SSC coverage: (1) find a static notifications endpoint on ssc.gov.in (e.g. a sitemap or press-release feed), or (2) introduce a headless-browser adapter. Not in scope for Phase 9A hardening.",
   },
 ];
 

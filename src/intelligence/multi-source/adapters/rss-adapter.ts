@@ -151,7 +151,10 @@ export class RssAdapter implements DiscoveryAdapter {
 
       if (!isRecruitmentItem(combined)) continue;
 
-      const orgId = detectOrgFromText(combined, config.orgFilter);
+      // Org identity comes from the title only — NOT the description.
+      // Description may contain other org names in eligibility/context text
+      // (e.g. "experience in any bank listed in Second Schedule of Reserve Bank of India").
+      const orgId = detectOrgFromText(title, config.orgFilter);
       if (!orgId) continue;
 
       const orgName = ORG_NAMES[orgId] ?? orgId.toUpperCase();

@@ -113,10 +113,14 @@ export interface IntakeExtraction {
   pdfTextQuality?: PdfTextQuality;
 }
 
-// Evidence chain: tracks each source that contributed to the final draft
+// Evidence chain: tracks each source that contributed to the final draft.
+// sourceKind uses ExtractionSourceKind (not the narrower SourceKind) so
+// fieldSources values are consistent with the AUTHORITATIVE set checked by
+// evaluateAutoPrEligibility. "OFFICIAL" (from SourceKind) was misleading
+// because Stage A on an official specific URL is OFFICIAL_SPECIFIC authority.
 export interface EvidenceStep {
   url: string;
-  sourceKind: SourceKind | "OFFICIAL_PDF";
+  sourceKind: ExtractionSourceKind;
   label: string;
   fieldsContributed: string[];
 }
@@ -563,12 +567,15 @@ function extractApplicationDates(text: string): {
 } {
   const result: { openDate?: string; closeDate?: string; notificationDate?: string } = {};
 
-  // Date labels appear before the date value with either ":" or whitespace.
-  // [:\s] matches both "Last Date: 24.09.2026" and "Last Date 24.09.2026".
+  // Label patterns require an explicit ":" separator and [^:\n] in the prefix so they
+  // cannot crawl past a newline into a different section (e.g. Ex-Servicemen eligibility
+  // clauses like "last date for receipt of application ... on or before 20.09.2027").
   const closePatterns = [
-    /(?:last\s+date|apply\s+by|closing\s+date|close\s+date|deadline|fee\s+(?:payment\s+)?last\s+date)[^:]{0,40}?[:\s]\s*(.{5,35}?(?:\d{4}))/i,
-    /applications?\s+close[^:]{0,20}?[:\s]\s*(.{5,30}?(?:\d{4}))/i,
-    /(?:before|upto?)\s+(.{5,25}?(?:\d{4}))/i,
+    /(?:last\s+date|apply\s+by|closing\s+date|close\s+date|deadline|fee\s+(?:payment\s+)?last\s+date)[^:\n]{0,40}?:\s*(.{5,35}?(?:\d{4}))/i,
+    /applications?\s+close[^:\n]{0,20}?:\s*(.{5,30}?(?:\d{4}))/i,
+    // Requires application/registration context before "before/upto" — extra guard against
+    // eligibility clauses even when no "last date" label is present.
+    /(?:apply|application|registration|submit)\s+(?:before|upto?)\s+(.{5,25}?(?:\d{4}))/i,
     // "from DATE to DATE" range — captures the close (right-hand) date
     /from\s+.{5,30}?\d{4}\s+to\s+(.{5,25}?(?:\d{4}))/i,
   ];
@@ -581,8 +588,8 @@ function extractApplicationDates(text: string): {
   }
 
   const openPatterns = [
-    /(?:starting\s+date|start\s+date|opening\s+date|application\s+start\s+(?:date)?|apply\s+from|online\s+(?:application|registration)\s+(?:start(?:s|ing)?|begin))[^:]{0,40}?[:\s]\s*(.{5,35}?(?:\d{4}))/i,
-    /application\s+open[^:]{0,20}?[:\s]\s*(.{5,30}?(?:\d{4}))/i,
+    /(?:starting\s+date|start\s+date|opening\s+date|application\s+start\s+(?:date)?|apply\s+from|online\s+(?:application|registration)\s+(?:start(?:s|ing)?|begin))[^:\n]{0,40}?:\s*(.{5,35}?(?:\d{4}))/i,
+    /application\s+open[^:\n]{0,20}?:\s*(.{5,30}?(?:\d{4}))/i,
     /from\s+(.{5,25}?(?:\d{4}))\s+to\s+/i,
   ];
   for (const re of openPatterns) {
@@ -593,9 +600,23 @@ function extractApplicationDates(text: string): {
     }
   }
 
+  // Fallback: bare date-range "DD.MM.YYYY to DD.MM.YYYY" (no label keyword required).
+  // Government Important Dates tables often use this format, e.g. "01.09.2026 to 21.09.2026".
+  // Fills only fields that label-based patterns above could not populate.
+  if (!result.openDate || !result.closeDate) {
+    const bareRangeRe = /(\d{2}[./]\d{2}[./]\d{4})\s+to\s+(\d{2}[./]\d{2}[./]\d{4})/;
+    const m = bareRangeRe.exec(text);
+    if (m) {
+      const open = parseDateFromText(m[1]);
+      const close = parseDateFromText(m[2]);
+      if (open && !result.openDate) result.openDate = open;
+      if (close && !result.closeDate) result.closeDate = close;
+    }
+  }
+
   const notifPatterns = [
-    /(?:notification\s+date|notified\s+on|published\s+on|date\s+of\s+(?:notification|advertisement|advt))[^:]{0,30}?[:\s]\s*(.{5,30}?(?:\d{4}))/i,
-    /(?:advt\.?\s+date|advertisement\s+date)[^:]{0,20}?[:\s]\s*(.{5,30}?(?:\d{4}))/i,
+    /(?:notification\s+date|notified\s+on|published\s+on|date\s+of\s+(?:notification|advertisement|advt))[^:\n]{0,30}?:\s*(.{5,30}?(?:\d{4}))/i,
+    /(?:advt\.?\s+date|advertisement\s+date)[^:\n]{0,20}?:\s*(.{5,30}?(?:\d{4}))/i,
   ];
   for (const re of notifPatterns) {
     const m = re.exec(text);
@@ -1087,14 +1108,16 @@ export async function runIntake(
   const stageAExtraction = extractIntakeFields(stageAHtml, sourceUrl, options?.pastedText, undefined, stageASourceKind);
   analysisNotes.push(`Stage A extraction: confidence=${Math.round(stageAExtraction.confidence * 100)}%, official links found=${stageAExtraction.officialLinksFound.length}`);
 
-  // Record Stage A in evidence chain (fields contributed determined after merge)
+  // Record Stage A in evidence chain (fields contributed determined after merge).
+  // Use stageASourceKind (ExtractionSourceKind) so fieldSources values are
+  // consistent with the AUTHORITATIVE set used by evaluateAutoPrEligibility.
   const stageAEvidenceIdx = evidenceChain.length;
   evidenceChain.push({
     url: sourceUrl,
-    sourceKind: classification.kind,
+    sourceKind: stageASourceKind,
     label: classification.aggregatorName
-      ? `${classification.aggregatorName} (${classification.kind})`
-      : `${classification.domain} (${classification.kind})`,
+      ? `${classification.aggregatorName} (${stageASourceKind})`
+      : `${classification.domain} (${stageASourceKind})`,
     fieldsContributed: [], // filled after merge
   });
 
@@ -1148,8 +1171,8 @@ export async function runIntake(
         officialPageEvidenceIdx = evidenceChain.length;
         evidenceChain.push({
           url: officialPageLink,
-          sourceKind: "OFFICIAL",
-          label: `${extractDomain(officialPageLink)} (OFFICIAL)`,
+          sourceKind: stageBSourceKind,
+          label: `${extractDomain(officialPageLink)} (${stageBSourceKind})`,
           fieldsContributed: [], // filled after merge
         });
       } else {
@@ -1188,7 +1211,13 @@ export async function runIntake(
   // Graceful failure: if PDF is unavailable or unparseable, falls back
   // to Stage A+B HTML data unchanged.
   let stageCExtraction: IntakeExtraction | undefined;
-  const pdfToExtract = abMerged.notifPdfUrl ?? (isPdf ? sourceUrl : undefined);
+  // If fetchPdfFn is injected (admin uploaded a PDF), always run Stage C — the
+  // function ignores the URL and returns buffer content regardless. This handles
+  // the case where the live site is unreachable but the admin has the PDF locally.
+  const pdfToExtract =
+    abMerged.notifPdfUrl ??
+    (isPdf ? sourceUrl : undefined) ??
+    (options?.fetchPdfFn ? sourceUrl : undefined);
   if (pdfToExtract) {
     const pdfResult = await extractPdfText(pdfToExtract, options?.fetchPdfFn);
     if (pdfResult.ok && pdfResult.text && pdfResult.text.trim().length > 50) {

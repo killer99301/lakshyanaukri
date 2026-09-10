@@ -99,6 +99,7 @@ export const OFFICIAL_DOMAINS: Record<string, string> = {
   "ssc.gov.in":              "ssc",
   "rrbapply.gov.in":         "rrb",
   "indianrailways.gov.in":   "rrb",
+  "rrbcdnonline.in":         "rrb",
   "upsc.gov.in":             "upsc",
   "upsconline.nic.in":       "upsc",
   "bpsc.bih.nic.in":         "bpsc",
@@ -192,4 +193,6 @@ export const OPERATIONAL_KEYWORDS: string[] = [
   "date sheet", "time table", "postpone", "cancelled", "corrigendum",
   "erratum", "extension of date", "joining instructions", "appointment",
   "downloading", "download link", "link activated",
+  // Vendor procurement — must never enter the candidate recruitment pipeline
+  "request for proposal", "rfp", "pre bid", "tender notice", "tender for",
 ];

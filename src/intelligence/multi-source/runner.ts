@@ -122,6 +122,7 @@ function buildCandidate(
 
   return {
     candidateId,
+    clusterStatus: cluster.status === "POSSIBLE_MATCH" ? "POSSIBLE_MATCH" : "MERGED",
     discoverySourceId: primarySourceId,
     discoverySourceUrl: primarySourceUrl,
     discoverySourceTier: hit.sourceTier,

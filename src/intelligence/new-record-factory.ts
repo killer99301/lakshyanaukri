@@ -54,13 +54,19 @@ export function generateSlug(
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
-    .filter((w) => w.length > 1 && !SLUG_STOP_WORDS.has(w))
+    .filter((w) => w.length > 1 && !SLUG_STOP_WORDS.has(w) && !/^20\d{2}$/.test(w))
     .slice(0, 6);
+
+  // Strip the leading org token when the title opens with the org name (e.g. "RRB Paramedical
+  // CEN 05/2026") — without this, orgId is prepended AND present in words, producing
+  // "rrb-rrb-paramedical-...". Also filters year tokens above so the year suffix appended
+  // below doesn't duplicate a year that already appeared in the title.
+  const titleWords = words[0] === orgId ? words.slice(1) : words;
 
   // Do NOT fall back to new Date().getFullYear() — that fabricates a year into the slug,
   // producing an unstable identifier that changes meaning if the notification spans years.
   const yearSuffix = year ?? extractYear(title);
-  const parts: string[] = [orgId, ...words];
+  const parts: string[] = [orgId, ...titleWords];
   if (yearSuffix) parts.push(yearSuffix);
   const base = parts
     .join("-")

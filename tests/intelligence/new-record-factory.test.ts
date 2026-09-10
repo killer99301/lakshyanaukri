@@ -168,4 +168,22 @@ check("NRF13e: slug year derives from applicationOpenDate when postDate absent",
 check("NRF13f: applicationOpenDate and closeDate preserved", noDraft.application.openDate === "2025-07-01" && noDraft.application.closeDate === "2025-07-21");
 check("NRF13g: draft.postDate is not today", noDraft.postDate !== new Date().toISOString().slice(0, 10));
 
+// ─── NRF14-15: Slug fix regressions ──────────────────────────
+
+console.log("\nNRF14-15: Slug fix — no double org prefix, no duplicate year");
+
+// NRF14: "RRB Paramedical CEN 05/2026 Recruitment 2026..." previously produced
+// "rrb-rrb-paramedical-cen-05-2026-2026-2026" (orgId doubled, year tripled).
+const slugRRB = generateSlug("rrb", "RRB Paramedical CEN 05/2026 Recruitment 2026 Apply Online for 560 Posts");
+check("NRF14: no double org prefix", !slugRRB.startsWith("rrb-rrb-"));
+check("NRF14b: slug starts with single org prefix", slugRRB.startsWith("rrb-"));
+check("NRF14c: contains expected content word", slugRRB.includes("paramedical"));
+check("NRF14d: year appears exactly once", slugRRB.split("2026").length === 2); // split gives n+1 parts for n occurrences
+
+// NRF15: year token in title must not be duplicated when yearSuffix also appends it
+const slugSSCYear = generateSlug("ssc", "Combined Graduate Level Examination 2027");
+check("NRF15: year appears exactly once in slug", slugSSCYear.split("2027").length === 2);
+check("NRF15b: slug contains year", slugSSCYear.includes("2027"));
+check("NRF15c: slug does not double year", !slugSSCYear.includes("2027-2027"));
+
 console.log("\n✅ All NRF tests passed.\n");

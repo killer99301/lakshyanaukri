@@ -65,7 +65,33 @@ export class HtmlLinkAdapter implements DiscoveryAdapter {
     for (const link of links) {
       if (!isNewRecruitmentNotice(link.text)) continue;
 
-      const orgId = detectOrgFromText(`${link.text} ${link.href}`, config.orgFilter);
+      // Org identity comes from the document title only — NOT the hosting URL.
+      // ibpsreg.ibps.in can host NMDFC/IOB/RCF notices; the href domain must not override the title org.
+      //
+      // Truncate to first 150 chars: aggregator pages (e.g. GovtJobGuru) include eligibility
+      // body text in the link text (e.g. "...listed in Second Schedule of Reserve Bank of India"),
+      // which would falsely classify a Bank of Baroda listing as "rbi". The org name always
+      // appears in the leading title portion; 150 chars is a safe upper bound for the title.
+      let orgId = detectOrgFromText(link.text.slice(0, 150), config.orgFilter);
+
+      // Official-source fallback (tier ≤ 3, single orgFilter):
+      // When text detection fails on an official source's own hostname, use the configured org.
+      // Example: "Notification for CRP-RRB-XV" on ibps.in doesn't mention "IBPS" by name, but
+      // ibps.in is the authoritative IBPS source. The fallback applies ONLY when the link href
+      // is on the source's own hostname — ibpsreg.ibps.in (a third-party registration subdomain)
+      // has a different hostname and does not qualify, preventing NMDFC/IOB/RCF false positives.
+      if (!orgId && config.tier <= 3 && config.orgFilter?.length === 1) {
+        try {
+          const sourceHost = new URL(config.url).hostname;
+          const linkHost = new URL(link.href).hostname;
+          if (linkHost === sourceHost) {
+            orgId = config.orgFilter[0];
+          }
+        } catch {
+          // malformed link URL — no fallback
+        }
+      }
+
       if (!orgId) continue;
 
       const orgName = ORG_NAMES[orgId] ?? orgId.toUpperCase();

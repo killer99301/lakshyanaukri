@@ -322,6 +322,7 @@ export interface CandidateNewRecruitment {
 
   // Multi-source corroboration (Phase 9A)
   additionalSourceIds?: string[];     // other sourceIds that also found this recruitment
+  clusterStatus?: "MERGED" | "POSSIBLE_MATCH"; // Phase 9C: cluster type from multi-source runner
 
   // Dedup fingerprints — always set (fallback to title-derived values if necessary)
   normalizedNotifNumber: string;      // uppercase, stripped, for dedup
@@ -334,10 +335,20 @@ export interface CandidateNewRecruitment {
   confidence: number;                 // 0–1 composite confidence
 
   // Lifecycle
-  status: "PENDING_REVIEW" | "PR_CREATED" | "APPROVED" | "REJECTED";
+  status:
+    | "PENDING_REVIEW"
+    | "PR_CREATED"
+    | "APPROVED"
+    | "REJECTED"
+    | "PR_FAILED"                      // PR creation attempted but failed (retry eligible)
+    | "PR_BRANCH_ORPHANED"             // branch pushed to remote but GitHub PR not created
+    | "AUTO_PR_SKIPPED_CONFIGURATION"; // eligible but GITHUB_TOKEN/REPO unavailable
   prNumber?: number;                  // GitHub PR number once created
   prUrl?: string;                     // GitHub PR URL
   rejectionReason?: string;
+  prRetryCount?: number;              // number of PR creation attempts after first failure
+  prLastAttemptAt?: string;           // ISO timestamp of last PR attempt
+  prLastError?: string;               // error message from last failed PR attempt
 }
 
 // ─── Verification State Machine ──────────────────────────────

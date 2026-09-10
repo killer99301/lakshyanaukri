@@ -126,9 +126,11 @@ async function attemptFetch(
 
     const parsedStatus = parseHttpStatus(response.status);
 
-    // Decode HTML content when caller requested it (for text extraction)
+    // Decode text content when caller requested it (for text extraction).
+    // Include both text/html (HTML adapters) and */xml variants
+    // (application/rss+xml, application/atom+xml, text/xml) for the RSS adapter.
     const rawContent =
-      includeContent && contentType?.includes("text/html")
+      includeContent && (contentType?.includes("text/html") || contentType?.includes("xml"))
         ? body.toString("utf-8")
         : undefined;
 
