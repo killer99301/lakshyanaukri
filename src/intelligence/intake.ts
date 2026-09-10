@@ -111,6 +111,11 @@ export interface IntakeExtraction {
   // Set only for OFFICIAL_PDF extractions; indicates whether the PDF text layer
   // is reliable enough for field extraction.
   pdfTextQuality?: PdfTextQuality;
+  // Set when plain-text (PDF) mode derived the total by summing discipline rows
+  // rather than reading an explicitly printed grand total.
+  vacancyDerived?: boolean;
+  // Individual discipline/post rows that produced the derived total.
+  vacancyRows?: Array<{ label: string; count: number }>;
 }
 
 // Evidence chain: tracks each source that contributed to the final draft.
@@ -284,6 +289,153 @@ const VACANCY_RE = [
   /(\d[\d,]+)(?!\s*[-–]\s*\d)\s+(?:posts?|vacanc(?:y|ies)|seats?)\b/i,
   /(?:posts?|vacanc(?:y|ies)|seats?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
 ];
+
+// ─── Structural vacancy extraction for plain-text PDFs ────────
+//
+// Government notifications typically open with a vacancy table, then
+// eligibility, dates, and boilerplate. Three dangerous collisions in
+// the proximity-regex approach:
+//   • "post" (postal mail) + nearby section number → e.g. "by post.\n15."
+//   • "posts" in a legal citation + year → e.g. "Rule 1979 posts"
+//   • Grand total never explicitly printed → must sum discipline rows
+//
+// This extractor:
+//   1. Finds the vacancy section heading (bounded to first 100 lines)
+//   2. Works only within a 60-line window after the heading
+//   3. Looks for an explicit labeled total first
+//   4. Falls back to summing discipline rows (isDerived=true)
+//   5. Falls back to conservative labeled patterns on full text (no pattern 4)
+
+interface VacancyRow {
+  label: string;
+  count: number;
+}
+
+interface StructuredVacancyResult {
+  total: number;
+  isDerived: boolean;
+  rows: VacancyRow[];
+}
+
+// Lines that introduce the vacancy section.
+// "1. Vacancies:", "Post-wise Vacancies:", "Vacancy Details", "Number of Posts:"
+const VACANCY_HEADING_RE =
+  /^(?:\d+[.)]\s*)?(?:(?:post[\s-]?wise\s+|total\s+)?vacancies?|vacancy\s+(?:details?|wise|break[\s-]?up|summary)|(?:total\s+)?posts?\s*(?:details?|break[\s-]?up|wise)?|number\s+of\s+(?:posts?|vacancies?))\s*[:–\-]?\s*$/i;
+
+// A section heading numbered ≥2 that terminates the vacancy window.
+// "2. Eligibility:", "3. Age Limit:" — signals end of vacancy section.
+// Does NOT match category-table rows like "1. ST 18 1. ST 1" (end in digits).
+const SECTION_BOUNDARY_RE = /^[2-9]\d*[.)]\s/;
+
+// A discipline/post row within a vacancy table.
+// [A-Z] — label must start with an UPPERCASE letter (filters lowercase boilerplate like
+//          "the provisions of RPWD Act 2016"; government post names are always titled)
+// [^0-9]{8,}? — label has ≥8 non-digit chars (filters "ST 18", "VI 2", "15. Reporting")
+// (\d[\d,]+) — vacancy count at end of line (≥2 digits, no trailing dash range)
+const DISCIPLINE_ROW_RE =
+  /^(?:\d+[.)]\s+)?([A-Z][^0-9]{8,}?)\s*[:–\-]?\s*(\d[\d,]+)\s*$/;
+
+// Explicit total patterns tried within the vacancy window.
+// Ordered from most specific to least specific.
+const SECTION_TOTAL_PATS = [
+  /total\s+(?:posts?|vacancies?)\s*[:–\-]?\s*(\d[\d,]+)/i,  // "Total Posts: 259"
+  /grand\s+total\s*[:–\-]?\s*(\d[\d,]+)/i,                  // "Grand Total: 13,706"
+  /(?:^|\n)[ \t]*total\s*[:\-]\s*(\d[\d,]+)/im,             // "Total: 259" at line start
+] as const;
+
+function findSectionTotal(windowText: string): number | undefined {
+  for (const re of SECTION_TOTAL_PATS) {
+    const m = re.exec(windowText);
+    if (m) {
+      const n = parseInt(m[1].replace(/,/g, ""), 10);
+      if (!isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n)) return n;
+    }
+  }
+  return undefined;
+}
+
+// Conservative fallback for PDFs where no vacancy section heading was found.
+// Uses only labeled patterns (1 & 2 from VACANCY_RE) plus number-before-keyword
+// restricted to the first 2000 chars where vacancy info always appears.
+// Pattern 4 ("post" proximity) is intentionally excluded — "post" = postal mail
+// causes false positives in standard govt notification boilerplate.
+function extractVacanciesFromPdfTextFallback(text: string): StructuredVacancyResult | undefined {
+  const labeled = [
+    /total\s+(?:vacancies?|posts?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
+    /no\.?\s+of\s+(?:vacancies?|posts?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
+  ];
+  for (const re of labeled) {
+    const m = re.exec(text);
+    if (m) {
+      const n = parseInt(m[1].replace(/,/g, ""), 10);
+      if (!isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n))
+        return { total: n, isDerived: false, rows: [] };
+    }
+  }
+  // Pattern 3 (number before vacancy word) — first 2000 chars only
+  const p3 = /(\d[\d,]+)(?!\s*[-–]\s*\d)\s+(?:posts?|vacanc(?:y|ies)|seats?)\b/i.exec(
+    text.slice(0, 2000)
+  );
+  if (p3) {
+    const n = parseInt(p3[1].replace(/,/g, ""), 10);
+    if (!isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n))
+      return { total: n, isDerived: false, rows: [] };
+  }
+  return undefined;
+}
+
+function extractVacanciesFromPdfText(text: string): StructuredVacancyResult | undefined {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+  // Phase 1: Find vacancy section heading in first 100 lines
+  let sectionStart = -1;
+  for (let i = 0; i < Math.min(lines.length, 100); i++) {
+    if (VACANCY_HEADING_RE.test(lines[i])) {
+      sectionStart = i;
+      break;
+    }
+  }
+
+  if (sectionStart < 0) {
+    return extractVacanciesFromPdfTextFallback(text);
+  }
+
+  // Phase 2: Extract window — up to 60 lines, stopping at the next major section.
+  // A numbered line that ENDS with digits is a vacancy row ("2. Asst Officer : 6"),
+  // not a section heading ("2. Eligibility:"), and must not stop the window.
+  const ENDS_WITH_DIGITS_RE = /\d+\s*$/;
+  const windowLines: string[] = [];
+  for (let i = sectionStart + 1; i < Math.min(lines.length, sectionStart + 61); i++) {
+    if (SECTION_BOUNDARY_RE.test(lines[i]) && !ENDS_WITH_DIGITS_RE.test(lines[i])) break;
+    windowLines.push(lines[i]);
+  }
+
+  // Phase 3: Explicit labeled total in window (most reliable)
+  const windowText = windowLines.join("\n");
+  const explicitTotal = findSectionTotal(windowText);
+  if (explicitTotal !== undefined) {
+    return { total: explicitTotal, isDerived: false, rows: [] };
+  }
+
+  // Phase 4: Extract discipline rows — label ≥8 non-digit chars, number at end
+  const rows: VacancyRow[] = [];
+  for (const line of windowLines) {
+    const m = DISCIPLINE_ROW_RE.exec(line);
+    if (!m) continue;
+    const label = m[1].trim().replace(/\s+/g, " ");
+    const n = parseInt(m[2].replace(/,/g, ""), 10);
+    if (isNaN(n) || n <= 0 || n >= 1_000_000 || isCalendarYear(n)) continue;
+    rows.push({ label, count: n });
+  }
+
+  if (rows.length >= 1) {
+    const total = rows.reduce((s, r) => s + r.count, 0);
+    return { total, isDerived: rows.length >= 2, rows };
+  }
+
+  // Phase 5: Section found but no rows or total — try conservative fallback on full text
+  return extractVacanciesFromPdfTextFallback(text);
+}
 
 const MONTH_MAP: Record<string, string> = {
   jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
@@ -699,7 +851,24 @@ export function extractIntakeFields(
        extractNotificationNumber(text.slice(0, notifSearchLen)) ??
        extractNotificationNumber(sourceUrl));
 
-  const vacancies = extractVacancies(text);
+  // Plain-text (PDF) mode uses the structural section-bounded extractor that:
+  //   • works only within the vacancy section (not the full doc)
+  //   • rejects section headings, page numbers, postal references, legal citations
+  //   • derives a grand total by summing discipline rows when no explicit total is printed
+  // HTML mode continues using proximity-regex (HTML structure provides enough context).
+  let vacancies: number | undefined;
+  let vacancyDerived: boolean | undefined;
+  let vacancyRows: Array<{ label: string; count: number }> | undefined;
+  if (isPlainText) {
+    const sv = extractVacanciesFromPdfText(combined);
+    if (sv) {
+      vacancies = sv.total;
+      if (sv.isDerived) vacancyDerived = true;
+      if (sv.rows.length > 0) vacancyRows = sv.rows;
+    }
+  } else {
+    vacancies = extractVacancies(text);
+  }
   const dates = extractApplicationDates(text);
 
   const links = extractLinks(html, sourceUrl);
@@ -777,6 +946,8 @@ export function extractIntakeFields(
     confidence,
     specificity,
     sourceKind,
+    vacancyDerived,
+    vacancyRows,
   };
 }
 
@@ -1231,6 +1402,13 @@ export async function runIntake(
         `confidence=${Math.round(stageCExtraction.confidence * 100)}%, ` +
         `text quality: ${stageCExtraction.pdfTextQuality})`
       );
+      if (stageCExtraction.vacancyDerived && stageCExtraction.vacancyRows?.length) {
+        const terms = stageCExtraction.vacancyRows.map((r) => `${r.count}`).join(" + ");
+        analysisNotes.push(
+          `PDF vacancy derived from ${stageCExtraction.vacancyRows.length} discipline rows: ` +
+          `${terms} = ${stageCExtraction.totalVacancies}`
+        );
+      }
     } else {
       analysisNotes.push(
         `Stage C: PDF extraction ${pdfResult.error ? `failed — ${pdfResult.error}` : "returned empty content"} — using HTML data only`

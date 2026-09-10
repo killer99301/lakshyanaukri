@@ -69,6 +69,43 @@ export const ORGANIZATIONS: Record<string, Organization> = {
     website: "https://tcs.com/careers",
     type: "private",
   },
+
+  // PSU general insurance companies (under Ministry of Finance)
+  uiicl: {
+    id: "uiicl",
+    name: "United India Insurance Company Limited",
+    abbreviation: "UIICL",
+    website: "https://uiic.co.in",
+    logo: "/logos/uiicl.svg",
+    type: "central-govt",
+  },
+
+  niacl: {
+    id: "niacl",
+    name: "The New India Assurance Co. Ltd.",
+    abbreviation: "NIACL",
+    website: "https://newindia.co.in",
+    logo: "/logos/niacl.svg",
+    type: "central-govt",
+  },
+
+  oicl: {
+    id: "oicl",
+    name: "Oriental Insurance Company Limited",
+    abbreviation: "OICL",
+    website: "https://orientalinsurance.org.in",
+    logo: "/logos/oicl.svg",
+    type: "central-govt",
+  },
+
+  nicl: {
+    id: "nicl",
+    name: "National Insurance Company Limited",
+    abbreviation: "NICL",
+    website: "https://nicl.co.in",
+    logo: "/logos/nicl.svg",
+    type: "central-govt",
+  },
 };
 
 /**

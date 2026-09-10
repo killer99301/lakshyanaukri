@@ -27,6 +27,11 @@ export const ORG_NAMES: Record<string, string> = {
   nabard:    "National Bank for Agriculture and Rural Development",
   lic:       "Life Insurance Corporation of India",
   indiapost: "India Post",
+  // PSU general insurance companies (under Ministry of Finance)
+  uiicl:     "United India Insurance Company Limited",
+  niacl:     "The New India Assurance Co. Ltd.",
+  oicl:      "Oriental Insurance Company Limited",
+  nicl:      "National Insurance Company Limited",
 };
 
 export function deriveOrgName(orgId: string): string {
@@ -46,6 +51,10 @@ export const ORG_CATEGORY: Record<string, Category> = {
   nabard:    "banking",
   lic:       "government",
   indiapost: "government",
+  uiicl:     "government",
+  niacl:     "government",
+  oicl:      "government",
+  nicl:      "government",
 };
 
 export const ORG_GOV_TYPE: Record<string, "Central Govt" | "State Govt" | "PSU Bank"> = {
@@ -59,6 +68,10 @@ export const ORG_GOV_TYPE: Record<string, "Central Govt" | "State Govt" | "PSU B
   nabard:    "PSU Bank",
   lic:       "Central Govt",
   indiapost: "Central Govt",
+  uiicl:     "Central Govt",
+  niacl:     "Central Govt",
+  oicl:      "Central Govt",
+  nicl:      "Central Govt",
 };
 
 // Primary domain for each org — used to construct apply/website links.
@@ -75,6 +88,10 @@ export const ORG_DOMAIN: Record<string, string> = {
   nabard:    "nabard.org",
   lic:       "licindia.in",
   indiapost: "indiapost.gov.in",
+  uiicl:     "uiic.co.in",
+  niacl:     "newindia.co.in",
+  oicl:      "orientalinsurance.org.in",
+  nicl:      "nicl.co.in",
 };
 
 export const ORG_QUALIFICATION: Record<string, Qualification> = {
@@ -88,6 +105,10 @@ export const ORG_QUALIFICATION: Record<string, Qualification> = {
   nabard:    "Graduate",
   lic:       "Graduate",
   indiapost: "10th Pass",
+  uiicl:     "Graduate",
+  niacl:     "Graduate",
+  oicl:      "Graduate",
+  nicl:      "Graduate",
 };
 
 // ─── Official source domain registry ─────────────────────────
@@ -96,22 +117,27 @@ export const ORG_QUALIFICATION: Record<string, Qualification> = {
 // and indianrailways.gov.in both map to "rrb").
 
 export const OFFICIAL_DOMAINS: Record<string, string> = {
-  "ssc.gov.in":              "ssc",
-  "rrbapply.gov.in":         "rrb",
-  "indianrailways.gov.in":   "rrb",
-  "rrbcdnonline.in":         "rrb",
-  "upsc.gov.in":             "upsc",
-  "upsconline.nic.in":       "upsc",
-  "bpsc.bih.nic.in":         "bpsc",
-  "onlinebpsc.bihar.gov.in": "bpsc",
-  "ibps.in":                 "ibps",
-  "ibpsonline.ibps.in":      "ibps",
-  "bank.sbi":                "sbi",
-  "sbi.co.in":               "sbi",
-  "rbi.org.in":              "rbi",
-  "nabard.org":              "nabard",
-  "licindia.in":             "lic",
-  "indiapost.gov.in":        "indiapost",
+  "ssc.gov.in":                "ssc",
+  "rrbapply.gov.in":           "rrb",
+  "indianrailways.gov.in":     "rrb",
+  "rrbcdnonline.in":           "rrb",
+  "upsc.gov.in":               "upsc",
+  "upsconline.nic.in":         "upsc",
+  "bpsc.bih.nic.in":           "bpsc",
+  "onlinebpsc.bihar.gov.in":   "bpsc",
+  "ibps.in":                   "ibps",
+  "ibpsonline.ibps.in":        "ibps",
+  "bank.sbi":                  "sbi",
+  "sbi.co.in":                 "sbi",
+  "rbi.org.in":                "rbi",
+  "nabard.org":                "nabard",
+  "licindia.in":               "lic",
+  "indiapost.gov.in":          "indiapost",
+  // PSU general insurance companies
+  "uiic.co.in":                "uiicl",
+  "newindia.co.in":            "niacl",
+  "orientalinsurance.org.in":  "oicl",
+  "nicl.co.in":                "nicl",
 };
 
 // ─── Known aggregator / third-party domains ───────────────────
@@ -138,6 +164,7 @@ export const KNOWN_AGGREGATORS: Record<string, string> = {
   "adda247.com":                "Adda247",
   "sarkarinaukariofficial.com": "SarkariNaukriOfficial",
   "govtjobs.io":                "GovtJobsIO",
+  "careerpower.in":             "CareerPower",
 };
 
 // ─── Domain pattern matchers ──────────────────────────────────
@@ -162,18 +189,22 @@ export const STATE_DOMAIN_SUFFIXES: string[] = [
 // Human-readable names derived from the first segment of known official
 // subdomains (e.g. "onlinebpsc" → "Bihar Public Service Commission").
 export const OFFICIAL_DOMAIN_LABELS: Record<string, string> = {
-  "bceceboard":   "BCECE Board",
-  "onlinebpsc":   "Bihar Public Service Commission",
-  "bpsc":         "Bihar Public Service Commission",
-  "ssc":          "Staff Selection Commission",
-  "upsc":         "Union Public Service Commission",
-  "rbi":          "Reserve Bank of India",
-  "nabard":       "National Bank for Agriculture and Rural Development",
-  "licindia":     "Life Insurance Corporation of India",
-  "indiapost":    "India Post",
-  "ibps":         "IBPS",
-  "rrbapply":     "Railway Recruitment Boards",
-  "upsconline":   "Union Public Service Commission",
+  "bceceboard":          "BCECE Board",
+  "onlinebpsc":          "Bihar Public Service Commission",
+  "bpsc":                "Bihar Public Service Commission",
+  "ssc":                 "Staff Selection Commission",
+  "upsc":                "Union Public Service Commission",
+  "rbi":                 "Reserve Bank of India",
+  "nabard":              "National Bank for Agriculture and Rural Development",
+  "licindia":            "Life Insurance Corporation of India",
+  "indiapost":           "India Post",
+  "ibps":                "IBPS",
+  "rrbapply":            "Railway Recruitment Boards",
+  "upsconline":          "Union Public Service Commission",
+  "uiic":                "United India Insurance Company Limited",
+  "newindia":            "The New India Assurance Co. Ltd.",
+  "orientalinsurance":   "Oriental Insurance Company Limited",
+  "nicl":                "National Insurance Company Limited",
 };
 
 // ─── Keyword filters ──────────────────────────────────────────

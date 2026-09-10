@@ -2463,11 +2463,171 @@ async function testLOCAL_PDF_REGRESSION() {
   );
 }
 
+// ─── Phase 9E: Structural vacancy extraction regression ─────────
+//
+// Regression tests for the structural vacancy extraction layer (Phase 9E).
+//   VAC-UIICL-FP:      section heading "15. Reporting..." is NOT a vacancy count
+//   VAC-UIICL-DERIVED: Generalists 200 + Hindi Officers 25 = 225 (isDerived=true)
+//   VAC-RRB-1979:      "Railway Act of 1979 scheme" NOT extracted; Grand Total 13,706 IS
+//   VAC-SMALL-LEGIT:   15 posts inside a real vacancy table is accepted (no plausibility floor)
+//   VAC-EXPLICIT:      "Total Vacancies: 259" still extracted via labeled fallback
+
+function testVACANCY_STRUCTURAL_REGRESSION() {
+  console.log("\nVAC-REGR — Phase 9E structural vacancy extraction regression tests");
+
+  // VAC-UIICL-FP: old pattern 4 matched "by post.\n15. Reporting" as vacancy=15.
+  // With structural extraction: no vacancy section heading found → fallback → labeled
+  // patterns only (no pattern 4) → no match → totalVacancies=undefined.
+  {
+    const uiiclFalsePositiveText = [
+      "UNITED INDIA INSURANCE COMPANY LIMITED",
+      "Recruitment of Administrative Officers (AO) Scale I - 2026",
+      "",
+      "Candidates can send their applications by post.",
+      "15. Reporting at Examination Centre:",
+      "Candidates are required to report at the examination centre",
+      "at least 30 minutes before the scheduled time.",
+      "16. Helpline: 1800-XXX-XXXX",
+    ].join("\n");
+
+    const ex = extractIntakeFields(
+      uiiclFalsePositiveText,
+      "https://uiic.co.in/recruitment/AO-2026.pdf",
+    );
+    assert("VAC-UIICL-FP.1",
+      ex.totalVacancies !== 15,
+      `VAC-UIICL-FP: "15. Reporting" section heading not extracted as vacancy (got: ${ex.totalVacancies})`
+    );
+    assert("VAC-UIICL-FP.2",
+      ex.totalVacancies === undefined,
+      `VAC-UIICL-FP: totalVacancies = undefined when no vacancy table present (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-UIICL-DERIVED: heading found → 60-line window → no explicit total →
+  // sum discipline rows → 200 + 25 = 225, isDerived=true.
+  // "15. Reporting at Examination Centre:" is inside the window but does not
+  // match DISCIPLINE_ROW_RE (ends with ":" not a number) and does not trigger
+  // SECTION_BOUNDARY_RE (starts with "1", not [2-9]).
+  {
+    const uiiclDerivedText = [
+      "UNITED INDIA INSURANCE COMPANY LIMITED",
+      "RECRUITMENT OF ADMINISTRATIVE OFFICERS (AO) SCALE I - 2026",
+      "",
+      "Vacancies:",
+      "The discipline-wise vacancy details are given below:",
+      "Generalists: 200",
+      "Hindi Officers: 25",
+      "",
+      "15. Reporting at Examination Centre:",
+      "Candidates should report 30 minutes before time.",
+    ].join("\n");
+
+    const ex = extractIntakeFields(
+      uiiclDerivedText,
+      "https://uiic.co.in/recruitment/AO-2026.pdf",
+    );
+    assert("VAC-UIICL-DERIVED.1",
+      ex.totalVacancies === 225,
+      `VAC-UIICL-DERIVED: 200 + 25 = 225 (got: ${ex.totalVacancies})`
+    );
+    assert("VAC-UIICL-DERIVED.2",
+      ex.vacancyDerived === true,
+      `VAC-UIICL-DERIVED: isDerived=true when total is summed from rows (got: ${ex.vacancyDerived})`
+    );
+    assert("VAC-UIICL-DERIVED.3",
+      (ex.vacancyRows ?? []).length === 2,
+      `VAC-UIICL-DERIVED: 2 discipline rows (got: ${(ex.vacancyRows ?? []).length})`
+    );
+  }
+
+  // VAC-RRB-1979: "Number of Posts:" heading → 60-line window → findSectionTotal
+  // finds "Grand Total: 13,706" before any discipline-row logic.
+  // "1979" inside a legal citation is never reached by the section-bounded extractor.
+  // "9. Age Limit:" triggers SECTION_BOUNDARY_RE, capping the window before
+  // the age-limit clause that also mentions 1979.
+  {
+    const rrbText = [
+      "RAILWAY RECRUITMENT BOARD",
+      "CENTRALISED EMPLOYMENT NOTICE",
+      "",
+      "Number of Posts:",
+      "Posts created under the Railway Act of 1979 scheme are listed below.",
+      "Category  UR   OBC  SC   ST",
+      "Posts     5000 3706 2000 3000",
+      "Grand Total: 13,706",
+      "",
+      "9. Age Limit: Candidates born between 1979 and 2004 are eligible.",
+    ].join("\n");
+
+    const ex = extractIntakeFields(
+      rrbText,
+      "https://rrbapply.gov.in/pdfs/CEN-2026.pdf",
+    );
+    assert("VAC-RRB-1979.1",
+      ex.totalVacancies !== 1979,
+      `VAC-RRB-1979: "1979 scheme" year not extracted as vacancy (got: ${ex.totalVacancies})`
+    );
+    assert("VAC-RRB-1979.2",
+      ex.totalVacancies === 13706,
+      `VAC-RRB-1979: Grand Total 13,706 extracted correctly (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-SMALL-LEGIT: 15 posts inside a real vacancy table must be accepted.
+  // "Total Posts: 15" found by findSectionTotal → isDerived=false.
+  // Verifies no plausibility floor (e.g. "reject <20") is applied.
+  {
+    const smallLegitText = [
+      "STAFF SELECTION COMMISSION",
+      "RECRUITMENT OF HINDI TRANSLATORS 2026",
+      "",
+      "Vacancies:",
+      "1. Hindi Translator : 15",
+      "Total Posts: 15",
+      "",
+      "5. Application Fee: Rs. 100",
+    ].join("\n");
+
+    const ex = extractIntakeFields(
+      smallLegitText,
+      "https://ssc.nic.in/notif/hindi-translator-2026.pdf",
+    );
+    assert("VAC-SMALL-LEGIT.1",
+      ex.totalVacancies === 15,
+      `VAC-SMALL-LEGIT: 15 posts accepted from real vacancy table (got: ${ex.totalVacancies})`
+    );
+    assert("VAC-SMALL-LEGIT.2",
+      ex.vacancyDerived !== true,
+      `VAC-SMALL-LEGIT: isDerived=false when explicit total is found (got: ${ex.vacancyDerived})`
+    );
+  }
+
+  // VAC-EXPLICIT: no vacancy heading → fallback → labeled pattern 1 matches
+  // "Total Vacancies: 259" → 259 (same result as before, no regression).
+  {
+    const explicitText = [
+      "BCECE BOARD RECRUITMENT",
+      "Total Vacancies: 259",
+      "Apply online from 25/08/2026 to 24/09/2026.",
+    ].join("\n");
+
+    const ex = extractIntakeFields(
+      explicitText,
+      "https://bceceboard.bihar.gov.in/notif.pdf",
+    );
+    assert("VAC-EXPLICIT.1",
+      ex.totalVacancies === 259,
+      `VAC-EXPLICIT: "Total Vacancies: 259" extracted via labeled fallback (got: ${ex.totalVacancies})`
+    );
+  }
+}
+
 // ─── Run all tests ─────────────────────────────────────────────
 
 async function main() {
   console.log("═".repeat(72));
-  console.log("  Phase 8 / 8B / 8C / 8D / 8E / 8F / 8I / 8J / 9D Intake Tests");
+  console.log("  Phase 8 / 8B / 8C / 8D / 8E / 8F / 8I / 8J / 9D / 9E Intake Tests");
   console.log("═".repeat(72));
 
   testFieldExtraction();
@@ -2535,6 +2695,8 @@ async function main() {
   await testLOCAL_PDF_FAIL();
   await testLOCAL_PDF_PROV();
   await testLOCAL_PDF_REGRESSION();
+  // Phase 9E — structural vacancy extraction regression
+  testVACANCY_STRUCTURAL_REGRESSION();
 
   console.log("\n" + "═".repeat(72));
   console.log(`  Results: ${passed} passed, ${failed} failed`);
