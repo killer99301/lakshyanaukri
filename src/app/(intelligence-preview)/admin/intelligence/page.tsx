@@ -770,6 +770,10 @@ export default function IntelligencePreviewPage() {
   const [draft, setDraft] = useState<RecruitmentIntelligenceDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [currentRevision, setCurrentRevision] = useState<number>(1);
 
   function updateDraft(fn: (d: RecruitmentIntelligenceDraft) => RecruitmentIntelligenceDraft) {
     setDraft((prev) => (prev ? fn(prev) : prev));
@@ -778,25 +782,83 @@ export default function IntelligencePreviewPage() {
   async function analyse() {
     const urlList = urls.split("\n").map((u) => u.trim()).filter(Boolean);
     if (!urlList.length) return;
-    setLoading(true); setError(null); setDraft(null);
+    setLoading(true); setError(null); setDraft(null); setDraftId(null); setSaveError(null);
     try {
       const res = await fetch("/api/admin/intelligence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ urls: urlList }),
       });
-      const data = (await res.json()) as { draft?: RecruitmentIntelligenceDraft; error?: string };
-      if (!res.ok || !data.draft) { setError(data.error ?? "Analysis failed"); }
-      else { setDraft(data.draft); }
+      const data = (await res.json()) as {
+        draft?: RecruitmentIntelligenceDraft;
+        draftId?: string;
+        currentRevision?: number;
+        error?: string;
+      };
+      if (!res.ok || !data.draft) {
+        setError(data.error ?? "Analysis failed");
+      } else {
+        setDraft(data.draft);
+        if (data.draftId) {
+          setDraftId(data.draftId);
+          setCurrentRevision(data.currentRevision ?? 1);
+        }
+      }
     } catch { setError("Network error — could not reach the intelligence API."); }
     finally { setLoading(false); }
   }
 
-  function handleSaveDraft() {
+  async function handleSaveDraft() {
     if (!draft) return;
-    updateDraft(saveDraft);
-    setSaveMsg("Review saved (session only)");
-    setTimeout(() => setSaveMsg(null), 3000);
+    setSaveError(null);
+
+    // Optimistically stamp savedAt in UI state
+    const stamped = saveDraft(draft);
+    setDraft(stamped);
+
+    if (!draftId) {
+      // No draftId — in-session only (analysis did not persist to DB)
+      setSaveMsg("Review saved (session only — draft was not persisted)");
+      setTimeout(() => setSaveMsg(null), 4000);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/admin/intelligence/drafts/${draftId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ snapshot: stamped, currentRevision }),
+      });
+      const data = (await res.json()) as {
+        draftId?: string;
+        currentRevision?: number;
+        error?: string;
+        message?: string;
+        latestRevision?: number;
+      };
+
+      if (res.status === 409) {
+        // Concurrent edit — roll back the optimistic savedAt stamp
+        setDraft(draft);
+        setSaveError(
+          data.message ??
+          "This draft was modified elsewhere. Reload to see the latest version — your unsaved changes were not saved.",
+        );
+      } else if (!res.ok) {
+        setDraft(draft);
+        setSaveError(data.error ?? "Save failed. Try again.");
+      } else {
+        setCurrentRevision(data.currentRevision ?? currentRevision + 1);
+        setSaveMsg(`Review saved · revision ${data.currentRevision}`);
+        setTimeout(() => setSaveMsg(null), 4000);
+      }
+    } catch {
+      setDraft(draft);
+      setSaveError("Network error — save did not reach the server.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   // ── Identity helpers ──
@@ -1074,40 +1136,56 @@ export default function IntelligencePreviewPage() {
               {sources.map((s) => <SourceItem key={s.id} source={s} />)}
             </SectionCard>
 
-            {/* Save Draft + Approve */}
-            <div className="bg-white border border-orange-200 rounded-2xl px-[22px] py-[18px] flex items-center justify-between gap-4 flex-wrap shadow-xs">
-              <div>
-                <h3 className="text-[14px] font-bold">Review &amp; Publish</h3>
-                <p className="text-[12px] text-slate-500 mt-0.5">
-                  Save Review keeps edits in this session only — refreshing the page loses them.
-                  Durable draft persistence is a separate future commit.
-                  Approve &amp; Publish requires Trust Gate to pass with no blocking issues.
-                </p>
-                {draft.savedAt && (
-                  <p className="text-[11px] text-green-700 mt-1 flex items-center gap-1">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                    Review saved · {fmtRelTime(draft.savedAt)} · session only
+            {/* Save Review + Approve */}
+            <div className="bg-white border border-orange-200 rounded-2xl px-[22px] py-[18px] shadow-xs">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <h3 className="text-[14px] font-bold">Review &amp; Publish</h3>
+                  <p className="text-[12px] text-slate-500 mt-0.5">
+                    Save Review persists a revision to the database.
+                    Approve &amp; Publish requires Trust Gate to pass with no blocking issues.
                   </p>
-                )}
-                {saveMsg && (
-                  <p className="text-[11px] text-green-600 mt-1">{saveMsg}</p>
-                )}
+                  {draftId && (
+                    <p className="text-[10.5px] text-slate-400 mt-1 font-mono">
+                      Draft {draftId} · revision {currentRevision}
+                    </p>
+                  )}
+                  {draft.savedAt && !saveError && (
+                    <p className="text-[11px] text-green-700 mt-1 flex items-center gap-1">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      {saveMsg ?? `Review saved · ${fmtRelTime(draft.savedAt)}`}
+                    </p>
+                  )}
+                  {!draft.savedAt && saveMsg && (
+                    <p className="text-[11px] text-green-600 mt-1">{saveMsg}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSaveDraft}
+                    disabled={isSaving}
+                    className="px-[18px] py-[10px] rounded-[10px] text-[13px] font-bold text-[#ea580c] bg-orange-50 border border-orange-200 hover:bg-orange-100 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer transition-colors flex items-center gap-1.5"
+                  >
+                    {isSaving && (
+                      <span className="inline-block w-3 h-3 border-2 border-orange-300 border-t-[#ea580c] rounded-full animate-spin" />
+                    )}
+                    {isSaving ? "Saving…" : "Save Review"}
+                  </button>
+                  <button
+                    disabled
+                    title="Approval flow — coming after Trust Gate integration"
+                    className="px-[22px] py-[10px] rounded-[10px] text-[13px] font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                  >
+                    Approve &amp; Publish
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleSaveDraft}
-                  className="px-[18px] py-[10px] rounded-[10px] text-[13px] font-bold text-[#ea580c] bg-orange-50 border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors"
-                >
-                  Save Review
-                </button>
-                <button
-                  disabled
-                  title="Approval flow — coming after Trust Gate integration"
-                  className="px-[22px] py-[10px] rounded-[10px] text-[13px] font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-                >
-                  Approve &amp; Publish
-                </button>
-              </div>
+              {saveError && (
+                <div className="mt-3 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[12px] text-amber-800">
+                  <span className="font-semibold">Conflict — save not persisted: </span>
+                  {saveError}
+                </div>
+              )}
             </div>
           </>
         )}
