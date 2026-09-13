@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 const NAV = [
-  { href: "/admin/intake",  label: "Intake"  },
-  { href: "/admin/review",  label: "Review"  },
-  { href: "/admin/history", label: "History" },
+  { href: "/admin/intake",       label: "Intake"        },
+  { href: "/admin/review",       label: "Review"        },
+  { href: "/admin/history",      label: "History"       },
+  { href: "/admin/intelligence", label: "Intelligence"  },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

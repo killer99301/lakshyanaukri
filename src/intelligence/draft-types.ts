@@ -200,9 +200,16 @@ export interface RecruitmentDate {
 
   certainty: DateCertainty;
 
+  // All gathered evidence for this date (may include conflicting values from different sources)
   sourceEvidence: FieldEvidence[];
 
   manuallyEdited: boolean;
+
+  // True when sources disagree on this date; both values preserved in sourceEvidence
+  conflict?: boolean;
+
+  // Which source's date was selected as the winning value
+  selectedSourceId?: string;
 }
 
 export interface RecruitmentDates {
