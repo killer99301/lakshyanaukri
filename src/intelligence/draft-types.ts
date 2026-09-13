@@ -111,6 +111,10 @@ export interface FieldValue<T> {
   // The resolved value (highest-authority non-conflicting, or manually overridden)
   value?: T;
 
+  // Original machine-extracted value — set once on the first manual edit.
+  // Never overwritten after that; forms the permanent evidence of what the engine found.
+  machineValue?: T;
+
   // 0.0–1.0 composite across all evidence
   confidence: number;
 
@@ -125,6 +129,11 @@ export interface FieldValue<T> {
 
   // True if evidence from different sources disagrees; admin must resolve
   conflict: boolean;
+
+  // Manual edit provenance — all undefined on machine-extracted fields
+  editedBy?: string;
+  editedAt?: string;
+  editReason?: string;
 }
 
 // ─── Recruitment Identity ─────────────────────────────────────
@@ -195,8 +204,11 @@ export interface LifecycleEvent {
 // ─── Dates ────────────────────────────────────────────────────
 
 export interface RecruitmentDate {
-  // ISO date string
+  // ISO date string (current value — may be machine-extracted or admin-overridden)
   date?: string;
+
+  // Original machine-extracted date — set once on first manual edit, never overwritten.
+  machineDate?: string;
 
   certainty: DateCertainty;
 
@@ -210,6 +222,11 @@ export interface RecruitmentDate {
 
   // Which source's date was selected as the winning value
   selectedSourceId?: string;
+
+  // Manual edit provenance
+  editedBy?: string;
+  editedAt?: string;
+  editReason?: string;
 }
 
 export interface RecruitmentDates {
@@ -271,6 +288,16 @@ export interface VacancyRow {
   sourceEvidence: FieldEvidence[];
 
   manuallyEdited: boolean;
+
+  // Manual edit provenance
+  editedBy?: string;
+  editedAt?: string;
+
+  // True for rows added by an admin (not machine-extracted)
+  isAdminAdded?: boolean;
+
+  // Soft-delete: row excluded from totals but preserved in audit trail
+  isDeleted?: boolean;
 }
 
 export interface VacancyData {
@@ -454,6 +481,9 @@ export interface IntelligenceConflict {
   // Set when the engine auto-resolved by authority; null = admin must decide
   resolution?: ConflictResolution;
 
+  // Admin-applied decision — overrides auto-resolution when set
+  adminDecision?: ConflictResolution & { decidedAt: string; decidedBy: string };
+
   severity: ConflictSeverity;
 }
 
@@ -477,6 +507,9 @@ export interface RecruitmentIntelligenceDraft {
   createdAt: string;
 
   updatedAt: string;
+
+  // ISO 8601 — when admin last saved this draft. In-session only (Phase 10E).
+  savedAt?: string;
 
   // All sources consulted — user-provided and engine-discovered
   sources: IntelligenceSource[];
