@@ -9,13 +9,10 @@ const nextConfig: NextConfig = {
   // Vercel's file tracer follows static imports only; pdfjs-dist references its
   // worker at runtime via import.meta.url so the tracer never includes it.
   // Explicitly include the worker file so the Lambda can find it on disk.
-  // Both routes use pdf-parse → pdfjs-dist and need the worker included.
+  // Only /api/admin/intake uses pdf-parse (manual upload). The intelligence
+  // route discovers PDF URLs but never downloads or parses them.
   outputFileTracingIncludes: {
     "/api/admin/intake": [
-      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
-      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
-    ],
-    "/api/admin/intelligence": [
       "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
       "./node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
     ],

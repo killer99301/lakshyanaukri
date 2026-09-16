@@ -18,7 +18,6 @@ import { mapExtractionsToDraft, buildDraft } from "@/intelligence/draft-builder"
 import { HttpRetriever } from "@/intelligence/http-retriever";
 import type { IntelligenceSource, SourceRetriever, RetrievedSource, DiscoveredLink, SourceKind } from "@/intelligence/draft-types";
 import type { IntakeExtraction } from "@/intelligence/intake";
-import type { FetchPdfFn } from "@/intelligence/pdf-extractor";
 
 // ─── Test harness helpers ─────────────────────────────────────
 
@@ -558,65 +557,68 @@ test("DB11: multi-source BOI (official + 2 secondary) → org, vacancies, dates,
   );
 });
 
-test("DB12: discovered PDF goes through PDF extraction, not HTML retriever", async () => {
+test("DB12: discovered PDF — URL preserved in links[], source recorded as DISCOVERED (no download)", async () => {
   const SECONDARY_HTML = `<html><body><p>225 vacancies for UIIC AO 2026</p></body></html>`;
-  const PDF_TEXT = `UIIC Administrative Officer Recruitment 2026
-Notification No: AO/2026/01
-Total Vacancies: 225
-Application Start: 20/08/2026
-Last Date: 10/09/2026`;
-
   const links: DiscoveredLink[] = [{
     url: "https://uiic.co.in/recruitment.pdf",
     label: "UIIC AO Notification",
     type: "OFFICIAL_NOTIFICATION",
   }];
 
-  const mockFetchPdf: FetchPdfFn = async (url) => ({
-    ok: url.endsWith(".pdf"),
-    text: url.endsWith(".pdf") ? PDF_TEXT : null,
-    error: url.endsWith(".pdf") ? undefined : "not a PDF",
-  });
-
   const draft = await buildDraft(
     ["https://govtjobguru.in/uiic-ao-2026/"],
     new LinksAwareRetriever(SECONDARY_HTML, links, "SECONDARY"),
-    mockFetchPdf,
   );
 
+  // Both the secondary HTML source and the discovered PDF source must be present
   assert.ok(draft.sources.length >= 2, `expected >= 2 sources, got ${draft.sources.length}`);
 
+  // PDF source: discovered, not downloaded
   const pdfSource = draft.sources.find((s) => s.url.endsWith(".pdf"));
   assert.ok(pdfSource, "PDF source must be present in sources[]");
   assert.equal(pdfSource!.retrievalMethod, "PDF", "PDF source must use PDF retrieval method");
-  assert.equal(pdfSource!.success, true, "PDF source must succeed");
+  assert.equal(pdfSource!.success, true, "discovery always succeeds — URL itself is the data");
   assert.equal(pdfSource!.kind, "OFFICIAL", "UIIC PDF must be classified as OFFICIAL");
+
+  // PDF URL must appear in links[] as OFFICIAL_NOTIFICATION
+  const pdfLink = draft.links.find((l) => l.url === "https://uiic.co.in/recruitment.pdf");
+  assert.ok(pdfLink, "PDF URL must appear in links[]");
+  assert.equal(pdfLink!.type, "OFFICIAL_NOTIFICATION", "PDF link type must be OFFICIAL_NOTIFICATION");
 });
 
-test("DB13: failed PDF → source recorded with success=false, useful failure state", async () => {
-  const SECONDARY_HTML = `<html><body><p>225 vacancies</p></body></html>`;
+test("DB13: PDF source org identity comes from domain classification, not extraction", async () => {
+  // When a PDF is discovered from uiic.co.in, the org identity (organizationId + name)
+  // must flow from classifySourceUrl() on the PDF domain — even though we never parse
+  // the PDF bytes. This is the V1 "free org identity" guarantee.
+  const SECONDARY_HTML = `<html><body><p>UIIC AO 2026 recruitment</p></body></html>`;
   const links: DiscoveredLink[] = [{
     url: "https://uiic.co.in/recruitment.pdf",
     label: "UIIC AO Notification",
     type: "OFFICIAL_NOTIFICATION",
   }];
 
-  const mockFetchPdf: FetchPdfFn = async () => ({
-    ok: false,
-    text: null,
-    error: "HTTP 403 from uiic.co.in",
-  });
-
   const draft = await buildDraft(
     ["https://govtjobguru.in/uiic-ao-2026/"],
     new LinksAwareRetriever(SECONDARY_HTML, links, "SECONDARY"),
-    mockFetchPdf,
   );
 
+  // The PDF source must be classified as OFFICIAL with orgId from the uiic.co.in domain
   const pdfSource = draft.sources.find((s) => s.url.endsWith(".pdf"));
-  assert.ok(pdfSource, "failed PDF source must still be recorded");
-  assert.equal(pdfSource!.success, false, "failed PDF must have success=false");
-  assert.equal(pdfSource!.retrievalMethod, "PDF", "failed source still shows PDF method");
+  assert.ok(pdfSource, "PDF source must be present");
+  assert.ok(
+    pdfSource!.organizationId,
+    `PDF source must have organizationId from domain classification; got: ${pdfSource!.organizationId}`,
+  );
+
+  // Org identity must propagate into the draft identity fields
+  assert.ok(
+    draft.identity.organizationId.value,
+    "draft organizationId must be populated from the PDF source domain",
+  );
+  assert.ok(
+    draft.identity.organizationName.value,
+    "draft organizationName must be populated from the PDF source domain",
+  );
 });
 
 test("DB14: HTML retrieval regression — secondary HTML still works when no PDF discovered", async () => {
@@ -626,7 +628,6 @@ test("DB14: HTML retrieval regression — secondary HTML still works when no PDF
   const draft = await buildDraft(
     ["https://govtjobguru.in/uiic-ao-2026/"],
     new StaticHtmlRetriever(SECONDARY_HTML, "SECONDARY"),
-    // no fetchPdfFn — verifies PDF path is not accidentally entered for HTML sources
   );
 
   assert.equal(draft.sources.length, 1, "only the secondary HTML source");
