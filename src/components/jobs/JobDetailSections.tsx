@@ -416,7 +416,11 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                       {job.ageLimit.relaxation.map((r, i) => (
                         <li key={i} className="text-[11px] font-medium text-[#475569] flex items-center gap-1.5">
                           <span className="h-1 w-1 rounded-full bg-slate-400" />
-                          <span>{r}</span>
+                          <span>
+                            {r.category}
+                            {r.years != null ? `: +${r.years} years` : ""}
+                            {r.text ? ` ${r.text}` : ""}
+                          </span>
                         </li>
                       ))}
                     </ul>

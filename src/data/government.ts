@@ -88,7 +88,10 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       min: 20,
       max: 37,
       asOf: "2026-08-01",
-      relaxation: ["BC/EBC: +3 years", "SC/ST: +5 years"],
+      relaxation: [
+        { category: "BC/EBC", years: 3 },
+        { category: "SC/ST", years: 5 },
+      ],
     },
 
     eligibility: [
@@ -261,7 +264,10 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       min: 18,
       max: 36,
       asOf: "2025-01-01",
-      relaxation: ["OBC (NCL): +3 years", "SC/ST: +5 years"],
+      relaxation: [
+        { category: "OBC (NCL)", years: 3 },
+        { category: "SC/ST", years: 5 },
+      ],
     },
 
     eligibility: [
@@ -391,7 +397,10 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       min: 18,
       max: 33,
       asOf: "2025-01-01",
-      relaxation: ["OBC: +3 years", "SC/ST: +5 years"],
+      relaxation: [
+        { category: "OBC", years: 3 },
+        { category: "SC/ST", years: 5 },
+      ],
     },
 
     eligibility: [
@@ -495,7 +504,11 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       min: 18,
       max: 30,
       asOf: "2026-08-01",
-      relaxation: ["OBC: +3 years", "SC/ST: +5 years", "PwD: +10 years"],
+      relaxation: [
+        { category: "OBC", years: 3 },
+        { category: "SC/ST", years: 5 },
+        { category: "PwD", years: 10 },
+      ],
     },
 
     eligibility: [
@@ -606,7 +619,10 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       min: 20,
       max: 30,
       asOf: "2026-08-01",
-      relaxation: ["OBC (NCL): +3 years", "SC/ST: +5 years"],
+      relaxation: [
+        { category: "OBC (NCL)", years: 3 },
+        { category: "SC/ST", years: 5 },
+      ],
     },
 
     eligibility: [
@@ -719,7 +735,10 @@ export const GOVERNMENT_RECRUITMENTS: GovernmentRecruitment[] = [
       min: 21,
       max: 32,
       asOf: "2026-08-01",
-      relaxation: ["OBC: +3 years (9 attempts)", "SC/ST: +5 years (Unlimited)"],
+      relaxation: [
+        { category: "OBC", years: 3, text: "(9 attempts)" },
+        { category: "SC/ST", years: 5, text: "(Unlimited)" },
+      ],
     },
 
     eligibility: [

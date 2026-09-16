@@ -129,11 +129,31 @@ export interface ExamStage {
 
 // ─── Vacancy, Fee, Age, Ecosystem ───────────────────────
 
+// Per-post category breakdown for reservation/PwBD columns.
+// All fields optional — not every recruitment reports every split.
+export interface VacancyCategoryBreakdown {
+  ur?: number;
+  ews?: number;
+  obc?: number;
+  sc?: number;
+  st?: number;
+  pwbd?: {
+    vi?: number;   // Visually Impaired
+    hi?: number;   // Hearing Impaired
+    oc?: number;   // Orthopedically Challenged
+    md?: number;   // Multiple Disabilities
+  };
+  exsm?: number;  // Ex-Servicemen
+  women?: number;
+  other?: Record<string, number>;
+}
+
 export interface VacancyRow {
   post: string;
-  count: number;
+  count: number;                  // total for this post
   payScale?: string;
   eligibility?: string;
+  breakdown?: VacancyCategoryBreakdown;
 }
 
 export interface FeeRow {
@@ -142,11 +162,22 @@ export interface FeeRow {
   note?: string;
 }
 
+// Single row in an age-relaxation table.
+// Use `years` for numeric relaxations (most common).
+// Use `text` for conditions that don't reduce to a number
+// (e.g. "8 years subject to applicable conditions", "(9 attempts)").
+// Both may be set together: years=5, text="(unlimited attempts)".
+export interface AgeRelaxation {
+  category: string;
+  years?: number;
+  text?: string;
+}
+
 export interface AgeLimit {
   min?: number;
   max?: number;
-  asOf: string;                   // ISO cutoff date
-  relaxation?: string[];
+  asOf?: string;                  // ISO cutoff date; optional — not always stated
+  relaxation?: AgeRelaxation[];
 }
 
 export type Experience =
