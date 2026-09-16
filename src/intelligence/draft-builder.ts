@@ -29,6 +29,8 @@ import {
   type ExtractionSourceKind,
 } from "./intake";
 import { HttpRetriever } from "./http-retriever";
+import { discoverOfficialUrls } from "./official-source-discoverer";
+import { normalizeRecruitmentTitle } from "./title-normalizer";
 import type {
   SourceRetriever,
   IntelligenceSource,
@@ -288,7 +290,20 @@ export function mapExtractionsToDraft(
   }
 
   // ─── Identity fields ─────────────────────────────────────────
-  const titleFV = buildFieldValue(inputs((e) => e.title), now);
+  // Title: normalize to strip SEO/aggregator boilerplate (e.g. "Out For 225 Posts,
+  // Download Official PDF"). Raw title is preserved as extractedText in each evidence
+  // entry so the original source text is never lost.
+  const titleFV = buildFieldValue(
+    extractionEntries.map(({ source, extraction }) => ({
+      value: extraction.title ? normalizeRecruitmentTitle(extraction.title) : undefined,
+      extractedText: extraction.title,
+      sourceId: source.id,
+      url: source.url,
+      confidence: extraction.confidence,
+      authorityRank: extractionAuthorityRank(extraction.sourceKind),
+    })),
+    now,
+  );
   const notifNumFV = buildFieldValue(inputs((e) => e.notificationNumber), now);
 
   if (titleFV.conflict)
@@ -474,12 +489,55 @@ function toExtractionSourceKind(phase10Kind: SourceKind): ExtractionSourceKind {
 
 // ─── Main entry point ─────────────────────────────────────────
 
+// ─── Internal: retrieve one URL and extract ───────────────────
+
+async function retrieveAndExtract(
+  urlString: string,
+  retriever: SourceRetriever,
+  sources: IntelligenceSource[],
+  extractionEntries: ExtractionWithSource[],
+): Promise<void> {
+  let url: URL;
+  try {
+    url = new URL(urlString);
+  } catch {
+    return;
+  }
+
+  if (!retriever.canHandle(url)) return;
+
+  const sourceId = randomUUID();
+  const classification = classifySourceUrl(urlString);
+  const kind = mapToPhase10SourceKind(classification.kind);
+
+  const retrieved = await retriever.retrieve(url, sourceId, kind);
+  sources.push(retrieved.source);
+
+  if (!retrieved.success || !retrieved.html) return;
+
+  const extraction = extractIntakeFields(
+    retrieved.html,
+    urlString,
+    undefined,
+    undefined,
+    toExtractionSourceKind(kind),
+  );
+
+  extractionEntries.push({
+    source: retrieved.source,
+    extraction,
+    orgName: classification.orgName,
+  });
+}
+
 export async function buildDraft(
   urls: string[],
   retriever: SourceRetriever = new HttpRetriever(),
 ): Promise<RecruitmentIntelligenceDraft> {
   const sources: IntelligenceSource[] = [];
   const extractionEntries: ExtractionWithSource[] = [];
+  // Tracks every URL we have retrieved or will retrieve to prevent duplicates
+  const retrievedUrls = new Set(urls);
 
   for (const urlString of urls) {
     let url: URL;
@@ -513,6 +571,18 @@ export async function buildDraft(
       extraction,
       orgName: classification.orgName,
     });
+
+    // Phase 11: Official source discovery.
+    // When the provided URL is secondary/unknown, scan its extracted links
+    // for official recruitment pages and retrieve those as higher-authority sources.
+    // One level only — we do not recurse from official pages.
+    if (kind !== "OFFICIAL") {
+      const officialUrls = discoverOfficialUrls(retrieved.links, retrievedUrls);
+      for (const officialUrlString of officialUrls) {
+        retrievedUrls.add(officialUrlString);
+        await retrieveAndExtract(officialUrlString, retriever, sources, extractionEntries);
+      }
+    }
   }
 
   return mapExtractionsToDraft(sources, extractionEntries);
