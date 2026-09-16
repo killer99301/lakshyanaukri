@@ -846,7 +846,12 @@ export function extractIntakeFields(
   // Plain-text PDFs may have the notification number deep in the document.
   // For plain-text, use a safer labeled/structural extractor that rejects generic
   // "no." patterns (which match phone numbers in Hindi government PDFs).
-  const notifSearchLen = isPlainText ? 20_000 : 2_000;
+  // HTML pages on aggregator sites (e.g. GovtJobGuru) front-load 3–4 kB of
+  // JSON-LD/schema.org structured data before article content begins. The old
+  // 2 000-char window never reached the advt-number paragraph (offset ~4 200).
+  // 8 000 captures all real article content while staying well short of the
+  // footer/sidebar zone (~19 000+) where unrelated CEN listings create false positives.
+  const notifSearchLen = isPlainText ? 20_000 : 8_000;
   const sourceDomain = extractDomain(sourceUrl);
   const notificationNumber = isPlainText
     ? // Plain-text (PDF) mode: require explicit label or distinctive structure.

@@ -8,6 +8,7 @@
 //  EP02  Standalone colon-separated notification number
 //  EP03  Existing slash/dash notification number still works
 //  EP04  "Total Number of Vacancies 225" extracted correctly
+//  EP13  Notification number beyond 2 000 chars (JSON-LD offset regression)
 //  EP05  Total 225 beats subordinate 200 (order priority)
 //  EP06  "Total Vacancies: 259" still works
 //  EP07  Close date from table-cell (no colon): "Last Date of Online Registration 28/09/2026"
@@ -196,4 +197,34 @@ The last date to apply for these vacancies is 28/09/2026.</p>
   // Open date
   assert.ok(result.applicationOpenDate, "should extract application open date");
   assert.equal(result.applicationOpenDate, "2026-09-08");
+});
+
+// ─── EP13: search-window regression ──────────────────────────
+
+test("EP13: notification number beyond 2 000 chars is found (JSON-LD offset regression)", () => {
+  // Mirrors the real GovtJobGuru production failure:
+  // WordPress pages inject 3-4 kB of JSON-LD/schema.org before article content.
+  // The old 2 000-char window never reached the advt paragraph (offset ~4 200).
+  // The new 8 000-char window must find it.
+  //
+  // This HTML is synthetic but the structure is real: 2 200 chars of JSON-LD
+  // filler, then the article paragraph containing the advt number.
+  const jsonLdFiller = `{"@context":"https://schema.org","@graph":[{"@type":"WebPage","url":"https://govtjobguru.in/jobs/uiic-ao-recruitment-2026/","name":"UIIC AO Recruitment 2026 - Apply Online for 225 Administrative Officer Posts"}]}`.padEnd(2200, " ");
+  const HTML = `<!DOCTYPE html><html><head>
+<script type="application/ld+json">${jsonLdFiller}</script>
+</head><body>
+<p>The United India Insurance Company Limited has published the recruitment notification
+(Advt No. HO:HRM:REC:AO:1:2026) on its official website.</p>
+<p>Total Number of Vacancies 225</p>
+<p>Online Registration Commences 08/09/2026</p>
+<p>Last Date of Online Registration 28/09/2026</p>
+</body></html>`;
+
+  const result = extractIntakeFields(HTML, "https://govtjobguru.in/jobs/uiic-ao-recruitment-2026/", undefined, undefined, "THIRD_PARTY");
+
+  assert.ok(result.notificationNumber, "notification number must be found even when past the 2 000-char mark");
+  assert.ok(
+    result.notificationNumber!.includes("HO") && result.notificationNumber!.includes("2026"),
+    `expected HO:HRM:REC:AO:1:2026, got: "${result.notificationNumber}"`,
+  );
 });
