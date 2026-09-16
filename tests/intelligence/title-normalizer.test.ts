@@ -65,6 +65,20 @@ test("N06: result shorter than minimum falls back to original", () => {
   }
 });
 
+test("N08: em/en dash before 'Apply Online' is stripped (production UIIC case)", () => {
+  const raw = "UIIC AO Recruitment 2026 – Apply Online for 225 Administrative Officer Posts";
+  const result = normalizeRecruitmentTitle(raw);
+  assert.strictEqual(result, "UIIC AO Recruitment 2026", `unexpected result: "${result}"`);
+});
+
+test("N09: legitimate title content is preserved — no over-stripping", () => {
+  const raw = "IBPS Clerk 2026 CRP Clerks-XIV Recruitment for 6128 Posts";
+  const result = normalizeRecruitmentTitle(raw);
+  // "for 6128 Posts" is part of the legitimate CRP title pattern — must not strip it
+  assert.ok(result.includes("IBPS Clerk"), `core name stripped: "${result}"`);
+  assert.ok(result.includes("6128") || result.length >= 30, `over-stripped: "${result}"`);
+});
+
 test("N07: trailing punctuation artifacts are cleaned", () => {
   // Stripping a suffix can leave a trailing comma or colon
   const raw = "BPSC 71st CCE Recruitment 2026, Apply Online Now";

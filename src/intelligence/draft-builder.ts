@@ -31,6 +31,7 @@ import {
 import { HttpRetriever } from "./http-retriever";
 import { discoverOfficialUrls } from "./official-source-discoverer";
 import { normalizeRecruitmentTitle } from "./title-normalizer";
+import { extractPdfText, type FetchPdfFn } from "./pdf-extractor";
 import type {
   SourceRetriever,
   IntelligenceSource,
@@ -490,12 +491,17 @@ function toExtractionSourceKind(phase10Kind: SourceKind): ExtractionSourceKind {
 // ─── Main entry point ─────────────────────────────────────────
 
 // ─── Internal: retrieve one URL and extract ───────────────────
+//
+// PDF detection: if the URL pathname ends in .pdf, routes through
+// extractPdfText() with sourceKind OFFICIAL_PDF. All other URLs
+// go through the HTML retriever unchanged.
 
 async function retrieveAndExtract(
   urlString: string,
   retriever: SourceRetriever,
   sources: IntelligenceSource[],
   extractionEntries: ExtractionWithSource[],
+  fetchPdfFn?: FetchPdfFn,
 ): Promise<void> {
   let url: URL;
   try {
@@ -509,7 +515,39 @@ async function retrieveAndExtract(
   const sourceId = randomUUID();
   const classification = classifySourceUrl(urlString);
   const kind = mapToPhase10SourceKind(classification.kind);
+  const retrievedAt = new Date().toISOString();
 
+  // PDF path: discovered .pdf URLs must go through the PDF extractor.
+  // HttpRetriever returns htmlContent=null for PDFs (application/pdf
+  // content-type is not decoded as text), causing false FAILED status.
+  if (url.pathname.toLowerCase().endsWith(".pdf")) {
+    const pdfResult = await extractPdfText(urlString, fetchPdfFn);
+    const pdfSource: IntelligenceSource = {
+      id: sourceId,
+      url: urlString,
+      domain: classification.domain,
+      kind,
+      organizationId: classification.orgId,
+      retrievalMethod: "PDF",
+      retrievedAt,
+      success: pdfResult.ok,
+    };
+    sources.push(pdfSource);
+
+    if (!pdfResult.ok || !pdfResult.text) return;
+
+    const extraction = extractIntakeFields(
+      pdfResult.text,
+      urlString,
+      undefined,
+      undefined,
+      "OFFICIAL_PDF",
+    );
+    extractionEntries.push({ source: pdfSource, extraction, orgName: classification.orgName });
+    return;
+  }
+
+  // HTML path (unchanged)
   const retrieved = await retriever.retrieve(url, sourceId, kind);
   sources.push(retrieved.source);
 
@@ -533,6 +571,7 @@ async function retrieveAndExtract(
 export async function buildDraft(
   urls: string[],
   retriever: SourceRetriever = new HttpRetriever(),
+  fetchPdfFn?: FetchPdfFn,
 ): Promise<RecruitmentIntelligenceDraft> {
   const sources: IntelligenceSource[] = [];
   const extractionEntries: ExtractionWithSource[] = [];
@@ -580,7 +619,7 @@ export async function buildDraft(
       const officialUrls = discoverOfficialUrls(retrieved.links, retrievedUrls);
       for (const officialUrlString of officialUrls) {
         retrievedUrls.add(officialUrlString);
-        await retrieveAndExtract(officialUrlString, retriever, sources, extractionEntries);
+        await retrieveAndExtract(officialUrlString, retriever, sources, extractionEntries, fetchPdfFn);
       }
     }
   }

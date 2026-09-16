@@ -16,8 +16,9 @@
 import { suite, test, assert } from "./suite";
 import { mapExtractionsToDraft, buildDraft } from "@/intelligence/draft-builder";
 import { HttpRetriever } from "@/intelligence/http-retriever";
-import type { IntelligenceSource, SourceRetriever, RetrievedSource } from "@/intelligence/draft-types";
+import type { IntelligenceSource, SourceRetriever, RetrievedSource, DiscoveredLink, SourceKind } from "@/intelligence/draft-types";
 import type { IntakeExtraction } from "@/intelligence/intake";
+import type { FetchPdfFn } from "@/intelligence/pdf-extractor";
 
 // ─── Test harness helpers ─────────────────────────────────────
 
@@ -66,6 +67,31 @@ class StaticHtmlRetriever implements SourceRetriever {
       success: true,
     };
     return { source, success: true, html: this.html, links: [] };
+  }
+}
+
+// A retriever that returns static HTML plus explicit discovered links
+// (simulates HttpRetriever extracting links from a real page)
+class LinksAwareRetriever implements SourceRetriever {
+  constructor(
+    private readonly html: string,
+    private readonly links: DiscoveredLink[],
+    private readonly kind: SourceKind = "SECONDARY",
+  ) {}
+
+  canHandle(url: URL): boolean { void url; return true; }
+
+  async retrieve(url: URL, sourceId: string, kind: SourceKind): Promise<RetrievedSource> {
+    void kind;
+    const source: IntelligenceSource = {
+      id: sourceId,
+      url: url.toString(),
+      domain: url.hostname,
+      kind: this.kind,
+      retrievedAt: new Date().toISOString(),
+      success: true,
+    };
+    return { source, success: true, html: this.html, links: this.links };
   }
 }
 
@@ -530,6 +556,83 @@ test("DB11: multi-source BOI (official + 2 secondary) → org, vacancies, dates,
     true,
     "draft with title must be ready for review",
   );
+});
+
+test("DB12: discovered PDF goes through PDF extraction, not HTML retriever", async () => {
+  const SECONDARY_HTML = `<html><body><p>225 vacancies for UIIC AO 2026</p></body></html>`;
+  const PDF_TEXT = `UIIC Administrative Officer Recruitment 2026
+Notification No: AO/2026/01
+Total Vacancies: 225
+Application Start: 20/08/2026
+Last Date: 10/09/2026`;
+
+  const links: DiscoveredLink[] = [{
+    url: "https://uiic.co.in/recruitment.pdf",
+    label: "UIIC AO Notification",
+    type: "OFFICIAL_NOTIFICATION",
+  }];
+
+  const mockFetchPdf: FetchPdfFn = async (url) => ({
+    ok: url.endsWith(".pdf"),
+    text: url.endsWith(".pdf") ? PDF_TEXT : null,
+    error: url.endsWith(".pdf") ? undefined : "not a PDF",
+  });
+
+  const draft = await buildDraft(
+    ["https://govtjobguru.in/uiic-ao-2026/"],
+    new LinksAwareRetriever(SECONDARY_HTML, links, "SECONDARY"),
+    mockFetchPdf,
+  );
+
+  assert.ok(draft.sources.length >= 2, `expected >= 2 sources, got ${draft.sources.length}`);
+
+  const pdfSource = draft.sources.find((s) => s.url.endsWith(".pdf"));
+  assert.ok(pdfSource, "PDF source must be present in sources[]");
+  assert.equal(pdfSource!.retrievalMethod, "PDF", "PDF source must use PDF retrieval method");
+  assert.equal(pdfSource!.success, true, "PDF source must succeed");
+  assert.equal(pdfSource!.kind, "OFFICIAL", "UIIC PDF must be classified as OFFICIAL");
+});
+
+test("DB13: failed PDF → source recorded with success=false, useful failure state", async () => {
+  const SECONDARY_HTML = `<html><body><p>225 vacancies</p></body></html>`;
+  const links: DiscoveredLink[] = [{
+    url: "https://uiic.co.in/recruitment.pdf",
+    label: "UIIC AO Notification",
+    type: "OFFICIAL_NOTIFICATION",
+  }];
+
+  const mockFetchPdf: FetchPdfFn = async () => ({
+    ok: false,
+    text: null,
+    error: "HTTP 403 from uiic.co.in",
+  });
+
+  const draft = await buildDraft(
+    ["https://govtjobguru.in/uiic-ao-2026/"],
+    new LinksAwareRetriever(SECONDARY_HTML, links, "SECONDARY"),
+    mockFetchPdf,
+  );
+
+  const pdfSource = draft.sources.find((s) => s.url.endsWith(".pdf"));
+  assert.ok(pdfSource, "failed PDF source must still be recorded");
+  assert.equal(pdfSource!.success, false, "failed PDF must have success=false");
+  assert.equal(pdfSource!.retrievalMethod, "PDF", "failed source still shows PDF method");
+});
+
+test("DB14: HTML retrieval regression — secondary HTML still works when no PDF discovered", async () => {
+  const SECONDARY_HTML = `<html><head><title>UIIC AO Recruitment 2026</title></head>
+<body><p>225 vacancies. Apply by 10/09/2026.</p></body></html>`;
+
+  const draft = await buildDraft(
+    ["https://govtjobguru.in/uiic-ao-2026/"],
+    new StaticHtmlRetriever(SECONDARY_HTML, "SECONDARY"),
+    // no fetchPdfFn — verifies PDF path is not accidentally entered for HTML sources
+  );
+
+  assert.equal(draft.sources.length, 1, "only the secondary HTML source");
+  assert.equal(draft.sources[0].success, true, "HTML source succeeds");
+  assert.equal(draft.sources[0].retrievalMethod, undefined, "HTML source has no retrieval method override");
+  assert.ok(draft.identity.title.value, "title extracted from HTML");
 });
 
 test("DB8: ConflictValue entries preserve sourceKind from their source", () => {

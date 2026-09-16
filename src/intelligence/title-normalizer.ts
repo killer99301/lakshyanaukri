@@ -20,6 +20,8 @@ const BOILERPLATE_PATTERNS: RegExp[] = [
   /,?\s+out\s+for\s+\d[\d,]*\s+posts?.*$/i,
   // "Download Official PDF For Full Details" (aggregator CTA)
   /,?\s+download\s+official\s+pdf(\s+for\s+full\s+details)?.*$/i,
+  // "Title – Apply Online for X Posts" (em/en dash separator before Apply Online)
+  /\s*[–—]\s*apply\s+online.*$/i,
   // "Apply Online Now / Here / @site.com"
   /,?\s+apply\s+online\s+(?:now|here|link|@\S+).*$/i,
   // "Apply Online" bare (only when it's a standalone suffix)
