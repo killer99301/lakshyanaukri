@@ -661,3 +661,77 @@ test("DB8: ConflictValue entries preserve sourceKind from their source", () => {
   assert.ok(kinds.includes("OFFICIAL"), "conflict values must include OFFICIAL kind");
   assert.ok(kinds.includes("SECONDARY"), "conflict values must include SECONDARY kind");
 });
+
+// ─── DB15: Two-hop discovery ─────────────────────────────────
+
+test("DB15: two-hop — secondary links to official homepage, homepage links to recruitment page", async () => {
+  // Three pages:
+  //   1. Secondary page (govtjobguru) → links to uiic.co.in (depth 1, homepage)
+  //   2. UIIC homepage → links to uiic.co.in/web/careers/recruitment (depth 3)
+  //   3. UIIC recruitment page → has actual notification data
+
+  const SECONDARY_HTML = `<html><body><p>UIIC AO 2026 recruitment details available on official website.</p></body></html>`;
+  const HOMEPAGE_HTML = `<html><head><title>United India Insurance Company Limited</title></head><body><a href="https://uiic.co.in/web/careers/recruitment">Careers & Recruitment</a></body></html>`;
+  const RECRUITMENT_HTML = `<html><head><title>UIIC AO Recruitment 2026</title></head>
+<body>
+<p>Advt No. HO:HRM:REC:AO:1:2026</p>
+<p>Total Number of Vacancies 225</p>
+<p>Online Registration Commences 08/09/2026</p>
+<p>Last Date of Online Registration 28/09/2026</p>
+</body></html>`;
+
+  const secondaryLinks: DiscoveredLink[] = [
+    { url: "https://uiic.co.in/", label: "Click Here for Official Website", type: "OFFICIAL_WEBSITE" },
+  ];
+  const homepageLinks: DiscoveredLink[] = [
+    { url: "https://uiic.co.in/web/careers/recruitment", label: "Careers & Recruitment", type: "OTHER" },
+  ];
+
+  // A retriever that returns different HTML+links per domain+path
+  class TwoHopRetriever implements SourceRetriever {
+    canHandle(url: URL): boolean { void url; return true; }
+    async retrieve(url: URL, sourceId: string, kind: SourceKind): Promise<RetrievedSource> {
+      void kind;
+      const source: IntelligenceSource = {
+        id: sourceId, url: url.toString(), domain: url.hostname,
+        kind: url.hostname.includes("govtjobguru") ? "SECONDARY" : "OFFICIAL",
+        retrievedAt: new Date().toISOString(), success: true,
+      };
+      if (url.hostname.includes("govtjobguru")) {
+        return { source, success: true, html: SECONDARY_HTML, links: secondaryLinks };
+      }
+      if (url.pathname === "/" || url.pathname === "") {
+        return { source, success: true, html: HOMEPAGE_HTML, links: homepageLinks };
+      }
+      return { source, success: true, html: RECRUITMENT_HTML, links: [] };
+    }
+  }
+
+  const draft = await buildDraft(
+    ["https://govtjobguru.in/uiic-ao-2026/"],
+    new TwoHopRetriever(),
+  );
+
+  const urls = draft.sources.map((s) => s.url);
+
+  // All three pages retrieved
+  assert.ok(urls.some((u) => u.includes("govtjobguru")), "secondary source should appear");
+  assert.ok(urls.some((u) => u === "https://uiic.co.in/"), "UIIC homepage should appear as seed");
+  assert.ok(urls.some((u) => u.includes("careers/recruitment")), "UIIC recruitment page should appear");
+
+  // Official recruitment page has highest authority — its data should win
+  const officialSources = draft.sources.filter((s) => s.kind === "OFFICIAL");
+  assert.ok(officialSources.length >= 2, `expected ≥2 official sources, got ${officialSources.length}`);
+
+  // Notification number extracted from the deep page
+  assert.ok(draft.identity.notificationNumber?.value, "should extract notification number from deep page");
+  assert.ok(
+    draft.identity.notificationNumber!.value!.includes("HO") && draft.identity.notificationNumber!.value!.includes("2026"),
+    `unexpected notification number: ${draft.identity.notificationNumber!.value}`,
+  );
+
+  // Vacancies from deep page
+  assert.equal(draft.vacancies.total?.value ?? draft.vacancies.derivedTotal?.value, 225,
+    "should extract 225 vacancies from deep page",
+  );
+});

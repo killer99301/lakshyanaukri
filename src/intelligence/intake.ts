@@ -281,9 +281,10 @@ function identifyKnownOrgFromText(text: string): string | undefined {
 
 const VACANCY_RE = [
   // Labeled patterns — require an explicit keyword adjacent to the number.
-  // "Total Vacancies: 259", "Total Posts: 500", "No. of Posts: 150"
+  // "Total Vacancies: 259", "Total Number of Vacancies 225", "Total Posts: 500"
   // Negative lookahead (?!\s*[-–]\s*\d) prevents matching page ranges like "44-53".
-  /total\s+(?:vacancies|posts?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
+  // "Number of" is optional so "Total Number of Vacancies 225" and "Total Vacancies: 225" both match.
+  /total\s+(?:number\s+of\s+)?(?:vacancies|posts?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
   /no\.?\s+of\s+(?:vacancies|posts?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
   // Proximity patterns — number followed or preceded by keyword within a short span.
   /(\d[\d,]+)(?!\s*[-–]\s*\d)\s+(?:posts?|vacanc(?:y|ies)|seats?)\b/i,
@@ -730,6 +731,9 @@ function extractApplicationDates(text: string): {
     /(?:apply|application|registration|submit)\s+(?:before|upto?)\s+(.{5,25}?(?:\d{4}))/i,
     // "from DATE to DATE" range — captures the close (right-hand) date
     /from\s+.{5,30}?\d{4}\s+to\s+(.{5,25}?(?:\d{4}))/i,
+    // Table-cell / whitespace-separated format (no colon): "Last Date of Online Registration 28/09/2026".
+    // Government important-dates tables render label and date as adjacent cells with no colon.
+    /(?:last\s+date|closing\s+date|close\s+date|deadline)\b[^\d]{0,60}(\d{1,2}[./]\d{1,2}[./]20\d{2})/i,
   ];
   for (const re of closePatterns) {
     const m = re.exec(text);
@@ -740,9 +744,11 @@ function extractApplicationDates(text: string): {
   }
 
   const openPatterns = [
-    /(?:starting\s+date|start\s+date|opening\s+date|application\s+start\s+(?:date)?|apply\s+from|online\s+(?:application|registration)\s+(?:start(?:s|ing)?|begin))[^:\n]{0,40}?:\s*(.{5,35}?(?:\d{4}))/i,
+    /(?:starting\s+date|start\s+date|opening\s+date|application\s+start\s+(?:date)?|apply\s+from|online\s+(?:application|registration)\s+(?:start(?:s|ing)?|begin|commences?))[^:\n]{0,40}?:\s*(.{5,35}?(?:\d{4}))/i,
     /application\s+open[^:\n]{0,20}?:\s*(.{5,30}?(?:\d{4}))/i,
     /from\s+(.{5,25}?(?:\d{4}))\s+to\s+/i,
+    // Table-cell / whitespace-separated "commences/opens" label: "Online Registration Commences 08/09/2026".
+    /(?:online\s+registration\s+commences?|registration\s+(?:commences?|opens?)|application\s+(?:commences?|opens?))\b[^\d]{0,30}(\d{1,2}[./]\d{1,2}[./]20\d{2})/i,
   ];
   for (const re of openPatterns) {
     const m = re.exec(text);

@@ -131,6 +131,11 @@ const NOTIF_RE = [
   /\b(advt\.?\s*no\.?\s*[\d\/\-]+(?:\/\d{4})?)/i,
   /\b(no\.?\s*\d[\d\/\-]+(?:\/\d{4})?)/i,
   /\b(cen[\-\s]?\d+\/\d{4})\b/i,
+  // Colon-separated codes: "Advt No. HO:HRM:REC:AO:1:2026" — common in insurance/PSU sector.
+  // Captures the code only (not the "Advt No." prefix).
+  /\b(?:advt\.?\s*no\.?\s*)([A-Z]{2,}(?::[A-Z0-9]+){1,}:\d{1,4}:\d{4})\b/i,
+  // Standalone colon-separated code without label: at least 3 segments + number + year.
+  /\b([A-Z]{2,}(?::[A-Z0-9]+){2,}:\d{1,4}:\d{4})\b/,
   // Handles compound codes like BCECEB(BSFC)-2026/01 — org code + optional parenthesised suffix + year/seq
   /\b([A-Z]{2,10}(?:\([A-Z]{2,8}\))?[\-\/]\d{4}(?:\/\d{1,2})?)\b/,
   /\b([A-Z]{2,10}[\-\/]\d{2,4}(?:\/\d{4})?)\b/,

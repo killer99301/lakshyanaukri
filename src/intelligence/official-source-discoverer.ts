@@ -82,7 +82,14 @@ export function discoverOfficialUrls(
     }
 
     if (classification.kind !== "OFFICIAL") continue;
-    if (!isRecruitmentRelevant(link)) continue;
+
+    // Official homepages (path depth ≤ 1) are allowed through as discovery seeds:
+    // they don't need recruitment keywords in the URL/label because they will be
+    // retrieved and their links scanned for recruitment-specific pages one hop deeper.
+    // All deeper official links still require isRecruitmentRelevant() to avoid
+    // retrieving unrelated pages (about-us, contact, tenders, etc.).
+    const depth = urlPathDepth(url);
+    if (depth > 1 && !isRecruitmentRelevant(link)) continue;
 
     seen.add(url);
     scored.push({ url, score: officialLinkScore(link) });

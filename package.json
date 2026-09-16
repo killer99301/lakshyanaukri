@@ -37,6 +37,8 @@
     "intelligence:official-source-discoverer-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/official-source-discoverer.test.ts",
     "intelligence:title-normalizer-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/title-normalizer.test.ts",
     "intelligence:phase11-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/official-source-discoverer.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/title-normalizer.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/draft-builder.test.ts",
+    "intelligence:extractor-patterns-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/extractor-patterns.test.ts",
+    "intelligence:phase12-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/extractor-patterns.test.ts && npx tsx --tsconfig tsconfig.json tests/intelligence/draft-builder.test.ts",
     "intelligence:confirm-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/confirmer.test.ts",
     "intelligence:harness": "npx tsx --tsconfig tsconfig.json tests/intelligence/confirmation-harness.test.ts",
     "intelligence:queue-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue.test.ts",

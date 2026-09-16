@@ -499,20 +499,22 @@ function toExtractionSourceKind(phase10Kind: SourceKind): ExtractionSourceKind {
 //
 // All non-PDF URLs go through the HTML retriever unchanged.
 
+// Returns the links extracted from the page so the caller can use them
+// for a second discovery hop (official homepage seeds). Returns [] for PDFs.
 async function retrieveAndExtract(
   urlString: string,
   retriever: SourceRetriever,
   sources: IntelligenceSource[],
   extractionEntries: ExtractionWithSource[],
-): Promise<void> {
+): Promise<import("./draft-types").DiscoveredLink[]> {
   let url: URL;
   try {
     url = new URL(urlString);
   } catch {
-    return;
+    return [];
   }
 
-  if (!retriever.canHandle(url)) return;
+  if (!retriever.canHandle(url)) return [];
 
   const sourceId = randomUUID();
   const classification = classifySourceUrl(urlString);
@@ -549,14 +551,14 @@ async function retrieveAndExtract(
       extraction: discoveryExtraction,
       orgName: classification.orgName,
     });
-    return;
+    return [];
   }
 
-  // HTML path (unchanged)
+  // HTML path
   const retrieved = await retriever.retrieve(url, sourceId, kind);
   sources.push(retrieved.source);
 
-  if (!retrieved.success || !retrieved.html) return;
+  if (!retrieved.success || !retrieved.html) return [];
 
   const extraction = extractIntakeFields(
     retrieved.html,
@@ -571,6 +573,18 @@ async function retrieveAndExtract(
     extraction,
     orgName: classification.orgName,
   });
+  return retrieved.links;
+}
+
+// Returns true when an official URL is a homepage or section root (path depth ≤ 1).
+// These are treated as discovery seeds: retrieved for their links, not expected to
+// carry recruitment-specific field data themselves.
+function isShallowPath(urlString: string): boolean {
+  try {
+    return new URL(urlString).pathname.split("/").filter(Boolean).length <= 1;
+  } catch {
+    return false;
+  }
 }
 
 export async function buildDraft(
@@ -615,15 +629,24 @@ export async function buildDraft(
       orgName: classification.orgName,
     });
 
-    // Phase 11: Official source discovery.
+    // Phase 11+12: Official source discovery with controlled two-hop.
     // When the provided URL is secondary/unknown, scan its extracted links
     // for official recruitment pages and retrieve those as higher-authority sources.
-    // One level only — we do not recurse from official pages.
+    // If a discovered official URL is a shallow-path homepage (depth ≤ 1), treat it
+    // as a seed: retrieve it and scan its links for deeper recruitment-specific pages.
+    // Maximum one extra hop — never recurse from deep official pages.
     if (kind !== "OFFICIAL") {
       const officialUrls = discoverOfficialUrls(retrieved.links, retrievedUrls);
       for (const officialUrlString of officialUrls) {
         retrievedUrls.add(officialUrlString);
-        await retrieveAndExtract(officialUrlString, retriever, sources, extractionEntries);
+        const officialLinks = await retrieveAndExtract(officialUrlString, retriever, sources, extractionEntries);
+        if (officialLinks.length > 0 && isShallowPath(officialUrlString)) {
+          const deepUrls = discoverOfficialUrls(officialLinks, retrievedUrls);
+          for (const deepUrl of deepUrls) {
+            retrievedUrls.add(deepUrl);
+            await retrieveAndExtract(deepUrl, retriever, sources, extractionEntries);
+          }
+        }
       }
     }
   }
