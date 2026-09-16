@@ -51,6 +51,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "@node-rs/argon2": "^2.2.0",
     "@upstash/redis": "^1.38.4",
+    "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
     "fast-xml-parser": "^5.11.1",
     "lucide-react": "^1.31.0",
