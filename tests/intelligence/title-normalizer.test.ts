@@ -65,7 +65,15 @@ test("N06: result shorter than minimum falls back to original", () => {
   }
 });
 
-test("N08: em/en dash before 'Apply Online' is stripped (production UIIC case)", () => {
+test("N08a: hyphen-minus before 'Apply Online' is stripped (govtjobguru <title> actual case)", () => {
+  // govtjobguru's <title> tag uses U+002D (hyphen-minus), not an en-dash.
+  // extractIntakeFields reads <title>, so the normalizer must handle U+002D.
+  const raw = "UIIC AO Recruitment 2026 - Apply Online for 225 Administrative Officer Posts";
+  const result = normalizeRecruitmentTitle(raw);
+  assert.strictEqual(result, "UIIC AO Recruitment 2026", `unexpected result: "${result}"`);
+});
+
+test("N08b: en-dash before 'Apply Online' is stripped (H1 / other aggregator case)", () => {
   const raw = "UIIC AO Recruitment 2026 – Apply Online for 225 Administrative Officer Posts";
   const result = normalizeRecruitmentTitle(raw);
   assert.strictEqual(result, "UIIC AO Recruitment 2026", `unexpected result: "${result}"`);

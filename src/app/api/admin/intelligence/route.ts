@@ -19,6 +19,9 @@
 // ═══════════════════════════════════════════════════════════
 
 export const runtime = "nodejs";
+// PDF fetch (720KB+) + pdf-parse processing can take 15–30 s.
+// Default 10 s on Vercel Hobby would kill the request before the PDF is read.
+export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
