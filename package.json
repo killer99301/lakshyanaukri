@@ -43,6 +43,7 @@
     "intelligence:harness": "npx tsx --tsconfig tsconfig.json tests/intelligence/confirmation-harness.test.ts",
     "intelligence:queue-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue.test.ts",
     "intelligence:e2e-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue-e2e.test.ts",
+    "cms:test": "npx tsx --tsconfig tsconfig.json tests/cms/provenance.test.ts",
     "build": "npm run validate && next build",
     "start": "next start",
     "lint": "eslint"
