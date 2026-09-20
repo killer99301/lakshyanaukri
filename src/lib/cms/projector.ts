@@ -71,6 +71,12 @@ export interface PublishedRecruitmentSnapshot {
   howToApply: string[];
   links: Array<{ type: string; label: string; url: string; official: boolean }>;
   documents: Array<{ type: string; label: string; url: string; official: boolean; datePublished?: string }>;
+  classification: {
+    shortDescription: string | null;
+    category: string | null;
+    state: string | null;
+    qualification: string | null;
+  };
   provenanceStatus: string;
   primarySourceUrl: string | null;
   projectedAt: string;
@@ -146,6 +152,13 @@ export function projectToPublished(record: RecruitmentRecord): PublishedRecruitm
       official:      d.official,
       datePublished: d.datePublished,
     })),
+
+    classification: {
+      shortDescription: record.classification?.shortDescription ?? null,
+      category:         record.classification?.category ?? null,
+      state:            record.classification?.state ?? null,
+      qualification:    record.classification?.qualification ?? null,
+    },
 
     provenanceStatus:   record.provenance.status,
     primarySourceUrl:   record.provenance.primarySourceUrl ?? null,

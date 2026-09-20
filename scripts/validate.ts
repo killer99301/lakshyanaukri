@@ -18,7 +18,7 @@
 // production build always contains clean data.
 // ═══════════════════════════════════════════════════════════
 
-import { getAllOpportunities, getAllSlugs } from "@/lib/repository";
+import { getAllOpportunities, getAllStaticSlugs } from "@/lib/repository";
 import { validateAllRecords, printValidationResults } from "@/lib/validation";
 import {
   UPCOMING_EXAMS,
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
 
   // 1. Validate canonical opportunity records
   const opportunities = getAllOpportunities();
-  const canonicalSlugs = getAllSlugs(); // verified slugs only
+  const canonicalSlugs = getAllStaticSlugs(); // verified slugs only (static layer)
   console.log(`   Validating ${opportunities.length} canonical records...\n`);
 
   const opportunityErrors = validateAllRecords(opportunities);

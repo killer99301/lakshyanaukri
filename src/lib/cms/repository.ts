@@ -53,6 +53,7 @@ interface RecruitmentRow {
   documents: unknown;
   lifecycle: unknown;
   conditions: unknown;
+  classification: unknown;
   provenance: unknown;
   updates: unknown;
   created_at: string;
@@ -81,6 +82,7 @@ function rowToRecord(row: RecruitmentRow): RecruitmentRecord {
     documents:              (row.documents as RecruitmentRecord["documents"]) ?? [],
     lifecycle:              row.lifecycle as RecruitmentRecord["lifecycle"],
     conditions:             row.conditions as RecruitmentRecord["conditions"],
+    classification:         row.classification as RecruitmentRecord["classification"],
     provenance:             row.provenance as Provenance,
     updates:                (row.updates as RecruitmentRecord["updates"]) ?? [],
     createdAt:              row.created_at,
@@ -159,6 +161,7 @@ export interface CreateRecruitmentParams {
   dates?: RecruitmentRecord["dates"];
   vacancies?: RecruitmentRecord["vacancies"];
   financial?: RecruitmentRecord["financial"];
+  classification?: RecruitmentRecord["classification"];
   provenance: RecruitmentRecord["provenance"];
   adminId: string;
 }
@@ -185,6 +188,7 @@ export async function createRecruitment(
       slug,
       identity, dates, vacancies, financial,
       lifecycle, provenance, links, documents, updates,
+      classification,
       organization_id, organization_name, title_text, gov_type,
       created_by, updated_by
     )
@@ -199,6 +203,7 @@ export async function createRecruitment(
       ${JSON.stringify([])},
       ${JSON.stringify([])},
       ${JSON.stringify([])},
+      ${params.classification !== undefined ? JSON.stringify(params.classification) : null},
       ${identity.organizationId},
       ${identity.organizationName ?? null},
       ${identity.title.value ?? null},
@@ -256,6 +261,7 @@ export async function persistFieldUpdate(
         documents         = ${JSON.stringify(record.documents)},
         lifecycle         = ${JSON.stringify(record.lifecycle)},
         conditions        = ${record.conditions !== undefined ? JSON.stringify(record.conditions) : null},
+        classification    = ${record.classification !== undefined ? JSON.stringify(record.classification) : null},
         provenance        = ${JSON.stringify(record.provenance)},
         record_revision   = ${updatedRevision},
         organization_name = ${record.identity.organizationName ?? null},

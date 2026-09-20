@@ -162,3 +162,8 @@ CREATE INDEX IF NOT EXISTS idx_recruitment_audit_events_recruitment_id
 
 CREATE INDEX IF NOT EXISTS idx_recruitment_audit_events_event_type
   ON recruitment_audit_events(event_type, created_at DESC);
+
+-- ─── Phase F Migration (applied 2026-09-20) ──────────────────
+-- Adds plain classification metadata block.
+-- Safe to re-run (IF NOT EXISTS).
+-- ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS classification JSONB;

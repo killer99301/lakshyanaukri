@@ -240,6 +240,18 @@ export interface CmsRecruitmentDocument {
   evidenceId?: string;  // FK → CmsEvidence if also in evidence store
 }
 
+// ─── Classification ───────────────────────────────────────
+//
+// Plain administrative metadata — not ProvenanceField-wrapped.
+// Set by admins; not extracted from PDFs.
+
+export interface RecruitmentClassification {
+  shortDescription?: string;   // SEO/display summary; empty if not yet entered
+  category?: string;           // "state-psc" | "banking" | "railway" | etc.
+  state?: string;              // "Bihar" | "All India" | "Karnataka" | etc.
+  qualification?: string;      // "Graduate" | "10th Pass" | etc.
+}
+
 // ─── Domain Blocks (namespace blocks — individual ProvenanceField per field) ──
 
 export interface RecruitmentIdentity {
@@ -315,6 +327,7 @@ export interface RecruitmentRecord {
   documents:   CmsRecruitmentDocument[];
   lifecycle:   RecruitmentLifecycle;
   conditions?: SpecialConditions;
+  classification?: RecruitmentClassification;
 
   // Record-level verification (re-uses the existing Provenance shape)
   provenance: Provenance;

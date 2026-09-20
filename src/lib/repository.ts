@@ -11,6 +11,8 @@ import type { Opportunity, GovernmentRecruitment, PrivateJob, Internship } from 
 import { GOVERNMENT_RECRUITMENTS } from "@/data/government";
 import { PRIVATE_JOBS } from "@/data/private";
 import { INTERNSHIPS } from "@/data/internships";
+import { getPublishedBySlug, getPublishedSlugs } from "@/lib/cms/public-repository";
+import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
 
 // ─── Internal Dataset Assembly ──────────────────────────
 
@@ -62,9 +64,16 @@ export function getAllVerifiedOpportunities(): Opportunity[] {
 
 /**
  * Find an opportunity by its URL slug. Returns undefined if not found.
- * Only searches verified records — NOT_VERIFIED records will not match.
+ * CMS-first: checks published_recruitments before the static repository.
+ * Falls back to static records if the CMS is unreachable or has no match.
  */
-export function getBySlug(slug: string): Opportunity | undefined {
+export async function getBySlug(slug: string): Promise<Opportunity | undefined> {
+  try {
+    const snapshot = await getPublishedBySlug(slug);
+    if (snapshot) return snapshotToGovernmentRecruitment(snapshot);
+  } catch {
+    // DB unavailable — fall through to static
+  }
   return assembleVerifiedDataset().find((opp) => opp.slug === slug);
 }
 
@@ -77,11 +86,28 @@ export function getById(id: string): Opportunity | undefined {
 }
 
 /**
- * Get all URL slugs — used for generateStaticParams() in Next.js.
- * Only returns slugs for verified records (NOT_VERIFIED excluded from routing).
+ * Get slugs from the static data layer only — no DB call.
+ * Used by validate.ts and other tooling that doesn't need CMS records.
  */
-export function getAllSlugs(): string[] {
+export function getAllStaticSlugs(): string[] {
   return assembleVerifiedDataset().map((opp) => opp.slug);
+}
+
+/**
+ * Get all URL slugs — used for generateStaticParams() in Next.js.
+ * CMS-first: CMS-published slugs take precedence over static.
+ * Falls back to static slugs if the CMS is unreachable.
+ */
+export async function getAllSlugs(): Promise<string[]> {
+  const staticSlugs = assembleVerifiedDataset().map((opp) => opp.slug);
+  try {
+    const cmsSlugs = await getPublishedSlugs();
+    const seen = new Set(cmsSlugs);
+    for (const s of staticSlugs) seen.add(s);
+    return Array.from(seen);
+  } catch {
+    return staticSlugs;
+  }
 }
 
 /**

@@ -22,14 +22,13 @@ interface JobDetailPageProps {
 }
 
 export async function generateStaticParams() {
-  return getAllSlugs().map((slug) => ({
-    slug,
-  }));
+  const slugs = await getAllSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: JobDetailPageProps) {
   const resolvedParams = await params;
-  const job = getBySlug(resolvedParams.slug);
+  const job = await getBySlug(resolvedParams.slug);
 
   if (!job) {
     return {
@@ -67,7 +66,7 @@ export async function generateMetadata({ params }: JobDetailPageProps) {
 
 export default async function JobDetailPage({ params }: JobDetailPageProps) {
   const resolvedParams = await params;
-  const job = getBySlug(resolvedParams.slug);
+  const job = await getBySlug(resolvedParams.slug);
 
   if (!job) {
     notFound();
