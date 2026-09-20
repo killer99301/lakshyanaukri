@@ -205,8 +205,8 @@ async function main() {
     );
     ok("routeFieldUpdate dispatched to updateIdentityField");
 
-    updateResult1 = await persistFieldUpdate(writerResult);
-    ok("persistFieldUpdate completed (BEGIN…UPDATE+INSERT…COMMIT)");
+    updateResult1 = await persistFieldUpdate(writerResult, record.recordRevision);
+    ok("persistFieldUpdate completed (CTE UPDATE+INSERT atomic)");
 
     assert(
       "Persisted record has new title value",
@@ -332,7 +332,7 @@ async function main() {
     ok("routeFieldUpdate dispatched to updateEligibility");
     assert("writerResult2.revision.fieldPath = 'eligibility'", writerResult2.revision.fieldPath === "eligibility");
 
-    const updateResult2 = await persistFieldUpdate(writerResult2);
+    const updateResult2 = await persistFieldUpdate(writerResult2, record.recordRevision);
     ok("persistFieldUpdate for eligibility block completed");
 
     assert(
@@ -437,7 +437,7 @@ async function main() {
     );
     // If routeFieldUpdate doesn't throw, persistFieldUpdate must reject it
     try {
-      await persistFieldUpdate(badResult);
+      await persistFieldUpdate(badResult, record.recordRevision);
       fail("I1 violation should have been rejected by persistFieldUpdate", "no error thrown");
     } catch {
       ok("persistFieldUpdate correctly rejects I1 violation (writer boundary holds)");

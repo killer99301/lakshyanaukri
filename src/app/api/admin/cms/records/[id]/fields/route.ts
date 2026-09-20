@@ -15,13 +15,14 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
-import { getRecruitmentById, persistFieldUpdate } from "@/lib/cms/repository";
+import { getRecruitmentById, persistFieldUpdate, OccConflictError } from "@/lib/cms/repository";
 import { routeFieldUpdate } from "@/lib/cms/field-update-router";
 import type { ProvenanceField } from "@/types/recruitment-record";
 
 interface PatchBody {
   fieldPath: string;
   field: ProvenanceField<unknown>;
+  clientRevision: string;
   reason?: string;
 }
 
@@ -45,10 +46,16 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { fieldPath, field, reason } = body;
+  const { fieldPath, field, clientRevision, reason } = body;
   if (!fieldPath || field === undefined) {
     return NextResponse.json(
       { error: "fieldPath and field are required" },
+      { status: 400 },
+    );
+  }
+  if (!clientRevision) {
+    return NextResponse.json(
+      { error: "clientRevision is required" },
       { status: 400 },
     );
   }
@@ -66,14 +73,28 @@ export async function PATCH(
       );
     }
 
+    // Fast pre-check before hitting the DB (DB CTE is the authoritative gate)
+    if (clientRevision !== record.recordRevision) {
+      return NextResponse.json(
+        { error: "CONFLICT", serverRevision: record.recordRevision, message: "Record was modified by another session" },
+        { status: 409 },
+      );
+    }
+
     const result = routeFieldUpdate(record, fieldPath, field, auth.adminId, reason);
-    const { record: saved, revision } = await persistFieldUpdate(result);
+    const { record: saved, revision } = await persistFieldUpdate(result, clientRevision);
 
     return NextResponse.json({
       record: saved,
       revision,
     });
   } catch (err) {
+    if (err instanceof OccConflictError) {
+      return NextResponse.json(
+        { error: "CONFLICT", serverRevision: err.serverRevision, message: err.message },
+        { status: 409 },
+      );
+    }
     const msg = String(err);
     if (msg.includes("Unknown or unroutable") || msg.includes("not an editable")) {
       return NextResponse.json({ error: msg }, { status: 400 });

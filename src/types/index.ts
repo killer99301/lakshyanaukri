@@ -51,6 +51,7 @@ export interface Provenance {
   primarySourceUrl?: string;      // direct link to the authoritative document
   primarySourceType: SourceType;
   notes?: string;                 // "Vacancy verified from corrigendum PDF page 3"
+  sourceDraftId?: string;         // set when record was promoted from an intelligence draft
 }
 
 // ─── Update History (Layer 2: Historical Events) ────────

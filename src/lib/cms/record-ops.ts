@@ -174,6 +174,62 @@ export function markPublished(
   };
 }
 
+// ─── Approval readiness ───────────────────────────────────
+
+export interface ApprovalReadiness {
+  blocking: string[];
+  warnings: string[];
+}
+
+/**
+ * Advisory pre-flight check before approving a record.
+ * Returns blocking issues (prevent approval) and warnings (advisory).
+ * Does NOT throw — callers decide what to do with the result.
+ */
+export function checkApprovalReadiness(record: RecruitmentRecord): ApprovalReadiness {
+  const blocking: string[] = [];
+  const warnings: string[] = [];
+
+  if (!record.identity.organizationId) {
+    blocking.push("identity.organizationId must be set");
+  }
+  if (!record.identity.title.value) {
+    blocking.push("identity.title must have a value");
+  }
+
+  const checkConflict = (f: ProvenanceField<unknown> | undefined | null, path: string) => {
+    if (f?.conflict) blocking.push(`${path} is CONFLICTED — resolve before approval`);
+  };
+  checkConflict(record.identity.title, "identity.title");
+  checkConflict(record.identity.shortTitle, "identity.shortTitle");
+  checkConflict(record.identity.notificationNumber, "identity.notificationNumber");
+  checkConflict(record.identity.advertisementNumber, "identity.advertisementNumber");
+  checkConflict(record.vacancies?.total, "vacancies.total");
+  checkConflict(record.vacancies?.breakdown, "vacancies.breakdown");
+  checkConflict(record.financial?.feeGeneral, "financial.feeGeneral");
+  checkConflict(record.financial?.feeSCST, "financial.feeSCST");
+  checkConflict(record.financial?.payScale, "financial.payScale");
+  checkConflict(record.eligibility, "eligibility");
+  checkConflict(record.age, "age");
+  checkConflict(record.selection, "selection");
+
+  if (record.lifecycle.conflicts.some((c) => !c.resolvedAt)) {
+    blocking.push("Unresolved lifecycle conflicts remain");
+  }
+
+  if (!record.vacancies.total?.value) {
+    warnings.push("vacancies.total is not set");
+  }
+  if (record.identity.title.status === "PENDING") {
+    warnings.push("identity.title is PENDING — consider verifying against official source");
+  }
+  if (!record.dates.applicationCloseDate?.value) {
+    warnings.push("dates.applicationCloseDate is not set");
+  }
+
+  return { blocking, warnings };
+}
+
 // ─── Field update path ────────────────────────────────────
 //
 // All field mutations go through applyFieldUpdate.

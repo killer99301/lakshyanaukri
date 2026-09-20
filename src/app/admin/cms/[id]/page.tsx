@@ -73,6 +73,7 @@ interface EditableFieldProps<T> {
   fieldPath: string;
   field: ProvenanceField<T> | undefined;
   recordId: string;
+  recordRevision: string;
   onSaved: (updated: RecruitmentRecord) => void;
   inputType?: "text" | "number" | "date" | "textarea";
   placeholder?: string;
@@ -84,6 +85,7 @@ function EditableField<T>({
   fieldPath,
   field,
   recordId,
+  recordRevision,
   onSaved,
   inputType = "text",
   placeholder,
@@ -129,11 +131,15 @@ function EditableField<T>({
       const res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fieldPath, field: newField, reason: reason || undefined }),
+        body: JSON.stringify({ fieldPath, field: newField, clientRevision: recordRevision, reason: reason || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setErr(data.error ?? `HTTP ${res.status}`);
+        if (res.status === 409 && data.error === "CONFLICT") {
+          setErr(`Conflict: record was modified by another session. Reload the page to get the latest version.`);
+        } else {
+          setErr(data.error ?? `HTTP ${res.status}`);
+        }
         return;
       }
       setEditing(false);
@@ -227,7 +233,7 @@ function EditableField<T>({
               {saving ? "Saving…" : "Save"}
             </button>
             <button
-              onClick={() => { void setValNotSpecified(fieldPath, recordId, field, onSaved, setSaving, setErr, setEditing); }}
+              onClick={() => { void setValNotSpecified(fieldPath, recordId, recordRevision, field, onSaved, setSaving, setErr, setEditing); }}
               style={{ padding: "6px 12px", background: "none", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, cursor: "pointer" }}
             >
               Set Not Specified
@@ -249,6 +255,7 @@ function EditableField<T>({
 async function setValNotSpecified(
   fieldPath: string,
   recordId: string,
+  recordRevision: string,
   _field: ProvenanceField<unknown> | undefined,
   onSaved: (r: RecruitmentRecord) => void,
   setSaving: (v: boolean) => void,
@@ -268,10 +275,17 @@ async function setValNotSpecified(
     const res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fieldPath, field: notSpecField }),
+      body: JSON.stringify({ fieldPath, field: notSpecField, clientRevision: recordRevision }),
     });
     const data = await res.json();
-    if (!res.ok) { setErr(data.error ?? `HTTP ${res.status}`); return; }
+    if (!res.ok) {
+      if (res.status === 409 && data.error === "CONFLICT") {
+        setErr("Conflict: record was modified by another session. Reload the page.");
+      } else {
+        setErr(data.error ?? `HTTP ${res.status}`);
+      }
+      return;
+    }
     setEditing(false);
     onSaved(data.record as RecruitmentRecord);
   } catch (e) {
@@ -366,6 +380,8 @@ export default function CmsRecordEditorPage() {
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveErr, setApproveErr] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishErr, setPublishErr] = useState<string | null>(null);
 
   const loadRecord = useCallback(async () => {
     try {
@@ -417,6 +433,27 @@ export default function CmsRecordEditorPage() {
       setApproveErr(String(e));
     } finally {
       setApproving(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (!record) return;
+    setPublishing(true);
+    setPublishErr(null);
+    try {
+      const res = await fetch(`/api/admin/cms/records/${id}/publish`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPublishErr(data.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      setRecord(data.record);
+    } catch (e) {
+      setPublishErr(String(e));
+    } finally {
+      setPublishing(false);
     }
   }
 
@@ -511,15 +548,27 @@ export default function CmsRecordEditorPage() {
         )}
 
         {record.draftState === "APPROVED" && (
-          <div style={{
-            padding: "10px 14px",
-            background: C.green + "11",
-            border: `1px solid ${C.green}33`,
-            borderRadius: 6,
-            fontSize: 12,
-            color: C.green,
-          }}>
-            ✓ Approved — ready to publish
+          <div>
+            <button
+              onClick={() => { void handlePublish(); }}
+              disabled={publishing}
+              style={{
+                width: "100%",
+                padding: "9px 14px",
+                background: C.accent,
+                color: "#0d1117",
+                border: "none",
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              {publishing ? "Publishing…" : "Publish Record"}
+            </button>
+            {publishErr && (
+              <div style={{ color: C.red, fontSize: 11, marginTop: 8 }}>{publishErr}</div>
+            )}
           </div>
         )}
 
@@ -543,6 +592,7 @@ export default function CmsRecordEditorPage() {
               fieldPath="identity.title"
               field={record.identity.title as ProvenanceField<unknown>}
               recordId={id}
+              recordRevision={record.recordRevision}
               onSaved={onFieldSaved}
               placeholder="e.g. BPSC 72nd Combined Competitive Exam"
             />
@@ -551,6 +601,7 @@ export default function CmsRecordEditorPage() {
               fieldPath="identity.shortTitle"
               field={record.identity.shortTitle as ProvenanceField<unknown> | undefined}
               recordId={id}
+              recordRevision={record.recordRevision}
               onSaved={onFieldSaved}
               placeholder="e.g. BPSC 72nd CCE"
             />
@@ -559,6 +610,7 @@ export default function CmsRecordEditorPage() {
               fieldPath="identity.notificationNumber"
               field={record.identity.notificationNumber as ProvenanceField<unknown> | undefined}
               recordId={id}
+              recordRevision={record.recordRevision}
               onSaved={onFieldSaved}
               placeholder="e.g. Advt No. 72/2024"
             />
@@ -567,6 +619,7 @@ export default function CmsRecordEditorPage() {
               fieldPath="identity.advertisementNumber"
               field={record.identity.advertisementNumber as ProvenanceField<unknown> | undefined}
               recordId={id}
+              recordRevision={record.recordRevision}
               onSaved={onFieldSaved}
               placeholder="e.g. 2026-27/02"
             />
@@ -590,6 +643,7 @@ export default function CmsRecordEditorPage() {
                 fieldPath={`dates.${key}`}
                 field={record.dates[key] as ProvenanceField<unknown> | undefined}
                 recordId={id}
+                recordRevision={record.recordRevision}
                 onSaved={onFieldSaved}
                 inputType="date"
                 placeholder="YYYY-MM-DD"
@@ -606,6 +660,7 @@ export default function CmsRecordEditorPage() {
               fieldPath="vacancies.total"
               field={record.vacancies.total as ProvenanceField<unknown> | undefined}
               recordId={id}
+              recordRevision={record.recordRevision}
               onSaved={onFieldSaved}
               inputType="number"
               placeholder="e.g. 1000"
@@ -709,6 +764,7 @@ export default function CmsRecordEditorPage() {
               fieldPath="financial.feeGeneral"
               field={record.financial.feeGeneral as ProvenanceField<unknown> | undefined}
               recordId={id}
+              recordRevision={record.recordRevision}
               onSaved={onFieldSaved}
               inputType="number"
               placeholder="e.g. 500 (or leave blank for 0 = free)"
@@ -718,6 +774,7 @@ export default function CmsRecordEditorPage() {
               fieldPath="financial.feeSCST"
               field={record.financial.feeSCST as ProvenanceField<unknown> | undefined}
               recordId={id}
+              recordRevision={record.recordRevision}
               onSaved={onFieldSaved}
               inputType="number"
               placeholder="e.g. 0 (or 250)"
@@ -727,6 +784,7 @@ export default function CmsRecordEditorPage() {
               fieldPath="financial.payScale"
               field={record.financial.payScale as ProvenanceField<unknown> | undefined}
               recordId={id}
+              recordRevision={record.recordRevision}
               onSaved={onFieldSaved}
               placeholder="e.g. Pay Matrix Level 10 (₹56,100 – ₹1,77,500)"
             />

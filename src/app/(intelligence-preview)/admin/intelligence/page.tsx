@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type {
   RecruitmentIntelligenceDraft,
@@ -765,6 +766,7 @@ function SourceItem({ source }: { source: IntelligenceSource }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function IntelligencePreviewPage() {
+  const router = useRouter();
   const [urls, setUrls] = useState("");
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<RecruitmentIntelligenceDraft | null>(null);
@@ -774,6 +776,8 @@ export default function IntelligencePreviewPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [currentRevision, setCurrentRevision] = useState<number>(1);
+  const [promoting, setPromoting] = useState(false);
+  const [promoteError, setPromoteError] = useState<string | null>(null);
 
   function updateDraft(fn: (d: RecruitmentIntelligenceDraft) => RecruitmentIntelligenceDraft) {
     setDraft((prev) => (prev ? fn(prev) : prev));
@@ -858,6 +862,34 @@ export default function IntelligencePreviewPage() {
       setSaveError("Network error — save did not reach the server.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handlePromote() {
+    if (!draftId) return;
+    setPromoting(true);
+    setPromoteError(null);
+    try {
+      const res = await fetch("/api/admin/cms/records/from-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftId }),
+      });
+      const data = (await res.json()) as {
+        recordId?: string;
+        slug?: string;
+        alreadyExisted?: boolean;
+        error?: string;
+      };
+      if (!res.ok || !data.recordId) {
+        setPromoteError(data.error ?? "Promotion failed. Try again.");
+      } else {
+        router.push(`/admin/cms/${data.recordId}`);
+      }
+    } catch {
+      setPromoteError("Network error — could not reach the server.");
+    } finally {
+      setPromoting(false);
     }
   }
 
@@ -1172,6 +1204,17 @@ export default function IntelligencePreviewPage() {
                     {isSaving ? "Saving…" : "Save Review"}
                   </button>
                   <button
+                    onClick={handlePromote}
+                    disabled={!draftId || promoting}
+                    title={!draftId ? "Save draft to DB first before promoting" : "Promote this draft to a CMS record"}
+                    className="px-[18px] py-[10px] rounded-[10px] text-[13px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors flex items-center gap-1.5"
+                  >
+                    {promoting && (
+                      <span className="inline-block w-3 h-3 border-2 border-indigo-300 border-t-indigo-700 rounded-full animate-spin" />
+                    )}
+                    {promoting ? "Promoting…" : "Promote to CMS Record →"}
+                  </button>
+                  <button
                     disabled
                     title="Approval flow — coming after Trust Gate integration"
                     className="px-[22px] py-[10px] rounded-[10px] text-[13px] font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
@@ -1184,6 +1227,12 @@ export default function IntelligencePreviewPage() {
                 <div className="mt-3 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[12px] text-amber-800">
                   <span className="font-semibold">Conflict — save not persisted: </span>
                   {saveError}
+                </div>
+              )}
+              {promoteError && (
+                <div className="mt-3 px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-xl text-[12px] text-red-800">
+                  <span className="font-semibold">Promotion failed: </span>
+                  {promoteError}
                 </div>
               )}
             </div>

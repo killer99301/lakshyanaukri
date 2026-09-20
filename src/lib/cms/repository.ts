@@ -137,6 +137,17 @@ export async function getFieldRevisions(
   }));
 }
 
+// ─── OCC conflict error ───────────────────────────────────
+
+export class OccConflictError extends Error {
+  readonly serverRevision: string;
+  constructor(serverRevision: string) {
+    super(`Record modified concurrently — server revision: ${serverRevision}`);
+    this.name = "OccConflictError";
+    this.serverRevision = serverRevision;
+  }
+}
+
 // ─── Write operations ─────────────────────────────────────
 //
 // Every write that modifies a field MUST go through these functions.
@@ -204,14 +215,20 @@ export async function createRecruitment(
 
 /**
  * Persist a field update (new record state + FieldRevision) atomically.
- * Both writes happen in the same transaction.
+ *
+ * Enforces strict OCC: clientRevision must match the record's current
+ * record_revision in the database. On mismatch, throws OccConflictError
+ * with the server's current revision so the caller can return 409.
+ *
+ * Uses a single data-modifying CTE so the UPDATE and INSERT are atomic
+ * with no explicit BEGIN/COMMIT needed.
  */
 export async function persistFieldUpdate(
   result: FieldUpdateResult,
+  clientRevision: string,
 ): Promise<{ record: RecruitmentRecord; revision: FieldRevision }> {
   const { record, revision } = result;
 
-  // Validate before writing
   const validation = validateRecord(record);
   if (!validation.valid) {
     throw new Error(
@@ -221,10 +238,11 @@ export async function persistFieldUpdate(
 
   const updatedRevision = computeRecordRevision(record);
 
-  // Neon HTTP driver executes these as a single batch
-  await sql`BEGIN`;
-  try {
-    await sql`
+  // Atomic CTE: UPDATE iff record_revision matches, then INSERT the revision row.
+  // If UPDATE matches 0 rows (OCC conflict), the INSERT inserts nothing and
+  // RETURNING returns 0 rows — detected below.
+  const rows = await sql`
+    WITH updated AS (
       UPDATE recruitments SET
         identity          = ${JSON.stringify(record.identity)},
         dates             = ${JSON.stringify(record.dates)},
@@ -246,27 +264,27 @@ export async function persistFieldUpdate(
         updated_at        = now(),
         updated_by        = ${record.updatedBy ?? null}
       WHERE id = ${record.id}
-    `;
+        AND record_revision = ${clientRevision}
+      RETURNING id
+    )
+    INSERT INTO field_revisions
+      (id, recruitment_id, field_path, revised_by, revised_at, old_value, new_value, reason)
+    SELECT
+      ${revision.id},
+      ${revision.recruitmentId},
+      ${revision.fieldPath},
+      ${revision.revisedBy},
+      ${revision.revisedAt},
+      ${revision.oldValue !== undefined ? JSON.stringify(revision.oldValue) : null},
+      ${revision.newValue !== undefined ? JSON.stringify(revision.newValue) : null},
+      ${revision.reason ?? null}
+    FROM updated
+    RETURNING recruitment_id
+  `;
 
-    await sql`
-      INSERT INTO field_revisions
-        (id, recruitment_id, field_path, revised_by, revised_at, old_value, new_value, reason)
-      VALUES (
-        ${revision.id},
-        ${revision.recruitmentId},
-        ${revision.fieldPath},
-        ${revision.revisedBy},
-        ${revision.revisedAt},
-        ${revision.oldValue !== undefined ? JSON.stringify(revision.oldValue) : null},
-        ${revision.newValue !== undefined ? JSON.stringify(revision.newValue) : null},
-        ${revision.reason ?? null}
-      )
-    `;
-
-    await sql`COMMIT`;
-  } catch (err) {
-    await sql`ROLLBACK`;
-    throw err;
+  if (rows.length === 0) {
+    const current = await getRecruitmentById(record.id);
+    throw new OccConflictError(current?.recordRevision ?? "unknown");
   }
 
   const saved = await getRecruitmentById(record.id);
