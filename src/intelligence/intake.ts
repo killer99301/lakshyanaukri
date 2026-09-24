@@ -713,7 +713,7 @@ function extractNotificationNumberFromPlainText(text: string, sourceDomain?: str
   return undefined;
 }
 
-function extractApplicationDates(text: string): {
+export function extractApplicationDates(text: string): {
   openDate?: string;
   closeDate?: string;
   notificationDate?: string;
@@ -749,6 +749,10 @@ function extractApplicationDates(text: string): {
     /from\s+(.{5,25}?(?:\d{4}))\s+to\s+/i,
     // Table-cell / whitespace-separated "commences/opens" label: "Online Registration Commences 08/09/2026".
     /(?:online\s+registration\s+commences?|registration\s+(?:commences?|opens?)|application\s+(?:commences?|opens?))\b[^\d]{0,30}(\d{1,2}[./]\d{1,2}[./]20\d{2})/i,
+    // Table-cell "opening date" / "application starts|begins": no colon required.
+    // Matches government Important Dates tables like "Opening date of Online Application 15/09/2026"
+    // where the label and date are adjacent cells with no colon separator.
+    /(?:opening\s+date|application\s+(?:starts?|begins?))\b[^\d]{0,60}(\d{1,2}[./\-]\d{1,2}[./\-]20\d{2})/i,
   ];
   for (const re of openPatterns) {
     const m = re.exec(text);

@@ -27,7 +27,7 @@ import type {
   ProviderExtractionResult,
   VacancyBreakdownItem,
 } from "./extraction-provider";
-import { extractIntakeFields } from "./intake";
+import { extractIntakeFields, extractApplicationDates } from "./intake";
 
 // ─── Merge disposition types ───────────────────────────────────
 
@@ -105,6 +105,40 @@ export function verifyEvidence(
   return { valid: true };
 }
 
+// Per-row evidence verification for vacancy breakdowns.
+// Each item must carry its own evidence that appears in the named section.
+// Fail-closed: if any single row fails, the entire breakdown is rejected.
+export function verifyBreakdownEvidence(
+  candidate: ExtractionCandidate<VacancyBreakdownItem[]>,
+  sections: PageSection[],
+): { valid: boolean; reason?: string } {
+  const section = sections.find((s) => s.heading === candidate.sectionHeading);
+  if (!section) {
+    return {
+      valid: false,
+      reason: `section "${candidate.sectionHeading}" not found in document`,
+    };
+  }
+  const normSection = normalizeForMatching(section.text);
+
+  for (const item of candidate.value) {
+    const normEvidence = normalizeForMatching(item.evidence ?? "");
+    if (normEvidence.length < 3) {
+      return {
+        valid: false,
+        reason: `evidence for "${item.post}" is too short to verify`,
+      };
+    }
+    if (!normSection.includes(normEvidence)) {
+      return {
+        valid: false,
+        reason: `evidence for "${item.post}" not found in section "${candidate.sectionHeading}"`,
+      };
+    }
+  }
+  return { valid: true };
+}
+
 // ─── Single-field merge ────────────────────────────────────────
 
 function mergeField<T>(
@@ -168,6 +202,38 @@ function mergeField<T>(
   };
 }
 
+// Breakdown-specific merge: uses verifyBreakdownEvidence instead of verifyEvidence.
+// Deterministic extraction never produces a vacancy breakdown, so there is no
+// conflict/confirm path — the breakdown is either an llm_fill or llm_rejected.
+function mergeBreakdownField(
+  candidate: ExtractionCandidate<VacancyBreakdownItem[]> | undefined,
+  sections: PageSection[],
+  provenance: LlmProvenance,
+): MergedField<VacancyBreakdownItem[]> {
+  if (!candidate) {
+    return { value: undefined, disposition: { source: "missing" } };
+  }
+
+  const { valid, reason } = verifyBreakdownEvidence(candidate, sections);
+
+  if (!valid) {
+    return {
+      value: undefined,
+      disposition: {
+        source: "llm_rejected",
+        reason: reason ?? "per-row evidence verification failed",
+        llmValue: candidate.value,
+        provenance,
+      },
+    };
+  }
+
+  return {
+    value: candidate.value,
+    disposition: { source: "llm_fill", evidence: candidate.evidence, provenance },
+  };
+}
+
 // ─── Section selection ─────────────────────────────────────────
 //
 // Limits what goes to the provider. Sections that carry extractable
@@ -201,6 +267,21 @@ export async function runStructuredExtraction(
   // Deterministic baseline (existing pipeline, unmodified)
   const det = extractIntakeFields(html, url, undefined, undefined, "THIRD_PARTY");
 
+  // Section-scoped date override: re-run date extraction on the first structured
+  // "dates" section (e.g. "Important Dates") to prevent aggregator-page contamination.
+  // Aggregator sites embed unrelated recruitments whose "from DATE to DATE" ranges
+  // fire before the labeled rows in the full HTML. The structured section contains
+  // only the target recruitment's date table and is free of that noise.
+  // Override is fail-safe: only replaces a det value when the section produces one.
+  const datesSection = doc.sections.find(s => s.type === "dates");
+  let detOpenDate = det.applicationOpenDate;
+  let detCloseDate = det.applicationCloseDate;
+  if (datesSection) {
+    const sd = extractApplicationDates(datesSection.text);
+    if (sd.openDate) detOpenDate = sd.openDate;
+    if (sd.closeDate) detCloseDate = sd.closeDate;
+  }
+
   // Layer 2: provider extraction (mock or real LLM)
   const provResult: ProviderExtractionResult = await provider.extractFromSections(relevant, url);
 
@@ -217,11 +298,11 @@ export async function runStructuredExtraction(
     title: doc.title ?? det.title,
     notificationNumber: mergeField(det.notificationNumber, provResult.notificationNumber, doc.sections, provenance),
     totalVacancies: mergeField(det.totalVacancies, provResult.totalVacancies, doc.sections, provenance),
-    applicationOpenDate: mergeField(det.applicationOpenDate, provResult.applicationOpenDate, doc.sections, provenance),
-    applicationCloseDate: mergeField(det.applicationCloseDate, provResult.applicationCloseDate, doc.sections, provenance),
+    applicationOpenDate: mergeField(detOpenDate, provResult.applicationOpenDate, doc.sections, provenance),
+    applicationCloseDate: mergeField(detCloseDate, provResult.applicationCloseDate, doc.sections, provenance),
     // Fees and breakdown: deterministic never extracts these
     applicationFeeGeneral: mergeField(undefined, provResult.applicationFeeGeneral, doc.sections, provenance),
     applicationFeeSCST: mergeField(undefined, provResult.applicationFeeSCST, doc.sections, provenance),
-    vacancyBreakdown: mergeField(undefined, provResult.vacancyBreakdown, doc.sections, provenance),
+    vacancyBreakdown: mergeBreakdownField(provResult.vacancyBreakdown, doc.sections, provenance),
   };
 }

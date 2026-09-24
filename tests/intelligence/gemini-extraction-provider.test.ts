@@ -498,14 +498,14 @@ test("GEP10: validateResult handles all-missing fields gracefully", () => {
   assert.deepEqual(validateResult({ unknownField: 123 }), {});
 });
 
-test("GEP10b: validateResult accepts vacancyBreakdown array", () => {
+test("GEP10b: validateResult accepts vacancyBreakdown array with per-item evidence", () => {
   const input = {
     vacancyBreakdown: {
       value: [
-        { post: "Generalists", count: 200 },
-        { post: "Hindi Officers", count: 25 },
+        { post: "Generalists", count: 200, evidence: "200 Generalists" },
+        { post: "Hindi Officers", count: 25, evidence: "25 Hindi Officers" },
       ],
-      evidence: "200 Generalists + 25 Hindi Officers",
+      evidence: "200 Generalists",
       sectionHeading: "Vacancies Detail",
       confidence: "high",
     },
@@ -520,12 +520,28 @@ test("GEP10b: validateResult accepts vacancyBreakdown array", () => {
 test("GEP10c: validateResult rejects vacancyBreakdown with non-number count", () => {
   const input = {
     vacancyBreakdown: {
-      value: [{ post: "Generalists", count: "two hundred" }],  // string, not number
-      evidence: "Generalists two hundred",
+      value: [{ post: "Generalists", count: "two hundred", evidence: "Generalists: two hundred" }],
+      evidence: "Generalists: two hundred",
       sectionHeading: "Vacancies Detail",
       confidence: "high",
     },
   };
   const result = validateResult(input);
   assert.equal(result.vacancyBreakdown, undefined, "breakdown with string count must be rejected");
+});
+
+test("GEP10d: validateResult rejects vacancyBreakdown items missing per-item evidence", () => {
+  const input = {
+    vacancyBreakdown: {
+      value: [
+        { post: "Generalists", count: 200 },   // missing evidence
+        { post: "Hindi Officers", count: 25 },  // missing evidence
+      ],
+      evidence: "200 Generalists",
+      sectionHeading: "Vacancies Detail",
+      confidence: "high",
+    },
+  };
+  const result = validateResult(input);
+  assert.equal(result.vacancyBreakdown, undefined, "items missing per-item evidence must be rejected by validateResult");
 });

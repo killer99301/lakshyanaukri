@@ -43,6 +43,7 @@ export class GeminiUnavailableError extends Error {
 export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 512;
 const MAX_RETRIES = 2;
 const MAX_SECTIONS = 6;
 const MAX_SECTION_TEXT_CHARS = 4_000;
@@ -143,6 +144,7 @@ Rules:
 2. evidence must be a real substring of the section text, not a paraphrase.
 3. Dates must be in ISO YYYY-MM-DD format.
 4. Fees and vacancies must be plain integers (no currency symbols or commas in the value).
+5. For vacancyBreakdown items, each item's "evidence" must be a verbatim substring (10–100 chars) from the section that names that specific post and its count.
 
 Return JSON matching this schema (all fields optional):
 {
@@ -152,7 +154,7 @@ Return JSON matching this schema (all fields optional):
   "applicationCloseDate": { "value": "YYYY-MM-DD","evidence": "...", "sectionHeading": "...", "confidence": "high"|"medium"|"low" },
   "applicationFeeGeneral":{ "value": <integer>,   "evidence": "...", "sectionHeading": "...", "confidence": "high"|"medium"|"low" },
   "applicationFeeSCST":   { "value": <integer>,   "evidence": "...", "sectionHeading": "...", "confidence": "high"|"medium"|"low" },
-  "vacancyBreakdown":     { "value": [{"post":"<string>","count":<integer>}], "evidence": "...", "sectionHeading": "...", "confidence": "high"|"medium"|"low" }
+  "vacancyBreakdown":     { "value": [{"post":"<string>","count":<integer>,"evidence":"<verbatim row text>"}], "evidence": "<first item evidence>", "sectionHeading": "...", "confidence": "high"|"medium"|"low" }
 }`;
 }
 
@@ -196,7 +198,10 @@ function validateBreakdownItem(item: unknown): item is VacancyBreakdownItem {
     typeof it.post === "string" &&
     it.post.length > 0 &&
     typeof it.count === "number" &&
-    Number.isFinite(it.count)
+    Number.isFinite(it.count) &&
+    typeof it.evidence === "string" &&
+    it.evidence.length >= 3 &&
+    it.evidence.length <= MAX_EVIDENCE_CHARS
   );
 }
 
@@ -249,6 +254,9 @@ export interface GeminiProviderOptions {
   model?: string;
   // Overall deadline for a single extractFromSections call (incl. all retries)
   timeoutMs?: number;
+  // Maximum tokens Gemini may produce. Defaults to DEFAULT_MAX_OUTPUT_TOKENS (512).
+  // Increase for pages with many vacancy rows to avoid MAX_TOKENS truncation.
+  maxOutputTokens?: number;
   // Injected for tests — pass a mock to avoid real API calls
   fetchFn?: typeof fetch;
 }
@@ -263,6 +271,7 @@ export class GeminiExtractionProvider implements ExtractionProvider {
 
   private readonly apiKey: string;
   private readonly timeoutMs: number;
+  private readonly maxOutputTokens: number;
   private readonly fetchFn: typeof fetch;
 
   constructor(options: GeminiProviderOptions) {
@@ -275,6 +284,7 @@ export class GeminiExtractionProvider implements ExtractionProvider {
     this.apiKey = options.apiKey;
     this.model = options.model ?? (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL);
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.maxOutputTokens = options.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
     this.fetchFn = options.fetchFn ?? globalThis.fetch;
   }
 
@@ -307,7 +317,7 @@ export class GeminiExtractionProvider implements ExtractionProvider {
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
         responseMimeType: "application/json",
-        maxOutputTokens: 512,
+        maxOutputTokens: this.maxOutputTokens,
       },
     });
 
@@ -401,9 +411,12 @@ export function createGeminiProvider(
   if (!apiKey) return null;
   const envTimeout = process.env.GEMINI_TIMEOUT_MS ? parseInt(process.env.GEMINI_TIMEOUT_MS, 10) : undefined;
   const timeoutMs = overrides?.timeoutMs ?? envTimeout;
+  const envMaxTokens = process.env.GEMINI_MAX_OUTPUT_TOKENS ? parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 10) : undefined;
+  const maxOutputTokens = overrides?.maxOutputTokens ?? envMaxTokens;
   return new GeminiExtractionProvider({
     ...overrides,
     apiKey,
     ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+    ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
   });
 }

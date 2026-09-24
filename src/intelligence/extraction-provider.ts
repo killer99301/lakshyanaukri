@@ -32,6 +32,7 @@ export interface ExtractionCandidate<T> {
 export interface VacancyBreakdownItem {
   post: string;
   count: number;         // total for this post
+  evidence: string;      // verbatim text from source supporting this row's post + count
   breakdown?: VacancyCategoryBreakdown;
 }
 
