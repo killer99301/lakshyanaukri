@@ -450,7 +450,12 @@ async function main(): Promise<void> {
   process.exit(totalLost > 0 ? 1 : 0);
 }
 
-main().catch((err) => {
-  console.error("Validator crashed:", err);
-  process.exit(1);
-});
+// Only execute when run directly (not when imported as a module)
+const isEntryPoint = process.argv[1]?.replace(/\\/g, "/").endsWith("cms-legacy-import.ts") ||
+                     process.argv[1]?.replace(/\\/g, "/").endsWith("cms-legacy-import");
+if (isEntryPoint) {
+  main().catch((err) => {
+    console.error("Validator crashed:", err);
+    process.exit(1);
+  });
+}
