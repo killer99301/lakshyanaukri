@@ -21,7 +21,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Opportunity, GovernmentRecruitment, UpdateType } from "@/types";
-import { GOVERNMENT_RECRUITMENTS } from "@/data/government";
 import { generateProposedRecord } from "./review-queue";
 import { runTrustGateWithProposal, runTrustGateWithNewRecord } from "./trust-gate";
 import { checkWarningPolicy } from "./warning-policy";
@@ -82,7 +81,7 @@ export function commitApprovedChange(
   } = {}
 ): CommitResult {
   const dataPath = options.dataPath ?? DEFAULT_DATA_PATH;
-  const govRecords = options.governmentRecords ?? GOVERNMENT_RECRUITMENTS;
+  const govRecords = options.governmentRecords ?? [];
 
   const refuse = (reason: string): CommitResult => ({
     committed: false,
@@ -221,7 +220,7 @@ export function appendNewRecord(
   } = {}
 ): CommitResult {
   const dataPath = options.dataPath ?? DEFAULT_DATA_PATH;
-  const govRecords = options.governmentRecords ?? GOVERNMENT_RECRUITMENTS;
+  const govRecords = options.governmentRecords ?? [];
   const allOpportunities = options.opportunities ?? (govRecords as Opportunity[]);
 
   const refuse = (reason: string): CommitResult => ({

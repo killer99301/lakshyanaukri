@@ -2,13 +2,12 @@
 // Career Campus — Repository (Data Access Abstraction)
 // ═══════════════════════════════════════════════════════════
 // ALL data access goes through this file.
-// Today: reads TypeScript arrays (StaticRepository).
-// Tomorrow: queries database / CMS API (DatabaseRepository).
+// Government recruitments: exclusively via CMS (published_recruitments).
+// Private jobs and internships: via static TypeScript arrays.
 // Components and pages NEVER import from data/ directly.
 // ═══════════════════════════════════════════════════════════
 
-import type { Opportunity, GovernmentRecruitment, PrivateJob, Internship } from "@/types";
-import { GOVERNMENT_RECRUITMENTS } from "@/data/government";
+import type { Opportunity, PrivateJob, Internship } from "@/types";
 import { PRIVATE_JOBS } from "@/data/private";
 import { INTERNSHIPS } from "@/data/internships";
 import { getPublishedBySlug, getPublishedSlugs } from "@/lib/cms/public-repository";
@@ -17,13 +16,13 @@ import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
 // ─── Internal Dataset Assembly ──────────────────────────
 
 /**
- * Assembles ALL opportunities from canonical data files (including NOT_VERIFIED).
+ * Assembles ALL opportunities from static data files (including NOT_VERIFIED).
+ * Government recruitments are exclusively in the CMS and not included here.
  * For internal/validation use only. Public-facing surfaces should use
  * assembleVerifiedDataset() instead.
  */
 function assembleDataset(): Opportunity[] {
   return [
-    ...GOVERNMENT_RECRUITMENTS,
     ...PRIVATE_JOBS,
     ...INTERNSHIPS,
   ];
@@ -108,17 +107,6 @@ export async function getAllSlugs(): Promise<string[]> {
   } catch {
     return staticSlugs;
   }
-}
-
-/**
- * Get only government recruitments. Returns verified only.
- */
-export function getGovernmentRecruitments(): GovernmentRecruitment[] {
-  return GOVERNMENT_RECRUITMENTS.filter(
-    (r) =>
-      r.provenance.status === "VERIFIED" ||
-      r.provenance.status === "PARTIALLY_VERIFIED"
-  );
 }
 
 /**

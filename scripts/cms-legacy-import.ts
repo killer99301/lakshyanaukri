@@ -49,7 +49,7 @@ import type {
 
 import type { Provenance } from "@/types";
 
-import { GOVERNMENT_RECRUITMENTS } from "@/data/government";
+// government.ts retired in G7D — no import needed (migration complete)
 import { projectToPublished } from "@/lib/cms/projector";
 import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
 
@@ -403,51 +403,17 @@ export function roundTripCheck(gr: GovernmentRecruitment): FieldCheck[] {
   return checks;
 }
 
-// ─── Main: dry-run validator ──────────────────────────────
+// ─── Main: retired ───────────────────────────────────────
+// Migration complete (G6 — committed db6c390). government.ts retired in G7D.
+// The 6 PARTIALLY_VERIFIED records are now in the CMS (published_recruitments).
 
 async function main(): Promise<void> {
-  const eligible = GOVERNMENT_RECRUITMENTS.filter(
-    (r) => r.provenance.status === "PARTIALLY_VERIFIED"
-  );
-
   console.log("\n═══════════════════════════════════════════════════");
-  console.log("  Phase G Round-Trip Validator (pure — no DB)");
-  console.log(`  Records: ${eligible.length} PARTIALLY_VERIFIED`);
+  console.log("  Phase G Round-Trip Validator — RETIRED");
+  console.log("  Migration complete. government.ts was retired in G7D.");
+  console.log("  All 6 records are now in published_recruitments.");
   console.log("═══════════════════════════════════════════════════\n");
-
-  let totalLost = 0;
-  let totalDegraded = 0;
-
-  for (const gr of eligible) {
-    const checks = roundTripCheck(gr);
-    const lost     = checks.filter((c) => c.status === "lost");
-    const degraded = checks.filter((c) => c.status === "degraded");
-    const deferred = checks.filter((c) => c.status === "deferred");
-    const ok       = checks.filter((c) => c.status === "preserved");
-    totalLost     += lost.length;
-    totalDegraded += degraded.length;
-
-    const icon = lost.length > 0 ? "❌" : degraded.length > 0 ? "⚠️ " : "✅";
-    console.log(`${icon} ${gr.id}  (${gr.slug})`);
-    console.log(`   preserved:${ok.length}  degraded:${degraded.length}  lost:${lost.length}  deferred:${deferred.length}`);
-
-    for (const c of lost)     console.log(`   ❌ LOST      ${c.field}${c.note ? " — " + c.note : ""}`);
-    for (const c of degraded) console.log(`   ⚠️  DEGRADED  ${c.field}${c.note ? " — " + c.note : ""}`);
-    for (const c of deferred) console.log(`   ◦  DEFERRED  ${c.field}${c.note ? " — " + c.note : ""}`);
-    console.log();
-  }
-
-  console.log("═══════════════════════════════════════════════════");
-  if (totalLost + totalDegraded === 0) {
-    console.log("  ✅ All fields round-trip without information loss.");
-  } else {
-    if (totalLost > 0)     console.log(`  ❌ ${totalLost} field(s) LOST across all records.`);
-    if (totalDegraded > 0) console.log(`  ⚠️  ${totalDegraded} field(s) DEGRADED across all records.`);
-    console.log("  Fix the adapter/mapper before proceeding with migration.");
-  }
-  console.log("═══════════════════════════════════════════════════\n");
-
-  process.exit(totalLost > 0 ? 1 : 0);
+  process.exit(0);
 }
 
 // Only execute when run directly (not when imported as a module)
