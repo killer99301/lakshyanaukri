@@ -10,8 +10,10 @@
 import type { Opportunity, PrivateJob, Internship } from "@/types";
 import { PRIVATE_JOBS } from "@/data/private";
 import { INTERNSHIPS } from "@/data/internships";
-import { getPublishedBySlug, getPublishedSlugs } from "@/lib/cms/public-repository";
 import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
+// public-repository imports db.ts which throws at module-init when DATABASE_URL is
+// absent (e.g. in the browser). Import it dynamically inside the two async functions
+// that need it so the client bundle for "use client" components never includes db.ts.
 
 // ─── Internal Dataset Assembly ──────────────────────────
 
@@ -68,6 +70,7 @@ export function getAllVerifiedOpportunities(): Opportunity[] {
  */
 export async function getBySlug(slug: string): Promise<Opportunity | undefined> {
   try {
+    const { getPublishedBySlug } = await import("@/lib/cms/public-repository");
     const snapshot = await getPublishedBySlug(slug);
     if (snapshot) return snapshotToGovernmentRecruitment(snapshot);
   } catch {
@@ -100,6 +103,7 @@ export function getAllStaticSlugs(): string[] {
 export async function getAllSlugs(): Promise<string[]> {
   const staticSlugs = assembleVerifiedDataset().map((opp) => opp.slug);
   try {
+    const { getPublishedSlugs } = await import("@/lib/cms/public-repository");
     const cmsSlugs = await getPublishedSlugs();
     const seen = new Set(cmsSlugs);
     for (const s of staticSlugs) seen.add(s);
