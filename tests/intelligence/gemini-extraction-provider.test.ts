@@ -1,25 +1,31 @@
 // ═══════════════════════════════════════════════════════════
-// Phase 13B: Gemini Extraction Provider Tests (GEP1–GEP9)
+// Phase 13B: Gemini Extraction Provider Tests (GEP1–GEP9b)
 // npx tsx --tsconfig tsconfig.json tests/intelligence/gemini-extraction-provider.test.ts
 // ═══════════════════════════════════════════════════════════
 //
 // ALL tests use injected mock fetch — zero real Gemini API calls.
 //
-// GEP1  Valid JSON response → correct ProviderExtractionResult
-// GEP2  Malformed (non-JSON) Gemini text → returns {}, no throw
-// GEP3  Structurally valid JSON but wrong types → field omitted
-// GEP4  Evidence string too long (>300 chars) → field omitted
-// GEP5  HTTP 429 always → returns {} (non-throwing; MAX_RETRIES exhausted)
-// GEP6  HTTP 500 always → returns {} (non-throwing; MAX_RETRIES exhausted)
-// GEP7  10 sections passed → only MAX_SECTIONS sent; no throw
-// GEP8  Empty apiKey → constructor throws immediately
-// GEP9  Integration: runStructuredExtraction + GeminiProvider w/ mock fetch
-//         → applicationFeeGeneral has llm_fill disposition
+// GEP1   Valid JSON response → correct ProviderExtractionResult
+// GEP2   Malformed (non-JSON) Gemini text → returns {}, no throw
+// GEP3   Structurally valid JSON but wrong types → field omitted
+// GEP4   Evidence string too long (>300 chars) → field omitted
+// GEP5   HTTP 429 always → returns {} (non-throwing); lastError is GeminiUnavailableError
+// GEP6   HTTP 500 always → returns {} (non-throwing); lastError is Error (not GeminiUnavailableError)
+// GEP7   10 sections passed → only MAX_SECTIONS sent; no throw
+// GEP7b  financial and vacancy sections take priority over other types
+// GEP7c  7 sections including one links → links always included, high-priority types kept
+// GEP7d  Multiple links sections → only first included; total ≤ MAX_SECTIONS
+// GEP8   Empty apiKey → constructor throws immediately
+// GEP9   Integration: runStructuredExtraction + GeminiProvider w/ mock fetch
+//          → applicationFeeGeneral has llm_fill disposition
+// GEP9b  Integration: Gemini returns {} → absent fields stay missing, never invented
+// GEP10  validateResult unit tests
 // ═══════════════════════════════════════════════════════════
 
 import { suite, test, assert } from "./suite";
 import {
   GeminiExtractionProvider,
+  GeminiUnavailableError,
   DEFAULT_GEMINI_MODEL,
   limitSections,
   buildPrompt,
@@ -216,6 +222,10 @@ test("GEP5: HTTP 429 returned on every attempt → provider returns {} without t
   );
 
   assert.deepEqual(result, {}, "429 after all retries must return empty result, not throw");
+  assert.ok(
+    provider.lastError instanceof GeminiUnavailableError,
+    "lastError must be GeminiUnavailableError for 429 exhaustion — not a silent empty result",
+  );
 });
 
 // ─── GEP6: HTTP 500 always → {} (non-throwing) ────────────────
@@ -239,6 +249,11 @@ test("GEP6: HTTP 500 returned on every attempt → provider returns {} without t
   );
 
   assert.deepEqual(result, {}, "500 after all retries must return empty result, not throw");
+  assert.ok(provider.lastError !== null, "lastError must be set for 500 exhaustion");
+  assert.ok(
+    !(provider.lastError instanceof GeminiUnavailableError),
+    "lastError must NOT be GeminiUnavailableError for non-503 server error",
+  );
 });
 
 // ─── GEP7: Too many sections → capped at MAX_SECTIONS ─────────
@@ -275,6 +290,50 @@ test("GEP7b: financial and vacancy sections take priority over other types", () 
 
   assert.ok(types.includes("financial"), "financial section must be included in top-6");
   assert.ok(types.includes("vacancy"), "vacancy section must be included in top-6");
+});
+
+// ─── GEP7c: Links section is guaranteed inclusion ─────────────
+
+test("GEP7c: 7 sections including one links section → links always included; high-priority types kept", () => {
+  const sections: PageSection[] = [
+    makeSection("Fees", "financial", "₹850 general fee"),
+    makeSection("Vacancies", "vacancy", "100 posts"),
+    makeSection("Dates", "dates", "Apply by 30 Sep 2026"),
+    makeSection("Eligibility", "eligibility", "Graduate required"),
+    makeSection("Overview", "overview", "Recruitment 2026"),
+    makeSection("Selection", "selection", "Written test + interview"),
+    makeSection("Important Links", "links", "Apply here: https://example.com/apply"),
+  ];
+
+  const limited = limitSections(sections);
+  assert.ok(limited.length <= 6, `must not exceed 6 sections, got ${limited.length}`);
+
+  const types = limited.map((s) => s.type);
+  assert.ok(types.includes("links"), "links section must be included when present");
+  assert.ok(types.includes("financial"), "financial section must not be displaced by links guarantee");
+  assert.ok(types.includes("vacancy"), "vacancy section must not be displaced by links guarantee");
+  assert.ok(types.includes("dates"), "dates section must not be displaced by links guarantee");
+});
+
+// ─── GEP7d: Multiple links sections → only first included ─────
+
+test("GEP7d: multiple links sections → only first links section included; total ≤ MAX_SECTIONS", () => {
+  const sections: PageSection[] = [
+    makeSection("Fees", "financial", "₹500 fee"),
+    makeSection("Vacancies", "vacancy", "50 posts"),
+    makeSection("Dates", "dates", "Deadline: 01 Oct"),
+    makeSection("Eligibility", "eligibility", "B.Sc required"),
+    makeSection("Overview", "overview", "Recruitment overview"),
+    makeSection("Links A", "links", "Apply: https://a.example.com"),
+    makeSection("Links B", "links", "Results: https://b.example.com"),
+  ];
+
+  const limited = limitSections(sections);
+  assert.ok(limited.length <= 6, `must not exceed 6 sections, got ${limited.length}`);
+
+  const linkSections = limited.filter((s) => s.type === "links");
+  assert.equal(linkSections.length, 1, "only one links section should be included");
+  assert.equal(linkSections[0].heading, "Links A", "first links section must be the one included");
 });
 
 // ─── GEP8: Missing API key → constructor throws ───────────────
@@ -392,6 +451,41 @@ test("GEP9: integration — runStructuredExtraction with GeminiProvider → appl
   if (draft.notificationNumber.value !== undefined) {
     assert.equal(typeof draft.notificationNumber.value, "string");
   }
+});
+
+// ─── GEP9b: Absent source fields stay missing, never invented ─
+
+test("GEP9b: Gemini returns empty result → absent fields have missing disposition, no invented values", async () => {
+  // Simulates a source page where fee information is absent ("Fee Not Mentioned").
+  // Gemini correctly returns {} for those fields — they must stay missing, not invented.
+  const { fn } = mockFetch([{ status: 200, body: geminiEnvelope({}) }]);
+  const provider = new GeminiExtractionProvider({ apiKey: "test-key", fetchFn: fn });
+
+  const draft = await runStructuredExtraction(SE_HTML, SE_URL, provider);
+
+  // Fees: deterministic never extracts these; Gemini returned nothing → missing
+  assert.equal(
+    draft.applicationFeeGeneral.disposition.source,
+    "missing",
+    "fee must be missing when Gemini returns {} — must not be invented",
+  );
+  assert.equal(
+    draft.applicationFeeSCST.disposition.source,
+    "missing",
+    "SC/ST fee must be missing when Gemini returns {}",
+  );
+  assert.equal(draft.applicationFeeGeneral.value, undefined, "fee value must be undefined, not guessed");
+  assert.equal(draft.applicationFeeSCST.value, undefined, "SC/ST fee value must be undefined, not guessed");
+
+  // Deterministic fields that exist on the page must still be extracted
+  assert.ok(
+    draft.totalVacancies.disposition.source === "deterministic" ||
+    draft.totalVacancies.disposition.source === "missing",
+    "totalVacancies source must be deterministic or missing (never llm_fill when Gemini returned {})",
+  );
+
+  // lastError should be null — {} is a valid successful (if empty) response
+  assert.equal(provider.lastError, null, "lastError must be null for an empty-but-valid Gemini response");
 });
 
 // ─── GEP10: validateResult unit tests ─────────────────────────

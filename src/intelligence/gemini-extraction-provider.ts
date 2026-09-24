@@ -26,6 +26,18 @@ import type {
   VacancyBreakdownItem,
 } from "./extraction-provider";
 
+// ─── Error types ─────────────────────────────────────────────
+
+// Thrown when the Gemini service is temporarily unavailable (HTTP 503)
+// or rate-limited (HTTP 429 after all retries). Callers can check for
+// this to distinguish "provider unavailable" from "provider found nothing."
+export class GeminiUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GeminiUnavailableError";
+  }
+}
+
 // ─── Constants ────────────────────────────────────────────────
 
 export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
@@ -70,15 +82,31 @@ function exponentialDelayMs(attempt: number): number {
 }
 
 // Priority-sort sections and cap at MAX_SECTIONS.
+//
+// Links sections are always guaranteed a slot when present — they contain
+// provenance-critical source URLs (official notification, application portal).
+// Reservation: if a links section exists, reserve 1 of the MAX_SECTIONS slots
+// for it and fill the remaining slots with other section types in priority order.
+// Only the first links section is included; duplicates are dropped.
 export function limitSections(sections: PageSection[]): PageSection[] {
-  const sorted = [...sections].sort((a, b) => {
+  const linksSections = sections.filter((s) => s.type === "links");
+  const otherSections = sections.filter((s) => s.type !== "links");
+
+  const nonLinksLimit = linksSections.length > 0 ? MAX_SECTIONS - 1 : MAX_SECTIONS;
+
+  const sortedOthers = [...otherSections].sort((a, b) => {
     const ai = SECTION_PRIORITY.indexOf(a.type as SectionType);
     const bi = SECTION_PRIORITY.indexOf(b.type as SectionType);
     const aRank = ai === -1 ? 999 : ai;
     const bRank = bi === -1 ? 999 : bi;
     return aRank - bRank;
   });
-  return sorted.slice(0, MAX_SECTIONS);
+
+  const selected = sortedOthers.slice(0, nonLinksLimit);
+  if (linksSections.length > 0) {
+    selected.push(linksSections[0]);
+  }
+  return selected;
 }
 
 // Build the extraction prompt from the selected sections.
@@ -229,6 +257,10 @@ export class GeminiExtractionProvider implements ExtractionProvider {
   readonly name = "gemini";
   readonly model: string;
 
+  // Set after each extractFromSections call; null on success, Error on any failure.
+  // Callers can inspect this to distinguish "provider unavailable" from "no fields found."
+  lastError: Error | null = null;
+
   private readonly apiKey: string;
   private readonly timeoutMs: number;
   private readonly fetchFn: typeof fetch;
@@ -250,6 +282,7 @@ export class GeminiExtractionProvider implements ExtractionProvider {
     sections: PageSection[],
     url: string,
   ): Promise<ProviderExtractionResult> {
+    this.lastError = null;
     const limited = limitSections(sections);
     if (limited.length === 0) return {};
 
@@ -258,8 +291,10 @@ export class GeminiExtractionProvider implements ExtractionProvider {
     try {
       const raw = await this.callWithRetry(prompt);
       return validateResult(raw);
-    } catch {
+    } catch (err) {
       // All failures are non-fatal: deterministic extraction continues unaffected.
+      // Store the error so callers can distinguish "unavailable" from "found nothing."
+      this.lastError = err instanceof Error ? err : new Error(String(err));
       return {};
     }
   }
@@ -314,7 +349,9 @@ export class GeminiExtractionProvider implements ExtractionProvider {
           await sleep(delayMs);
           continue;
         }
-        throw new Error(`GeminiExtractionProvider: HTTP 429 after ${attempt + 1} attempt(s)`);
+        throw new GeminiUnavailableError(
+          `Gemini rate-limited (HTTP 429) after ${attempt + 1} attempt(s)`,
+        );
       }
 
       if (response.status >= 500) {
@@ -322,6 +359,11 @@ export class GeminiExtractionProvider implements ExtractionProvider {
           attempt++;
           await sleep(exponentialDelayMs(attempt));
           continue;
+        }
+        if (response.status === 503) {
+          throw new GeminiUnavailableError(
+            `Gemini service unavailable (HTTP 503) after ${attempt + 1} attempt(s)`,
+          );
         }
         throw new Error(`GeminiExtractionProvider: HTTP ${response.status} after ${attempt + 1} attempt(s)`);
       }
@@ -357,5 +399,11 @@ export function createGeminiProvider(
 ): GeminiExtractionProvider | null {
   const apiKey = overrides?.apiKey ?? process.env.GEMINI_API_KEY ?? "";
   if (!apiKey) return null;
-  return new GeminiExtractionProvider({ ...overrides, apiKey });
+  const envTimeout = process.env.GEMINI_TIMEOUT_MS ? parseInt(process.env.GEMINI_TIMEOUT_MS, 10) : undefined;
+  const timeoutMs = overrides?.timeoutMs ?? envTimeout;
+  return new GeminiExtractionProvider({
+    ...overrides,
+    apiKey,
+    ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+  });
 }
