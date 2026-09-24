@@ -2,38 +2,39 @@
 // Phase 6B: Canonical Data Writer
 // ═══════════════════════════════════════════════════════════
 //
-// This is the ONLY path that can write to src/data/government.ts.
-// No other module, script, or scheduler can bypass this gate.
+// NOTE: src/data/government.ts was retired in G7D (commit bf6b84f).
+// The CMS (published_recruitments + recruitments) is now the sole
+// source of truth for government recruitment records.
 //
-// Entry point: commitApprovedChange()
+// This module is preserved because its guard/mutation logic is
+// tested via injected temp paths (writer.test.ts, writer-ops.ts,
+// writer-new-record.test.ts, review-policy.test.ts). Production
+// callers that previously targeted government.ts are now retired.
 //
-// Guards (all must pass):
+// Entry points:
+//   commitApprovedChange() — field-level update guards
+//   appendNewRecord()      — new-record append guards
+//
+// Guards (commitApprovedChange):
 //   1. item.status === "APPROVED"
 //   2. item.approvedChange exists (ProposedChange generated)
 //   3. item.approvedChange.trustGatePassed === true
 //   4. Canonical opportunity exists and is type "government"
 //   5. This review item has not already been committed
 //   6. Post-mutation Trust Gate passes on the updated dataset
-//
-// Only after all 6 guards pass does the writer modify government.ts.
 // ═══════════════════════════════════════════════════════════
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Opportunity, GovernmentRecruitment, UpdateType } from "@/types";
+
+// Retired target path — government.ts no longer exists (G7D, commit bf6b84f).
+// Production callers have been retired. Tests always inject their own dataPath.
+const RETIRED_DATA_PATH = join(process.cwd(), "src", "data", "government.ts");
 import { generateProposedRecord } from "./review-queue";
 import { runTrustGateWithProposal, runTrustGateWithNewRecord } from "./trust-gate";
 import { checkWarningPolicy } from "./warning-policy";
 import type { ReviewItem } from "./types";
-
-// ─── Paths ───────────────────────────────────────────────────
-
-export const DEFAULT_DATA_PATH = join(
-  process.cwd(),
-  "src",
-  "data",
-  "government.ts"
-);
 
 // ─── Result type ─────────────────────────────────────────────
 
@@ -69,8 +70,8 @@ function deriveUpdateType(changeType: string): UpdateType {
  *   - Only callable after approveItem() has run (ProposedChange must exist)
  *   - Never called from the scheduler or discovery pipeline
  *   - Never auto-approves — human approval is always the precondition
- *   - governmentRecords defaults to the live GOVERNMENT_RECRUITMENTS;
- *     inject a smaller array in tests to avoid touching the real file
+ *   - governmentRecords defaults to [] (government.ts retired in G7D);
+ *     tests inject their own array and dataPath
  */
 export function commitApprovedChange(
   item: ReviewItem,
@@ -80,7 +81,7 @@ export function commitApprovedChange(
     governmentRecords?: GovernmentRecruitment[];
   } = {}
 ): CommitResult {
-  const dataPath = options.dataPath ?? DEFAULT_DATA_PATH;
+  const dataPath = options.dataPath ?? RETIRED_DATA_PATH;
   const govRecords = options.governmentRecords ?? [];
 
   const refuse = (reason: string): CommitResult => ({
@@ -208,8 +209,8 @@ export function commitApprovedChange(
  *   - Never called from the scheduler or discovery pipeline
  *   - Only callable after a CandidateNewRecruitment has been built into a draft
  *   - The caller (create-pr-for-new-recruit.ts) is responsible for git operations
- *   - governmentRecords defaults to the live GOVERNMENT_RECRUITMENTS;
- *     inject a smaller array in tests to avoid touching the real file
+ *   - governmentRecords defaults to [] (government.ts retired in G7D);
+ *     tests inject their own array and dataPath
  */
 export function appendNewRecord(
   draft: GovernmentRecruitment,
@@ -219,7 +220,7 @@ export function appendNewRecord(
     opportunities?: Opportunity[];
   } = {}
 ): CommitResult {
-  const dataPath = options.dataPath ?? DEFAULT_DATA_PATH;
+  const dataPath = options.dataPath ?? RETIRED_DATA_PATH;
   const govRecords = options.governmentRecords ?? [];
   const allOpportunities = options.opportunities ?? (govRecords as Opportunity[]);
 

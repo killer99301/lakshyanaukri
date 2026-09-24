@@ -1,19 +1,18 @@
 // ═══════════════════════════════════════════════════════════
-// Admin Approve → PR Creation
+// Admin Approve → PR Creation (RETIRED path)
 // ═══════════════════════════════════════════════════════════
 //
 // POST /api/admin/candidates/[id]/approve
 //
-// Reads GITHUB_TOKEN and GITHUB_REPOSITORY from server env.
-// These are NEVER exposed to the client.
+// RETIREMENT NOTE: createPr() now returns outcome "RETIRED"
+// because government.ts was retired in G7D. To promote an
+// intelligence draft to a CMS record use:
+//   POST /api/admin/cms/records/from-draft
 //
-// Creates a PR via the existing createPr() pipeline.
-// Trust Gate must pass — no bypass.
+// dryRunPr() still runs Trust Gate for validation.
 //
 // INVARIANTS:
-//   - Never writes to government.ts directly
 //   - Trust Gate cannot be bypassed or weakened
-//   - GitHub credentials stay server-side only
 // ═══════════════════════════════════════════════════════════
 
 export const runtime = "nodejs";
@@ -56,29 +55,16 @@ export async function POST(
   try { body = await request.json(); } catch { /* optional body */ }
   const dryRun = body.dry_run === true;
 
-  // Credentials are server-side only — never sent to client
-  const githubToken = process.env.GITHUB_TOKEN;
-  const githubRepository = process.env.GITHUB_REPOSITORY ?? "LakshyaNaukri/career-campus";
-
-  if (!githubToken && !dryRun) {
-    return NextResponse.json(
-      { error: "GITHUB_TOKEN not set. Set it in .env.local or environment." },
-      { status: 500 }
-    );
-  }
-
   let canonicalRecords: import("@/types").Opportunity[] = [];
   try { canonicalRecords = getAllOpportunities(); } catch { /* non-fatal */ }
 
   const existingSlugs = canonicalRecords.map((o) => o.slug);
-  const options = {
-    githubToken: githubToken ?? "",
-    githubRepository,
-  };
 
+  // createPr() returns outcome "RETIRED" — government.ts no longer exists.
+  // dryRunPr() still runs Trust Gate validation.
   const result = dryRun
     ? dryRunPr(candidate, canonicalRecords, existingSlugs)
-    : await createPr(candidate, canonicalRecords, existingSlugs, options);
+    : await createPr(candidate, canonicalRecords, existingSlugs);
 
   // Update candidate status after PR creation
   if (!dryRun && result.outcome === "PR_CREATED" && result.prNumber) {

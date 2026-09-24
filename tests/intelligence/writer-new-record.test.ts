@@ -166,8 +166,13 @@ check("WNR7f: opportunityId matches draft.id", g7result.opportunityId === g7draf
 console.log("\nWNR8: productionWrites invariant");
 
 const realPath = join(process.cwd(), "src", "data", "government.ts");
-const realContentsAfter = readFileSync(realPath, "utf-8");
-check("WNR8: real government.ts was not modified", !realContentsAfter.includes(g7draft.id));
+if (existsSync(realPath)) {
+  const realContentsAfter = readFileSync(realPath, "utf-8");
+  check("WNR8: real government.ts was not modified", !realContentsAfter.includes(g7draft.id));
+} else {
+  // government.ts retired in G7D — no production file to modify; invariant holds trivially
+  check("WNR8: government.ts retired — production writes not possible", true);
+}
 
 // ─── WNR9: Minimal-diff append to existing file ──────────────
 // When the target file already exists (production path), appendNewRecord must use
