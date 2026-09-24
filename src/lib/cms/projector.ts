@@ -16,6 +16,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { RecruitmentRecord, ProvenanceField } from "@/types/recruitment-record";
+import type { ExamStage } from "@/types";
 
 export const PROJECTION_VERSION = "1.0";
 
@@ -65,6 +66,7 @@ export interface PublishedRecruitmentSnapshot {
     payScale: string | null;
     paymentModes: string[];
   };
+  examStages: ExamStage[];
   eligibility: unknown | null;
   age: unknown | null;
   selection: unknown | null;
@@ -77,6 +79,7 @@ export interface PublishedRecruitmentSnapshot {
     state: string | null;
     qualification: string | null;
   };
+  updates: unknown[];
   provenanceStatus: string;
   primarySourceUrl: string | null;
   projectedAt: string;
@@ -133,6 +136,7 @@ export function projectToPublished(record: RecruitmentRecord): PublishedRecruitm
       paymentModes: record.financial.paymentModes ?? [],
     },
 
+    examStages:  record.examStages ?? [],
     eligibility: pv(record.eligibility),
     age:         pv(record.age),
     selection:   pv(record.selection),
@@ -160,6 +164,7 @@ export function projectToPublished(record: RecruitmentRecord): PublishedRecruitm
       qualification:    record.classification?.qualification ?? null,
     },
 
+    updates:            record.updates ?? [],
     provenanceStatus:   record.provenance.status,
     primarySourceUrl:   record.provenance.primarySourceUrl ?? null,
 

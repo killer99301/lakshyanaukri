@@ -10,14 +10,48 @@
 //     Null snapshot values become empty strings, not guessed defaults.
 //   - "government" for category is the only safe non-empty fallback:
 //     every CMS record IS a government recruitment by definition.
-//   - examStages: [] — renderer guards on length > 0; safe to omit.
+//   - examStages: mapped directly from snapshot — ExamStage[] is shared.
+//   - ageLimit: AgeCriteria → AgeLimit (relaxations → relaxation rename).
+//   - eligibility: CmsRecruitmentPost[] → string[] (post field per item).
+//   - selectionProcess: CmsSelectionInformation → string[] (stage names).
+//   - vacancyBreakdown: VacancyRow[] shared type — cast directly.
 //   - provenance.lastVerifiedAt = snapshot.projectedAt (projection time).
 //   - provenance.primarySourceType = OFFICIAL_NOTIFICATION (CMS requirement
 //     for publication: must have official evidence before publish is allowed).
 // ═══════════════════════════════════════════════════════════
 
-import type { GovernmentRecruitment, VerificationStatus, SourceType } from "@/types";
+import type {
+  GovernmentRecruitment, VerificationStatus, SourceType,
+  ExamStage, AgeLimit, AgeRelaxation, VacancyRow, UpdateRecord,
+} from "@/types";
+import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation } from "@/types/recruitment-record";
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
+
+// ─── Internal helpers ─────────────────────────────────────
+
+function ageCriteriaToAgeLimit(age: AgeCriteria): AgeLimit {
+  const relaxation: AgeRelaxation[] = (age.relaxations ?? []).map((r) => ({
+    category: r.category,
+    years:    r.years,
+    text:     r.text,
+  }));
+  return {
+    min:       age.min,
+    max:       age.max,
+    asOf:      age.asOf,
+    relaxation: relaxation.length > 0 ? relaxation : undefined,
+  };
+}
+
+function postsToEligibilityStrings(posts: CmsRecruitmentPost[]): string[] {
+  return posts.flatMap((p) => [p.post, ...(p.qualification ?? [])]);
+}
+
+function selectionInfoToProcessStrings(info: CmsSelectionInformation): string[] {
+  return info.stages?.map((s) => s.name) ?? [];
+}
+
+// ─── Main adapter ─────────────────────────────────────────
 
 export function snapshotToGovernmentRecruitment(
   snapshot: PublishedRecruitmentSnapshot,
@@ -39,6 +73,32 @@ export function snapshotToGovernmentRecruitment(
     feeRows.push({ category: "SC / ST / PwBD", amount: snapshot.financial.feeSCST });
   }
 
+  // ─── Gap fields — now fully mapped ──────────────────────
+
+  const examStages = (snapshot.examStages ?? []) as ExamStage[];
+
+  const vacancyBreakdown = snapshot.vacancies.breakdown
+    ? (snapshot.vacancies.breakdown as VacancyRow[])
+    : undefined;
+
+  const ageLimit = snapshot.age
+    ? ageCriteriaToAgeLimit(snapshot.age as AgeCriteria)
+    : undefined;
+
+  const eligibility = snapshot.eligibility
+    ? postsToEligibilityStrings(snapshot.eligibility as CmsRecruitmentPost[])
+    : undefined;
+
+  const selectionProcess = snapshot.selection
+    ? selectionInfoToProcessStrings(snapshot.selection as CmsSelectionInformation)
+    : undefined;
+
+  const updates = snapshot.updates
+    ? (snapshot.updates as UpdateRecord[])
+    : [];
+
+  // ─── Assemble ────────────────────────────────────────────
+
   return {
     id:               snapshot.id,
     slug:             snapshot.slug,
@@ -47,10 +107,9 @@ export function snapshotToGovernmentRecruitment(
     organizationId:   snapshot.organizationId,
     organizationName: snapshot.organizationName,
 
-    // Classification — use null-safe values; empty string signals "not set",
-    // never invents a state, qualification, or category that isn't in the record.
-    // Exception: category defaults to "government" because all CMS records are
-    // government recruitments and this is the correct parent category.
+    // Classification — null-safe; empty string signals "not set",
+    // never invents a state, qualification, or category.
+    // "government" for category is factually correct for all CMS records.
     shortDescription: snapshot.classification.shortDescription ?? "",
     category:         (snapshot.classification.category ?? "government") as GovernmentRecruitment["category"],
     state:            snapshot.classification.state ?? "",
@@ -71,15 +130,15 @@ export function snapshotToGovernmentRecruitment(
       correctionWindowEnd: snapshot.dates.correctionWindowEnd ?? undefined,
     },
 
-    examStages:        [],
-    vacancyBreakdown:  undefined,
+    examStages,
+    vacancyBreakdown,
     fee: feeRows.length > 0
       ? { rows: feeRows, modes: snapshot.financial.paymentModes }
       : undefined,
-    ageLimit:          undefined,
-    eligibility:       undefined,
-    selectionProcess:  undefined,
-    howToApply:        snapshot.howToApply.length > 0 ? snapshot.howToApply : undefined,
+    ageLimit,
+    eligibility:      eligibility && eligibility.length > 0 ? eligibility : undefined,
+    selectionProcess: selectionProcess && selectionProcess.length > 0 ? selectionProcess : undefined,
+    howToApply:       snapshot.howToApply.length > 0 ? snapshot.howToApply : undefined,
 
     links: {
       notification: linkByType("OFFICIAL_NOTIFICATION"),
@@ -90,14 +149,14 @@ export function snapshotToGovernmentRecruitment(
       result:       linkByType("RESULT"),
     },
 
-    ecosystem: undefined,
+    ecosystem: undefined,  // deferred: add per-record via admin UI post-migration
 
     provenance: {
-      status:           snapshot.provenanceStatus as VerificationStatus,
-      lastVerifiedAt:   snapshot.projectedAt,
-      primarySourceUrl: snapshot.primarySourceUrl ?? undefined,
+      status:            snapshot.provenanceStatus as VerificationStatus,
+      lastVerifiedAt:    snapshot.projectedAt,
+      primarySourceUrl:  snapshot.primarySourceUrl ?? undefined,
       primarySourceType: "OFFICIAL_NOTIFICATION" as SourceType,
     },
-    updates: [],
+    updates,
   };
 }

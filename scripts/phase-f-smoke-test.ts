@@ -77,7 +77,9 @@ const fullSnapshot: PublishedRecruitmentSnapshot = {
     { type: "APPLY_ONLINE",          label: "Apply Online",     url: "https://onlinebpsc.bihar.gov.in", official: true },
     { type: "OFFICIAL_WEBSITE",      label: "Official Website", url: "https://bpsc.bih.nic.in",        official: true },
   ],
+  examStages: [],
   documents: [],
+  updates: [],
   classification: {
     shortDescription: "Bihar state civil services — 281 posts.",
     category: "state-psc",

@@ -13,7 +13,7 @@
 //   I3: conflict === true ↔ status === "CONFLICTED"
 // ═══════════════════════════════════════════════════════════
 
-import type { AgeRelaxation, VacancyRow, Provenance, UpdateRecord, DateCertainty } from "@/types";
+import type { AgeRelaxation, ExamStage, VacancyRow, Provenance, UpdateRecord, DateCertainty } from "@/types";
 
 // ─── Core State ───────────────────────────────────────────
 
@@ -322,6 +322,7 @@ export interface RecruitmentRecord {
   age?:         ProvenanceField<AgeCriteria>;            // fieldPath "age"
   selection?:   ProvenanceField<CmsSelectionInformation>; // fieldPath "selection"
 
+  examStages?: ExamStage[];
   howToApply?: string[];
   links:       CmsRecruitmentLink[];
   documents:   CmsRecruitmentDocument[];

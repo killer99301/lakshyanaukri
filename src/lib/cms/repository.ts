@@ -53,6 +53,7 @@ interface RecruitmentRow {
   documents: unknown;
   lifecycle: unknown;
   conditions: unknown;
+  exam_stages: unknown;
   classification: unknown;
   provenance: unknown;
   updates: unknown;
@@ -81,6 +82,7 @@ function rowToRecord(row: RecruitmentRow): RecruitmentRecord {
     links:                  (row.links as RecruitmentRecord["links"]) ?? [],
     documents:              (row.documents as RecruitmentRecord["documents"]) ?? [],
     lifecycle:              row.lifecycle as RecruitmentRecord["lifecycle"],
+    examStages:             (row.exam_stages as RecruitmentRecord["examStages"]) ?? [],
     conditions:             row.conditions as RecruitmentRecord["conditions"],
     classification:         row.classification as RecruitmentRecord["classification"],
     provenance:             row.provenance as Provenance,
@@ -162,6 +164,14 @@ export interface CreateRecruitmentParams {
   vacancies?: RecruitmentRecord["vacancies"];
   financial?: RecruitmentRecord["financial"];
   classification?: RecruitmentRecord["classification"];
+  examStages?: RecruitmentRecord["examStages"];
+  eligibility?: RecruitmentRecord["eligibility"];
+  age?: RecruitmentRecord["age"];
+  selection?: RecruitmentRecord["selection"];
+  howToApply?: string[];
+  links?: RecruitmentRecord["links"];
+  documents?: RecruitmentRecord["documents"];
+  updates?: RecruitmentRecord["updates"];
   provenance: RecruitmentRecord["provenance"];
   adminId: string;
 }
@@ -187,6 +197,8 @@ export async function createRecruitment(
     INSERT INTO recruitments (
       slug,
       identity, dates, vacancies, financial,
+      eligibility, age, selection,
+      exam_stages, how_to_apply,
       lifecycle, provenance, links, documents, updates,
       classification,
       organization_id, organization_name, title_text, gov_type,
@@ -198,11 +210,16 @@ export async function createRecruitment(
       ${JSON.stringify(dates)},
       ${JSON.stringify(vacancies)},
       ${JSON.stringify(financial)},
+      ${params.eligibility !== undefined ? JSON.stringify(params.eligibility) : null},
+      ${params.age !== undefined ? JSON.stringify(params.age) : null},
+      ${params.selection !== undefined ? JSON.stringify(params.selection) : null},
+      ${params.examStages !== undefined ? JSON.stringify(params.examStages) : null},
+      ${params.howToApply !== undefined ? JSON.stringify(params.howToApply) : null},
       ${JSON.stringify(lifecycle)},
       ${JSON.stringify(provenance)},
-      ${JSON.stringify([])},
-      ${JSON.stringify([])},
-      ${JSON.stringify([])},
+      ${JSON.stringify(params.links ?? [])},
+      ${JSON.stringify(params.documents ?? [])},
+      ${JSON.stringify(params.updates ?? [])},
       ${params.classification !== undefined ? JSON.stringify(params.classification) : null},
       ${identity.organizationId},
       ${identity.organizationName ?? null},
@@ -260,6 +277,7 @@ export async function persistFieldUpdate(
         links             = ${JSON.stringify(record.links)},
         documents         = ${JSON.stringify(record.documents)},
         lifecycle         = ${JSON.stringify(record.lifecycle)},
+        exam_stages       = ${record.examStages !== undefined ? JSON.stringify(record.examStages) : null},
         conditions        = ${record.conditions !== undefined ? JSON.stringify(record.conditions) : null},
         classification    = ${record.classification !== undefined ? JSON.stringify(record.classification) : null},
         provenance        = ${JSON.stringify(record.provenance)},

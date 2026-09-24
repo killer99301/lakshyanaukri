@@ -665,10 +665,14 @@ async function main() {
           !("evidenceIds" in snap));
         assert("E5: snapshot has no 'lifecycle' key",
           !("lifecycle" in snap));
-        assert("E5: snapshot has no 'updates' key",
-          !("updates" in snap));
         assert("E5: snapshot has no 'draftState' key",
           !("draftState" in snap));
+
+        // Public fields added in G1 — present and array-typed
+        assert("E5: snapshot.updates is an array",
+          Array.isArray((snap as Record<string, unknown>).updates));
+        assert("E5: snapshot.examStages is an array",
+          Array.isArray((snap as Record<string, unknown>).examStages));
 
         // projectionVersion and projectedAt are present
         assert("E5: projectionVersion is '1.0'",
