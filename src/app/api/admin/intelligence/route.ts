@@ -27,6 +27,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth/guard";
 import { buildDraft } from "@/intelligence/draft-builder";
+import { sql } from "@/lib/db";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await requireAdmin(request);
@@ -54,7 +55,44 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const draft = await buildDraft(urls);
-    return NextResponse.json({ draft });
+
+    // ── Dedup: check for existing draft with same notification + org ──
+    const notifNum = draft.identity.notificationNumber.value;
+    const orgId = draft.identity.organizationId.value;
+
+    if (notifNum && orgId) {
+      const existingRows = await sql`
+        SELECT id FROM intelligence_drafts
+        WHERE snapshot->'identity'->'notificationNumber'->>'value' = ${notifNum}
+          AND snapshot->'identity'->'organizationId'->>'value' = ${orgId}
+        LIMIT 1
+      `;
+      if (existingRows.length > 0) {
+        return NextResponse.json({
+          draft,
+          draftId: existingRows[0].id as string,
+          isDuplicate: true,
+        });
+      }
+    }
+
+    // ── Save to intelligence_drafts (revision 1 = machine output) ──
+    const snapshotJson = JSON.stringify(draft);
+    const insertRows = await sql`
+      WITH new_draft AS (
+        INSERT INTO intelligence_drafts
+          (snapshot, status, current_revision, created_by, updated_by)
+        VALUES
+          (${snapshotJson}::jsonb, 'DRAFT', 1, ${auth.adminId}::uuid, ${auth.adminId}::uuid)
+        RETURNING id
+      )
+      INSERT INTO intelligence_draft_revisions (draft_id, revision, saved_by, snapshot)
+        SELECT id, 1, ${auth.adminId}::uuid, ${snapshotJson}::jsonb FROM new_draft
+      RETURNING draft_id AS id
+    `;
+
+    const draftId = insertRows[0].id as string;
+    return NextResponse.json({ draft, draftId, isDuplicate: false });
   } catch (err) {
     console.error("[api/admin/intelligence] error:", err);
     return NextResponse.json(

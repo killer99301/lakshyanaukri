@@ -101,6 +101,46 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       `;
     }
 
+    // Persist evidence rows from intelligence sources into recruitment_evidence.
+    // Each IntelligenceSource → one row; FieldEvidence.extractedText values
+    // are collected per source as excerpts so the CMS editor can display them.
+    if (draft.sources.length > 0) {
+      const excerptsBySource = new Map<string, string[]>();
+      for (const [, fieldValue] of Object.entries({
+        title: draft.identity.title,
+        notificationNumber: draft.identity.notificationNumber,
+        organizationId: draft.identity.organizationId,
+        ...Object.fromEntries(
+          Object.entries(draft.dates ?? {}).filter(([, v]) => v != null),
+        ),
+      })) {
+        const fv = fieldValue as { evidence?: Array<{ sourceId: string; extractedText?: string }> };
+        for (const ev of fv?.evidence ?? []) {
+          if (!ev.extractedText) continue;
+          const arr = excerptsBySource.get(ev.sourceId) ?? [];
+          arr.push(ev.extractedText.slice(0, 300));
+          excerptsBySource.set(ev.sourceId, arr);
+        }
+      }
+
+      for (const src of draft.sources) {
+        const excerpts = excerptsBySource.get(src.id) ?? [];
+        await sql`
+          INSERT INTO recruitment_evidence
+            (recruitment_id, url, title, source_type, authority_rank, fetched_at, excerpts)
+          VALUES (
+            ${record.id}::uuid,
+            ${src.url},
+            ${src.domain},
+            ${src.kind},
+            ${src.kind === "OFFICIAL" ? 8 : src.kind === "SECONDARY" ? 4 : 5},
+            ${src.retrievedAt}::timestamptz,
+            ${JSON.stringify(excerpts)}::jsonb
+          )
+        `;
+      }
+    }
+
     return NextResponse.json({
       recordId:       record.id,
       slug:           record.slug,

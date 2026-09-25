@@ -31,6 +31,10 @@ import {
 import { HttpRetriever } from "./http-retriever";
 import { discoverOfficialUrls } from "./official-source-discoverer";
 import { normalizeRecruitmentTitle } from "./title-normalizer";
+import { runStructuredExtraction } from "./structured-extractor";
+import type { MergedDraft, MergedField, FieldDisposition } from "./structured-extractor";
+import type { ExtractionProvider } from "./extraction-provider";
+import { createGeminiProvider } from "./gemini-extraction-provider";
 import type {
   SourceRetriever,
   IntelligenceSource,
@@ -47,6 +51,8 @@ import type {
   DraftReadiness,
   SourceKind,
   RecruitmentLink,
+  FeeEntry,
+  PayInformation,
 } from "./draft-types";
 
 // ─── Internal type ────────────────────────────────────────────
@@ -57,6 +63,8 @@ export interface ExtractionWithSource {
   // Organization name resolved from the official domain registry during retrieval.
   // Absent for secondary/third-party sources that have no registry entry.
   orgName?: string;
+  // Raw HTML used for Gemini enrichment; absent for PDF sources.
+  html?: string;
 }
 
 // ─── Authority rank ───────────────────────────────────────────
@@ -487,6 +495,150 @@ function toExtractionSourceKind(phase10Kind: SourceKind): ExtractionSourceKind {
   return "UNKNOWN";
 }
 
+// ─── Gemini enrichment ────────────────────────────────────────
+//
+// Runs after mapExtractionsToDraft(). Uses the two-layer pipeline
+// (structureDocument → Gemini) to fill fields deterministic
+// extraction cannot reach: application fees and vacancy breakdown.
+// Also surfaces Gemini vs deterministic conflicts.
+// Fail-safe: any error (including GeminiUnavailableError) is swallowed
+// and the draft is returned with whatever deterministic produced.
+
+function llmEvidenceText(disp: FieldDisposition): string | undefined {
+  if (disp.source === "llm_fill" || disp.source === "confirmed_by_llm" || disp.source === "conflict") {
+    return disp.evidence;
+  }
+  return undefined;
+}
+
+async function enrichDraftWithGemini(
+  draft: RecruitmentIntelligenceDraft,
+  entries: ExtractionWithSource[],
+  provider: ExtractionProvider,
+): Promise<void> {
+  const htmlEntries = entries.filter(e => Boolean(e.html) && e.source.success);
+  if (htmlEntries.length === 0) return;
+
+  const best = [...htmlEntries].sort(
+    (a, b) => extractionAuthorityRank(b.extraction.sourceKind) - extractionAuthorityRank(a.extraction.sourceKind),
+  )[0];
+
+  let merged: MergedDraft;
+  try {
+    merged = await runStructuredExtraction(best.html!, best.source.url, provider);
+  } catch {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const auth = extractionAuthorityRank(best.extraction.sourceKind);
+
+  // ── Fees (Gemini-only — deterministic never extracts these) ──
+  const fees: FeeEntry[] = [];
+  if (merged.applicationFeeGeneral.value !== undefined) {
+    fees.push({
+      category: "General/OBC/UR",
+      amount: merged.applicationFeeGeneral.value,
+      description: llmEvidenceText(merged.applicationFeeGeneral.disposition),
+    });
+  }
+  if (merged.applicationFeeSCST.value !== undefined) {
+    fees.push({
+      category: "SC/ST/PwBD",
+      amount: merged.applicationFeeSCST.value,
+      description: llmEvidenceText(merged.applicationFeeSCST.disposition),
+    });
+  }
+  if (fees.length > 0) {
+    const existing: PayInformation = draft.pay ?? { sourceEvidence: [] };
+    const feeEvidence: FieldEvidence = {
+      sourceId: best.source.id,
+      url: best.source.url,
+      value: fees,
+      extractedText: fees
+        .map(f => f.description)
+        .filter(Boolean)
+        .join(" | ")
+        .slice(0, 300) || undefined,
+      confidence: 0.85,
+      authorityRank: auth,
+      extractionMethod: "STRUCTURED",
+      extractedAt: now,
+    };
+    draft.pay = {
+      ...existing,
+      applicationFee: fees,
+      sourceEvidence: [...existing.sourceEvidence, feeEvidence],
+    };
+  }
+
+  // ── Vacancy breakdown (Gemini, only when deterministic rows are empty) ──
+  if (merged.vacancyBreakdown.value && draft.vacancies.rows.length === 0) {
+    const breakdown = merged.vacancyBreakdown.value;
+    draft.vacancies.rows = breakdown.map((item, i) => ({
+      id: `gemini-${best.source.id.slice(0, 8)}-${i}`,
+      postName: item.post,
+      total: item.count,
+      sourceEvidence: [
+        {
+          sourceId: best.source.id,
+          url: best.source.url,
+          value: item.count,
+          extractedText: (item.evidence ?? "").slice(0, 300) || undefined,
+          confidence: 0.85,
+          authorityRank: auth,
+          extractionMethod: "STRUCTURED" as const,
+          extractedAt: now,
+        },
+      ],
+      manuallyEdited: false,
+    }));
+    if (!draft.vacancies.total?.value && !draft.vacancies.derivedTotal) {
+      const sum = breakdown.reduce((acc, r) => acc + r.count, 0);
+      draft.vacancies.derivedTotal = sum;
+      draft.vacancies.derivedTotalExplanation = `Gemini: sum of ${breakdown.length} post row${breakdown.length !== 1 ? "s" : ""}`;
+    }
+  }
+
+  // ── Conflicts: Gemini disagrees with deterministic ────────────
+  const conflictChecks: Array<[string, MergedField<unknown>]> = [
+    ["identity.notificationNumber", merged.notificationNumber as MergedField<unknown>],
+    ["vacancies.total", merged.totalVacancies as MergedField<unknown>],
+    ["dates.applicationOpenDate", merged.applicationOpenDate as MergedField<unknown>],
+    ["dates.applicationCloseDate", merged.applicationCloseDate as MergedField<unknown>],
+  ];
+
+  for (const [field, mf] of conflictChecks) {
+    if (mf.disposition.source !== "conflict") continue;
+    const d = mf.disposition as {
+      source: "conflict";
+      deterministicValue: unknown;
+      llmValue: unknown;
+      evidence: string;
+    };
+    draft.conflicts.push({
+      field,
+      values: [
+        {
+          value: d.deterministicValue,
+          sourceId: best.source.id,
+          url: best.source.url,
+          sourceKind: best.source.kind,
+          confidence: 0.70,
+        },
+        {
+          value: d.llmValue,
+          sourceId: `gemini:${best.source.id.slice(0, 8)}`,
+          url: best.source.url,
+          sourceKind: "OTHER" as SourceKind,
+          confidence: 0.85,
+        },
+      ],
+      severity: "WARNING",
+    });
+  }
+}
+
 // ─── Main entry point ─────────────────────────────────────────
 
 // ─── Internal: retrieve one URL and extract ───────────────────
@@ -572,6 +724,7 @@ async function retrieveAndExtract(
     source: retrieved.source,
     extraction,
     orgName: classification.orgName,
+    html: retrieved.html,
   });
   return retrieved.links;
 }
@@ -590,6 +743,7 @@ function isShallowPath(urlString: string): boolean {
 export async function buildDraft(
   urls: string[],
   retriever: SourceRetriever = new HttpRetriever(),
+  provider?: ExtractionProvider | null,
 ): Promise<RecruitmentIntelligenceDraft> {
   const sources: IntelligenceSource[] = [];
   const extractionEntries: ExtractionWithSource[] = [];
@@ -627,6 +781,7 @@ export async function buildDraft(
       source: retrieved.source,
       extraction,
       orgName: classification.orgName,
+      html: retrieved.html,
     });
 
     // Phase 11+12: Official source discovery with controlled two-hop.
@@ -651,5 +806,16 @@ export async function buildDraft(
     }
   }
 
-  return mapExtractionsToDraft(sources, extractionEntries);
+  const draft = mapExtractionsToDraft(sources, extractionEntries);
+
+  // Gemini enrichment: fees, vacancy breakdown, conflict detection.
+  // provider===undefined → use createGeminiProvider() (real key or null).
+  // provider===null → skip Gemini (test-controlled).
+  // provider===ExtractionProvider → use injected provider (tests).
+  const resolvedProvider = provider === undefined ? createGeminiProvider() : provider;
+  if (resolvedProvider) {
+    await enrichDraftWithGemini(draft, extractionEntries, resolvedProvider);
+  }
+
+  return draft;
 }

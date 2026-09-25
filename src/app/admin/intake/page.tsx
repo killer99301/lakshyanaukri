@@ -115,7 +115,36 @@ function TrustGatePanel({ passed, errors, warnings }: {
 
 function EntityGroupCard({ group }: { group: EntityGroup }) {
   const [expanded, setExpanded] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isDuplicate, setIsDuplicate] = useState(false);
   const m = group.merged;
+
+  async function handleSaveAsDraft() {
+    const primaryUrl = m.primarySourceUrl ?? group.results[0]?.sourceUrl;
+    if (!primaryUrl) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/admin/intelligence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: [primaryUrl] }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSaveError(data.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      setSavedDraftId(data.draftId as string);
+      setIsDuplicate(data.isDuplicate as boolean);
+    } catch (e) {
+      setSaveError(String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div style={S.card}>
@@ -151,6 +180,28 @@ function EntityGroupCard({ group }: { group: EntityGroup }) {
           }}>
             {m.trustGatePassed ? "Trust Gate PASS" : "Trust Gate FAIL"}
           </span>
+
+          {/* Save as Intelligence Draft */}
+          {savedDraftId ? (
+            <a
+              href={`/admin/intelligence/${savedDraftId}`}
+              style={{ padding: "4px 12px", background: isDuplicate ? "#21262d" : "#1f6feb", color: isDuplicate ? "#8b949e" : "#fff", borderRadius: 4, fontSize: 11, fontWeight: 700, textDecoration: "none" }}
+            >
+              {isDuplicate ? "Duplicate — View Draft →" : "View Draft →"}
+            </a>
+          ) : (
+            <button
+              onClick={handleSaveAsDraft}
+              disabled={saving}
+              style={{ padding: "4px 12px", background: saving ? "#21262d" : "#238636", color: saving ? "#8b949e" : "#fff", border: "none", borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: saving ? "default" : "pointer" }}
+            >
+              {saving ? "Saving…" : "Save as Intelligence Draft"}
+            </button>
+          )}
+          {saveError && (
+            <span style={{ fontSize: 11, color: "#f85149" }}>{saveError}</span>
+          )}
+
           <button
             onClick={() => setExpanded((v) => !v)}
             style={{ background: "none", border: "1px solid #21262d", color: "#8b949e", borderRadius: 4, padding: "2px 10px", cursor: "pointer", fontSize: 12 }}
