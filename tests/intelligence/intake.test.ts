@@ -2691,6 +2691,71 @@ function testVACANCY_STRUCTURAL_REGRESSION() {
   }
 }
 
+// ─── Phase 14B: WordPress post-ID contamination ───────────────
+// GovtJobGuru embeds JSON-LD with "?post_type=jobs&p=480305".
+// VACANCY_RE pattern 4 (post proximity) matched "post_type…p=480305"
+// before <script> blocks were stripped, producing totalVacancies=480305.
+// Fix: stripTags() now removes <script>/<style> blocks before tag-stripping.
+//
+// Also verifies the SBI SCO category-wise table:
+//   "CATEGORY WISE VACANCIES" / "Regular 2 2 -" / "Total 2 2 1"
+// correctly produces totalVacancies=undefined (multi-column table, no labeled
+// grand total) rather than any wrong derived number.
+function testVACANCY_WORDPRESS_CONTAMINATION() {
+  console.log("\nVAC-WP — WordPress post-ID contamination regression");
+
+  // VAC-WP-1: JSON-LD containing "?post_type=jobs&p=480305" must NOT produce 480305
+  {
+    const wpHtml = [
+      `<html><head>`,
+      `<script type="application/ld+json">`,
+      `{"@context":"https://schema.org","@graph":[`,
+      `{"@type":"WebPage","@id":"https://govtjobguru.in/?post_type=jobs&p=480305",`,
+      `"url":"https://govtjobguru.in/?post_type=jobs&p=480305",`,
+      `"name":"SBI Vice President Recruitment 2026 - Apply Online"}]}`,
+      `</script></head><body>`,
+      `<h1>SBI Vice President Recruitment 2026</h1>`,
+      `<p>Apply online from 16.09.2026 to 06.10.2026</p>`,
+      `</body></html>`,
+    ].join("\n");
+
+    const ex = extractIntakeFields(wpHtml, "https://govtjobguru.in/jobs/sbi-vice-president-recruitment-2026/", undefined, undefined, "THIRD_PARTY");
+    assert("VAC-WP-1",
+      ex.totalVacancies !== 480305,
+      `VAC-WP-1: WordPress post ID 480305 must not be extracted as totalVacancies (got: ${ex.totalVacancies})`
+    );
+    assert("VAC-WP-2",
+      ex.totalVacancies === undefined,
+      `VAC-WP-2: totalVacancies must be undefined when only JSON-LD post ID is present (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-WP-3: SBI SCO category-wise table pattern: "Total 2 2 1" must NOT
+  // be misread as vacancy=2 or any other number; result must be undefined.
+  {
+    const sbiPdfFragment = [
+      "NAME OF THE POST : DEPUTY VICE PRESIDENT (IT RISK)",
+      "CATEGORY WISE VACANCIES Age in",
+      "UR TOTAL PwBD",
+      "Regular 2 2 -",
+      "Backlog - - 1",
+      "Total 2 2 1",
+      "NAME OF THE POST : ASSISTANT VICE PRESIDENT (IT RISK)",
+      "CATEGORY WISE VACANCIES Age in",
+      "UR TOTAL PwBD",
+      "Regular 2 2 -",
+      "Backlog - - 1",
+      "Total 2 2 1",
+    ].join("\n");
+
+    const ex = extractIntakeFields(sbiPdfFragment, "https://sbi.bank.in/notif.pdf", undefined, undefined, "OFFICIAL_PDF");
+    assert("VAC-WP-3",
+      ex.totalVacancies === undefined,
+      `VAC-WP-3: SBI category-wise table "Total 2 2 1" must not produce a vacancy count (got: ${ex.totalVacancies})`
+    );
+  }
+}
+
 // ─── Run all tests ─────────────────────────────────────────────
 
 async function main() {
@@ -2767,6 +2832,8 @@ async function main() {
   await testLOCAL_PDF_REGRESSION();
   // Phase 9E — structural vacancy extraction regression
   testVACANCY_STRUCTURAL_REGRESSION();
+  // Phase 14B — WordPress post-ID contamination + SBI category-wise table
+  testVACANCY_WORDPRESS_CONTAMINATION();
 
   console.log("\n" + "═".repeat(72));
   console.log(`  Results: ${passed} passed, ${failed} failed`);

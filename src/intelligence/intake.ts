@@ -465,6 +465,12 @@ function parseDateFromText(text: string): string | undefined {
 
 function stripTags(html: string): string {
   return html
+    // Strip script/style block contents first — JSON-LD, tracking pixels, etc. contain
+    // WordPress post IDs, URL query params, and other numbers that collide with vacancy
+    // patterns (e.g. "post_type=jobs&p=480305" matches the "post" proximity pattern).
+    // These blocks are never relevant to recruitment field extraction.
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")

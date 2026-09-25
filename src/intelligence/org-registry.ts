@@ -129,6 +129,7 @@ export const OFFICIAL_DOMAINS: Record<string, string> = {
   "ibpsonline.ibps.in":        "ibps",
   "bank.sbi":                  "sbi",
   "sbi.co.in":                 "sbi",
+  "sbi.bank.in":               "sbi",
   "rbi.org.in":                "rbi",
   "nabard.org":                "nabard",
   "licindia.in":               "lic",

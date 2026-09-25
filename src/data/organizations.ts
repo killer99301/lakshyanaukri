@@ -45,6 +45,15 @@ export const ORGANIZATIONS: Record<string, Organization> = {
     type: "central-govt",
   },
 
+  sbi: {
+    id: "sbi",
+    name: "State Bank of India",
+    abbreviation: "SBI",
+    website: "https://sbi.co.in",
+    logo: "/logos/sbi.svg",
+    type: "psu",
+  },
+
   ibps: {
     id: "ibps",
     name: "Institute of Banking Personnel Selection",
