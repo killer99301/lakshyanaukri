@@ -720,20 +720,23 @@ export function extractApplicationDates(text: string): {
 } {
   const result: { openDate?: string; closeDate?: string; notificationDate?: string } = {};
 
-  // Label patterns require an explicit ":" separator and [^:\n] in the prefix so they
-  // cannot crawl past a newline into a different section (e.g. Ex-Servicemen eligibility
-  // clauses like "last date for receipt of application ... on or before 20.09.2027").
+  // Pattern precedence: specific labeled patterns first, generic fallbacks last.
+  // Colon-based patterns require ":" (strong signal). Table-cell patterns (no colon)
+  // match government Important Dates tables where label and date are adjacent with no
+  // colon separator. Both must precede the generic "from X to Y" fallback which fires
+  // on any date range in the text — including modification windows — if reached first.
   const closePatterns = [
+    // [0] Colon-based: "Last Date:", "Closing date:", "deadline:"
     /(?:last\s+date|apply\s+by|closing\s+date|close\s+date|deadline|fee\s+(?:payment\s+)?last\s+date)[^:\n]{0,40}?:\s*(.{5,35}?(?:\d{4}))/i,
+    // [1] Table-cell (no colon): "Closing date for Submission of Online Application 14/10/2026"
+    // Must precede "from X to Y" so the labeled row wins over a later modification-window sentence.
+    /(?:last\s+date|closing\s+date|close\s+date|deadline)\b[^\d]{0,60}(\d{1,2}[./]\d{1,2}[./]20\d{2})/i,
     /applications?\s+close[^:\n]{0,20}?:\s*(.{5,30}?(?:\d{4}))/i,
     // Requires application/registration context before "before/upto" — extra guard against
     // eligibility clauses even when no "last date" label is present.
     /(?:apply|application|registration|submit)\s+(?:before|upto?)\s+(.{5,25}?(?:\d{4}))/i,
-    // "from DATE to DATE" range — captures the close (right-hand) date
+    // [4] "from DATE to DATE" range — captures the close (right-hand) date. Fallback only.
     /from\s+.{5,30}?\d{4}\s+to\s+(.{5,25}?(?:\d{4}))/i,
-    // Table-cell / whitespace-separated format (no colon): "Last Date of Online Registration 28/09/2026".
-    // Government important-dates tables render label and date as adjacent cells with no colon.
-    /(?:last\s+date|closing\s+date|close\s+date|deadline)\b[^\d]{0,60}(\d{1,2}[./]\d{1,2}[./]20\d{2})/i,
   ];
   for (const re of closePatterns) {
     const m = re.exec(text);
@@ -744,15 +747,16 @@ export function extractApplicationDates(text: string): {
   }
 
   const openPatterns = [
+    // [0] Colon-based: "Opening date:", "Starting date:", "Apply from:"
     /(?:starting\s+date|start\s+date|opening\s+date|application\s+start\s+(?:date)?|apply\s+from|online\s+(?:application|registration)\s+(?:start(?:s|ing)?|begin|commences?))[^:\n]{0,40}?:\s*(.{5,35}?(?:\d{4}))/i,
+    // [1] Table-cell (no colon): "Opening date of Online Application 15/09/2026"
+    // Must precede "from X to Y" so the labeled row wins over a later modification-window sentence.
+    /(?:opening\s+date|application\s+(?:starts?|begins?))\b[^\d]{0,60}(\d{1,2}[./\-]\d{1,2}[./\-]20\d{2})/i,
     /application\s+open[^:\n]{0,20}?:\s*(.{5,30}?(?:\d{4}))/i,
+    // [3] "from DATE to DATE" range — captures the open (left-hand) date. Fallback only.
     /from\s+(.{5,25}?(?:\d{4}))\s+to\s+/i,
     // Table-cell / whitespace-separated "commences/opens" label: "Online Registration Commences 08/09/2026".
     /(?:online\s+registration\s+commences?|registration\s+(?:commences?|opens?)|application\s+(?:commences?|opens?))\b[^\d]{0,30}(\d{1,2}[./]\d{1,2}[./]20\d{2})/i,
-    // Table-cell "opening date" / "application starts|begins": no colon required.
-    // Matches government Important Dates tables like "Opening date of Online Application 15/09/2026"
-    // where the label and date are adjacent cells with no colon separator.
-    /(?:opening\s+date|application\s+(?:starts?|begins?))\b[^\d]{0,60}(\d{1,2}[./\-]\d{1,2}[./\-]20\d{2})/i,
   ];
   for (const re of openPatterns) {
     const m = re.exec(text);

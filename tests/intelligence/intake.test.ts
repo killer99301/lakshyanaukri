@@ -23,6 +23,7 @@
 import {
   classifySourceUrl,
   extractIntakeFields,
+  extractApplicationDates,
   runIntake,
   deriveOrgFromOfficialDomain,
   assessPdfTextQuality,
@@ -2323,6 +2324,73 @@ function testDATEEXTRACTION_REGRESSION() {
   );
 }
 
+// ─── Phase 9C-E: RRB modification-window contamination fix ────────────────────
+//
+// govtjobguru.in pages for RRB recruitments have two date sources:
+//   1. Important Dates table (no colon): "Opening date of Online Application 15/09/2026"
+//   2. Body text "from X to Y" for the modification window:
+//      "the modification window from 17.10.2026 to 26.10.2026 by paying..."
+//
+// Root cause: the generic "from X to Y" pattern fired before the labeled
+// table-cell pattern (both in closePatterns and openPatterns), producing
+// openDate=2026-10-17, closeDate=2026-10-26 (modification-window dates).
+//
+// Fix: table-cell labeled patterns now precede "from X to Y" fallbacks.
+
+function testDATEEXTRACTION_MODIFICATION_WINDOW() {
+  console.log("\nDATE-REGR.E — RRB modification-window contamination prevention");
+
+  // Positive: labeled table-cell rows extracted correctly (no colon format)
+  const LABELED_TABLE_NO_COLON = [
+    "Important Dates",
+    "Opening date of Online Application 15/09/2026",
+    "Closing date for Submission of Online Application 14/10/2026",
+    "Last Date for Application fee payment 16/10/2026",
+    "Modification window for corrections in application form (17-10-2026 to 26-10-2026)",
+  ].join("\n");
+
+  const exE1 = extractApplicationDates(LABELED_TABLE_NO_COLON);
+  assert("DATE-REGR.E1", exE1.openDate === "2026-09-15",
+    `E1: openDate = 2026-09-15 from labeled table (got: ${exE1.openDate})`);
+  assert("DATE-REGR.E2", exE1.closeDate === "2026-10-14",
+    `E2: closeDate = 2026-10-14 from labeled table (got: ${exE1.closeDate})`);
+
+  // Negative: modification-window dates must NOT win
+  assert("DATE-REGR.E3", exE1.openDate !== "2026-10-17",
+    `E3: modification-window open 2026-10-17 NOT used as openDate`);
+  assert("DATE-REGR.E4", exE1.closeDate !== "2026-10-26",
+    `E4: modification-window close 2026-10-26 NOT used as closeDate`);
+
+  // Production-realistic: labeled table + later "from X.X.XXXX to X.X.XXXX" body sentence
+  const REAL_PAGE_PATTERN = [
+    "Important Dates",
+    "Opening date of Online Application 15/09/2026",
+    "Closing date for Submission of Online Application 14/10/2026",
+    "Last Date for Application fee payment 16/10/2026",
+    "Modification window for corrections in application form (17-10-2026 to 26-10-2026)",
+    "How to Apply",
+    "Complete the modification window from 17.10.2026 to 26.10.2026 by paying Rs. 250/-",
+  ].join("\n");
+
+  const exE2 = extractApplicationDates(REAL_PAGE_PATTERN);
+  assert("DATE-REGR.E5", exE2.openDate === "2026-09-15",
+    `E5: production-pattern openDate = 2026-09-15 (got: ${exE2.openDate})`);
+  assert("DATE-REGR.E6", exE2.closeDate === "2026-10-14",
+    `E6: production-pattern closeDate = 2026-10-14 (got: ${exE2.closeDate})`);
+  assert("DATE-REGR.E7", exE2.openDate !== "2026-10-17",
+    `E7: "from 17.10.2026" NOT used as openDate when labeled row present`);
+  assert("DATE-REGR.E8", exE2.closeDate !== "2026-10-26",
+    `E8: "to 26.10.2026" NOT used as closeDate when labeled row present`);
+
+  // Verify bare-range fallback still works when no label is present
+  const BARE_RANGE_ONLY = "01.09.2026 to 21.09.2026";
+  const exE3 = extractApplicationDates(BARE_RANGE_ONLY);
+  assert("DATE-REGR.E9", exE3.openDate === "2026-09-01",
+    `E9: bare range fallback openDate = 2026-09-01 (got: ${exE3.openDate})`);
+  assert("DATE-REGR.E10", exE3.closeDate === "2026-09-21",
+    `E10: bare range fallback closeDate = 2026-09-21 (got: ${exE3.closeDate})`);
+}
+
 // ─── Phase 9D: LOCAL_PDF_* tests ──────────────────────────────
 // Verifies the "local PDF" intake path (operator-supplied PDF via
 // --local-pdf CLI flag). The engine sees a fetchPdfFn built from a
@@ -2690,6 +2758,8 @@ async function main() {
   await testPOSTDATE_NOT_FABRICATED();
   // Phase 9C — date extraction regression (bare range + Ex-Servicemen fix)
   testDATEEXTRACTION_REGRESSION();
+  // Phase 9C-E — modification-window contamination fix
+  testDATEEXTRACTION_MODIFICATION_WINDOW();
   // Phase 9D — local PDF intake path
   await testLOCAL_PDF_EQUIV();
   await testLOCAL_PDF_FAIL();
