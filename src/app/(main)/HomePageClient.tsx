@@ -34,13 +34,17 @@ import { AnswerKeyHexCluster } from "@/components/answer-keys/AnswerKeyHexCluste
 import { PopularOrganizationsBento } from "@/components/organizations/PopularOrganizationsBento";
 import { UpcomingExamsTimeline } from "@/components/exams/UpcomingExamsTimeline";
 import { siteConfig } from "@/config/site";
-import { getAllVerifiedOpportunities } from "@/lib/repository";
+import type { Opportunity } from "@/types";
 import {
   POPULAR_SEARCHES,
   HOW_IT_HELPS_STEPS,
 } from "@/data/homepage";
 
-export default function HomePage() {
+interface HomePageClientProps {
+  opportunities: Opportunity[];
+}
+
+export default function HomePageClient({ opportunities }: HomePageClientProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All India");
@@ -197,7 +201,7 @@ export default function HomePage() {
 
             {/* Dynamic Infinite Scroll Ticker */}
             <div className="flex-1 overflow-hidden w-full">
-              <Ticker />
+              <Ticker opportunities={opportunities} />
             </div>
 
             <Link href="/jobs" className="shrink-0 pr-1">
@@ -223,7 +227,7 @@ export default function HomePage() {
           />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-3.5">
-            {getAllVerifiedOpportunities().slice(0, 3).map((job, idx) => (
+            {opportunities.slice(0, 3).map((job, idx) => (
               <React.Fragment key={job.id}>
                 {idx === 0 ? (
                   <CursorTiltCard maxTiltDegrees={3}>

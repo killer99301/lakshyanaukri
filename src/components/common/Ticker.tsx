@@ -4,8 +4,8 @@ import React from "react";
 import Link from "next/link";
 import { Badge } from "../ui/Badge";
 import { IMPORTANT_UPDATES } from "@/data/homepage";
-import { getAllVerifiedOpportunities } from "@/lib/repository";
 import { deriveStatusBadge, getVacancyDisplay } from "@/lib/lifecycle";
+import type { Opportunity } from "@/types";
 
 export interface TickerItem {
   id: string;
@@ -15,9 +15,12 @@ export interface TickerItem {
   tagVariant?: "coral" | "orange" | "peach" | "neutral";
 }
 
-export const Ticker: React.FC = () => {
+interface TickerProps {
+  opportunities?: Opportunity[];
+}
+
+export const Ticker: React.FC<TickerProps> = ({ opportunities = [] }) => {
   const now = new Date();
-  const opportunities = getAllVerifiedOpportunities();
 
   // Combine IMPORTANT_UPDATES with key notifications from canonical repository
   const items: TickerItem[] = [

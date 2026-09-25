@@ -2,6 +2,7 @@
 // The interactive content lives in HomePageClient.tsx (client component).
 import type { Metadata } from "next";
 import { siteConfig } from "@/config/site";
+import { getAllVerifiedOpportunitiesWithCMS } from "@/lib/repository";
 import HomePageClient from "./HomePageClient";
 
 export const metadata: Metadata = {
@@ -36,6 +37,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
-  return <HomePageClient />;
+export default async function HomePage() {
+  const opportunities = await getAllVerifiedOpportunitiesWithCMS();
+  return <HomePageClient opportunities={opportunities} />;
 }

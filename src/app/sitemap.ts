@@ -1,10 +1,10 @@
 import { MetadataRoute } from "next";
-import { getAllVerifiedOpportunities } from "@/lib/repository";
+import { getAllVerifiedOpportunitiesWithCMS } from "@/lib/repository";
 import { siteConfig } from "@/config/site";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
-  const opportunities = getAllVerifiedOpportunities();
+  const opportunities = await getAllVerifiedOpportunitiesWithCMS();
 
   // Dynamic job pages
   const jobUrls: MetadataRoute.Sitemap = opportunities.map((job) => ({

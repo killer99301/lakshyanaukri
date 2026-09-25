@@ -4,15 +4,15 @@ import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 import { CardHover } from "@/components/common/motion/CardHover";
 import { getFilterCounts } from "@/lib/filters";
-import { getAllVerifiedOpportunities } from "@/lib/repository";
+import { getAllVerifiedOpportunitiesWithCMS } from "@/lib/repository";
 
 export const metadata = {
   title: "Competitive Exams Directory 2026 | LakshyaNaukri",
   description: "Explore complete exam patterns, syllabi, exam calendars, and eligibility criteria for UPSC CSE, SSC CGL, RRB NTPC, IBPS PO, and State PSCs.",
 };
 
-export default function ExamsDirectoryPage() {
-  const opportunities = getAllVerifiedOpportunities();
+export default async function ExamsDirectoryPage() {
+  const opportunities = await getAllVerifiedOpportunitiesWithCMS();
   const counts = getFilterCounts(opportunities, new Date());
 
   const examCategories = [

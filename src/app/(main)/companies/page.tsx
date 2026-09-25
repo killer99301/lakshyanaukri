@@ -4,15 +4,15 @@ import { OrganizationLogo } from "@/components/common/OrganizationLogo";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 import { CardHover } from "@/components/common/motion/CardHover";
-import { getAllVerifiedOpportunities } from "@/lib/repository";
+import { getAllVerifiedOpportunitiesWithCMS } from "@/lib/repository";
 
 export const metadata = {
   title: "Recruiting Organizations & Boards 2026 | LakshyaNaukri",
   description: "Browse major hiring organizations, government commissions, public sector undertakings, and top corporate employers in India.",
 };
 
-export default function CompaniesPage() {
-  const opportunities = getAllVerifiedOpportunities();
+export default async function CompaniesPage() {
+  const opportunities = await getAllVerifiedOpportunitiesWithCMS();
 
   const organizations = [
     {
