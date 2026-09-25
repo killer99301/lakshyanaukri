@@ -8,6 +8,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { Opportunity, PrivateJob, Internship } from "@/types";
+import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import { PRIVATE_JOBS } from "@/data/private";
 import { INTERNSHIPS } from "@/data/internships";
 import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
@@ -61,6 +62,30 @@ export function getAllOpportunities(): Opportunity[] {
  */
 export function getAllVerifiedOpportunities(): Opportunity[] {
   return assembleVerifiedDataset();
+}
+
+/**
+ * Returns all PUBLISHED CMS government recruitments merged with static private/internship records.
+ * Uses a single batch query — no N+1. Safe for server-side use only (async, touches DB).
+ *
+ * The `loader` parameter is for testing only — pass a mock to avoid DB calls.
+ * Falls back to static-only on DB failure.
+ */
+export async function getAllVerifiedOpportunitiesWithCMS(
+  loader?: () => Promise<PublishedRecruitmentSnapshot[]>,
+): Promise<Opportunity[]> {
+  const staticOps = assembleVerifiedDataset();
+  try {
+    const getSnapshots = loader ?? (async () => {
+      const { getAllPublishedSnapshots } = await import("@/lib/cms/public-repository");
+      return getAllPublishedSnapshots();
+    });
+    const snapshots = await getSnapshots();
+    const cmsOps = snapshots.map(snapshotToGovernmentRecruitment);
+    return [...cmsOps, ...staticOps];
+  } catch {
+    return staticOps;
+  }
 }
 
 /**

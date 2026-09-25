@@ -44,3 +44,19 @@ export async function getPublishedSlugs(): Promise<string[]> {
   `;
   return rows.map((r) => r.slug as string);
 }
+
+/**
+ * Returns the most recent published snapshot for every PUBLISHED recruitment.
+ * Single batch query — no N+1. Used by the /jobs marketplace listing.
+ * Publication guard: draft_state = 'PUBLISHED' AND published_recruitments row exists.
+ */
+export async function getAllPublishedSnapshots(): Promise<PublishedRecruitmentSnapshot[]> {
+  const rows = await sql`
+    SELECT DISTINCT ON (r.id) pr.snapshot
+    FROM published_recruitments pr
+    JOIN recruitments r ON r.id = pr.recruitment_id
+    WHERE r.draft_state = 'PUBLISHED'
+    ORDER BY r.id, pr.published_at DESC
+  `;
+  return rows.map((row) => row.snapshot as PublishedRecruitmentSnapshot);
+}
