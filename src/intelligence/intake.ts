@@ -355,6 +355,85 @@ function findSectionTotal(windowText: string): number | undefined {
   return undefined;
 }
 
+// CATEGORY WISE VACANCIES table extractor — SBI/bank-style per-post tables.
+//
+// Targets PDFs that break vacancies down by post name rather than by a single
+// vacancy-section heading. Structure (SBI CRPD/SCO/2026-27/22 example):
+//
+//   NAME OF THE POST : DEPUTY VICE PRESIDENT (IT RISK)
+//   CATEGORY WISE VACANCIES  [columns: UR  TOTAL  PwBD (LD)@]
+//   Regular   2  2  -
+//   Backlog   -  -  1
+//   Total     2  2  1
+//
+//   NAME OF THE POST : ASSISTANT VICE PRESIDENT (IT RISK)
+//   ...
+//   Total     2  2  1
+//
+//   @ - Horizontal vacancy Reservation is horizontal and is included in
+//       the vacancy of the respective parent category.
+//
+// The @ footnote means PwBD seats are carved FROM the parent-category total,
+// NOT added on top. So `Total 2 2 1` means 2 net seats (PwBD-1 included).
+// The TOTAL column is the penultimate number on the Total row (last = PwBD).
+//
+// If the @ footnote is absent we cannot confidently identify which columns
+// are additive, so we return undefined and let the caller fall through.
+function extractVacanciesFromCategoryTable(text: string): StructuredVacancyResult | undefined {
+  if (!/CATEGORY\s+WISE\s+VACANCIES/i.test(text)) return undefined;
+
+  // Require the horizontal-PwBD footnote — without it we can't safely exclude
+  // the PwBD column from the per-post totals.
+  const horizontalPwBD =
+    /@\s*[-–]\s*Horizontal\s+vacancy\s+Reservation\s+is\s+horizontal/i.test(text);
+  if (!horizontalPwBD) return undefined;
+
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const POST_NAME_RE = /^NAME\s+OF\s+THE\s+POST\s*[:–\-]\s*(.+)/i;
+  // Total row: "Total 2 2 1" — may have trailing dash or PwBD count
+  const TOTAL_ROW_RE = /^Total\s+([\d,\s-]+)\s*$/i;
+
+  function extractTotalFromBlock(blockLines: string[]): number | undefined {
+    for (const line of blockLines) {
+      const m = TOTAL_ROW_RE.exec(line);
+      if (!m) continue;
+      const nums = [...m[1].matchAll(/(\d[\d,]*)/g)]
+        .map((n) => parseInt(n[1].replace(/,/g, ""), 10))
+        .filter((n) => !isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n));
+      if (nums.length === 0) continue;
+      if (nums.length === 1) return nums[0];
+      // With horizontal PwBD: last number = PwBD (not additive); second-to-last = TOTAL.
+      return nums[nums.length - 2];
+    }
+    return undefined;
+  }
+
+  const rows: VacancyRow[] = [];
+  let postName: string | null = null;
+  let postStart = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const m = POST_NAME_RE.exec(lines[i]);
+    if (m) {
+      if (postName !== null && postStart >= 0) {
+        const n = extractTotalFromBlock(lines.slice(postStart + 1, i));
+        if (n !== undefined) rows.push({ label: postName, count: n });
+      }
+      postName = m[1].trim();
+      postStart = i;
+    }
+  }
+  if (postName !== null && postStart >= 0) {
+    const n = extractTotalFromBlock(lines.slice(postStart + 1));
+    if (n !== undefined) rows.push({ label: postName, count: n });
+  }
+
+  if (rows.length === 0) return undefined;
+
+  const total = rows.reduce((s, r) => s + r.count, 0);
+  return { total, isDerived: rows.length >= 2, rows };
+}
+
 // Conservative fallback for PDFs where no vacancy section heading was found.
 // Uses only the two labeled patterns plus number-before-keyword restricted to
 // the first 2000 chars (where vacancy info always appears in PDF notifications).
@@ -386,6 +465,11 @@ function extractVacanciesFromPdfTextFallback(text: string): StructuredVacancyRes
 }
 
 function extractVacanciesFromPdfText(text: string): StructuredVacancyResult | undefined {
+  // Phase 0: CATEGORY WISE VACANCIES table format (SBI/bank-style per-post tables).
+  // Tried first because these PDFs have no standard vacancy-section heading.
+  const categoryResult = extractVacanciesFromCategoryTable(text);
+  if (categoryResult) return categoryResult;
+
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
   // Phase 1: Find vacancy section heading in first 100 lines

@@ -2757,6 +2757,91 @@ function testVACANCY_WORDPRESS_CONTAMINATION() {
 }
 
 // ─── Phase 14C: Sidebar contamination regression ─────────────────
+// ─── SBI CATEGORY WISE VACANCIES table extraction (Phase 14D) ──────────────
+//
+// SBI CRPD/SCO/2026-27/22 (page 3) has two per-post vacancy tables, each with
+// columns: UR | TOTAL | PwBD (LD)@
+//
+//   NAME OF THE POST : DEPUTY VICE PRESIDENT (IT RISK)
+//   CATEGORY WISE VACANCIES ...
+//   Regular  2  2  -
+//   Backlog  -  -  1
+//   Total    2  2  1
+//
+//   NAME OF THE POST : ASSISTANT VICE PRESIDENT (IT RISK)
+//   ...
+//   Total    2  2  1
+//
+//   @ - Horizontal vacancy Reservation is horizontal and is included
+//       in the vacancy of the respective parent category.
+//
+// The @ footnote means PwBD=1 is carved from the 2 seats (not additive).
+// Correct aggregate: DVP(2) + AVP(2) = 4. PwBD(1+1) is excluded from sum.
+const SBI_SCO_2026_27_22_PDF_TEXT = `
+NAME OF THE POST : DEPUTY VICE PRESIDENT (IT RISK)
+CATEGORY WISE VACANCIES Age in years as on ## 31.08.2026 Annual CTC Range** Contract Period $ Suggested place of posting # Selection Procedure
+UR TOTAL PwBD
+(LD)@ Minimum- 36 years Maximum- 45 years Upto Rs 60.00 lacs 3 years Mumbai, Navi Mumbai Shortlisting & Interview followed by CTC Negotiation
+Regular 2 2 -
+Backlog - - 1
+Total 2 2 1
+NAME OF THE POST : ASSISTANT VICE PRESIDENT (IT RISK)
+CATEGORY WISE VACANCIES Age in years as on ## 31.08.2026 Annual CTC Range** Contract Period $ Suggested place of posting # Selection Procedure
+UR TOTAL PwBD
+(LD) @ Minimum- 32 years Maximum- 42 years Upto Rs 50.00 lacs 3 years Mumbai, Navi Mumbai Shortlisting & Interview followed by CTC Negotiation
+Regular 2 2 -
+Backlog - - 1
+Total 2 2 1
+Abbreviation: UR- Unreserved, PwBD-Person with Benchmark Disabilities, LD-Locomotor Disability
+@ - Horizontal vacancy Reservation is horizontal and is included in the vacancy of the respective parent category.
+`;
+
+// extractVacanciesFromPdfText is internal; reach it via extractIntakeFields.
+// Text with no "<" characters is treated as plain text (isPlainText=true) and
+// routed through extractVacanciesFromPdfText by extractIntakeFields.
+const SBI_PDF_URL = "https://sbi.bank.in/documents/77530/57941334/16092026_ADV_CRPD_SCO_2026_27_22.pdf";
+
+function testVACANCY_CATEGORY_TABLE() {
+  console.log("\nVAC-CATEGORY-TABLE — SBI CATEGORY WISE VACANCIES per-post table extraction");
+
+  // VAC-CAT-1: each post's TOTAL column = 2; aggregate = 4
+  {
+    const ex = extractIntakeFields(SBI_SCO_2026_27_22_PDF_TEXT, SBI_PDF_URL);
+    assert("VAC-CAT-1",
+      ex.totalVacancies === 4,
+      `VAC-CAT-1: SBI DVP(2) + AVP(2) = 4 (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-CAT-2: PwBD backlog (1+1=2) must NOT appear as totalVacancies
+  {
+    const ex = extractIntakeFields(SBI_SCO_2026_27_22_PDF_TEXT, SBI_PDF_URL);
+    assert("VAC-CAT-2",
+      ex.totalVacancies !== 2,
+      `VAC-CAT-2: must not return 2 (PwBD horizontal should not shrink the aggregate — got: ${ex.totalVacancies})`
+    );
+    assert("VAC-CAT-3",
+      ex.totalVacancies !== 6,
+      `VAC-CAT-3: PwBD(1+1) must not be added to give 6 (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-CAT-4: without the @ horizontal footnote, category-table path is
+  // skipped (returns undefined); vacancies may come from fallback or be undefined.
+  // Either way it must not return 2 (a single-post TOTAL — wrong aggregate).
+  {
+    const textNoFootnote = SBI_SCO_2026_27_22_PDF_TEXT.replace(
+      /@ - Horizontal vacancy Reservation is horizontal[^\n]*/i,
+      ""
+    );
+    const ex = extractIntakeFields(textNoFootnote, SBI_PDF_URL);
+    assert("VAC-CAT-4",
+      ex.totalVacancies !== 1,
+      `VAC-CAT-4: without horizontal footnote, must not return PwBD count 1 (got: ${ex.totalVacancies})`
+    );
+  }
+}
+
 // GovtJobGuru's SBI page contained a "related jobs" sidebar card in <aside>:
 //   <h3>SAIL BSP Apprentice Recruitment 2026 – Apply Online for 710 Posts</h3>
 // VACANCY_RE pattern 3 (number-before-keyword) matched "710 Posts" from that
@@ -2895,6 +2980,8 @@ async function main() {
   testVACANCY_WORDPRESS_CONTAMINATION();
   // Phase 14C — sidebar card + date-fragment contamination
   testVACANCY_SIDEBAR_CONTAMINATION();
+  // Phase 14D — CATEGORY WISE VACANCIES per-post table (SBI SCO 2026-27/22)
+  testVACANCY_CATEGORY_TABLE();
 
   console.log("\n" + "═".repeat(72));
   console.log(`  Results: ${passed} passed, ${failed} failed`);
