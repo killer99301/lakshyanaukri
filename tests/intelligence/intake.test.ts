@@ -2756,6 +2756,65 @@ function testVACANCY_WORDPRESS_CONTAMINATION() {
   }
 }
 
+// ─── Phase 14C: Sidebar contamination regression ─────────────────
+// GovtJobGuru's SBI page contained a "related jobs" sidebar card in <aside>:
+//   <h3>SAIL BSP Apprentice Recruitment 2026 – Apply Online for 710 Posts</h3>
+// VACANCY_RE pattern 3 (number-before-keyword) matched "710 Posts" from that
+// unrelated card, producing totalVacancies=710 for an SBI recruitment.
+// Fix 1: stripTags() now strips <aside> blocks — sidebar content is never
+// relevant to field extraction; link/org discovery uses the raw HTML.
+//
+// The same page had "these vacancies is 06/10/2026" — the keyword-before-number
+// pattern would fire next and produce vacancies=6 (the day, not a count).
+// Fix 2: extractVacancies skips matches immediately followed by /digit (date fragments).
+function testVACANCY_SIDEBAR_CONTAMINATION() {
+  console.log("\nVAC-SIDEBAR — Sidebar card and date-fragment contamination regression");
+
+  // VAC-SIDEBAR-1/2: sidebar card for an unrelated SAIL job must not affect SBI vacancies
+  {
+    const pageHtml = `<html><body>
+<main>
+<h1>SBI SCO Recruitment 2026</h1>
+<p>SBI has released notification for the recruitment of 4 Deputy Vice President (IT Risk),
+Assistant Vice President (IT Risk) posts. The last date to apply for these vacancies is 06/10/2026.</p>
+<a href="https://sbi.bank.in/documents/notif.pdf">Download Notification PDF</a>
+</main>
+<aside>
+<h3 class="card-title">SAIL BSP Apprentice Recruitment 2026 – Apply Online for 710 Posts</h3>
+<a href="/jobs/sail-bsp-apprentice-2026/">Apply Now</a>
+</aside>
+</body></html>`;
+
+    const ex = extractIntakeFields(pageHtml, "https://govtjobguru.in/jobs/sbi-vice-president-recruitment-2026/", undefined, undefined, "THIRD_PARTY");
+    assert("VAC-SIDEBAR-1",
+      ex.totalVacancies !== 710,
+      `VAC-SIDEBAR-1: SAIL BSP sidebar "710 Posts" must not contaminate SBI vacancy (got: ${ex.totalVacancies})`
+    );
+    assert("VAC-SIDEBAR-2",
+      ex.totalVacancies === undefined,
+      `VAC-SIDEBAR-2: totalVacancies must be undefined when only sidebar and date-fragment patterns exist (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-SIDEBAR-3/4: "these vacancies is 06/10/2026" must not produce vacancies=6
+  {
+    const dateHtml = `<html><body>
+<h1>Some Recruitment 2026</h1>
+<p>The last date to apply for these vacancies is 06/10/2026.</p>
+</body></html>`;
+
+    const ex = extractIntakeFields(dateHtml, "https://bank.gov.in/notif/", undefined, undefined, "OFFICIAL");
+    assert("VAC-SIDEBAR-3",
+      ex.totalVacancies !== 6,
+      `VAC-SIDEBAR-3: "vacancies is 06/10/2026" date fragment must not produce vacancies=6 (got: ${ex.totalVacancies})`
+    );
+    assert("VAC-SIDEBAR-4",
+      ex.totalVacancies === undefined,
+      `VAC-SIDEBAR-4: totalVacancies must be undefined from date-sentence alone (got: ${ex.totalVacancies})`
+    );
+  }
+}
+
 // ─── Run all tests ─────────────────────────────────────────────
 
 async function main() {
@@ -2834,6 +2893,8 @@ async function main() {
   testVACANCY_STRUCTURAL_REGRESSION();
   // Phase 14B — WordPress post-ID contamination + SBI category-wise table
   testVACANCY_WORDPRESS_CONTAMINATION();
+  // Phase 14C — sidebar card + date-fragment contamination
+  testVACANCY_SIDEBAR_CONTAMINATION();
 
   console.log("\n" + "═".repeat(72));
   console.log(`  Results: ${passed} passed, ${failed} failed`);

@@ -356,10 +356,10 @@ function findSectionTotal(windowText: string): number | undefined {
 }
 
 // Conservative fallback for PDFs where no vacancy section heading was found.
-// Uses only labeled patterns (1 & 2 from VACANCY_RE) plus number-before-keyword
-// restricted to the first 2000 chars where vacancy info always appears.
-// Pattern 4 ("post" proximity) is intentionally excluded — "post" = postal mail
-// causes false positives in standard govt notification boilerplate.
+// Uses only the two labeled patterns plus number-before-keyword restricted to
+// the first 2000 chars (where vacancy info always appears in PDF notifications).
+// The keyword-before-number proximity pattern is intentionally excluded —
+// "post" (postal mail) + adjacent section number causes false positives.
 function extractVacanciesFromPdfTextFallback(text: string): StructuredVacancyResult | undefined {
   const labeled = [
     /total\s+(?:vacancies?|posts?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
@@ -465,12 +465,17 @@ function parseDateFromText(text: string): string | undefined {
 
 function stripTags(html: string): string {
   return html
-    // Strip script/style block contents first — JSON-LD, tracking pixels, etc. contain
-    // WordPress post IDs, URL query params, and other numbers that collide with vacancy
-    // patterns (e.g. "post_type=jobs&p=480305" matches the "post" proximity pattern).
-    // These blocks are never relevant to recruitment field extraction.
+    // Strip non-content blocks first — their text contaminates vacancy/date patterns:
+    //   <script>/<style>: JSON-LD post IDs, tracking pixels, URL query params
+    //     e.g. "post_type=jobs&p=480305" matched the "post" proximity pattern
+    //   <aside>: "related jobs" sidebar cards for DIFFERENT recruitments
+    //     e.g. "SAIL BSP Apprentice – Apply Online for 710 Posts" matched "710 Posts"
+    //          on a GovtJobGuru page about an SBI recruitment
+    // Link and official-domain extraction uses the raw HTML (findOfficialLinksInHtml),
+    // so stripping these blocks does NOT affect PDF discovery or org detection.
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<aside\b[^>]*>[\s\S]*?<\/aside>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
@@ -569,7 +574,10 @@ function extractVacancies(text: string): number | undefined {
     if (m) {
       const n = parseInt(m[1].replace(/,/g, ""), 10);
       if (!isNaN(n) && n > 0 && n < 1_000_000) {
-        if (isCalendarYear(n)) continue; // skip year values (e.g. "2026 posts") misread as vacancies
+        if (isCalendarYear(n)) continue;
+        // Skip numbers immediately followed by /digit — a date fragment like
+        // "these vacancies is 06/10/2026" where "06" is the day, not a count.
+        if (/\/\d/.test(text.slice(m.index + m[0].length, m.index + m[0].length + 2))) continue;
         return n;
       }
     }
