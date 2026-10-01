@@ -375,7 +375,13 @@ function findSectionTotal(windowText: string): number | undefined {
 //
 // The @ footnote means PwBD seats are carved FROM the parent-category total,
 // NOT added on top. So `Total 2 2 1` means 2 net seats (PwBD-1 included).
-// The TOTAL column is the penultimate number on the Total row (last = PwBD).
+//
+// Column-header detection: scans the post block for a line whose tokens are
+// all known reservation/category codes (UR, OBC, SC, ST, EWS, PwBD, ExSM …)
+// and contains "TOTAL". The 0-based index of "TOTAL" in that header line is
+// then used to index the corresponding value in the "Total" data row.
+// Fallback (no header found): takes the penultimate numeric value, which
+// equals the TOTAL column when PwBD is last — the standard Indian govt format.
 //
 // If the @ footnote is absent we cannot confidently identify which columns
 // are additive, so we return undefined and let the caller fall through.
@@ -390,20 +396,56 @@ function extractVacanciesFromCategoryTable(text: string): StructuredVacancyResul
 
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const POST_NAME_RE = /^NAME\s+OF\s+THE\s+POST\s*[:–\-]\s*(.+)/i;
-  // Total row: "Total 2 2 1" — may have trailing dash or PwBD count
   const TOTAL_ROW_RE = /^Total\s+([\d,\s-]+)\s*$/i;
 
+  // A candidate column-header line: all whitespace-separated tokens start with
+  // an uppercase letter and contain only letters (category code format).
+  // e.g. "UR TOTAL PwBD" or "UR OBC SC ST EWS TOTAL PwBD ExSM"
+  const HEADER_CANDIDATE_RE = /^[A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)+\s*$/;
+  // Known reservation and category column tokens used in Indian govt PDFs.
+  const KNOWN_COL_RE =
+    /^(?:UR|OBC|BC|SC|ST|EWS|EBC|MBC|GEN|Open|PH|PWD|PwBD|HH|VH|OH|ESM|ExSM|TOTAL|OC)$/i;
+
+  // Find the 0-based index of the TOTAL column within a post block's header line.
+  // Returns undefined if no recognizable header line is found.
+  function findTotalColIdx(blockLines: string[]): number | undefined {
+    for (const line of blockLines) {
+      if (!HEADER_CANDIDATE_RE.test(line)) continue;
+      const toks = line.split(/\s+/).filter(Boolean);
+      const totalIdx = toks.findIndex((t) => /^TOTAL$/i.test(t));
+      if (totalIdx < 0) continue;
+      // Require ≥2 known category-code tokens so generic lines don't match.
+      if (toks.filter((t) => KNOWN_COL_RE.test(t)).length < 2) continue;
+      return totalIdx;
+    }
+    return undefined;
+  }
+
   function extractTotalFromBlock(blockLines: string[]): number | undefined {
+    const totalColIdx = findTotalColIdx(blockLines);
     for (const line of blockLines) {
       const m = TOTAL_ROW_RE.exec(line);
       if (!m) continue;
+      const toks = m[1].split(/\s+/).filter(Boolean); // "2 2 1" or "10 5 3 2 3 23 2"
+
+      if (totalColIdx !== undefined) {
+        // Column-header path: use the identified TOTAL column index.
+        if (totalColIdx >= toks.length) return undefined; // header/data column count mismatch
+        const tok = toks[totalColIdx];
+        if (tok === "-") return undefined; // dash in TOTAL column is unexpected
+        const n = parseInt(tok.replace(/,/g, ""), 10);
+        if (!isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n)) return n;
+        return undefined; // invalid value at header-identified position
+      }
+
+      // Fallback: no recognizable header — use penultimate numeric value.
+      // In standard Indian govt format PwBD is always the last column, so
+      // second-to-last = TOTAL. Returns undefined if only 0 or 1 numbers found.
       const nums = [...m[1].matchAll(/(\d[\d,]*)/g)]
         .map((n) => parseInt(n[1].replace(/,/g, ""), 10))
         .filter((n) => !isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n));
-      if (nums.length === 0) continue;
       if (nums.length === 1) return nums[0];
-      // With horizontal PwBD: last number = PwBD (not additive); second-to-last = TOTAL.
-      return nums[nums.length - 2];
+      if (nums.length >= 2) return nums[nums.length - 2];
     }
     return undefined;
   }
