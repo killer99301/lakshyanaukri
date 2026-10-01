@@ -888,7 +888,12 @@ export function extractIntakeFields(
   //   • works only within the vacancy section (not the full doc)
   //   • rejects section headings, page numbers, postal references, legal citations
   //   • derives a grand total by summing discipline rows when no explicit total is printed
-  // HTML mode continues using proximity-regex (HTML structure provides enough context).
+  // HTML mode continues using proximity-regex, but bounded to the first 8 000 chars.
+  // The same window used for notification-number extraction: captures all real article
+  // content while excluding the sidebar/footer zone (~12 000+) where aggregator pages
+  // embed "related jobs" cards for completely unrelated recruitments.
+  // e.g. GovtJobGuru embeds SAIL BSP "710 Posts" as a discover-job-card widget at ~12 556
+  // in the stripped text — outside the window, so it never reaches pattern matching.
   let vacancies: number | undefined;
   let vacancyDerived: boolean | undefined;
   let vacancyRows: Array<{ label: string; count: number }> | undefined;
@@ -900,7 +905,7 @@ export function extractIntakeFields(
       if (sv.rows.length > 0) vacancyRows = sv.rows;
     }
   } else {
-    vacancies = extractVacancies(text);
+    vacancies = extractVacancies(text.slice(0, 8_000));
   }
   const dates = extractApplicationDates(text);
 
