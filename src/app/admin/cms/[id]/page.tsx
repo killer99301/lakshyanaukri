@@ -10,14 +10,21 @@
 // Provenance badges are always visible.
 // ═══════════════════════════════════════════════════════════
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type {
   RecruitmentRecord,
   ProvenanceField,
   FieldStatus,
   FieldRevision,
+  RecruitmentStatus,
 } from "@/types/recruitment-record";
+import type { ExamStage, UpdateRecord, ExamStageStatus } from "@/types";
+import { projectForPreview } from "@/lib/cms/projector";
+import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
+import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
+import { JobDetailSections } from "@/components/jobs/JobDetailSections";
+import { OfficialNotificationCard } from "@/components/jobs/OfficialNotificationCard";
 
 // ─── Design tokens ────────────────────────────────────────
 
@@ -363,9 +370,9 @@ const DATE_FIELDS: Array<{ key: keyof RecruitmentRecord["dates"]; label: string 
 // ─── Main page ────────────────────────────────────────────
 
 const SECTIONS = [
-  "Identity", "Dates", "Vacancies", "Eligibility", "Age",
-  "Financial", "Selection", "How to Apply", "Links", "Documents",
-  "Conditions", "Evidence", "Conflicts", "Revisions",
+  "Identity", "Status", "Dates", "Vacancies", "Eligibility", "Age",
+  "Financial", "Selection", "Exam Stages", "How to Apply", "Links", "Documents",
+  "Updates", "Conditions", "Evidence", "Conflicts", "Revisions",
 ] as const;
 
 export default function CmsRecordEditorPage() {
@@ -378,10 +385,13 @@ export default function CmsRecordEditorPage() {
   const [activeSection, setActiveSection] = useState<string>("Identity");
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [approving, setApproving] = useState(false);
-  const [approveErr, setApproveErr] = useState<string | null>(null);
-  const [publishing, setPublishing] = useState(false);
-  const [publishErr, setPublishErr] = useState<string | null>(null);
+  const [publishingSeq, setPublishingSeq] = useState(false);
+  const [publishSeqErr, setPublishSeqErr] = useState<string | null>(null);
+  const [reverting, setReverting] = useState(false);
+  const [revertErr, setRevertErr] = useState<string | null>(null);
+  const [showAddUpdate, setShowAddUpdate] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
 
   const loadRecord = useCallback(async () => {
     try {
@@ -415,45 +425,51 @@ export default function CmsRecordEditorPage() {
     void loadRevisions();
   }
 
-  async function handleApprove() {
+  async function handleRevert() {
     if (!record) return;
-    setApproving(true);
-    setApproveErr(null);
+    setReverting(true);
+    setRevertErr(null);
     try {
-      const res = await fetch(`/api/admin/cms/records/${id}/approve`, {
-        method: "POST",
-      });
+      const res = await fetch(`/api/admin/cms/records/${id}/revert`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setApproveErr(data.error ?? `HTTP ${res.status}`);
+        setRevertErr(data.error ?? `Revert failed: HTTP ${res.status}`);
         return;
       }
       setRecord(data.record);
+      void loadRevisions();
     } catch (e) {
-      setApproveErr(String(e));
+      setRevertErr(String(e));
     } finally {
-      setApproving(false);
+      setReverting(false);
     }
   }
 
-  async function handlePublish() {
+  async function handlePublishSequence() {
     if (!record) return;
-    setPublishing(true);
-    setPublishErr(null);
+    setPublishingSeq(true);
+    setPublishSeqErr(null);
     try {
-      const res = await fetch(`/api/admin/cms/records/${id}/publish`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPublishErr(data.error ?? `HTTP ${res.status}`);
+      if (record.draftState === "DRAFT") {
+        const approveRes = await fetch(`/api/admin/cms/records/${id}/approve`, { method: "POST" });
+        const approveData = await approveRes.json();
+        if (!approveRes.ok) {
+          setPublishSeqErr(approveData.error ?? `Approve failed: HTTP ${approveRes.status}`);
+          return;
+        }
+        setRecord(approveData.record);
+      }
+      const publishRes = await fetch(`/api/admin/cms/records/${id}/publish`, { method: "POST" });
+      const publishData = await publishRes.json();
+      if (!publishRes.ok) {
+        setPublishSeqErr(publishData.error ?? `Publish failed: HTTP ${publishRes.status}`);
         return;
       }
-      setRecord(data.record);
+      setRecord(publishData.record);
     } catch (e) {
-      setPublishErr(String(e));
+      setPublishSeqErr(String(e));
     } finally {
-      setPublishing(false);
+      setPublishingSeq(false);
     }
   }
 
@@ -522,11 +538,11 @@ export default function CmsRecordEditorPage() {
         </div>
 
         {/* Actions */}
-        {record.draftState === "DRAFT" && (
+        {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
           <div>
             <button
-              onClick={() => { void handleApprove(); }}
-              disabled={approving}
+              onClick={() => { void handlePublishSequence(); }}
+              disabled={publishingSeq}
               style={{
                 width: "100%",
                 padding: "9px 14px",
@@ -539,40 +555,61 @@ export default function CmsRecordEditorPage() {
                 cursor: "pointer",
               }}
             >
-              {approving ? "Approving…" : "Approve Record"}
+              {publishingSeq
+                ? (record.draftState === "DRAFT" ? "Approving…" : "Publishing…")
+                : (record.draftState === "DRAFT" ? "Approve & Publish" : "Publish Record")}
             </button>
-            {approveErr && (
-              <div style={{ color: C.red, fontSize: 11, marginTop: 8 }}>{approveErr}</div>
+            {publishSeqErr && (
+              <div style={{ color: C.red, fontSize: 11, marginTop: 8 }}>{publishSeqErr}</div>
             )}
           </div>
         )}
 
-        {record.draftState === "APPROVED" && (
+        {record.draftState === "PUBLISHED" && (
           <div>
             <button
-              onClick={() => { void handlePublish(); }}
-              disabled={publishing}
+              onClick={() => { void handleRevert(); }}
+              disabled={reverting}
               style={{
                 width: "100%",
                 padding: "9px 14px",
-                background: C.accent,
-                color: "#0d1117",
-                border: "none",
+                background: reverting ? "#21262d" : C.amber,
+                color: reverting ? C.muted : "#0d1117",
+                border: reverting ? `1px solid ${C.border}` : "none",
                 borderRadius: 6,
                 fontSize: 13,
                 fontWeight: 700,
-                cursor: "pointer",
+                cursor: reverting ? "not-allowed" : "pointer",
               }}
             >
-              {publishing ? "Publishing…" : "Publish Record"}
+              {reverting ? "Reverting…" : "Edit Record"}
             </button>
-            {publishErr && (
-              <div style={{ color: C.red, fontSize: 11, marginTop: 8 }}>{publishErr}</div>
+            {revertErr && (
+              <div style={{ color: C.red, fontSize: 11, marginTop: 8 }}>{revertErr}</div>
             )}
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textAlign: "center" }}>
+              Returns to DRAFT — published snapshot preserved
+            </div>
           </div>
         )}
 
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          <button
+            onClick={() => setShowPreview(true)}
+            style={{
+              width: "100%",
+              padding: "7px 14px",
+              background: "none",
+              color: C.accent,
+              border: `1px solid ${C.accent}44`,
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Preview
+          </button>
           <button
             onClick={() => router.push("/admin/cms")}
             style={{ background: "none", border: "none", color: C.muted, fontSize: 12, cursor: "pointer", padding: 0 }}
@@ -581,6 +618,26 @@ export default function CmsRecordEditorPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Preview overlay ── */}
+      {showPreview && (
+        <DraftPreviewOverlay
+          record={record}
+          onClose={() => setShowPreview(false)}
+          scrollRef={previewScrollRef}
+        />
+      )}
+
+      {/* ── Add Update modal ── */}
+      {showAddUpdate && (
+        <AddUpdateModal
+          recordId={id}
+          recordRevision={record.recordRevision}
+          draftState={record.draftState}
+          onSaved={(updated) => { setRecord(updated); void loadRevisions(); }}
+          onClose={() => setShowAddUpdate(false)}
+        />
+      )}
 
       {/* ── Right: section content ── */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -630,6 +687,17 @@ export default function CmsRecordEditorPage() {
               <Row label="Slug" value={record.slug} mono />
               <Row label="Record ID" value={record.id} mono />
             </div>
+          </Section>
+        )}
+
+        {/* ── Status ── */}
+        {activeSection === "Status" && (
+          <Section title="Recruitment Status">
+            <LifecycleStatusSelect
+              record={record}
+              recordId={id}
+              onSaved={onFieldSaved}
+            />
           </Section>
         )}
 
@@ -823,6 +891,24 @@ export default function CmsRecordEditorPage() {
           </Section>
         )}
 
+        {/* ── Exam Stages ── */}
+        {activeSection === "Exam Stages" && (
+          <Section title="Exam Stages">
+            {!record.examStages?.length ? (
+              <div style={{ color: C.muted, fontSize: 13 }}>No exam stages defined yet.</div>
+            ) : (
+              <div>
+                {record.examStages.map((stage, i) => (
+                  <ExamStageCard key={i} stage={stage} />
+                ))}
+              </div>
+            )}
+            <div style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
+              Exam stage editing is in the Phase E promotion form.
+            </div>
+          </Section>
+        )}
+
         {/* ── How to Apply ── */}
         {activeSection === "How to Apply" && (
           <Section title="How to Apply">
@@ -888,6 +974,41 @@ export default function CmsRecordEditorPage() {
                     <div style={{ fontWeight: 500, marginTop: 2 }}>{d.label}</div>
                     <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ color: C.accent, fontSize: 12 }}>{d.url}</a>
                   </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* ── Updates (Official Update History) ── */}
+        {activeSection === "Updates" && (
+          <Section title="Official Update History">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <span style={{ fontSize: 12, color: C.muted }}>
+                {record.updates.length} update{record.updates.length !== 1 ? "s" : ""}
+              </span>
+              <button
+                onClick={() => setShowAddUpdate(true)}
+                style={{
+                  padding: "5px 12px",
+                  background: "none",
+                  color: C.accent,
+                  border: `1px solid ${C.accent}44`,
+                  borderRadius: 5,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                + Add Update
+              </button>
+            </div>
+            {record.updates.length === 0 ? (
+              <div style={{ color: C.muted, fontSize: 13 }}>No updates recorded yet.</div>
+            ) : (
+              <div>
+                {[...record.updates].reverse().map((u) => (
+                  <UpdateRecordCard key={u.id} update={u} />
                 ))}
               </div>
             )}
@@ -1062,6 +1183,673 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
     <div style={{ display: "flex", gap: 12, marginBottom: 8, fontSize: 13 }}>
       <div style={{ width: 160, color: C.muted, flexShrink: 0, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", paddingTop: 2 }}>{label}</div>
       <div style={{ color: C.text, fontFamily: mono ? "monospace" : "inherit", fontSize: mono ? 12 : 13 }}>{value}</div>
+    </div>
+  );
+}
+
+// ─── Lifecycle Status Select ──────────────────────────────
+
+const RECRUITMENT_STATUSES: RecruitmentStatus[] = [
+  "DRAFT", "UPCOMING", "OPEN", "CLOSING_SOON", "APPLICATIONS_CLOSED",
+  "EXAM_SCHEDULED", "RESULT_PENDING", "COMPLETED", "CANCELLED", "PAUSED",
+];
+
+const STATUS_COLORS: Record<RecruitmentStatus, string> = {
+  DRAFT: C.muted,
+  UPCOMING: C.accent,
+  OPEN: C.green,
+  CLOSING_SOON: C.orange,
+  APPLICATIONS_CLOSED: C.amber,
+  EXAM_SCHEDULED: C.accent,
+  RESULT_PENDING: C.amber,
+  COMPLETED: C.green,
+  CANCELLED: C.red,
+  PAUSED: C.muted,
+};
+
+function LifecycleStatusSelect({
+  record,
+  recordId,
+  onSaved,
+}: {
+  record: RecruitmentRecord;
+  recordId: string;
+  onSaved: (updated: RecruitmentRecord) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const computed = record.lifecycle.status;
+  const override = record.lifecycle.statusOverride;
+  const effective = override ?? computed;
+
+  async function setOverride(value: RecruitmentStatus | "") {
+    setSaving(true);
+    setErr(null);
+    try {
+      const field: ProvenanceField<RecruitmentStatus | null> = {
+        value: value === "" ? null : value,
+        status: "PENDING",
+        evidenceIds: [],
+        conflict: false,
+        manuallyEdited: true,
+      };
+      const res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fieldPath: "lifecycle.statusOverride",
+          field,
+          clientRevision: record.recordRevision,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErr(data.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      onSaved(data.record as RecruitmentRecord);
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const effectiveColor = STATUS_COLORS[effective] ?? C.muted;
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+          Effective Status
+        </div>
+        <span style={{
+          display: "inline-block",
+          padding: "3px 10px",
+          borderRadius: 5,
+          fontSize: 13,
+          fontWeight: 700,
+          background: effectiveColor + "22",
+          color: effectiveColor,
+          border: `1px solid ${effectiveColor}44`,
+        }}>
+          {effective}
+        </span>
+        {override && (
+          <span style={{ marginLeft: 8, fontSize: 11, color: C.amber }}>overridden</span>
+        )}
+        {!override && (
+          <span style={{ marginLeft: 8, fontSize: 11, color: C.muted }}>computed</span>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+          Status Override
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select
+            value={override ?? ""}
+            onChange={(e) => { void setOverride(e.target.value as RecruitmentStatus | ""); }}
+            disabled={saving || record.draftState === "PUBLISHED" || record.draftState === "ARCHIVED"}
+            style={{
+              ...inputStyle,
+              width: "auto",
+              minWidth: 200,
+              cursor: record.draftState === "PUBLISHED" || record.draftState === "ARCHIVED" ? "not-allowed" : "pointer",
+            }}
+          >
+            <option value="">— use computed ({computed}) —</option>
+            {RECRUITMENT_STATUSES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          {saving && <span style={{ fontSize: 12, color: C.muted }}>Saving…</span>}
+        </div>
+        {err && <div style={{ color: C.red, fontSize: 12, marginTop: 6 }}>{err}</div>}
+        {(record.draftState === "PUBLISHED" || record.draftState === "ARCHIVED") && (
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>
+            Status override is read-only for {record.draftState} records.
+          </div>
+        )}
+      </div>
+
+      <div style={{ paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+        <Row label="Computed Status" value={computed} />
+        {override && <Row label="Override" value={override} />}
+        <Row label="Conflicts" value={record.lifecycle.conflicts.length === 0 ? "None" : `${record.lifecycle.conflicts.filter((c) => !c.resolvedAt).length} unresolved`} />
+        <Row label="Events" value={String(record.lifecycle.events.length)} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Exam Stage Card ──────────────────────────────────────
+
+const STAGE_STATUS_COLORS: Record<ExamStageStatus, string> = {
+  NOT_DECLARED: C.muted,
+  SCHEDULED: C.accent,
+  ADMIT_CARD_OUT: C.accent,
+  POSTPONED: C.amber,
+  CONDUCTED: C.green,
+  RESULT_DECLARED: C.green,
+};
+
+function ExamStageCard({ stage }: { stage: ExamStage }) {
+  const statusColor = STAGE_STATUS_COLORS[stage.status] ?? C.muted;
+  return (
+    <div style={{
+      marginBottom: 12,
+      padding: "12px 14px",
+      background: C.bg,
+      border: `1px solid ${C.border}`,
+      borderRadius: 6,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 11, color: C.muted, fontWeight: 600, minWidth: 20 }}>{stage.order}.</span>
+        <span style={{ fontWeight: 600, fontSize: 14 }}>{stage.name}</span>
+        <span style={{
+          display: "inline-block",
+          padding: "1px 8px",
+          borderRadius: 4,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          background: statusColor + "22",
+          color: statusColor,
+          border: `1px solid ${statusColor}44`,
+        }}>
+          {stage.status.replace(/_/g, " ")}
+        </span>
+        {stage.certainty && stage.certainty !== "CONFIRMED" && (
+          <span style={{ fontSize: 11, color: C.amber, fontStyle: "italic" }}>
+            {stage.certainty.toLowerCase()}
+          </span>
+        )}
+      </div>
+      <div style={{ fontSize: 13, color: C.muted, display: "flex", gap: 16, flexWrap: "wrap" }}>
+        {stage.dateDisplay && (
+          <span>📅 {stage.dateDisplay}{stage.dateIso ? ` (${stage.dateIso})` : ""}</span>
+        )}
+        {stage.dateProvenance && (
+          <span style={{ fontStyle: "italic" }}>via {stage.dateProvenance}</span>
+        )}
+      </div>
+      {stage.noticeUrl && (
+        <a href={stage.noticeUrl} target="_blank" rel="noopener noreferrer"
+          style={{ fontSize: 12, color: C.accent, marginTop: 6, display: "block" }}>
+          Official Notice ↗
+        </a>
+      )}
+      {stage.notes && (
+        <div style={{ marginTop: 8, fontSize: 12, color: C.muted, fontStyle: "italic" }}>{stage.notes}</div>
+      )}
+    </div>
+  );
+}
+
+// ─── Update Record Card ───────────────────────────────────
+
+const UPDATE_TYPE_COLORS: Record<string, string> = {
+  CORRIGENDUM: C.orange,
+  VACANCY_REVISION: C.amber,
+  DEADLINE_EXTENSION: C.accent,
+  POSTPONEMENT: C.amber,
+  RESCHEDULE: C.accent,
+  EXAM_NOTICE: C.green,
+  CANCELLATION: C.red,
+  GENERAL_NOTICE: C.muted,
+};
+
+function UpdateRecordCard({ update }: { update: UpdateRecord }) {
+  const typeColor = UPDATE_TYPE_COLORS[update.type] ?? C.muted;
+  return (
+    <div style={{
+      marginBottom: 12,
+      padding: "12px 14px",
+      background: C.bg,
+      border: `1px solid ${C.border}`,
+      borderRadius: 6,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <span style={{
+          display: "inline-block",
+          padding: "1px 8px",
+          borderRadius: 4,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          background: typeColor + "22",
+          color: typeColor,
+          border: `1px solid ${typeColor}44`,
+        }}>
+          {update.type.replace(/_/g, " ")}
+        </span>
+        <span style={{ fontSize: 12, color: C.muted }}>{update.date}</span>
+      </div>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{update.title}</div>
+      <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>{update.description}</div>
+      {update.field && (
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>
+          Field: <code style={{ color: C.accent, background: "#1f2937", padding: "1px 5px", borderRadius: 3 }}>{update.field}</code>
+          {update.previousValue !== undefined && (
+            <span> {String(update.previousValue)} → {String(update.newValue)}</span>
+          )}
+        </div>
+      )}
+      {update.sourceUrl && (
+        <a href={update.sourceUrl} target="_blank" rel="noopener noreferrer"
+          style={{ fontSize: 12, color: C.accent, marginTop: 6, display: "block" }}>
+          Source Notice ↗
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ─── Add Update Modal ─────────────────────────────────────
+
+const UPDATE_TYPES: UpdateRecord["type"][] = [
+  "CORRIGENDUM", "VACANCY_REVISION", "DEADLINE_EXTENSION", "POSTPONEMENT",
+  "RESCHEDULE", "EXAM_NOTICE", "CANCELLATION", "GENERAL_NOTICE",
+];
+
+function AddUpdateModal({
+  recordId,
+  recordRevision,
+  draftState,
+  onSaved,
+  onClose,
+}: {
+  recordId: string;
+  recordRevision: string;
+  draftState: string;
+  onSaved: (record: RecruitmentRecord) => void;
+  onClose: () => void;
+}) {
+  const [type, setType] = useState<UpdateRecord["type"]>("GENERAL_NOTICE");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [isStructural, setIsStructural] = useState(false);
+  const [fieldPath, setFieldPath] = useState("");
+  const [previousValue, setPreviousValue] = useState("");
+  const [newValue, setNewValue] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim() || !description.trim()) {
+      setErr("Title and description are required.");
+      return;
+    }
+    setSubmitting(true);
+    setErr(null);
+
+    const updatePayload = {
+      type,
+      date,
+      title: title.trim(),
+      description: description.trim(),
+      ...(sourceUrl.trim() ? { sourceUrl: sourceUrl.trim() } : {}),
+      ...(isStructural && fieldPath.trim() ? { field: fieldPath.trim() } : {}),
+      ...(isStructural && previousValue.trim() ? { previousValue: previousValue.trim() } : {}),
+      ...(isStructural && newValue.trim() ? { newValue: newValue.trim() } : {}),
+    };
+
+    try {
+      let res: Response;
+      let data: { record: RecruitmentRecord; error?: string };
+
+      if (isStructural && fieldPath.trim()) {
+        // Structural path: PATCH /fields with the updateEntry appended atomically.
+        // The field value itself must be provided as the new plain-string value.
+        const fieldValue = newValue.trim();
+        res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fieldPath: fieldPath.trim(),
+            field: {
+              value: fieldValue,
+              status: "MANUAL",
+              evidenceIds: [],
+              conflict: false,
+              manuallyEdited: true,
+            },
+            clientRevision: recordRevision,
+            reason: `Structural update: ${type}`,
+            updateEntry: updatePayload,
+          }),
+        });
+      } else {
+        // Announcement-only path: POST /updates
+        res = await fetch(`/api/admin/cms/records/${recordId}/updates`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ update: updatePayload }),
+        });
+      }
+
+      data = await res.json() as { record: RecruitmentRecord; error?: string };
+      if (!res.ok) {
+        setErr(data.error ?? `Failed: HTTP ${res.status}`);
+        return;
+      }
+      onSaved(data.record);
+      onClose();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const inputStyle = {
+    width: "100%",
+    padding: "7px 10px",
+    background: C.bg,
+    border: `1px solid ${C.border}`,
+    borderRadius: 5,
+    color: C.text,
+    fontSize: 13,
+    outline: "none",
+    boxSizing: "border-box" as const,
+  };
+  const labelStyle = { fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 4, display: "block" };
+
+  const canStructural = draftState === "DRAFT" || draftState === "APPROVED";
+
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 1100,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(0,0,0,0.6)",
+    }}>
+      <form
+        onSubmit={(e) => { void submit(e); }}
+        style={{
+          background: C.surface,
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: "24px 28px",
+          width: "100%",
+          maxWidth: 520,
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.text }}>Add Update Record</h3>
+          <button type="button" onClick={onClose}
+            style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>✕</button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={labelStyle}>Type</label>
+            <select value={type} onChange={(e) => setType(e.target.value as UpdateRecord["type"])} style={inputStyle}>
+              {UPDATE_TYPES.map((t) => (
+                <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Notice Date</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} required />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Application Deadline Extended by 10 Days"
+            style={inputStyle}
+            required
+          />
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Brief summary of what changed and why"
+            rows={3}
+            style={{ ...inputStyle, resize: "vertical" }}
+            required
+          />
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Source URL (optional)</label>
+          <input
+            type="url"
+            value={sourceUrl}
+            onChange={(e) => setSourceUrl(e.target.value)}
+            placeholder="https://…"
+            style={inputStyle}
+          />
+        </div>
+
+        {canStructural && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={isStructural}
+                onChange={(e) => setIsStructural(e.target.checked)}
+                style={{ width: 14, height: 14 }}
+              />
+              <span>This update changes a structural field</span>
+            </label>
+          </div>
+        )}
+
+        {isStructural && canStructural && (
+          <div style={{ padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: C.amber, marginBottom: 10, fontWeight: 600 }}>
+              Structural mode — field update + announcement are committed atomically
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={labelStyle}>Field Path</label>
+              <input
+                type="text"
+                value={fieldPath}
+                onChange={(e) => setFieldPath(e.target.value)}
+                placeholder="e.g. vacancies.total, dates.applicationCloseDate"
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <label style={labelStyle}>Previous Value</label>
+                <input type="text" value={previousValue} onChange={(e) => setPreviousValue(e.target.value)}
+                  placeholder="Old value (display only)" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>New Value</label>
+                <input type="text" value={newValue} onChange={(e) => setNewValue(e.target.value)}
+                  placeholder="New value to apply" style={inputStyle} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {err && (
+          <div style={{ color: C.red, fontSize: 12, marginBottom: 12, padding: "8px 10px", background: C.red + "11", borderRadius: 5 }}>
+            {err}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button type="button" onClick={onClose}
+            style={{ padding: "7px 16px", background: "none", border: `1px solid ${C.border}`, borderRadius: 5, color: C.muted, fontSize: 13, cursor: "pointer" }}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            style={{
+              padding: "7px 16px",
+              background: submitting ? "#21262d" : C.accent,
+              color: submitting ? C.muted : "#0d1117",
+              border: "none",
+              borderRadius: 5,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: submitting ? "not-allowed" : "pointer",
+            }}
+          >
+            {submitting ? "Saving…" : "Add Update"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ─── Draft Preview Overlay ────────────────────────────────
+
+function DraftPreviewOverlay({
+  record,
+  onClose,
+  scrollRef,
+}: {
+  record: RecruitmentRecord;
+  onClose: () => void;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  // Close on Escape
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  // Build the projected snapshot — pure, no network call.
+  // projectForPreview accepts any draftState; snapshot shows current editor state.
+  let previewJob: ReturnType<typeof snapshotToGovernmentRecruitment> | null = null;
+  let previewErr: string | null = null;
+  try {
+    const snapshot = projectForPreview(record);
+    previewJob = snapshotToGovernmentRecruitment(snapshot);
+  } catch (e) {
+    previewErr = String(e);
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        display: "flex",
+        flexDirection: "column",
+        background: "#F8FAFC",
+        overflowY: "hidden",
+      }}
+    >
+      {/* Preview banner */}
+      <div style={{
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "10px 24px",
+        background: "#0d1117",
+        borderBottom: "2px solid #f0883e",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{
+            display: "inline-block",
+            padding: "3px 10px",
+            background: "#f0883e22",
+            color: "#f0883e",
+            border: "1px solid #f0883e66",
+            borderRadius: 5,
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+          }}>
+            DRAFT PREVIEW
+          </span>
+          <span style={{ fontSize: 12, color: "#8b949e" }}>
+            Showing current editor state — not the published page
+          </span>
+          <span style={{
+            fontSize: 11,
+            color: "#d29922",
+            background: "#d2992222",
+            border: "1px solid #d2992244",
+            borderRadius: 4,
+            padding: "2px 8px",
+            fontWeight: 700,
+          }}>
+            {record.draftState}
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: "none",
+            border: `1px solid #21262d`,
+            color: "#e2e8f0",
+            borderRadius: 5,
+            padding: "5px 14px",
+            fontSize: 12,
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          Close Preview  ✕
+        </button>
+      </div>
+
+      {/* Preview content */}
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "24px 0 48px" }}>
+        {previewErr ? (
+          <div style={{ maxWidth: 800, margin: "40px auto", padding: "20px 24px", background: "#fee2e2", borderRadius: 8, color: "#991b1b", fontSize: 14 }}>
+            Preview error: {previewErr}
+          </div>
+        ) : previewJob ? (
+          <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px" }}>
+            <OfficialNotificationCard
+              notificationPdfUrl={previewJob.type === "government" ? previewJob.links.notification : undefined}
+              officialWebsiteUrl={previewJob.links.website}
+              sourceName={previewJob.provenance.primarySourceType.replace(/_/g, " ")}
+              verifiedAt={previewJob.provenance.lastVerifiedAt}
+            />
+            <div style={{ marginTop: 24 }}>
+              <JobDetailHeader job={previewJob} />
+            </div>
+            <div style={{ marginTop: 24 }}>
+              <JobDetailSections job={previewJob} />
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

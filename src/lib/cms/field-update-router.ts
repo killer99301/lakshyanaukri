@@ -16,6 +16,7 @@ import type {
   ProvenanceField,
   RecruitmentIdentity,
   RecruitmentDates,
+  RecruitmentStatus,
   FinancialInformation,
   CmsRecruitmentPost,
   AgeCriteria,
@@ -33,6 +34,7 @@ import {
   updateAge,
   updateSelection,
   updateFinancialField,
+  updateLifecycleStatusOverride,
   type FieldUpdateResult,
 } from "@/lib/cms/record-ops";
 
@@ -164,9 +166,18 @@ export function routeFieldUpdate(
     );
   }
 
+  if (fieldPath === "lifecycle.statusOverride") {
+    return updateLifecycleStatusOverride(
+      record,
+      newField as ProvenanceField<RecruitmentStatus | null>,
+      adminId,
+      reason,
+    );
+  }
+
   throw new Error(
     `Unknown or unroutable fieldPath: "${fieldPath}". ` +
-      `Known blocks: eligibility, age, selection, vacancies.breakdown, vacancies.total. ` +
+      `Known blocks: eligibility, age, selection, vacancies.breakdown, vacancies.total, lifecycle.statusOverride. ` +
       `Namespace prefixes: identity., dates., financial.`,
   );
 }

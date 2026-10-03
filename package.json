@@ -43,7 +43,11 @@
     "intelligence:harness": "npx tsx --tsconfig tsconfig.json tests/intelligence/confirmation-harness.test.ts",
     "intelligence:queue-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue.test.ts",
     "intelligence:e2e-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue-e2e.test.ts",
-    "cms:test": "npx tsx --tsconfig tsconfig.json tests/cms/provenance.test.ts",
+    "cms:test": "npx tsx --tsconfig tsconfig.json tests/cms/provenance.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/projector.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/phase-d.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/phase-e.test.ts",
+    "cms:projector-test": "npx tsx --tsconfig tsconfig.json tests/cms/projector.test.ts",
+    "cms:phase-d-test": "npx tsx --tsconfig tsconfig.json tests/cms/phase-d.test.ts",
+    "cms:phase-d-integration-test": "npx tsx --tsconfig tsconfig.json tests/cms/phase-d-integration.test.ts",
+    "cms:phase-e-test": "npx tsx --tsconfig tsconfig.json tests/cms/phase-e.test.ts",
     "build": "npm run validate && next build",
     "start": "next start",
     "lint": "eslint"

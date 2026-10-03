@@ -26,6 +26,7 @@ import type {
   VacancyInformation,
   FinancialInformation,
   RecruitmentIdentity,
+  RecruitmentStatus,
   CmsRecruitmentPost,
   AgeCriteria,
   CmsSelectionInformation,
@@ -561,7 +562,73 @@ export function computeRecordRevision(record: RecruitmentRecord): string {
   return Math.abs(hash).toString(16).padStart(8, "0");
 }
 
+/** Revert a PUBLISHED record back to DRAFT for editing.
+ * lastPublishedRevision is preserved — the published snapshot stays intact
+ * and public pages continue to serve it while the record is being edited.
+ */
+export function revertRecord(
+  record: RecruitmentRecord,
+  adminId: string,
+): StateTransitionResult {
+  if (record.draftState !== "PUBLISHED") {
+    throw new Error(
+      `Cannot revert: record is in state ${record.draftState} (must be PUBLISHED)`,
+    );
+  }
+
+  const updated = cloneRecord(record);
+  updated.draftState = "DRAFT" as DraftState;
+  updated.updatedAt = now();
+  updated.updatedBy = adminId;
+  // lastPublishedRevision intentionally preserved — still points to last snapshot.
+
+  return {
+    record: updated,
+    auditEvent: {
+      eventType: "RECORD_REVERTED",
+      metadata: {
+        adminId,
+        lastPublishedRevision: record.lastPublishedRevision ?? null,
+      },
+    },
+  };
+}
+
 // ─── Internal helpers ─────────────────────────────────────
+
+/**
+ * Update lifecycle.statusOverride (manual status override).
+ * Pass newField.value = null to clear the override.
+ */
+export function updateLifecycleStatusOverride(
+  record: RecruitmentRecord,
+  newField: ProvenanceField<RecruitmentStatus | null>,
+  adminId: string,
+  reason?: string,
+): FieldUpdateResult {
+  const fieldPath = "lifecycle.statusOverride";
+  const oldValue = record.lifecycle.statusOverride ?? null;
+
+  const updated = cloneRecord(record);
+  if (newField.value === null || newField.value === undefined) {
+    delete updated.lifecycle.statusOverride;
+  } else {
+    updated.lifecycle.statusOverride = newField.value;
+  }
+  updated.updatedAt = now();
+  updated.updatedBy = adminId;
+
+  const revision = buildFieldRevision(
+    record.id,
+    fieldPath,
+    oldValue,
+    newField.value ?? null,
+    adminId,
+    reason,
+  );
+
+  return { record: updated, revision };
+}
 
 /** Shallow clone with deep-copied blocks that will be mutated. */
 function cloneRecord(record: RecruitmentRecord): RecruitmentRecord {

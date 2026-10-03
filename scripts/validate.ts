@@ -18,6 +18,11 @@
 // production build always contains clean data.
 // ═══════════════════════════════════════════════════════════
 
+// Load .env.local (and .env.*) so DATABASE_URL is available for the
+// CMS slug query below. Next.js build does this automatically; tsx does not.
+import { loadEnvConfig } from "@next/env";
+loadEnvConfig(process.cwd());
+
 import { getAllOpportunities, getAllSlugs } from "@/lib/repository";
 import { validateAllRecords, printValidationResults } from "@/lib/validation";
 import {

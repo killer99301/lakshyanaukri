@@ -2842,6 +2842,167 @@ function testVACANCY_CATEGORY_TABLE() {
   }
 }
 
+// ─── Phase 14E: Category-table hardening ────────────────────────────────────
+//
+// Three-point hardening of extractVacanciesFromCategoryTable:
+// 1. Header false positives — tightened HEADER_CANDIDATE_RE + ≥2 known tokens
+// 2. Fail-closed fallback — "ambiguous" header → undefined (no penultimate guess)
+// 3. Evidence preservation — headerLine, totalLine, footnoteLine in result
+
+const H_FOOTNOTE =
+  "@ - Horizontal vacancy Reservation is horizontal and is included in the vacancy of the respective parent category.";
+
+function testVACANCY_CATEGORY_TABLE_HARDENING() {
+  console.log("\nVAC-HARDEN — Category-table extractor hardening");
+
+  // VAC-HARDEN-1: ambiguous header (two header candidates with different TOTAL positions)
+  // First header says TOTAL is at index 2; second says index 1. Must fail closed → undefined.
+  {
+    const conflictingHeaders = `
+NAME OF THE POST : OFFICER
+CATEGORY WISE VACANCIES
+UR OBC TOTAL PwBD
+UR TOTAL PwBD
+Regular 5 3 8 1
+Backlog - - - 1
+Total 5 3 8 1
+${H_FOOTNOTE}
+`.trim();
+    const ex = extractIntakeFields(conflictingHeaders, SBI_PDF_URL);
+    assert(
+      "VAC-HARDEN-1",
+      ex.totalVacancies === undefined,
+      `VAC-HARDEN-1: conflicting header positions → fail closed (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-HARDEN-2: duplicate TOTAL in a single header line → fail closed → undefined
+  {
+    const duplicateTotalHeader = `
+NAME OF THE POST : OFFICER
+CATEGORY WISE VACANCIES
+UR TOTAL OBC TOTAL PwBD
+Regular 5 5 3 8 1
+Total 5 5 3 8 1
+${H_FOOTNOTE}
+`.trim();
+    const ex = extractIntakeFields(duplicateTotalHeader, SBI_PDF_URL);
+    assert(
+      "VAC-HARDEN-2",
+      ex.totalVacancies === undefined,
+      `VAC-HARDEN-2: duplicate TOTAL in header → fail closed (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-HARDEN-3: evidence fields populated — headerLine and totalLine present in rows
+  {
+    const ex = extractIntakeFields(SBI_SCO_2026_27_22_PDF_TEXT, SBI_PDF_URL);
+    const rows = ex.vacancyRows ?? [];
+    assert(
+      "VAC-HARDEN-3a",
+      rows.length === 2,
+      `VAC-HARDEN-3a: 2 rows (DVP + AVP) in vacancyRows (got: ${rows.length})`
+    );
+    assert(
+      "VAC-HARDEN-3b",
+      rows.every((r) => typeof r.headerLine === "string" && r.headerLine.length > 0),
+      `VAC-HARDEN-3b: every row has a non-empty headerLine`
+    );
+    assert(
+      "VAC-HARDEN-3c",
+      rows.every((r) => typeof r.totalLine === "string" && r.totalLine.length > 0),
+      `VAC-HARDEN-3c: every row has a non-empty totalLine`
+    );
+  }
+
+  // VAC-HARDEN-4: genuinely headerless table still uses penultimate fallback
+  // (no header-shaped lines in the block at all)
+  {
+    const headerlessTable = `
+NAME OF THE POST : SPECIALIST OFFICER
+CATEGORY WISE VACANCIES
+Regular 3 3
+Total 3 3
+${H_FOOTNOTE}
+`.trim();
+    const ex = extractIntakeFields(headerlessTable, SBI_PDF_URL);
+    assert(
+      "VAC-HARDEN-4",
+      ex.totalVacancies === 3,
+      `VAC-HARDEN-4: headerless table returns penultimate fallback = 3 (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-HARDEN-5: header with TOTAL but unknown category codes → fail closed
+  // "English Hindi TOTAL Maths" — TOTAL is present (1 occurrence) but only
+  // TOTAL itself is a recognised code (count=1 < 2). Must return ambiguous,
+  // NOT fall through to the penultimate-number heuristic.
+  {
+    const unknownHeaderCodes = `
+NAME OF THE POST : OFFICER
+CATEGORY WISE VACANCIES
+English Hindi TOTAL Maths
+Regular 4 2 6 3
+Total 4 2 6 3
+${H_FOOTNOTE}
+`.trim();
+    const ex = extractIntakeFields(unknownHeaderCodes, SBI_PDF_URL);
+    assert(
+      "VAC-HARDEN-5",
+      ex.totalVacancies === undefined,
+      `VAC-HARDEN-5: unknown-code header must fail closed, not fall back to penultimate (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-HARDEN-6: mixed recognized/unrecognized headers in same block → fail closed
+  // One recognized header ("UR OBC TOTAL PwBD", idx=2) plus one unrecognized
+  // ("English Hindi TOTAL Maths", skipped in old code but now → ambiguous).
+  // The presence of an ambiguous-status header must block extraction entirely.
+  {
+    const mixedHeaders = `
+NAME OF THE POST : OFFICER
+CATEGORY WISE VACANCIES
+English Hindi TOTAL Maths
+UR OBC TOTAL PwBD
+Regular 4 2 6 3
+Total 4 2 6 3
+${H_FOOTNOTE}
+`.trim();
+    const ex = extractIntakeFields(mixedHeaders, SBI_PDF_URL);
+    assert(
+      "VAC-HARDEN-6",
+      ex.totalVacancies === undefined,
+      `VAC-HARDEN-6: mixed recognized/unrecognized headers → fail closed (got: ${ex.totalVacancies})`
+    );
+  }
+
+  // VAC-HARDEN-7: footnoteLine propagates through ExtractionResult
+  {
+    const ex = extractIntakeFields(SBI_SCO_2026_27_22_PDF_TEXT, SBI_PDF_URL);
+    assert(
+      "VAC-HARDEN-7a",
+      typeof ex.footnoteLine === "string" && ex.footnoteLine.length > 0,
+      `VAC-HARDEN-7a: footnoteLine present in ExtractionResult (got: ${ex.footnoteLine})`
+    );
+    assert(
+      "VAC-HARDEN-7b",
+      ex.footnoteLine?.toLowerCase().includes("horizontal"),
+      `VAC-HARDEN-7b: footnoteLine contains "horizontal" (got: ${ex.footnoteLine})`
+    );
+  }
+
+  // VAC-HARDEN-8: footnoteLine absent when category-table path not taken
+  {
+    const plainHtml = `<html><body><p>Total Vacancies: 259</p></body></html>`;
+    const ex = extractIntakeFields(plainHtml, "https://bceceboard.bihar.gov.in/notif.html");
+    assert(
+      "VAC-HARDEN-8",
+      ex.footnoteLine === undefined,
+      `VAC-HARDEN-8: footnoteLine absent when not from category-table path (got: ${ex.footnoteLine})`
+    );
+  }
+}
+
 // GovtJobGuru's SBI page contained a "related jobs" sidebar card in <aside>:
 //   <h3>SAIL BSP Apprentice Recruitment 2026 – Apply Online for 710 Posts</h3>
 // VACANCY_RE pattern 3 (number-before-keyword) matched "710 Posts" from that
@@ -2982,6 +3143,8 @@ async function main() {
   testVACANCY_SIDEBAR_CONTAMINATION();
   // Phase 14D — CATEGORY WISE VACANCIES per-post table (SBI SCO 2026-27/22)
   testVACANCY_CATEGORY_TABLE();
+  // Phase 14E — Category-table extractor hardening (fail-closed, evidence fields)
+  testVACANCY_CATEGORY_TABLE_HARDENING();
 
   console.log("\n" + "═".repeat(72));
   console.log(`  Results: ${passed} passed, ${failed} failed`);

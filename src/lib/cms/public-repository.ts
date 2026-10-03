@@ -22,7 +22,8 @@ export async function getPublishedBySlug(
     FROM published_recruitments pr
     JOIN recruitments r ON r.id = pr.recruitment_id
     WHERE r.slug = ${slug}
-      AND r.draft_state = 'PUBLISHED'
+      AND r.last_published_revision IS NOT NULL
+      AND r.draft_state != 'ARCHIVED'
     ORDER BY pr.published_at DESC
     LIMIT 1
   `;
@@ -39,23 +40,26 @@ export async function getPublishedSlugs(): Promise<string[]> {
     SELECT DISTINCT r.slug
     FROM published_recruitments pr
     JOIN recruitments r ON r.id = pr.recruitment_id
-    WHERE r.draft_state = 'PUBLISHED'
+    WHERE r.last_published_revision IS NOT NULL
+      AND r.draft_state != 'ARCHIVED'
     ORDER BY r.slug
   `;
   return rows.map((r) => r.slug as string);
 }
 
 /**
- * Returns the most recent published snapshot for every PUBLISHED recruitment.
+ * Returns the most recent published snapshot for every recruitment that has
+ * ever been published and is not ARCHIVED. Includes records reverted to DRAFT
+ * after publication — public pages continue to serve their last snapshot.
  * Single batch query — no N+1. Used by the /jobs marketplace listing.
- * Publication guard: draft_state = 'PUBLISHED' AND published_recruitments row exists.
  */
 export async function getAllPublishedSnapshots(): Promise<PublishedRecruitmentSnapshot[]> {
   const rows = await sql`
     SELECT DISTINCT ON (r.id) pr.snapshot
     FROM published_recruitments pr
     JOIN recruitments r ON r.id = pr.recruitment_id
-    WHERE r.draft_state = 'PUBLISHED'
+    WHERE r.last_published_revision IS NOT NULL
+      AND r.draft_state != 'ARCHIVED'
     ORDER BY r.id, pr.published_at DESC
   `;
   return rows.map((row) => row.snapshot as PublishedRecruitmentSnapshot);

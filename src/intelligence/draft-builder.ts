@@ -196,8 +196,15 @@ function buildDateField(
 
 // ─── Vacancy rows builder ─────────────────────────────────────
 
+type IntakeVacancyRow = {
+  label: string;
+  count: number;
+  headerLine?: string;
+  totalLine?: string;
+};
+
 function buildVacancyRows(
-  rows: Array<{ label: string; count: number }>,
+  rows: IntakeVacancyRow[],
   sourceId: string,
   url: string,
   authorityRank: number,
@@ -220,6 +227,29 @@ function buildVacancyRows(
     ],
     manuallyEdited: false,
   }));
+}
+
+// Build structured extraction-evidence notes for the CATEGORY WISE VACANCIES
+// path. Returns undefined when there is nothing beyond a plain row count.
+function buildExtractionNotes(
+  rows: IntakeVacancyRow[],
+  footnoteLine?: string,
+): string[] | undefined {
+  const hasEvidence = rows.some((r) => r.headerLine || r.totalLine) || footnoteLine;
+  if (!hasEvidence) return undefined;
+
+  const notes: string[] = ["Extraction: CATEGORY WISE VACANCIES table (SBI/bank format)"];
+  for (const r of rows) {
+    if (r.headerLine || r.totalLine) {
+      const parts = [`Post: ${r.label}`];
+      if (r.headerLine) parts.push(`header: "${r.headerLine}"`);
+      if (r.totalLine) parts.push(`total row: "${r.totalLine}"`);
+      parts.push(`→ ${r.count}`);
+      notes.push(parts.join(" | "));
+    }
+  }
+  if (footnoteLine) notes.push(`Footnote: ${footnoteLine}`);
+  return notes;
 }
 
 // ─── Readiness ────────────────────────────────────────────────
@@ -403,6 +433,7 @@ export function mapExtractionsToDraft(
         rows: buildVacancyRows(ve.vacancyRows, vs.id, vs.url, authorityRank, now),
         derivedTotal: ve.totalVacancies,
         derivedTotalExplanation: `Derived by summing ${ve.vacancyRows.length} discipline row${ve.vacancyRows.length === 1 ? "" : "s"}`,
+        extractionNotes: buildExtractionNotes(ve.vacancyRows, ve.footnoteLine),
       };
     } else {
       const vacTotalFV = buildFieldValue(inputs((e) => e.totalVacancies), now);
@@ -414,6 +445,9 @@ export function mapExtractionsToDraft(
         rows: ve.vacancyRows
           ? buildVacancyRows(ve.vacancyRows, vs.id, vs.url, authorityRank, now)
           : [],
+        extractionNotes: ve.vacancyRows
+          ? buildExtractionNotes(ve.vacancyRows, ve.footnoteLine)
+          : undefined,
       };
     }
   }

@@ -6,12 +6,23 @@
 // Idempotent: if this draft was already promoted, returns the
 // existing record ID (detected via provenance.sourceDraftId).
 //
-// Contract (Phase E — locked):
+// Phase E — Duplicate handling:
+//   When a potential duplicate CMS record is found (same notification
+//   number, or same org+year when notification info is absent), the
+//   endpoint returns { duplicate } and does NOT create a new record.
+//   The admin must explicitly pass forceCreate: true to proceed.
+//   Different notification numbers for the same org+year are never
+//   treated as duplicates.
+//
+// Contract:
 //   - Load draft snapshot from intelligence_drafts
+//   - Check idempotency (sourceDraftId)
+//   - Check for CMS duplicate (notification number or org+year fallback)
 //   - Map FieldValue<T> → ProvenanceField<T> via promoter.ts
 //   - Create RecruitmentRecord in DRAFT state
 //   - Never delete the intelligence draft
-//   - Return { recordId, slug, alreadyExisted }
+//   - Return { recordId, slug, alreadyExisted } on success
+//   - Return { duplicate } when duplicate found and forceCreate is not set
 //
 // CSRF: validateOrigin required (mutating endpoint).
 // ═══════════════════════════════════════════════════════════
@@ -24,6 +35,7 @@ import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { sql } from "@/lib/db";
 import { createRecruitment } from "@/lib/cms/repository";
 import { promoteDraft } from "@/lib/cms/promoter";
+import { findCmsDuplicate } from "@/lib/cms/duplicate-detector";
 import type { RecruitmentIntelligenceDraft } from "@/intelligence/draft-types";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -34,14 +46,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { draftId: string };
+  let body: { draftId: string; forceCreate?: boolean };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { draftId } = body;
+  const { draftId, forceCreate = false } = body;
   if (!draftId || typeof draftId !== "string") {
     return NextResponse.json({ error: "draftId is required" }, { status: 400 });
   }
@@ -76,6 +88,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       slug:           existing.slug as string,
       alreadyExisted: true,
     });
+  }
+
+  // ── Duplicate check (Phase E) ────────────────────────────
+  // Skip when the admin explicitly confirmed they want a new record.
+  if (!forceCreate) {
+    const duplicate = await findCmsDuplicate(draft);
+    if (duplicate) {
+      return NextResponse.json({ duplicate }, { status: 200 });
+    }
   }
 
   // ── Promote ───────────────────────────────────────────────

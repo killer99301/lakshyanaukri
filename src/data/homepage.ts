@@ -316,7 +316,7 @@ export const UPCOMING_EXAMS: UpcomingExamItem[] = [
     admitCardDateIso: "",
     category: "ssc",
     state: "All India",
-    statusText: "Tentative: Sep–Oct 2026 (SSC Notice)",
+    statusText: "Tier I Tentatively Conducted — Result Awaited",
     officialUrl: "https://ssc.gov.in",
   },
 ];

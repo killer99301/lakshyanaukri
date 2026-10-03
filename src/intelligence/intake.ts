@@ -115,7 +115,11 @@ export interface IntakeExtraction {
   // rather than reading an explicitly printed grand total.
   vacancyDerived?: boolean;
   // Individual discipline/post rows that produced the derived total.
-  vacancyRows?: Array<{ label: string; count: number }>;
+  // headerLine / totalLine are present when extracted from a CATEGORY WISE VACANCIES table.
+  vacancyRows?: Array<{ label: string; count: number; headerLine?: string; totalLine?: string }>;
+  // The horizontal-reservation footnote that authorised the CATEGORY WISE VACANCIES path.
+  // Only set when extractVacanciesFromCategoryTable succeeds.
+  footnoteLine?: string;
 }
 
 // Evidence chain: tracks each source that contributed to the final draft.
@@ -310,12 +314,16 @@ const VACANCY_RE = [
 interface VacancyRow {
   label: string;
   count: number;
+  // Auditable evidence captured during extraction (category-table path only).
+  headerLine?: string; // the column-header line that identified the TOTAL column
+  totalLine?: string;  // the raw "Total N N N" data row used for the count
 }
 
 interface StructuredVacancyResult {
   total: number;
   isDerived: boolean;
   rows: VacancyRow[];
+  footnoteLine?: string; // the horizontal-reservation footnote that enabled this path
 }
 
 // Lines that introduce the vacancy section.
@@ -390,9 +398,10 @@ function extractVacanciesFromCategoryTable(text: string): StructuredVacancyResul
 
   // Require the horizontal-PwBD footnote — without it we can't safely exclude
   // the PwBD column from the per-post totals.
-  const horizontalPwBD =
-    /@\s*[-–]\s*Horizontal\s+vacancy\s+Reservation\s+is\s+horizontal/i.test(text);
-  if (!horizontalPwBD) return undefined;
+  const footnoteMatch =
+    /@\s*[-–]\s*Horizontal\s+vacancy\s+Reservation\s+is\s+horizontal[^\n]*/i.exec(text);
+  if (!footnoteMatch) return undefined;
+  const footnoteLine = footnoteMatch[0].trim();
 
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const POST_NAME_RE = /^NAME\s+OF\s+THE\s+POST\s*[:–\-]\s*(.+)/i;
@@ -406,46 +415,83 @@ function extractVacanciesFromCategoryTable(text: string): StructuredVacancyResul
   const KNOWN_COL_RE =
     /^(?:UR|OBC|BC|SC|ST|EWS|EBC|MBC|GEN|Open|PH|PWD|PwBD|HH|VH|OH|ESM|ExSM|TOTAL|OC)$/i;
 
-  // Find the 0-based index of the TOTAL column within a post block's header line.
-  // Returns undefined if no recognizable header line is found.
-  function findTotalColIdx(blockLines: string[]): number | undefined {
+  // Find the TOTAL column index within a post block's column-header line.
+  //
+  // Returns:
+  //   { idx, line } — exactly one valid header found, TOTAL at position idx
+  //   "ambiguous"   — header-like line(s) found but structure is unreliable:
+  //                   duplicate TOTAL tokens, or multiple headers with
+  //                   conflicting TOTAL positions. Caller MUST NOT fall back
+  //                   to positional guessing when this is returned.
+  //   undefined     — no header candidate found at all (genuinely headerless;
+  //                   caller may use the penultimate-number fallback)
+  function findTotalColIdx(
+    blockLines: string[]
+  ): { idx: number; line: string } | "ambiguous" | undefined {
+    // Collect every header candidate that contains TOTAL and ≥2 known tokens.
+    const candidates: Array<{ idx: number; line: string }> = [];
+
     for (const line of blockLines) {
       if (!HEADER_CANDIDATE_RE.test(line)) continue;
       const toks = line.split(/\s+/).filter(Boolean);
-      const totalIdx = toks.findIndex((t) => /^TOTAL$/i.test(t));
-      if (totalIdx < 0) continue;
-      // Require ≥2 known category-code tokens so generic lines don't match.
-      if (toks.filter((t) => KNOWN_COL_RE.test(t)).length < 2) continue;
-      return totalIdx;
+      const totalCount = toks.filter((t) => /^TOTAL$/i.test(t)).length;
+      if (totalCount === 0) continue;
+      // Duplicate TOTAL within a single line — malformed header.
+      if (totalCount > 1) return "ambiguous";
+      // Require ≥2 known category-code tokens.
+      // If TOTAL is present but other column names are unrecognised, the
+      // table structure is ambiguous — we cannot determine which column is
+      // which and must not fall back to positional guessing.
+      if (toks.filter((t) => KNOWN_COL_RE.test(t)).length < 2) return "ambiguous";
+      candidates.push({ idx: toks.findIndex((t) => /^TOTAL$/i.test(t)), line });
     }
-    return undefined;
+
+    if (candidates.length === 0) return undefined;
+
+    // Multiple header lines are only acceptable when they all agree on the
+    // TOTAL column index (e.g. a header repeated on page continuation).
+    const uniqueIndices = [...new Set(candidates.map((c) => c.idx))];
+    if (uniqueIndices.length > 1) return "ambiguous"; // conflicting column orders
+
+    return candidates[0]; // consistent — use the first occurrence
   }
 
-  function extractTotalFromBlock(blockLines: string[]): number | undefined {
-    const totalColIdx = findTotalColIdx(blockLines);
+  // Extract the TOTAL column value and evidence from a post block.
+  // Returns { count, headerLine?, totalLine? } or undefined.
+  function extractTotalFromBlock(
+    blockLines: string[]
+  ): { count: number; headerLine?: string; totalLine?: string } | undefined {
+    const headerResult = findTotalColIdx(blockLines);
+
+    // "ambiguous": a header-like line was found but structure is unreliable.
+    // Fail closed — do NOT silently fall back to positional guessing.
+    if (headerResult === "ambiguous") return undefined;
+
     for (const line of blockLines) {
       const m = TOTAL_ROW_RE.exec(line);
       if (!m) continue;
-      const toks = m[1].split(/\s+/).filter(Boolean); // "2 2 1" or "10 5 3 2 3 23 2"
+      const toks = m[1].split(/\s+/).filter(Boolean);
 
-      if (totalColIdx !== undefined) {
+      if (headerResult !== undefined) {
         // Column-header path: use the identified TOTAL column index.
-        if (totalColIdx >= toks.length) return undefined; // header/data column count mismatch
-        const tok = toks[totalColIdx];
+        const { idx, line: headerLine } = headerResult;
+        if (idx >= toks.length) return undefined; // column count mismatch
+        const tok = toks[idx];
         if (tok === "-") return undefined; // dash in TOTAL column is unexpected
         const n = parseInt(tok.replace(/,/g, ""), 10);
-        if (!isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n)) return n;
+        if (!isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n))
+          return { count: n, headerLine, totalLine: line };
         return undefined; // invalid value at header-identified position
       }
 
-      // Fallback: no recognizable header — use penultimate numeric value.
+      // Fallback: genuinely headerless — use penultimate numeric value.
       // In standard Indian govt format PwBD is always the last column, so
-      // second-to-last = TOTAL. Returns undefined if only 0 or 1 numbers found.
+      // second-to-last = TOTAL. Only reached when findTotalColIdx → undefined.
       const nums = [...m[1].matchAll(/(\d[\d,]*)/g)]
         .map((n) => parseInt(n[1].replace(/,/g, ""), 10))
         .filter((n) => !isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n));
-      if (nums.length === 1) return nums[0];
-      if (nums.length >= 2) return nums[nums.length - 2];
+      if (nums.length === 1) return { count: nums[0], totalLine: line };
+      if (nums.length >= 2) return { count: nums[nums.length - 2], totalLine: line };
     }
     return undefined;
   }
@@ -458,22 +504,22 @@ function extractVacanciesFromCategoryTable(text: string): StructuredVacancyResul
     const m = POST_NAME_RE.exec(lines[i]);
     if (m) {
       if (postName !== null && postStart >= 0) {
-        const n = extractTotalFromBlock(lines.slice(postStart + 1, i));
-        if (n !== undefined) rows.push({ label: postName, count: n });
+        const r = extractTotalFromBlock(lines.slice(postStart + 1, i));
+        if (r !== undefined) rows.push({ label: postName, ...r });
       }
       postName = m[1].trim();
       postStart = i;
     }
   }
   if (postName !== null && postStart >= 0) {
-    const n = extractTotalFromBlock(lines.slice(postStart + 1));
-    if (n !== undefined) rows.push({ label: postName, count: n });
+    const r = extractTotalFromBlock(lines.slice(postStart + 1));
+    if (r !== undefined) rows.push({ label: postName, ...r });
   }
 
   if (rows.length === 0) return undefined;
 
   const total = rows.reduce((s, r) => s + r.count, 0);
-  return { total, isDerived: rows.length >= 2, rows };
+  return { total, isDerived: rows.length >= 2, rows, footnoteLine };
 }
 
 // Conservative fallback for PDFs where no vacancy section heading was found.
@@ -870,7 +916,10 @@ export function extractApplicationDates(text: string): {
     /(?:last\s+date|apply\s+by|closing\s+date|close\s+date|deadline|fee\s+(?:payment\s+)?last\s+date)[^:\n]{0,40}?:\s*(.{5,35}?(?:\d{4}))/i,
     // [1] Table-cell (no colon): "Closing date for Submission of Online Application 14/10/2026"
     // Must precede "from X to Y" so the labeled row wins over a later modification-window sentence.
-    /(?:last\s+date|closing\s+date|close\s+date|deadline)\b[^\d]{0,60}(\d{1,2}[./]\d{1,2}[./]20\d{2})/i,
+    // Char limit 45: real table labels are ≤38 chars after the keyword; the SPE eligibility
+    // clause ("last date for receipt of online application i.e. on or before …") runs 52+ chars
+    // before its date even after whitespace collapsing — safely excluded.
+    /(?:last\s+date|closing\s+date|close\s+date|deadline)\b[^\d\n]{0,45}(\d{1,2}[./]\d{1,2}[./]20\d{2})/i,
     /applications?\s+close[^:\n]{0,20}?:\s*(.{5,30}?(?:\d{4}))/i,
     // Requires application/registration context before "before/upto" — extra guard against
     // eligibility clauses even when no "last date" label is present.
@@ -1022,13 +1071,15 @@ export function extractIntakeFields(
   // in the stripped text — outside the window, so it never reaches pattern matching.
   let vacancies: number | undefined;
   let vacancyDerived: boolean | undefined;
-  let vacancyRows: Array<{ label: string; count: number }> | undefined;
+  let vacancyRows: Array<{ label: string; count: number; headerLine?: string; totalLine?: string }> | undefined;
+  let footnoteLine: string | undefined;
   if (isPlainText) {
     const sv = extractVacanciesFromPdfText(combined);
     if (sv) {
       vacancies = sv.total;
       if (sv.isDerived) vacancyDerived = true;
       if (sv.rows.length > 0) vacancyRows = sv.rows;
+      if (sv.footnoteLine) footnoteLine = sv.footnoteLine;
     }
   } else {
     vacancies = extractVacancies(text.slice(0, 8_000));
@@ -1112,6 +1163,7 @@ export function extractIntakeFields(
     sourceKind,
     vacancyDerived,
     vacancyRows,
+    footnoteLine,
   };
 }
 

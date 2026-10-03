@@ -20,6 +20,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import type { RecruitmentIntelligenceDraft, FieldValue, FeeEntry } from "@/intelligence/draft-types";
+import type { DuplicateCandidate } from "@/lib/cms/duplicate-detector";
 
 // ─── Styles ───────────────────────────────────────────────────
 
@@ -134,6 +135,7 @@ export default function IntelligenceDraftPage() {
   const [error, setError] = useState<string | null>(null);
   const [promoting, setPromoting] = useState(false);
   const [promoted, setPromoted] = useState<{ recordId: string; slug: string; alreadyExisted: boolean } | null>(null);
+  const [duplicate, setDuplicate] = useState<DuplicateCandidate | null>(null);
 
   useEffect(() => {
     if (!draftId) return;
@@ -153,20 +155,26 @@ export default function IntelligenceDraftPage() {
       });
   }, [draftId]);
 
-  async function handlePromote() {
+  async function handlePromote(forceCreate = false) {
     if (!draftId) return;
     setPromoting(true);
+    setError(null);
     try {
       const res = await fetch("/api/admin/cms/records/from-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draftId }),
+        body: JSON.stringify({ draftId, forceCreate }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? `HTTP ${res.status}`);
         return;
       }
+      if (data.duplicate) {
+        setDuplicate(data.duplicate as DuplicateCandidate);
+        return;
+      }
+      setDuplicate(null);
       setPromoted(data);
     } catch (e) {
       setError(String(e));
@@ -212,9 +220,9 @@ export default function IntelligenceDraftPage() {
           </div>
 
           {/* Promote action */}
-          {!promoted ? (
+          {!promoted && !duplicate && (
             <button
-              onClick={handlePromote}
+              onClick={() => handlePromote(false)}
               disabled={promoting}
               style={{
                 padding: "9px 20px",
@@ -231,7 +239,8 @@ export default function IntelligenceDraftPage() {
             >
               {promoting ? "Promoting…" : "Promote to CMS Record →"}
             </button>
-          ) : (
+          )}
+          {promoted && (
             <div style={{ background: "#23863622", border: "1px solid #23863644", borderRadius: 6, padding: "10px 16px", fontSize: 13, color: "#3fb950" }}>
               {promoted.alreadyExisted ? "Already promoted." : "Promoted!"}{" "}
               <Link href={`/admin/cms/${promoted.recordId}`} style={{ color: "#58a6ff" }}>
@@ -247,6 +256,75 @@ export default function IntelligenceDraftPage() {
           </div>
         )}
       </div>
+
+      {/* Duplicate warning */}
+      {duplicate && !promoted && (
+        <div style={{ background: "#d2992211", border: "1px solid #d2992244", borderRadius: 8, padding: "16px 20px", marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#d29922", marginBottom: 8 }}>
+            Potential Duplicate Detected
+          </div>
+          <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 12 }}>
+            {duplicate.matchReason === "notification_number"
+              ? "An existing CMS record has the same notification number."
+              : "An existing CMS record has the same organisation and year. (Notification number is missing on one or both records.)"}
+          </div>
+          <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: 6, padding: "12px 16px", marginBottom: 14, fontSize: 12 }}>
+            <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 6 }}>
+              {duplicate.title ?? <em style={{ color: "#8b949e" }}>No title</em>}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "3px 8px", color: "#8b949e" }}>
+              <span>Organisation</span>
+              <span style={{ color: "#e2e8f0" }}>{duplicate.organizationName ?? duplicate.organizationId}</span>
+              {duplicate.notificationNumber && (
+                <>
+                  <span>Notification #</span>
+                  <code style={{ fontFamily: "monospace", fontSize: 11, background: "#21262d", padding: "1px 5px", borderRadius: 3, color: "#e2e8f0" }}>
+                    {duplicate.notificationNumber}
+                  </code>
+                </>
+              )}
+              <span>Year</span>
+              <span style={{ color: "#e2e8f0" }}>{duplicate.recruitmentYear ?? "—"}</span>
+              <span>Status</span>
+              <span style={{ color: "#e2e8f0" }}>{duplicate.draftState}</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link
+              href={`/admin/cms/${duplicate.id}`}
+              style={{
+                padding: "8px 16px",
+                background: "#1f6feb",
+                color: "#fff",
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Update existing record →
+            </Link>
+            <button
+              onClick={() => handlePromote(true)}
+              disabled={promoting}
+              style={{
+                padding: "8px 16px",
+                background: "transparent",
+                color: promoting ? "#8b949e" : "#e2e8f0",
+                border: "1px solid #30363d",
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: promoting ? "default" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {promoting ? "Creating…" : "Create new record anyway"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Readiness banner */}
       {!d.readiness.readyForReview && d.readiness.blockingIssues.length > 0 && (
@@ -321,6 +399,16 @@ export default function IntelligenceDraftPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {d.vacancies.extractionNotes && d.vacancies.extractionNotes.length > 0 && (
+          <div style={{ marginTop: 10, padding: "8px 10px", background: "#0d1117", borderRadius: 4, border: "1px solid #21262d" }}>
+            <div style={{ fontSize: 10, color: "#6e7681", fontWeight: 600, marginBottom: 4, letterSpacing: "0.05em" }}>EXTRACTION EVIDENCE</div>
+            {d.vacancies.extractionNotes.map((note, i) => (
+              <div key={i} style={{ fontSize: 11, color: "#8b949e", fontFamily: "monospace", lineHeight: 1.6, wordBreak: "break-word" }}>
+                {note}
+              </div>
+            ))}
           </div>
         )}
       </div>

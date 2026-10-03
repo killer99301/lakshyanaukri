@@ -87,15 +87,9 @@ export interface PublishedRecruitmentSnapshot {
   sourceRecordRevision: string;
 }
 
-// ─── Main projection function ─────────────────────────────
+// ─── Shared projection body ───────────────────────────────
 
-export function projectToPublished(record: RecruitmentRecord): PublishedRecruitmentSnapshot {
-  if (record.draftState !== "APPROVED") {
-    throw new Error(
-      `Cannot project: record is in state ${record.draftState} (must be APPROVED)`,
-    );
-  }
-
+function buildSnapshot(record: RecruitmentRecord): PublishedRecruitmentSnapshot {
   return {
     id:                  record.id,
     slug:                record.slug,
@@ -172,4 +166,22 @@ export function projectToPublished(record: RecruitmentRecord): PublishedRecruitm
     projectionVersion:    PROJECTION_VERSION,
     sourceRecordRevision: record.recordRevision,
   };
+}
+
+// ─── Publish projection (APPROVED only) ──────────────────
+
+export function projectToPublished(record: RecruitmentRecord): PublishedRecruitmentSnapshot {
+  if (record.draftState !== "APPROVED") {
+    throw new Error(
+      `Cannot project: record is in state ${record.draftState} (must be APPROVED)`,
+    );
+  }
+  return buildSnapshot(record);
+}
+
+// ─── Preview projection (any draftState) ─────────────────
+// Admin-only. Never stored. Used for the draft preview pane.
+
+export function projectForPreview(record: RecruitmentRecord): PublishedRecruitmentSnapshot {
+  return buildSnapshot(record);
 }

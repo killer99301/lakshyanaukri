@@ -17,13 +17,25 @@ import type { NextRequest } from "next/server";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { getRecruitmentById, persistFieldUpdate, OccConflictError } from "@/lib/cms/repository";
 import { routeFieldUpdate } from "@/lib/cms/field-update-router";
+import { randomUUID } from "node:crypto";
 import type { ProvenanceField } from "@/types/recruitment-record";
+import type { UpdateRecord, UpdateType } from "@/types";
 
 interface PatchBody {
   fieldPath: string;
   field: ProvenanceField<unknown>;
   clientRevision: string;
   reason?: string;
+  updateEntry?: {
+    type: UpdateType;
+    date: string;
+    title: string;
+    description: string;
+    sourceUrl?: string;
+    field?: string;
+    previousValue?: string;
+    newValue?: string;
+  };
 }
 
 export async function PATCH(
@@ -46,7 +58,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { fieldPath, field, clientRevision, reason } = body;
+  const { fieldPath, field, clientRevision, reason, updateEntry } = body;
   if (!fieldPath || field === undefined) {
     return NextResponse.json(
       { error: "fieldPath and field are required" },
@@ -82,6 +94,25 @@ export async function PATCH(
     }
 
     const result = routeFieldUpdate(record, fieldPath, field, auth.adminId, reason);
+
+    // If the caller supplied an updateEntry, append it to the record's updates
+    // array before persisting. persistFieldUpdate() now writes the updates column,
+    // so both the field change and the new entry land in the same atomic CTE.
+    if (updateEntry) {
+      const entry: UpdateRecord = {
+        id: randomUUID(),
+        type: updateEntry.type,
+        date: updateEntry.date,
+        title: updateEntry.title,
+        description: updateEntry.description,
+        ...(updateEntry.sourceUrl ? { sourceUrl: updateEntry.sourceUrl } : {}),
+        ...(updateEntry.field ? { field: updateEntry.field } : {}),
+        ...(updateEntry.previousValue !== undefined ? { previousValue: updateEntry.previousValue } : {}),
+        ...(updateEntry.newValue !== undefined ? { newValue: updateEntry.newValue } : {}),
+      };
+      result.record.updates = [...(result.record.updates ?? []), entry];
+    }
+
     const { record: saved, revision } = await persistFieldUpdate(result, clientRevision);
 
     return NextResponse.json({

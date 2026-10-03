@@ -316,6 +316,12 @@ export interface VacancyData {
 
   // Human-readable explanation of how derivedTotal was calculated
   derivedTotalExplanation?: string;
+
+  // Structured extraction evidence for admin review — only set when the
+  // CATEGORY WISE VACANCIES table path was used. Each entry is one
+  // human-readable line: extraction path, per-post evidence, and the
+  // horizontal-reservation footnote that authorised the extraction.
+  extractionNotes?: string[];
 }
 
 // ─── Eligibility ──────────────────────────────────────────────

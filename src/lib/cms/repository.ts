@@ -19,12 +19,15 @@ import type {
   DraftState,
 } from "@/types/recruitment-record";
 
+import type { UpdateRecord } from "@/types";
+
 import type { Provenance } from "@/types";
 
 import {
   buildFieldRevision,
   approveRecord,
   markPublished,
+  revertRecord,
   computeRecordRevision,
   type FieldUpdateResult,
   type StateTransitionResult,
@@ -281,6 +284,7 @@ export async function persistFieldUpdate(
         conditions        = ${record.conditions !== undefined ? JSON.stringify(record.conditions) : null},
         classification    = ${record.classification !== undefined ? JSON.stringify(record.classification) : null},
         provenance        = ${JSON.stringify(record.provenance)},
+        updates           = ${JSON.stringify(record.updates ?? [])},
         record_revision   = ${updatedRevision},
         organization_name = ${record.identity.organizationName ?? null},
         title_text        = ${record.identity.title.value ?? null},
@@ -416,6 +420,130 @@ export async function persistPublication(
   const saved = await getRecruitmentById(record.id);
   if (!saved) throw new Error(`Record ${record.id} not found after publication`);
   return saved;
+}
+
+/**
+ * Transition PUBLISHED → DRAFT without touching lastPublishedRevision.
+ * The published snapshot remains intact; public pages continue to serve it
+ * while the record is being edited.
+ *
+ * OCC guard: draft_state must still be 'PUBLISHED'.
+ * If another admin already reverted, throws OccConflictError.
+ */
+export async function persistRevert(
+  record: RecruitmentRecord,
+  adminId: string,
+): Promise<RecruitmentRecord> {
+  const { record: reverted, auditEvent } = revertRecord(record, adminId);
+
+  const revision = buildFieldRevision(
+    record.id,
+    "draftState",
+    "PUBLISHED",
+    "DRAFT",
+    adminId,
+    "Reverted to DRAFT for editing",
+  );
+
+  const rows = await sql`
+    WITH updated AS (
+      UPDATE recruitments SET
+        draft_state = 'DRAFT',
+        updated_at  = now(),
+        updated_by  = ${adminId}
+      WHERE id          = ${record.id}
+        AND draft_state = 'PUBLISHED'
+      RETURNING id
+    ),
+    rev AS (
+      INSERT INTO field_revisions
+        (id, recruitment_id, field_path, revised_by, revised_at, old_value, new_value, reason)
+      SELECT
+        ${revision.id},
+        ${revision.recruitmentId},
+        ${revision.fieldPath},
+        ${revision.revisedBy},
+        ${revision.revisedAt},
+        ${JSON.stringify("PUBLISHED")},
+        ${JSON.stringify("DRAFT")},
+        ${revision.reason ?? null}
+      FROM updated
+      RETURNING recruitment_id
+    )
+    INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+    SELECT
+      ${record.id},
+      ${adminId},
+      ${auditEvent.eventType},
+      ${JSON.stringify(auditEvent.metadata)}
+    FROM updated
+    RETURNING recruitment_id
+  `;
+
+  void reverted;
+
+  if (rows.length === 0) {
+    const current = await getRecruitmentById(record.id);
+    throw new OccConflictError(current?.recordRevision ?? "unknown");
+  }
+
+  const saved = await getRecruitmentById(record.id);
+  if (!saved) throw new Error(`Record ${record.id} not found after revert`);
+  return saved;
+}
+
+/**
+ * Append an announcement-only UpdateRecord to the record's updates array.
+ * Does NOT touch structural fields or record_revision.
+ * Concurrent appends from different sessions both succeed (no OCC conflict).
+ * Guard: record must not be ARCHIVED.
+ */
+export async function persistUpdateAppend(
+  recordId: string,
+  entry: UpdateRecord,
+  adminId: string,
+): Promise<{ record: RecruitmentRecord; revision: FieldRevision }> {
+  const revision = buildFieldRevision(
+    recordId,
+    "updates",
+    null,
+    entry,
+    adminId,
+    `Announcement: ${entry.type}`,
+  );
+
+  const rows = await sql`
+    WITH updated AS (
+      UPDATE recruitments SET
+        updates    = COALESCE(updates, '[]'::jsonb) || ${JSON.stringify(entry)}::jsonb,
+        updated_at = now(),
+        updated_by = ${adminId}
+      WHERE id          = ${recordId}
+        AND draft_state != 'ARCHIVED'
+      RETURNING id
+    )
+    INSERT INTO field_revisions
+      (id, recruitment_id, field_path, revised_by, revised_at, old_value, new_value, reason)
+    SELECT
+      ${revision.id},
+      ${revision.recruitmentId},
+      ${revision.fieldPath},
+      ${revision.revisedBy},
+      ${revision.revisedAt},
+      ${null},
+      ${JSON.stringify(entry)},
+      ${revision.reason ?? null}
+    FROM updated
+    RETURNING recruitment_id
+  `;
+
+  if (rows.length === 0) {
+    return Promise.reject(new Error(`Record ${recordId} not found or is ARCHIVED`));
+  }
+
+  const saved = await getRecruitmentById(recordId);
+  if (!saved) throw new Error(`Record ${recordId} not found after update append`);
+  return { record: saved, revision };
 }
 
 // Re-export buildFieldRevision so callers can build revisions without
