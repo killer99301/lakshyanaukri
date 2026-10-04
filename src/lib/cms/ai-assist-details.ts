@@ -10,6 +10,7 @@ import * as cheerio from "cheerio";
 import type { PageSection } from "@/intelligence/page-structurer";
 import { structureDocument, normalizeForMatching } from "@/intelligence/page-structurer";
 import { classifySourceUrl } from "@/intelligence/intake";
+import { ORG_CATEGORY } from "@/intelligence/org-registry";
 import type {
   AgeCriteria,
   CmsRecruitmentLink,
@@ -344,6 +345,74 @@ export const DETAIL_FIELDS: Array<{ key: keyof DetailExtraction; fieldPath: stri
   { key: "howToApply",  fieldPath: "howToApply",         label: "How to Apply" },
   { key: "payScale",    fieldPath: "financial.payScale", label: "Pay Scale" },
 ];
+
+// ─── Listing details (classification) ─────────────────────
+//
+// Derived from facts already on the record — no AI. Only EMPTY sub-fields are
+// filled; anything the admin has set is left alone.
+
+const LEVEL_ORDER = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"] as const;
+type Level = (typeof LEVEL_ORDER)[number];
+
+function levelOf(text: string): Level | null {
+  const t = text.toLowerCase();
+  if (/post[\s-]?graduat|master'?s|\bm\.?\s?(?:tech|sc|a|com|ba|ca)\b|\bpg\b/.test(t)) return "Post Graduate";
+  if (/\b10th|matric|high\s+school|class\s*(?:10|x)\b|\bsslc\b/.test(t) && !/12th|10\s*\+\s*2/.test(t)) return "10th Pass";
+  if (/12th|10\s*\+\s*2|intermediate|higher\s+secondary|senior\s+secondary|class\s*(?:12|xii)\b/.test(t)) return "12th Pass";
+  if (/\biti\b/.test(t)) return "ITI";
+  if (/diploma/.test(t)) return "Diploma";
+  if (/graduat|degree|bachelor|\bb\.?\s?(?:tech|sc|a|com|e|ed)\b/.test(t)) return "Graduate";
+  return null;
+}
+
+/** The lowest qualification any post asks for: the level a candidate needs to be eligible for something. */
+export function qualificationLevel(posts: CmsRecruitmentPost[] | null | undefined): Level | null {
+  const levels = (posts ?? [])
+    .map((p) => levelOf((p.qualification ?? []).join(" ")))
+    .filter((l): l is Level => l !== null);
+  if (levels.length === 0) return null;
+  return levels.sort((a, b) => LEVEL_ORDER.indexOf(a) - LEVEL_ORDER.indexOf(b))[0];
+}
+
+export interface ListingDetails {
+  shortDescription?: string;
+  category?: string;
+  state?: string;
+  qualification?: string;
+}
+
+export function deriveListingDetails(record: {
+  identity: { organizationId: string; organizationName: string; govType?: string; title: { value: string | null } };
+  eligibility?: { value: CmsRecruitmentPost[] | null } | null;
+  classification?: ListingDetails | null;
+}): { value: ListingDetails; added: string[] } {
+  const current = record.classification ?? {};
+  const value: ListingDetails = { ...current };
+  const added: string[] = [];
+
+  if (!current.qualification) {
+    const level = qualificationLevel(record.eligibility?.value);
+    if (level) { value.qualification = level; added.push(`Qualification: ${level}`); }
+  }
+  if (!current.category) {
+    const category = ORG_CATEGORY[record.identity.organizationId];
+    if (category && category !== "private" && category !== "internship") {
+      value.category = category;
+      added.push(`Category: ${category}`);
+    }
+  }
+  // Central and PSU recruitments are listed as All India, as the intake pipeline does.
+  if (!current.state && (record.identity.govType === "Central Govt" || record.identity.govType === "PSU")) {
+    value.state = "All India";
+    added.push("Location: All India");
+  }
+  // A neutral line with nothing in it that can go out of date.
+  if (!current.shortDescription && record.identity.title.value) {
+    value.shortDescription = `${record.identity.title.value} — recruitment by ${record.identity.organizationName}. Check eligibility, important dates, application fee and how to apply.`.slice(0, 300);
+    added.push("Short description");
+  }
+  return { value, added };
+}
 
 // ─── Official links ───────────────────────────────────────
 

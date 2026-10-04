@@ -360,7 +360,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 async function saveListField(
   recordId: string,
   recordRevision: string,
-  fieldPath: "links" | "howToApply",
+  fieldPath: "links" | "howToApply" | "classification",
   value: unknown,
   reason: string,
 ): Promise<{ record?: RecruitmentRecord; error?: string }> {
@@ -510,6 +510,109 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
       ) : (
         <div style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
           Links can be edited while the record is a draft. Click “Edit Record” first.
+        </div>
+      )}
+    </div>
+  );
+}
+
+const QUALIFICATION_OPTIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"];
+const CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "government", label: "Government (general)" },
+  { value: "ssc", label: "SSC" },
+  { value: "banking", label: "Banking" },
+  { value: "railway", label: "Railway" },
+  { value: "defence", label: "Defence" },
+  { value: "teaching", label: "Teaching" },
+  { value: "state-psc", label: "State PSC" },
+];
+
+// Qualification, location, category and short description: they fill the
+// header boxes on the public page and drive the listing filters.
+function ListingDetailsEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: (r: RecruitmentRecord) => void }) {
+  const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
+  const c = record.classification ?? {};
+  const [editing, setEditing] = useState(false);
+  const [qualification, setQualification] = useState("");
+  const [category, setCategory] = useState("");
+  const [state, setState] = useState("");
+  const [shortDescription, setShortDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function startEdit() {
+    setQualification(c.qualification ?? "");
+    setCategory(c.category ?? "");
+    setState(c.state ?? "");
+    setShortDescription(c.shortDescription ?? "");
+    setErr(null);
+    setEditing(true);
+  }
+
+  async function save() {
+    setSaving(true);
+    setErr(null);
+    const out = await saveListField(record.id, record.recordRevision, "classification", { qualification, category, state, shortDescription }, "Edited listing details");
+    setSaving(false);
+    if (out.error || !out.record) { setErr(out.error ?? "Save failed"); return; }
+    setEditing(false);
+    onSaved(out.record);
+  }
+
+  const shown = (v: string | undefined) => v || "— not set —";
+
+  return (
+    <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+      <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+        Listing details
+      </div>
+      {!editing ? (
+        <>
+          <Row label="Qualification" value={shown(c.qualification)} />
+          <Row label="Location" value={shown(c.state)} />
+          <Row label="Category" value={shown(c.category)} />
+          <Row label="Short description" value={shown(c.shortDescription)} />
+          {editable ? (
+            <button onClick={startEdit} style={{ background: "none", border: "none", color: C.accent, cursor: "pointer", fontSize: 12, padding: 0, marginTop: 8 }}>
+              Edit listing details
+            </button>
+          ) : (
+            <div style={{ color: C.muted, fontSize: 12, marginTop: 8 }}>Click “Edit Record” first to change these.</div>
+          )}
+        </>
+      ) : (
+        <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: 12 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label style={labelStyle} htmlFor="ld-qualification">Qualification (lowest level any post needs)</label>
+              <select id="ld-qualification" value={qualification} onChange={(e) => setQualification(e.target.value)} style={inputStyle}>
+                <option value="">— not set —</option>
+                {QUALIFICATION_OPTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label style={labelStyle} htmlFor="ld-category">Category</label>
+              <select id="ld-category" value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle}>
+                <option value="">— not set —</option>
+                {CATEGORY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label style={labelStyle} htmlFor="ld-state">Location</label>
+              <input id="ld-state" type="text" value={state} onChange={(e) => setState(e.target.value)} style={inputStyle} placeholder="All India, Bihar, Karnataka…" maxLength={60} />
+            </div>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <label style={labelStyle} htmlFor="ld-description">Short description (shown under the title and in search results)</label>
+            <textarea id="ld-description" value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} style={{ ...inputStyle, height: 70, resize: "vertical" }} maxLength={300} />
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+            <button onClick={() => { void save(); }} disabled={saving} style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button onClick={() => setEditing(false)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>Cancel</button>
+          </div>
+          {err && <div role="alert" style={{ color: C.red, fontSize: 12, marginTop: 8 }}>{err}</div>}
         </div>
       )}
     </div>
@@ -1271,6 +1374,7 @@ export default function CmsRecordEditorPage() {
               <Row label="Slug" value={record.slug} mono />
               <Row label="Record ID" value={record.id} mono />
             </div>
+            <ListingDetailsEditor record={record} onSaved={onFieldSaved} />
           </Section>
         )}
 

@@ -31,6 +31,7 @@ import type {
   AgeCriteria,
   CmsSelectionInformation,
   CmsRecruitmentLink,
+  RecruitmentClassification,
 } from "@/types/recruitment-record";
 
 import type { VacancyRow } from "@/types";
@@ -719,6 +720,60 @@ export function updateHowToApply(
   return {
     record: updated,
     revision: buildFieldRevision(record.id, "howToApply", record.howToApply ?? [], cleaned, adminId, reason),
+  };
+}
+
+// ─── Classification (listing details) ─────────────────────
+//
+// Plain metadata that drives the public header boxes and listing filters.
+
+export const CLASSIFICATION_CATEGORIES = ["government", "ssc", "banking", "railway", "defence", "teaching", "state-psc"] as const;
+export const CLASSIFICATION_QUALIFICATIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"] as const;
+
+export function updateClassification(
+  record: RecruitmentRecord,
+  value: unknown,
+  adminId: string,
+  reason?: string,
+): FieldUpdateResult {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("classification invariant: value must be an object");
+  }
+  const v = value as Record<string, unknown>;
+  const text = (key: string, max: number): string | undefined => {
+    const raw = v[key];
+    if (raw === undefined || raw === null) return undefined;
+    if (typeof raw !== "string") throw new Error(`classification invariant: ${key} must be text`);
+    const t = raw.replace(/\s+/g, " ").trim();
+    if (t.length > max) throw new Error(`classification invariant: ${key} must be ${max} characters or fewer`);
+    return t || undefined;
+  };
+
+  const category = text("category", 40);
+  if (category !== undefined && !(CLASSIFICATION_CATEGORIES as readonly string[]).includes(category)) {
+    throw new Error("classification invariant: unknown category");
+  }
+  const qualification = text("qualification", 40);
+  if (qualification !== undefined && !(CLASSIFICATION_QUALIFICATIONS as readonly string[]).includes(qualification)) {
+    throw new Error("classification invariant: unknown qualification level");
+  }
+
+  const cleaned: RecruitmentClassification = {};
+  const shortDescription = text("shortDescription", 300);
+  const state = text("state", 60);
+  if (shortDescription) cleaned.shortDescription = shortDescription;
+  if (category) cleaned.category = category;
+  if (state) cleaned.state = state;
+  if (qualification) cleaned.qualification = qualification;
+
+  const updated = cloneRecord(record);
+  updated.classification = cleaned;
+  updated.updatedAt = now();
+  updated.updatedBy = adminId;
+
+  return {
+    record: updated,
+    revision: buildFieldRevision(record.id, "classification", record.classification ?? {}, cleaned, adminId, reason),
   };
 }
 

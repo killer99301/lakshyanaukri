@@ -15,7 +15,7 @@ import {
   History,
 } from "lucide-react";
 import type { Opportunity } from "@/types";
-import { getVacancyDisplay, getStageCertainty } from "@/lib/lifecycle";
+import { getVacancyDisplay, getStageCertainty, getCategoryLabel } from "@/lib/lifecycle";
 import { resolveDocumentAccess } from "@/lib/documents";
 
 interface JobDetailSectionsProps {
@@ -51,7 +51,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
             <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider block">Category</span>
-            <span className="text-sm font-extrabold text-[#0F172A] mt-0.5 block capitalize">{job.category.replace("-", " ")}</span>
+            <span className="text-sm font-extrabold text-[#0F172A] mt-0.5 block">{getCategoryLabel(job.category)}</span>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">

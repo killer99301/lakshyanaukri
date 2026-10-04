@@ -37,6 +37,7 @@ import {
   updateLifecycleStatusOverride,
   updateLinks,
   updateHowToApply,
+  updateClassification,
   type FieldUpdateResult,
 } from "@/lib/cms/record-ops";
 
@@ -177,6 +178,10 @@ export function routeFieldUpdate(
     return updateHowToApply(record, newField.value, adminId, reason);
   }
 
+  if (fieldPath === "classification") {
+    return updateClassification(record, newField.value, adminId, reason);
+  }
+
   if (fieldPath === "lifecycle.statusOverride") {
     return updateLifecycleStatusOverride(
       record,
@@ -188,7 +193,7 @@ export function routeFieldUpdate(
 
   throw new Error(
     `Unknown or unroutable fieldPath: "${fieldPath}". ` +
-      `Known blocks: eligibility, age, selection, vacancies.breakdown, vacancies.total, links, howToApply, lifecycle.statusOverride. ` +
+      `Known blocks: eligibility, age, selection, vacancies.breakdown, vacancies.total, links, howToApply, classification, lifecycle.statusOverride. ` +
       `Namespace prefixes: identity., dates., financial.`,
   );
 }

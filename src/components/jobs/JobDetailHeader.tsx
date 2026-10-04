@@ -308,7 +308,7 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
             <p className="text-[11px] font-bold uppercase tracking-wider text-[#475569]">Qualification</p>
-            <p className="text-sm sm:text-base font-extrabold text-[#0F172A] mt-1">{job.qualification}</p>
+            <p className="text-sm sm:text-base font-extrabold text-[#0F172A] mt-1">{job.qualification || "See eligibility below"}</p>
           </div>
 
           {/* Dynamic Urgency Apply Deadline Box */}

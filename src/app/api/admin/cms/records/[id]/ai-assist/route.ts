@@ -44,6 +44,7 @@ import {
   buildDetailSections,
   extractDetails,
   extractOfficialLinks,
+  deriveListingDetails,
   DETAIL_FIELDS,
   type SuggestedLink,
 } from "@/lib/cms/ai-assist-details";
@@ -252,6 +253,32 @@ export async function POST(
         existingValue: currentField?.value,
         existingEvidenceIds: currentField?.evidenceIds ?? [],
       });
+    }
+  }
+
+  // Listing details (header boxes and filters), derived from the record's own
+  // facts once the fields above are in. Only empty sub-fields are filled.
+  const listing = deriveListingDetails(record);
+  if (listing.added.length > 0) {
+    try {
+      const result = routeFieldUpdate(
+        record,
+        "classification",
+        pending(listing.value) as ProvenanceField<unknown>,
+        auth.adminId,
+        aiAssistReason(url, "filled"),
+      );
+      const { record: saved } = await persistFieldUpdate(result, record.recordRevision);
+      record = saved;
+      filled.push({ fieldPath: "classification", label: "Listing details", value: listing.added.join("\n") });
+    } catch (err) {
+      if (err instanceof OccConflictError) {
+        return NextResponse.json(
+          { error: "Record was modified concurrently — please reload and try again" },
+          { status: 409 },
+        );
+      }
+      notFound.push(`Listing details (could not apply: ${String(err)})`);
     }
   }
 

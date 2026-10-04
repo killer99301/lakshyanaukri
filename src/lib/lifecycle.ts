@@ -93,7 +93,7 @@ export function getStageCertainty(stage: ExamStage): DateCertainty {
  * Derives from the ordered examStages array.
  */
 export function getCurrentExamSummary(stages: ExamStage[]): string {
-  if (stages.length === 0) return "No exam stages defined";
+  if (stages.length === 0) return "To be announced";
 
   // Find the most advanced non-NOT_DECLARED stage
   const activeStages = stages

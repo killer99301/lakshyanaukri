@@ -15,6 +15,8 @@ import {
   judgePayScale,
   extractDetails,
   extractOfficialLinks,
+  qualificationLevel,
+  deriveListingDetails,
 } from "@/lib/cms/ai-assist-details";
 import { describeAiValue } from "@/lib/cms/ai-assist-apply";
 
@@ -207,6 +209,47 @@ test("LN02 links already on the record are not suggested again", () => {
 
 test("LN03 a page with no official links suggests nothing", () => {
   assert.deepEqual(extractOfficialLinks(`<a href="https://www.example-aggregator.com/apply">Apply Online</a>`, "https://example.com/job"), []);
+});
+
+suite("Listing details");
+
+test("LD01 qualification level is the lowest any post asks for", () => {
+  assert.equal(qualificationLevel([{ post: "LDC", qualification: ["12th Standard pass or equivalent"] }, { post: "DEO Grade A", qualification: ["12th pass in Science stream with Mathematics"] }]), "12th Pass");
+  assert.equal(qualificationLevel([{ post: "Apprentice", qualification: ["A Degree (Graduation) in any discipline"] }]), "Graduate");
+  assert.equal(qualificationLevel([{ post: "MTS", qualification: ["Matriculation (10th) pass"] }, { post: "Officer", qualification: ["Graduate"] }]), "10th Pass");
+  assert.equal(qualificationLevel([{ post: "Clerk", qualification: ["Class 10+2 pass"] }]), "12th Pass");
+  assert.equal(qualificationLevel([{ post: "Technician", qualification: ["ITI in the relevant trade"] }]), "ITI");
+  assert.equal(qualificationLevel([{ post: "Scientist", qualification: ["Post Graduate degree in Physics"] }]), "Post Graduate");
+  assert.equal(qualificationLevel([{ post: "X", qualification: ["As per rules"] }]), null);
+  assert.equal(qualificationLevel(undefined), null);
+});
+
+test("LD02 only empty sub-fields are derived; existing values are never replaced", () => {
+  const base = {
+    identity: { organizationId: "ssc", organizationName: "Staff Selection Commission", govType: "Central Govt", title: { value: "SSC CHSL Examination 2026" } },
+    eligibility: { value: [{ post: "LDC", qualification: ["12th Standard pass"] }] },
+  };
+  const fresh = deriveListingDetails(base);
+  assert.equal(fresh.value.qualification, "12th Pass");
+  assert.equal(fresh.value.category, "ssc");
+  assert.equal(fresh.value.state, "All India");
+  assert.ok(fresh.value.shortDescription?.includes("SSC CHSL Examination 2026"));
+  assert.equal(/\d{3,}/.test(fresh.value.shortDescription!.replace("2026", "")), false);
+  assert.equal(fresh.added.length, 4);
+
+  const kept = deriveListingDetails({ ...base, classification: { qualification: "Graduate", state: "Delhi", category: "government", shortDescription: "Mine" } });
+  assert.deepEqual(kept.value, { qualification: "Graduate", state: "Delhi", category: "government", shortDescription: "Mine" });
+  assert.equal(kept.added.length, 0);
+});
+
+test("LD03 nothing is guessed: state-level records get no location, unknown organisations no category", () => {
+  const out = deriveListingDetails({
+    identity: { organizationId: "some-new-board", organizationName: "Some New Board", govType: "State Govt", title: { value: "Clerk Recruitment 2026" } },
+    eligibility: null,
+  });
+  assert.equal(out.value.state, undefined);
+  assert.equal(out.value.category, undefined);
+  assert.equal(out.value.qualification, undefined);
 });
 
 suite("Readable values in the editor");

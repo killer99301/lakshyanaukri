@@ -20,7 +20,7 @@ import { suite, test, assert } from "../intelligence/suite";
 import { randomUUID } from "node:crypto";
 
 import type { RecruitmentRecord, ProvenanceField } from "@/types/recruitment-record";
-import { updateLinks, updateHowToApply } from "@/lib/cms/record-ops";
+import { updateLinks, updateHowToApply, updateClassification } from "@/lib/cms/record-ops";
 import { routeFieldUpdate } from "@/lib/cms/field-update-router";
 import { buildSlug, slugify } from "@/lib/cms/slug";
 
@@ -127,6 +127,31 @@ test("RT01 links and howToApply routable; documents is not", () => {
   assert.equal(routeFieldUpdate(record, "howToApply", wrap(["Apply online"]), ADMIN).record.howToApply?.length, 1);
   assert.throws(() => routeFieldUpdate(record, "documents", wrap([]), ADMIN), /Unknown or unroutable/);
   assert.throws(() => routeFieldUpdate(record, "identity.organizationName", wrap("X"), ADMIN), /not an editable/);
+});
+
+suite("Listing details write path");
+
+test("CL01 classification saved with a revision; blanks removed; nothing else changes", () => {
+  const record = makeRecord();
+  const { record: updated, revision } = updateClassification(
+    record, { qualification: "12th Pass", category: "ssc", state: "  All India ", shortDescription: "" }, ADMIN, "Edited listing details",
+  );
+  assert.deepEqual(updated.classification, { category: "ssc", state: "All India", qualification: "12th Pass" });
+  assert.equal(revision.fieldPath, "classification");
+  assert.deepEqual(revision.oldValue, {});
+  assert.equal(updated.draftState, "DRAFT");
+  assert.deepEqual(updated.identity, record.identity);
+});
+
+test("CL02 unknown qualification or category, wrong types and over-long text rejected", () => {
+  const record = makeRecord();
+  assert.throws(() => updateClassification(record, { qualification: "PhD" }, ADMIN), /qualification level/);
+  assert.throws(() => updateClassification(record, { category: "private" }, ADMIN), /unknown category/);
+  assert.throws(() => updateClassification(record, { state: 5 }, ADMIN), /must be text/);
+  assert.throws(() => updateClassification(record, { shortDescription: "x".repeat(301) }, ADMIN), /300 characters/);
+  assert.throws(() => updateClassification(record, ["a"], ADMIN), /must be an object/);
+  const wrap = { value: { state: "Bihar" }, status: "PENDING" as const, evidenceIds: [], conflict: false, manuallyEdited: true };
+  assert.equal(routeFieldUpdate(record, "classification", wrap, ADMIN).record.classification?.state, "Bihar");
 });
 
 suite("Slugs");
