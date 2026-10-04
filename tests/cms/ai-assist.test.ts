@@ -58,6 +58,13 @@ import {
   compareIdentity,
   closingDateFromRange,
   pdfHeadingTitle,
+  parseDatesInText,
+  judgeDate,
+  judgeNotificationNumber,
+  extractWithAi,
+  mergeAiDates,
+  mergeAiNotificationNumber,
+  buildAiSections,
 } from "@/lib/cms/ai-assist";
 import { aiAssistReason, buildAiField } from "@/lib/cms/ai-assist-apply";
 
@@ -845,6 +852,172 @@ test("FW01 fee passages: amount-bearing section chosen over earlier date-table m
 test("FW02 fee mentioned but no amount anywhere → no passage, so no AI call", () => {
   const text = "Payment of application fee is online only. Fee once paid is not refundable. " + "Other text. ".repeat(50);
   assert.equal(buildFeeSections(text, "pdf", PDF_URL).length, 0);
+});
+
+suite("AI Assist V6 — AI-extracted dates and notification number");
+
+const DATES_TEXT = [
+  "Events Dates",
+  "Online Application Started 7th September 2026",
+  "Application Dates 7th September to 7th October 2026.",
+  "Last Date to Submit Form 7th October 2026 (11 PM)",
+  "Last Date for Online Fee Payment 8th October 2026 (11 PM)",
+  "Application Form Correction Window 14th to 16th October 2026",
+  "Notification No.: F. No. HQ-C1102/5/2026-C-1",
+].join("\n");
+const dateSection = [{ type: "dates", heading: "Dates section 1", text: DATES_TEXT, rawHtml: "", tables: [], lists: [], links: [], paragraphs: [] }] as never;
+const cand = (value: string, evidence: string) => ({ value, evidence, sectionHeading: "Dates section 1", confidence: "high" as const });
+
+test("AD01 parseDatesInText reads the formats notices use", () => {
+  assert.deepEqual(parseDatesInText("07.09.2026 and 07/10/2026 and 2026-10-08"), ["2026-09-07", "2026-10-07", "2026-10-08"]);
+  assert.deepEqual(parseDatesInText("7th September 2026"), ["2026-09-07"]);
+  assert.deepEqual(parseDatesInText("September 7, 2026"), ["2026-09-07"]);
+  assert.deepEqual(parseDatesInText("14th to 16th October 2026"), ["2026-10-14", "2026-10-16"]);
+  assert.deepEqual(parseDatesInText("7th September to 7th October 2026"), ["2026-09-07", "2026-10-07"]);
+  assert.deepEqual(parseDatesInText("31 February 2026 or 2026 posts"), []);
+});
+
+test("AD02 a date is accepted only when its quote is in the source and contains it", () => {
+  assert.deepEqual(judgeDate("applicationCloseDate", cand("2026-10-07", "Last Date to Submit Form 7th October 2026 (11 PM)"), dateSection), { status: "accepted", value: "2026-10-07" });
+  assert.equal(judgeDate("applicationCloseDate", cand("2026-10-09", "Last Date to Submit Form 7th October 2026 (11 PM)"), dateSection).status, "rejected");
+  assert.equal(judgeDate("applicationCloseDate", cand("2026-10-07", "Last date is 7th October 2026, confirmed"), dateSection).status, "rejected");
+  assert.equal(judgeDate("applicationOpenDate", cand("07/09/2026", "Online Application Started 7th September 2026"), dateSection).status, "rejected");
+  assert.equal(judgeDate("applicationOpenDate", undefined, dateSection).status, "not_stated");
+});
+
+test("AD03 a correction-window or fee-payment date never becomes an application date", () => {
+  const correction = "Application Form Correction Window 14th to 16th October 2026";
+  assert.equal(judgeDate("applicationOpenDate", cand("2026-10-14", correction), dateSection).status, "rejected");
+  assert.equal(judgeDate("applicationCloseDate", cand("2026-10-16", correction), dateSection).status, "rejected");
+  assert.equal(judgeDate("correctionWindowEnd", cand("2026-10-16", correction), dateSection).status, "accepted");
+  const feePay = "Last Date for Online Fee Payment 8th October 2026 (11 PM)";
+  assert.equal(judgeDate("applicationCloseDate", cand("2026-10-08", feePay), dateSection).status, "rejected");
+  assert.equal(judgeDate("feePaymentCloseDate", cand("2026-10-08", feePay), dateSection).status, "accepted");
+  assert.equal(judgeDate("correctionWindowEnd", cand("2026-10-07", "Last Date to Submit Form 7th October 2026 (11 PM)"), dateSection).status, "rejected");
+});
+
+test("AD04 one AI call returns verified dates, fees and number; a list-wrapped answer is handled", async () => {
+  const payload = [{
+    applicationOpenDate: cand("2026-09-07", "Application Dates 7th September to 7th October 2026."),
+    applicationCloseDate: cand("2026-10-07", "Last Date to Submit Form 7th October 2026 (11 PM)"),
+    feePaymentCloseDate: cand("2026-10-08", "Last Date for Online Fee Payment 8th October 2026 (11 PM)"),
+    correctionWindowEnd: cand("2026-10-16", "Application Form Correction Window 14th to 16th October 2026"),
+    notificationNumber: cand("F. No. HQ-C1102/5/2026-C-1", "Notification No.: F. No. HQ-C1102/5/2026-C-1"),
+  }];
+  let calls = 0;
+  const inner = geminiFetch(payload);
+  const fetchFn = (async (i: RequestInfo | URL, init?: RequestInit) => { calls++; return inner(i, init); }) as typeof fetch;
+  const ai = await extractWithAi({ sections: dateSection, url: PDF_URL, apiKey: "test-key", fetchFn });
+  assert.equal(calls, 1);
+  assert.deepEqual(ai.dates.applicationOpenDate, { status: "accepted", value: "2026-09-07" });
+  assert.deepEqual(ai.dates.applicationCloseDate, { status: "accepted", value: "2026-10-07" });
+  assert.deepEqual(ai.dates.feePaymentCloseDate, { status: "accepted", value: "2026-10-08" });
+  assert.deepEqual(ai.dates.correctionWindowEnd, { status: "accepted", value: "2026-10-16" });
+  assert.deepEqual(ai.notificationNumber, { status: "accepted", value: "F. No. HQ-C1102/5/2026-C-1" });
+  assert.equal(ai.fees.general.status, "not_stated");
+});
+
+test("AD05 notification number: exam names, unquoted values and unlabelled quotes are rejected", () => {
+  assert.equal(judgeNotificationNumber(cand("CHSL 2026", "Notification No.: F. No. HQ-C1102/5/2026-C-1"), dateSection).status, "rejected");
+  assert.equal(judgeNotificationNumber(cand("HQ-9999/1/2026", "Notification No.: F. No. HQ-C1102/5/2026-C-1"), dateSection).status, "rejected");
+  assert.equal(judgeNotificationNumber(cand("7th October 2026", "Last Date to Submit Form 7th October 2026 (11 PM)"), dateSection).status, "rejected");
+  assert.equal(judgeNotificationNumber(undefined, dateSection).status, "not_stated");
+});
+
+test("AD06 merge: AI fills what the base missed; disagreement is flagged, not applied", () => {
+  const skipped = { status: "not_stated" } as const;
+  const ok = (value: string) => ({ status: "accepted", value }) as const;
+  const none = { applicationOpenDate: skipped, applicationCloseDate: skipped, feePaymentCloseDate: skipped, correctionWindowEnd: skipped };
+
+  // Base flagged impossible dates; AI supplies verified ones → flags cleared, values offered.
+  const flaggedBase = {
+    candidates: [{ fieldPath: "identity.title", label: "Title", value: "X Recruitment 2026" }],
+    flagged: [
+      { label: "Application Opens", value: "2026-10-14", reason: "opening date is after the closing date — check the notification and enter manually" },
+      { label: "Application Closes", value: "2026-10-07", reason: "opening date is after the closing date — check the notification and enter manually" },
+    ],
+  };
+  let m = mergeAiDates(flaggedBase, { ...none, applicationOpenDate: ok("2026-09-07"), applicationCloseDate: ok("2026-10-07") });
+  const get = (r: typeof m, p: string) => r.candidates.find((c) => c.fieldPath === p)?.value;
+  assert.equal(get(m, "dates.applicationOpenDate"), "2026-09-07");
+  assert.equal(get(m, "dates.applicationCloseDate"), "2026-10-07");
+  assert.equal(m.flagged.length, 0);
+  assert.equal(get(m, "identity.title"), "X Recruitment 2026");
+
+  // Both methods have a value and they differ → neither applied.
+  const base = { candidates: [{ fieldPath: "dates.applicationCloseDate", label: "Application Closes", value: "2026-10-17" }], flagged: [] };
+  m = mergeAiDates(base, { ...none, applicationCloseDate: ok("2026-10-07") });
+  assert.equal(m.candidates.some((c) => c.fieldPath === "dates.applicationCloseDate"), false);
+  assert.match(m.flagged[0].reason, /disagree/);
+
+  // Agreement → applied once, no flag.
+  m = mergeAiDates(base, { ...none, applicationCloseDate: ok("2026-10-17") });
+  assert.equal(get(m, "dates.applicationCloseDate"), "2026-10-17");
+  assert.equal(m.flagged.length, 0);
+
+  // AI pair that is itself impossible → flagged.
+  m = mergeAiDates({ candidates: [], flagged: [] }, { ...none, applicationOpenDate: ok("2026-10-14"), applicationCloseDate: ok("2026-10-07") });
+  assert.equal(m.candidates.some((c) => c.fieldPath.startsWith("dates.application") && c.value !== null), false);
+  assert.equal(m.flagged.length, 2);
+
+  // AI rejected value is surfaced for manual check, never applied.
+  m = mergeAiDates({ candidates: [], flagged: [] }, { ...none, applicationOpenDate: { status: "rejected", value: "2026-10-14", reason: "the quote is about the correction window, not the application period" } });
+  assert.equal(get(m, "dates.applicationOpenDate"), undefined);
+  assert.match(m.flagged[0].reason, /correction window/);
+});
+
+test("AD07 merge number: verified AI number replaces a flagged exam-name value", () => {
+  const base = {
+    candidates: [{ fieldPath: "identity.title", label: "Title", value: "X" }],
+    flagged: [{ label: "Notification Number", value: "CHSL 2026", reason: "looks like an exam name and year, not a notification number — not applied" }],
+  };
+  const m = mergeAiNotificationNumber(base, { status: "accepted", value: "F. No. HQ-C1102/5/2026-C-1" });
+  assert.equal(m.candidates.find((c) => c.fieldPath === "identity.notificationNumber")?.value, "F. No. HQ-C1102/5/2026-C-1");
+  assert.equal(m.flagged.length, 0);
+
+  const differ = mergeAiNotificationNumber(
+    { candidates: [{ fieldPath: "identity.notificationNumber", label: "Notification Number", value: "CEN 05/2026" }], flagged: [] },
+    { status: "accepted", value: "CEN 06/2026" },
+  );
+  assert.equal(differ.candidates.some((c) => c.fieldPath === "identity.notificationNumber"), false);
+  assert.match(differ.flagged[0].reason, /disagree/);
+});
+
+test("AD08 passages sent to the AI are deduplicated and limited", () => {
+  const html = `<html><body><h1>Example Commission CHSL Recruitment 2026</h1>
+<h2>Important Dates</h2><p>Last Date to Submit Form 7th October 2026. Last Date for Online Fee Payment 8th October 2026. Application Fee Rs. 100/-</p>
+<h2>Other</h2><p>Notification No.: F. No. HQ-C1102/5/2026-C-1</p></body></html>`;
+  const sections = buildAiSections(html, "html", "https://example.com/job");
+  const texts = sections.map((s) => s.text.replace(/\s+/g, " ").trim());
+  assert.equal(new Set(texts).size, texts.length);
+  assert.equal(new Set(sections.map((s) => s.heading)).size, sections.length);
+  assert.ok(sections.length >= 2 && sections.length <= 5);
+  assert.equal(buildAiSections("<html><body><p>Nothing relevant here.</p></body></html>", "html", "https://example.com/x").length, 0);
+});
+
+test("NN04 exam name plus year is not a notification number", () => {
+  for (const v of ["CHSL 2026", "NTPC 2025", "CGL 2026"]) {
+    assert.equal(isSuspiciousNotificationNumber(v), true, v);
+  }
+  for (const v of ["CEN 05/2026", "CHSL/2026/01", "CRP RRBs XV", "Advt. No. 3/2026", "HQ-C1101/1/2026"]) {
+    assert.equal(isSuspiciousNotificationNumber(v), false, v);
+  }
+});
+
+test("DR04 opening date after closing date → both flagged, neither a candidate", () => {
+  const html = `<html><body><h1>Example Commission CHSL Recruitment 2026</h1>
+<p>Application Start Date: 14/10/2026</p><p>Last Date to Apply: 07/10/2026</p></body></html>`;
+  const { candidates, flagged } = buildAssistCandidates(html, "html", "https://example.com/job");
+  const open = candidates.find((c) => c.fieldPath === "dates.applicationOpenDate")?.value;
+  const close = candidates.find((c) => c.fieldPath === "dates.applicationCloseDate")?.value;
+  if (typeof open === "string" && typeof close === "string") {
+    assert.ok(open <= close, `open ${open} is after close ${close}`);
+  }
+  if (flagged.some((f) => f.label === "Application Opens")) {
+    assert.equal(open, undefined);
+    assert.equal(close, undefined);
+    assert.match(flagged.find((f) => f.label === "Application Opens")!.reason, /after the closing date/);
+  }
 });
 
 test("NN03 a normal page yields no notification-number flag", () => {

@@ -28,8 +28,10 @@ import {
   readField,
   resolveSourceContent,
   buildAssistCandidates,
-  buildFeeSections,
-  extractFees,
+  buildAiSections,
+  extractWithAi,
+  mergeAiDates,
+  mergeAiNotificationNumber,
   type AssistCandidate,
   type AssistFlag,
   type FeeOutcome,
@@ -139,17 +141,21 @@ export async function POST(
     return NextResponse.json({ error: source.error }, { status: 422 });
   }
 
-  const { candidates: baseCandidates, flagged, detected } = buildAssistCandidates(source.content, source.kind, url);
-  const identityCheck = compareIdentity(record.identity, detected);
+  const base = buildAssistCandidates(source.content, source.kind, url);
+  const identityCheck = compareIdentity(record.identity, base.detected);
 
-  const fees = await extractFees({
-    sections: buildFeeSections(source.content, source.kind, url),
+  // One AI call per click: fees and application dates, each evidence-checked.
+  const ai = await extractWithAi({
+    sections: buildAiSections(source.content, source.kind, url),
     url,
     apiKey: process.env.GEMINI_API_KEY,
   });
+  const fees = ai.fees;
+  const merged = mergeAiDates(mergeAiNotificationNumber(base, ai.notificationNumber), ai.dates);
+  const flagged = merged.flagged;
 
   const notFound: string[] = [];
-  const candidates: AssistCandidate[] = [...baseCandidates];
+  const candidates: AssistCandidate[] = [...merged.candidates];
 
   const addFee = (fieldPath: string, label: string, outcome: FeeOutcome) => {
     if (outcome.status === "accepted") {
