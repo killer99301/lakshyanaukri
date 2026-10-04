@@ -23,7 +23,7 @@ export const POPULAR_SEARCHES = [
   "UPSC",
   "Banking",
   "Railway",
-  "TCS",
+  "12th Pass",
   "Teaching",
 ];
 

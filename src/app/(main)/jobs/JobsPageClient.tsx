@@ -11,12 +11,16 @@ import { JobsToolbar } from "@/components/jobs/JobsToolbar";
 import { MarketplaceJobCard } from "@/components/jobs/MarketplaceJobCard";
 import { JobsRightSidebar } from "@/components/jobs/JobsRightSidebar";
 import { JobsPagination } from "@/components/jobs/JobsPagination";
-import { searchOpportunities, getDefaultFilterState, SortOption } from "@/lib/filters";
-import type { Opportunity, FilterState, Category } from "@/types";
+import { searchOpportunities, closestMatches, textSearch, getDefaultFilterState, SortOption } from "@/lib/filters";
+import type { Opportunity, FilterState, Category, Qualification } from "@/types";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 
 const ITEMS_PER_PAGE = 10;
+
+// Values accepted from links such as /jobs?category=banking or /jobs?qualification=Graduate.
+const URL_CATEGORIES = ["state-psc", "ssc", "banking", "railway", "teaching", "defence", "government", "private", "internship"];
+const URL_QUALIFICATIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"];
 
 interface JobsPageClientProps {
   opportunities: Opportunity[];
@@ -35,11 +39,27 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
-  // Filter State
+  // Filter State. Links elsewhere on the site open this page with a category
+  // or qualification already chosen.
   const initialFilterState = getDefaultFilterState();
-  const [filters, setFilters] = useState<FilterState>(initialFilterState);
+  const [filters, setFilters] = useState<FilterState>(() => {
+    const category = searchParams.get("category");
+    const qualification = searchParams.get("qualification");
+    return {
+      ...initialFilterState,
+      categories: category && URL_CATEGORIES.includes(category) ? [category as Category] : [],
+      qualifications: qualification && URL_QUALIFICATIONS.includes(qualification) ? [qualification as Qualification] : [],
+    };
+  });
 
-  const popularTerms = ["SSC CGL", "BPSC", "UPSC", "Banking", "Railway", "Teaching", "Defence"];
+  // Only suggest searches that currently lead somewhere.
+  const popularTerms = useMemo(
+    () =>
+      ["SSC CGL", "SSC CHSL", "BPSC", "UPSC", "Banking", "Railway", "12th Pass", "Graduate", "Teaching", "Defence"]
+        .filter((term) => textSearch(opportunities, term).length > 0)
+        .slice(0, 7),
+    [opportunities],
+  );
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,13 +108,22 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
     );
   }, [opportunities, searchQuery, selectedLocation, filters, sortBy]);
 
+  // Nothing matched every word: offer the jobs that match most of them
+  // (still within the chosen location and filters) rather than a dead end.
+  const closestJobs = useMemo(() => {
+    if (filteredJobs.length > 0 || !searchQuery.trim()) return [];
+    return searchOpportunities(closestMatches(opportunities, searchQuery), "", selectedLocation, filters, sortBy, new Date());
+  }, [opportunities, filteredJobs, searchQuery, selectedLocation, filters, sortBy]);
+  const showingClosest = closestJobs.length > 0;
+  const shownJobs = showingClosest ? closestJobs : filteredJobs;
+
   // Dynamic Pagination Calculation
-  const totalPages = Math.ceil(filteredJobs.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(shownJobs.length / ITEMS_PER_PAGE);
 
   const paginatedJobs = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredJobs.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredJobs, currentPage]);
+    return shownJobs.slice(start, start + ITEMS_PER_PAGE);
+  }, [shownJobs, currentPage]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-16 relative">
@@ -137,7 +166,7 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
             <div className="lg:col-span-6 space-y-4">
               {/* Toolbar: Results Count, Sort & View Switcher */}
               <JobsToolbar
-                totalCount={filteredJobs.length}
+                totalCount={shownJobs.length}
                 sortBy={sortBy}
                 setSortBy={(sort) => {
                   setSortBy(sort as SortOption);
@@ -147,6 +176,13 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
                 setViewMode={setViewMode}
                 onOpenMobileFilters={() => setIsMobileFilterOpen(true)}
               />
+
+              {showingClosest && (
+                <div className="bg-[#FFF7ED] border border-[#FED7AA] rounded-2xl px-4 py-3 text-xs text-[#475569]">
+                  <span className="font-extrabold text-[#0F172A]">No exact match for “{searchQuery.trim()}”.</span>{" "}
+                  Showing the closest {closestJobs.length === 1 ? "result" : "results"} instead.
+                </div>
+              )}
 
               {/* Results Grid / List */}
               {paginatedJobs.length > 0 ? (
@@ -193,7 +229,7 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
               )}
 
               {/* Dynamic Pagination Controls */}
-              {filteredJobs.length > 0 && (
+              {shownJobs.length > 0 && (
                 <JobsPagination
                   currentPage={currentPage}
                   totalPages={totalPages}
@@ -245,7 +281,7 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
                 size="md"
                 className="w-full font-bold text-sm cursor-pointer"
               >
-                Apply Filters ({filteredJobs.length} Results)
+                Apply Filters ({shownJobs.length} Results)
               </Button>
             </div>
           </div>
@@ -255,10 +291,17 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
   );
 }
 
+// The search box and filters start from the URL. Keying on it means a link to
+// /jobs?q=… or /jobs?category=… clicked while already on this page applies too.
+function JobsPageForUrl({ opportunities }: JobsPageClientProps) {
+  const searchParams = useSearchParams();
+  return <JobsPageContent key={searchParams.toString()} opportunities={opportunities} />;
+}
+
 export default function JobsPageClient({ opportunities }: JobsPageClientProps) {
   return (
     <Suspense fallback={<div className="p-8 text-center text-xs text-slate-400">Loading Jobs Marketplace...</div>}>
-      <JobsPageContent opportunities={opportunities} />
+      <JobsPageForUrl opportunities={opportunities} />
     </Suspense>
   );
 }

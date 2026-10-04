@@ -55,8 +55,8 @@ export const JobsToolbar: React.FC<JobsToolbarProps> = ({
             className="h-8 pl-2.5 pr-7 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/20 appearance-none cursor-pointer"
           >
             <option value="latest">Latest</option>
-            <option value="closing-soon">Closing Soon</option>
-            <option value="vacancies-high">Vacancies (High to Low)</option>
+            <option value="deadline">Closing Soon</option>
+            <option value="vacancies">Vacancies (High to Low)</option>
           </select>
         </div>
 

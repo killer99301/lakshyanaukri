@@ -77,40 +77,6 @@ export function getFilterCounts(
 
 // ─── Text Search ────────────────────────────────────────
 
-/**
- * Substring match search across relevant text fields.
- * Searches title, organization, description, category, state, and notification number.
- */
-export function textSearch(
-  opportunities: Opportunity[],
-  query: string
-): Opportunity[] {
-  const words = searchWords(query);
-  if (words.length === 0) return opportunities;
-
-  return opportunities.filter((opp) => {
-    const gov = opp.type === "government" ? (opp as GovernmentRecruitment) : null;
-    const searchable = searchText(
-      [
-        opp.title,
-        opp.organizationName,
-        opp.organizationId,
-        opp.slug,
-        opp.shortDescription,
-        opp.category,
-        opp.state,
-        opp.qualification,
-        gov?.notificationNumber,
-        gov?.govType,
-        ...(gov?.eligibility ?? []),
-      ].join(" "),
-    );
-    // Every word must start a word in the text, in any order: "chsl 2026" finds
-    // "SSC CHSL (Combined Higher Secondary Level) Examination 2026".
-    return words.every((w) => searchable.includes(` ${w}`));
-  });
-}
-
 /** Lower-case, with punctuation turned into spaces, so "10+2", "(CHSL)" and "po/mt" match plain typing. */
 function searchText(text: string): string {
   return ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
@@ -119,15 +85,111 @@ function searchText(text: string): string {
 // Words people add to a search that say nothing about which job they mean.
 const SEARCH_FILLER = new Set([
   "job", "jobs", "recruitment", "vacancy", "vacancies", "notification", "bharti",
-  "exam", "examination", "apply", "online", "form", "latest", "new",
-  "govt", "government", "sarkari", "naukri", "for", "in", "of", "the", "and",
+  "exam", "examination", "apply", "online", "form", "latest", "new", "posts",
+  "govt", "government", "sarkari", "naukri", "for", "in", "of", "the", "and", "to", "a",
+  "last", "date", "dates", "admit", "card", "result", "results", "syllabus", "salary",
+  "eligibility", "age", "limit", "fee", "fees", "how", "link", "official", "pdf",
+  "download", "details", "what", "when", "is",
 ]);
+
+// Other ways people write the same thing. Each entry adds to the typed word.
+const SEARCH_SYNONYMS: Record<string, string[]> = {
+  matric: ["10th"], matriculation: ["10th"], sslc: ["10th"], tenth: ["10th"],
+  inter: ["12th"], intermediate: ["12th"], hsc: ["12th"], twelfth: ["12th"],
+  graduation: ["graduate"], degree: ["graduate"], bachelor: ["graduate"],
+  pg: ["post graduate"], postgraduate: ["post graduate"], masters: ["post graduate"],
+  teacher: ["teaching"], teachers: ["teaching"],
+  police: ["defence"], army: ["defence"], navy: ["defence"], airforce: ["defence"], defense: ["defence"],
+  bank: ["banking"], rail: ["railway"], railways: ["railway"],
+  psc: ["state psc"], central: ["central govt"],
+};
 
 /** The words a query is matched on. Filler is dropped unless nothing else is left. */
 export function searchWords(query: string): string[] {
   const all = searchText(query).trim().split(" ").filter(Boolean);
   const meaningful = all.filter((w) => !SEARCH_FILLER.has(w));
   return meaningful.length > 0 ? meaningful : all;
+}
+
+/** True when the two words differ by one typed, missing, extra or swapped letter. */
+function oneTypoApart(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  const restA = a.slice(i), restB = b.slice(i);
+  if (restA.length === restB.length) {
+    // One letter replaced, or two neighbours swapped.
+    return restA.slice(1) === restB.slice(1) ||
+      (restA.length >= 2 && restA[0] === restB[1] && restA[1] === restB[0] && restA.slice(2) === restB.slice(2));
+  }
+  return restA.length > restB.length ? restA.slice(1) === restB : restB.slice(1) === restA;
+}
+
+function jobSearchText(opp: Opportunity): string {
+  const gov = opp.type === "government" ? (opp as GovernmentRecruitment) : null;
+  return searchText(
+    [
+      opp.title,
+      opp.organizationName,
+      opp.organizationId,
+      opp.slug,
+      opp.shortDescription,
+      opp.category,
+      opp.state,
+      opp.qualification,
+      gov?.notificationNumber,
+      gov?.govType,
+      ...(gov?.eligibility ?? []),
+    ].join(" "),
+  );
+}
+
+/** Whether one typed word is found in a job's text: as typed, singular, a known synonym, or one typo off. */
+function wordFound(word: string, text: string): boolean {
+  if (text.includes(` ${word}`)) return true;
+  if (word.length > 3 && word.endsWith("s") && text.includes(` ${word.slice(0, -1)}`)) return true;
+  if ((SEARCH_SYNONYMS[word] ?? []).some((alt) => text.includes(` ${alt}`))) return true;
+  // Typos are forgiven only on longer words, and never on numbers ("2025" is not "2026").
+  if (word.length >= 5 && !/\d/.test(word)) {
+    return text.split(" ").some((token) => token.length >= 4 && oneTypoApart(word, token));
+  }
+  return false;
+}
+
+/**
+ * Jobs matching every word of the query, in any order: "chsl 2026" finds
+ * "SSC CHSL (Combined Higher Secondary Level) Examination 2026".
+ */
+export function textSearch(
+  opportunities: Opportunity[],
+  query: string
+): Opportunity[] {
+  const words = searchWords(query);
+  if (words.length === 0) return opportunities;
+  return opportunities.filter((opp) => {
+    const text = jobSearchText(opp);
+    return words.every((w) => wordFound(w, text));
+  });
+}
+
+/**
+ * For a query with no full match: the jobs matching the most of its words.
+ * A job must match at least one word that is not just a number, so a bare
+ * year never pulls in everything.
+ */
+export function closestMatches(opportunities: Opportunity[], query: string): Opportunity[] {
+  const words = searchWords(query);
+  if (words.length < 2) return [];
+  let best = 0;
+  const scored = opportunities.map((opp) => {
+    const text = jobSearchText(opp);
+    const hits = words.filter((w) => wordFound(w, text));
+    const score = hits.some((w) => !/^\d+$/.test(w)) ? hits.length : 0;
+    if (score > best) best = score;
+    return { opp, score };
+  });
+  return best === 0 ? [] : scored.filter((s) => s.score === best).map((s) => s.opp);
 }
 
 // ─── Location Filter ────────────────────────────────────

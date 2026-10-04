@@ -13,7 +13,7 @@
 
 import { suite, test, assert } from "../intelligence/suite";
 import type { Opportunity } from "@/types";
-import { textSearch, searchWords } from "@/lib/filters";
+import { textSearch, searchWords, closestMatches, sortOpportunities, type SortOption } from "@/lib/filters";
 
 const job = (o: Record<string, unknown>): Opportunity =>
   ({ type: "government", shortDescription: "", category: "government", state: "All India", qualification: "", ...o }) as unknown as Opportunity;
@@ -75,9 +75,52 @@ test("PS04 a word that appears nowhere excludes the job", () => {
   assert.deepEqual(found("railway"), []);
 });
 
+test("PS06 plurals, common synonyms and single typos still find the job", () => {
+  assert.deepEqual(found("clerks"), [CHSL.slug]);
+  assert.deepEqual(found("bank jobs"), [IBPS.slug]);
+  assert.deepEqual(found("inter pass"), [CHSL.slug]);
+  assert.deepEqual(found("intermediate"), [CHSL.slug]);
+  assert.deepEqual(found("graduation"), [IBPS.slug]);
+  assert.deepEqual(found("secratariat"), [CHSL.slug]);   // one letter wrong
+  assert.deepEqual(found("bankng"), [IBPS.slug]);        // one letter missing
+  assert.deepEqual(found("selcetion"), [CHSL.slug, IBPS.slug]); // two letters swapped
+  // Short words and numbers are never fuzzy-matched.
+  assert.deepEqual(found("chsk"), []);
+  assert.deepEqual(found("2027"), []);
+});
+
+test("PS07 questions about a job still find it", () => {
+  assert.deepEqual(found("ssc chsl 2026 last date"), [CHSL.slug]);
+  assert.deepEqual(found("chsl admit card"), [CHSL.slug]);
+  assert.deepEqual(found("ibps po salary"), [IBPS.slug]);
+  assert.deepEqual(found("how to apply for ssc chsl"), [CHSL.slug]);
+});
+
+test("PS08 closest matches: offered only when nothing matches fully, never on a year alone", () => {
+  const closest = (q: string) => closestMatches(ALL, q).map((o) => o.slug);
+  assert.deepEqual(found("ssc chsl 2025"), []);
+  assert.deepEqual(closest("ssc chsl 2025"), [CHSL.slug]);
+  assert.deepEqual(closest("ibps clerk"), [CHSL.slug, IBPS.slug]); // one word each
+  assert.deepEqual(closest("railway 2026"), []);                  // only the year matches
+  assert.deepEqual(closest("railway"), []);                       // single word: no fallback
+  assert.deepEqual(closest("tcs infosys"), []);
+});
+
 test("PS05 post names, organisation id and slug are searchable", () => {
   assert.deepEqual(found("ldc"), [CHSL.slug]);
   assert.deepEqual(found("junior secretariat assistant"), [CHSL.slug]);
   assert.deepEqual(found("central govt clerk"), [CHSL.slug]);
   assert.deepEqual(found("higher secondary"), [CHSL.slug]);
+});
+
+suite("Sorting (the options the Sort by dropdown sends)");
+
+test("PS09 deadline puts open jobs first by urgency; vacancies sorts high to low", () => {
+  const now = new Date("2026-10-04T00:00:00Z");
+  const a = job({ slug: "a", title: "A", totalVacancies: 100, application: { closeDate: "2026-10-20" } });
+  const b = job({ slug: "b", title: "B", totalVacancies: 5000, application: { closeDate: "2026-10-07" } });
+  const c = job({ slug: "c", title: "C", totalVacancies: 900, application: { closeDate: "2026-09-01" } });
+  const order = (sort: SortOption) => sortOpportunities([a, b, c], sort, now).map((o) => o.slug);
+  assert.deepEqual(order("deadline"), ["b", "a", "c"]);
+  assert.deepEqual(order("vacancies"), ["b", "c", "a"]);
 });
