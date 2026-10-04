@@ -345,7 +345,10 @@ export const CareerOrbitCenterpiece: React.FC<{ opportunities?: Opportunity[] }>
         </div>
 
         {/* Circular Hub + Orbiting Nodes Layout (Desktop Real-DOM SVG Geometry & Idle Motion) */}
-        <div className="max-w-5xl mx-auto relative min-h-[480px]">
+        {/* On desktop the height comes from the card columns, so the hub's
+            vertical centre is the cards' centre. A fixed height here left the
+            hub sitting below them. */}
+        <div className="max-w-5xl mx-auto relative min-h-[480px] lg:min-h-0 lg:py-8">
           {/* Real DOM SVG Connector Layer (Absolute inset-0, sits behind Hub & Cards) */}
           <svg
             ref={svgRef}
