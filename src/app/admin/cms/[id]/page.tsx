@@ -708,11 +708,157 @@ const DATE_FIELDS: Array<{ key: keyof RecruitmentRecord["dates"]; label: string 
 
 // ─── Main page ────────────────────────────────────────────
 
-const SECTIONS = [
-  "Identity", "Status", "Dates", "Vacancies", "Eligibility", "Age",
-  "Financial", "Selection", "Exam Stages", "How to Apply", "Links", "Documents",
-  "Updates", "Conditions", "Evidence", "Conflicts", "Revisions",
-] as const;
+// Section keys are what the page switches on; labels are what the admin reads.
+const SECTION_GROUPS: Array<{ group: string; items: Array<{ key: string; label: string }> }> = [
+  { group: "The job", items: [
+    { key: "Identity",     label: "Basic info" },
+    { key: "Dates",        label: "Important dates" },
+    { key: "Vacancies",    label: "Vacancies" },
+    { key: "Eligibility",  label: "Eligibility" },
+    { key: "Age",          label: "Age limit" },
+    { key: "Financial",    label: "Fees & pay" },
+  ] },
+  { group: "Selection & applying", items: [
+    { key: "Selection",    label: "Selection process" },
+    { key: "Exam Stages",  label: "Exam stages" },
+    { key: "How to Apply", label: "How to apply" },
+    { key: "Links",        label: "Links" },
+    { key: "Documents",    label: "Documents" },
+  ] },
+  { group: "After publishing", items: [
+    { key: "Status",       label: "Recruitment status" },
+    { key: "Updates",      label: "Official updates" },
+    { key: "Conditions",   label: "Special conditions" },
+  ] },
+  { group: "Records", items: [
+    { key: "Evidence",     label: "Sources" },
+    { key: "Conflicts",    label: "Conflicts" },
+    { key: "Revisions",    label: "Change history" },
+  ] },
+];
+
+type Fill = "filled" | "partial" | "empty";
+
+const hasValue = (f: { value: unknown } | null | undefined): boolean => {
+  const v = f?.value;
+  if (v === null || v === undefined || v === "") return false;
+  return !(Array.isArray(v) && v.length === 0);
+};
+
+/** How complete a section is, or null where "complete" has no meaning. */
+function sectionFill(record: RecruitmentRecord, key: string): Fill | null {
+  const one = (ok: boolean): Fill => (ok ? "filled" : "empty");
+  switch (key) {
+    case "Identity": {
+      const c = record.classification ?? {};
+      return c.qualification && c.shortDescription ? "filled" : "partial";
+    }
+    case "Dates": {
+      if (hasValue(record.dates.applicationCloseDate)) return "filled";
+      return Object.values(record.dates as unknown as Record<string, { value: unknown } | undefined>).some(hasValue) ? "partial" : "empty";
+    }
+    case "Vacancies":    return one(hasValue(record.vacancies.total));
+    case "Eligibility":  return one(hasValue(record.eligibility));
+    case "Age":          return one(hasValue(record.age));
+    case "Financial":    return one(hasValue(record.financial.feeGeneral));
+    case "Selection":    return one(hasValue(record.selection));
+    case "Exam Stages":  return one((record.examStages ?? []).length > 0);
+    case "How to Apply": return one((record.howToApply ?? []).length > 0);
+    case "Links":
+      if (record.links.some((l) => l.official)) return "filled";
+      return record.links.length > 0 ? "partial" : "empty";
+    case "Documents":    return one(record.documents.length > 0);
+    default:             return null;
+  }
+}
+
+const FILL_COLORS: Record<Fill, string> = { filled: C.green, partial: C.amber, empty: "#30363d" };
+const FILL_TITLES: Record<Fill, string> = { filled: "Filled", partial: "Partly filled", empty: "Empty" };
+
+const STATE_INFO: Record<string, { label: string; note: string }> = {
+  DRAFT:     { label: "Draft",     note: "Not visible to the public" },
+  APPROVED:  { label: "Approved",  note: "Ready to publish — not yet public" },
+  PUBLISHED: { label: "Published", note: "Live on the website" },
+  ARCHIVED:  { label: "Archived",  note: "Removed from the website" },
+};
+
+// ─── Publish checklist ────────────────────────────────────
+
+function countPending(record: RecruitmentRecord): number {
+  const fields: Array<{ value: unknown; status?: string } | null | undefined> = [
+    record.identity.notificationNumber,
+    ...Object.values(record.dates as unknown as Record<string, { value: unknown; status?: string } | undefined>),
+    record.vacancies.total,
+    record.vacancies.breakdown,
+    ...Object.values(record.financial as unknown as Record<string, { value: unknown; status?: string } | undefined>),
+    record.eligibility,
+    record.age,
+    record.selection,
+  ];
+  return fields.filter((f) => f && typeof f === "object" && hasValue(f) && f.status === "PENDING").length;
+}
+
+function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJump: (section: string) => void }) {
+  const items: Array<{ label: string; section: string; done: boolean; required?: boolean }> = [
+    { label: "Official link",    section: "Links",        done: record.links.some((l) => l.official), required: true },
+    { label: "Last date",        section: "Dates",        done: hasValue(record.dates.applicationCloseDate) },
+    { label: "Vacancies",        section: "Vacancies",    done: hasValue(record.vacancies.total) },
+    { label: "Eligibility",      section: "Eligibility",  done: hasValue(record.eligibility) },
+    { label: "Age limit",        section: "Age",          done: hasValue(record.age) },
+    { label: "Application fee",  section: "Financial",    done: hasValue(record.financial.feeGeneral) },
+    { label: "Selection process", section: "Selection",   done: hasValue(record.selection) },
+    { label: "How to apply",     section: "How to Apply", done: (record.howToApply ?? []).length > 0 },
+    { label: "Listing details",  section: "Identity",     done: sectionFill(record, "Identity") === "filled" },
+  ];
+  const done = items.filter((i) => i.done).length;
+  const blocked = !items[0].done;
+  const pending = countPending(record);
+  const pct = Math.round((done / items.length) * 100);
+
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 18px", marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
+          {blocked ? "Not ready to publish yet" : done === items.length ? "Ready to publish" : "Can be published — some details are still empty"}
+        </div>
+        <div style={{ fontSize: 12, color: C.muted }}>{done} of {items.length} filled</div>
+      </div>
+      <div style={{ height: 6, background: "#0d1117", borderRadius: 999, marginTop: 10, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: blocked ? C.amber : C.green, borderRadius: 999, transition: "width 0.2s" }} />
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+        {items.map((i) => (
+          <button
+            key={i.label}
+            onClick={() => onJump(i.section)}
+            title={i.done ? "Filled — click to open" : "Empty — click to fill"}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "4px 10px", borderRadius: 999, fontSize: 12, cursor: "pointer",
+              background: i.done ? C.green + "14" : i.required ? C.red + "18" : "transparent",
+              color: i.done ? C.green : i.required ? C.red : C.muted,
+              border: `1px solid ${i.done ? C.green + "44" : i.required ? C.red + "66" : C.border}`,
+              fontWeight: i.done ? 500 : 600,
+            }}
+          >
+            <span aria-hidden>{i.done ? "✓" : "○"}</span>
+            {i.label}{i.required && !i.done ? " (required)" : ""}
+          </button>
+        ))}
+      </div>
+      {blocked && (
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>
+          Publishing needs at least one link marked official. Open <b style={{ color: C.text }}>Links</b>, or run AI Assist and click “Add as official link”.
+        </div>
+      )}
+      {pending > 0 && (
+        <div style={{ fontSize: 12, color: C.amber, marginTop: 8, lineHeight: 1.5 }}>
+          {pending} value{pending === 1 ? " is" : "s are"} marked Pending — check {pending === 1 ? "it" : "them"} against the official notification before publishing.
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CmsRecordEditorPage() {
   const params = useParams<{ id: string }>();
@@ -938,59 +1084,74 @@ export default function CmsRecordEditorPage() {
   return (
     <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
       {/* ── Left: section nav ── */}
-      <div style={{ width: 160, flexShrink: 0 }}>
+      <div style={{
+        width: 208, flexShrink: 0, position: "sticky", top: 68,
+        display: "flex", flexDirection: "column",
+        maxHeight: "calc(100vh - 84px)", overflowY: "auto",
+      }}>
+        {/* Shown below the actions, which come later in the markup. */}
         <div style={{
           background: C.surface,
           border: `1px solid ${C.border}`,
-          borderRadius: 8,
+          borderRadius: 10,
           overflow: "hidden",
-          marginBottom: 12,
+          flexShrink: 0,
+          order: 2,
+          marginTop: 12,
         }}>
-          {/* Record header */}
-          <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 4, lineHeight: 1.4 }}>
-              {record.identity.title.value ?? record.slug}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{
-                display: "inline-block",
-                padding: "1px 6px",
-                borderRadius: 4,
-                fontSize: 10,
-                fontWeight: 700,
-                background: stateColor + "22",
-                color: stateColor,
-                border: `1px solid ${stateColor}44`,
-              }}>
-                {record.draftState}
-              </span>
-            </div>
-          </div>
-
           {/* Section tabs */}
-          <nav>
-            {SECTIONS.map((s) => (
-              <button
-                key={s}
-                onClick={() => setActiveSection(s)}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "8px 14px",
-                  background: activeSection === s ? "#1f2937" : "transparent",
-                  border: "none",
-                  borderLeft: activeSection === s ? `2px solid ${C.accent}` : "2px solid transparent",
-                  color: activeSection === s ? C.text : C.muted,
-                  fontSize: 12,
-                  fontWeight: activeSection === s ? 600 : 400,
-                  cursor: "pointer",
-                }}
-              >
-                {s}
-              </button>
+          <nav style={{ padding: "6px 0 8px" }}>
+            {SECTION_GROUPS.map((g) => (
+              <div key={g.group}>
+                <div style={{ padding: "10px 14px 4px", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#6e7681" }}>
+                  {g.group}
+                </div>
+                {g.items.map(({ key, label }) => {
+                  const active = activeSection === key;
+                  const fill = sectionFill(record, key);
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setActiveSection(key)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "7px 14px",
+                        background: active ? "#1f2937" : "transparent",
+                        border: "none",
+                        borderLeft: active ? `2px solid ${C.orange}` : "2px solid transparent",
+                        color: active ? C.text : "#adb5bd",
+                        fontSize: 13,
+                        fontWeight: active ? 600 : 400,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span>{label}</span>
+                      {fill && (
+                        <span
+                          title={FILL_TITLES[fill]}
+                          aria-label={FILL_TITLES[fill]}
+                          style={{ width: 8, height: 8, borderRadius: 999, background: FILL_COLORS[fill], flexShrink: 0 }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             ))}
           </nav>
+          <div style={{ display: "flex", gap: 10, padding: "8px 14px", borderTop: `1px solid ${C.border}`, fontSize: 10, color: C.muted }}>
+            {(["filled", "partial", "empty"] as Fill[]).map((f) => (
+              <span key={f} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: FILL_COLORS[f] }} />
+                {f === "filled" ? "Filled" : f === "partial" ? "Partly" : "Empty"}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* Actions */}
@@ -1044,7 +1205,7 @@ export default function CmsRecordEditorPage() {
               <div style={{ color: C.red, fontSize: 11, marginTop: 8 }}>{revertErr}</div>
             )}
             <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textAlign: "center" }}>
-              Returns to DRAFT — published snapshot preserved
+              The live page stays as it is until you publish again
             </div>
           </div>
         )}
@@ -1064,7 +1225,7 @@ export default function CmsRecordEditorPage() {
               cursor: "pointer",
             }}
           >
-            Preview
+            Preview public page
           </button>
           <button
             onClick={() => router.push("/admin/cms")}
@@ -1097,6 +1258,41 @@ export default function CmsRecordEditorPage() {
 
       {/* ── Right: section content ── */}
       <div style={{ flex: 1, minWidth: 0 }}>
+
+        {/* ── Record header ── */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: 0, lineHeight: 1.3 }}>
+              {record.identity.title.value ?? record.slug}
+            </h1>
+            <span style={{
+              padding: "2px 10px",
+              borderRadius: 999,
+              fontSize: 11,
+              fontWeight: 700,
+              background: stateColor + "22",
+              color: stateColor,
+              border: `1px solid ${stateColor}44`,
+            }}>
+              {STATE_INFO[record.draftState]?.label ?? record.draftState}
+            </span>
+          </div>
+          <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>
+            {record.identity.organizationName} · {STATE_INFO[record.draftState]?.note}
+            {record.draftState === "PUBLISHED" && (
+              <>
+                {" · "}
+                <a href={`/jobs/${record.slug}`} target="_blank" rel="noreferrer" style={{ color: C.accent, textDecoration: "none" }}>
+                  View live page ↗
+                </a>
+              </>
+            )}
+          </div>
+        </div>
+
+        {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
+          <PublishChecklist record={record} onJump={setActiveSection} />
+        )}
 
         {/* ── AI Assist panel (DRAFT / APPROVED only) ── */}
         {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (

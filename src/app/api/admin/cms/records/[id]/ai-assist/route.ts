@@ -258,7 +258,7 @@ export async function POST(
 
   // Listing details (header boxes and filters), derived from the record's own
   // facts once the fields above are in. Only empty sub-fields are filled.
-  const listing = deriveListingDetails(record);
+  const listing = deriveListingDetails(record, details.summary);
   if (listing.added.length > 0) {
     try {
       const result = routeFieldUpdate(

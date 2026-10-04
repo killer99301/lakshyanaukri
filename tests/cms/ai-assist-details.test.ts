@@ -17,6 +17,7 @@ import {
   extractOfficialLinks,
   qualificationLevel,
   deriveListingDetails,
+  summarySupported,
 } from "@/lib/cms/ai-assist-details";
 import { describeAiValue } from "@/lib/cms/ai-assist-apply";
 
@@ -250,6 +251,49 @@ test("LD03 nothing is guessed: state-level records get no location, unknown orga
   assert.equal(out.value.state, undefined);
   assert.equal(out.value.category, undefined);
   assert.equal(out.value.qualification, undefined);
+});
+
+const SUMMARY_RECORD = {
+  identity: { organizationId: "ssc", organizationName: "Staff Selection Commission", govType: "Central Govt", recruitmentYear: 2026, title: { value: "SSC CHSL Examination 2026" } },
+  eligibility: { value: [{ post: "LDC", qualification: ["12th Standard pass"] }] },
+  dates: { applicationOpenDate: { value: "2026-09-07" }, applicationCloseDate: { value: "2026-10-07" } },
+  vacancies: { total: { value: 2536 } },
+  financial: { feeGeneral: { value: 100 } },
+  age: { value: { min: 18, max: 27, relaxations: [] } },
+};
+
+test("LD04 AI-written summary is used only when every number and month is already on the record", () => {
+  const good = "SSC CHSL 2026 recruitment for 2,536 LDC, JSA and DEO posts. 12th pass candidates aged 18 to 27 may apply online till 7 October 2026.";
+  assert.equal(summarySupported(good, SUMMARY_RECORD), true);
+  const out = deriveListingDetails(SUMMARY_RECORD, good);
+  assert.equal(out.value.shortDescription, good);
+  assert.ok(out.added.some((a) => a.startsWith("Short description (AI-written")));
+
+  // Wrong vacancy count, wrong month, an invented number: each falls back to the standard wording.
+  for (const bad of [
+    "SSC CHSL 2026 recruitment for 3,131 LDC, JSA and DEO posts. 12th pass candidates may apply online till 7 October 2026.",
+    "SSC CHSL 2026 recruitment for 2,536 posts. 12th pass candidates may apply online till 7 November 2026 on the website.",
+    "SSC CHSL 2026 recruitment for 2,536 posts with salary up to Rs. 81,100 per month. Apply online before the last date.",
+  ]) {
+    assert.equal(summarySupported(bad, SUMMARY_RECORD), false, bad);
+    const fb = deriveListingDetails(SUMMARY_RECORD, bad);
+    assert.ok(fb.value.shortDescription?.includes("recruitment by Staff Selection Commission"));
+    assert.ok(fb.added.some((a) => a.startsWith("Short description (standard wording)")));
+  }
+});
+
+test("LD05 promotional wording, links, and too-short or too-long text are refused; existing text is kept", () => {
+  assert.equal(summarySupported("Hurry! Golden chance for 12th pass candidates to join SSC CHSL 2026 as LDC, JSA or DEO.", SUMMARY_RECORD), false);
+  assert.equal(summarySupported("SSC CHSL 2026 recruitment for LDC, JSA and DEO posts. Apply at https://ssc.gov.in before the date.", SUMMARY_RECORD), false);
+  assert.equal(summarySupported("SSC CHSL 2026.", SUMMARY_RECORD), false);
+  assert.equal(summarySupported("SSC CHSL 2026 recruitment. " + "x".repeat(260), SUMMARY_RECORD), false);
+  assert.equal(summarySupported(null, SUMMARY_RECORD), false);
+  // "may apply" is not the month of May.
+  assert.equal(summarySupported("SSC CHSL 2026 recruitment for LDC, JSA and DEO posts. Candidates who have passed 12th may apply online.", SUMMARY_RECORD), true);
+  assert.equal(summarySupported("SSC CHSL 2026 recruitment for LDC, JSA and DEO posts. 12th pass candidates apply online till 7 May 2026.", SUMMARY_RECORD), false);
+
+  const kept = deriveListingDetails({ ...SUMMARY_RECORD, classification: { shortDescription: "Mine" } }, "SSC CHSL 2026 recruitment for LDC, JSA and DEO posts. Candidates who have passed 12th may apply online.");
+  assert.equal(kept.value.shortDescription, "Mine");
 });
 
 suite("Readable values in the editor");

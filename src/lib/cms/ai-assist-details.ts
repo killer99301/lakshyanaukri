@@ -128,7 +128,8 @@ Every "evidence" is a verbatim quote (10–200 characters) copied from the text 
     "stages": [ { "name": "Tier 1", "type": "CBT|WRITTEN|SKILL_TEST|INTERVIEW|DOCUMENT_VERIFICATION|PHYSICAL|OTHER", "summary": "e.g. 100 questions, 200 marks, 60 minutes", "evidence": "..." } ],
     "negativeMarking": { "value": "e.g. 0.50 marks per wrong answer", "evidence": "..." }
   },
-  "payScale": { "value": "e.g. Pay Level 2 (Rs. 19,900 – 63,200)", "evidence": "..." }
+  "payScale": { "value": "e.g. Pay Level 2 (Rs. 19,900 – 63,200)", "evidence": "..." },
+  "summary": "one plain sentence for a job listing"
 }
 
 Rules:
@@ -136,7 +137,8 @@ Rules:
 2. "howToApply": at most 8 steps, in order.
 3. "eligibility": one item per post or group of posts, at most 12.
 4. "selection.stages": in the order candidates go through them. "summary" is optional.
-5. Numbers must be exactly as written in the text.`;
+5. Numbers must be exactly as written in the text.
+6. "summary": ONE or TWO plain sentences, 80–220 characters, for a job listing: what the recruitment is, the posts, who can apply and the last date to apply, as far as the text states them. Factual and neutral — no advice, no praise, no "hurry", no exclamation marks.`;
 }
 
 // ─── Verification ─────────────────────────────────────────
@@ -302,6 +304,8 @@ export interface DetailExtraction {
   eligibility: DetailOutcome<CmsRecruitmentPost[]>;
   selection: DetailOutcome<CmsSelectionInformation>;
   payScale: DetailOutcome<string>;
+  /** Unchecked listing sentence written by the model; see summarySupported. */
+  summary: string | null;
 }
 
 /** One AI request for the longer sections. Never throws. */
@@ -321,6 +325,7 @@ export async function extractDetails(opts: {
     eligibility: all({ status: "skipped", reason }),
     selection: all({ status: "skipped", reason }),
     payScale: all({ status: "skipped", reason }),
+    summary: null,
   });
   if (opts.sections.length === 0) return skipped("nothing relevant found in the source");
 
@@ -335,10 +340,11 @@ export async function extractDetails(opts: {
     eligibility: judgeEligibility(raw.eligibility, ev),
     selection: judgeSelection(raw.selection, ev),
     payScale: judgePayScale(raw.payScale, ev),
+    summary: str(raw.summary, 300),
   };
 }
 
-export const DETAIL_FIELDS: Array<{ key: keyof DetailExtraction; fieldPath: string; label: string }> = [
+export const DETAIL_FIELDS: Array<{ key: Exclude<keyof DetailExtraction, "summary">; fieldPath: string; label: string }> = [
   { key: "eligibility", fieldPath: "eligibility",        label: "Post-wise Eligibility" },
   { key: "age",         fieldPath: "age",                label: "Age Limit" },
   { key: "selection",   fieldPath: "selection",          label: "Selection Process" },
@@ -381,11 +387,61 @@ export interface ListingDetails {
   qualification?: string;
 }
 
-export function deriveListingDetails(record: {
-  identity: { organizationId: string; organizationName: string; govType?: string; title: { value: string | null } };
+type Val = { value: unknown } | null | undefined;
+
+/** The parts of a record a listing sentence may draw on. */
+export interface ListingSource {
+  identity: { organizationId: string; organizationName: string; govType?: string; recruitmentYear?: number; title: { value: string | null } };
   eligibility?: { value: CmsRecruitmentPost[] | null } | null;
   classification?: ListingDetails | null;
-}): { value: ListingDetails; added: string[] } {
+  dates?: Record<string, Val> | object;
+  vacancies?: { total?: Val };
+  financial?: Record<string, Val> | object;
+  age?: Val;
+}
+
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+const SUMMARY_BANNED_RE = /https?:|www\.|!|\b(?:hurry|best|golden|great|excellent|don'?t miss|guaranteed|dream)\b/i;
+
+/**
+ * A model-written listing sentence is kept only if it invents nothing: every
+ * number in it is already a value on the record, and every month it names is
+ * the month of one of the record's dates.
+ */
+export function summarySupported(summary: string | null | undefined, record: ListingSource): summary is string {
+  if (!summary) return false;
+  const text = summary.replace(/\s+/g, " ").trim();
+  if (text.length < 60 || text.length > 260 || SUMMARY_BANNED_RE.test(text)) return false;
+
+  const vals = (group: unknown): unknown[] =>
+    Object.values((group ?? {}) as Record<string, Val>).map((f) => (f && typeof f === "object" ? f.value : null));
+  const dateValues = vals(record.dates).filter((v): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v));
+  const facts = JSON.stringify([
+    record.identity.title.value,
+    record.identity.recruitmentYear,
+    dateValues,
+    record.vacancies?.total?.value,
+    vals(record.financial),
+    record.age?.value,
+    record.eligibility?.value,
+    record.classification?.qualification,
+  ]);
+  const known = new Set(numbersIn(facts));
+  if (!numbersIn(text).every((n) => known.has(n))) return false;
+
+  const months = new Set(dateValues.map((d) => MONTHS[Number(d.slice(5, 7)) - 1]));
+  const lower = text.toLowerCase();
+  // "may" counts as a month only next to a number ("7 May", "May 2026"), not in "may apply".
+  const named = (m: string) =>
+    m === "may" ? /\d(?:st|nd|rd|th)?\s+may\b(?!\s+[a-z])|\bmay\s+\d/.test(lower) : new RegExp(`\\b${m}\\b`).test(lower);
+  return MONTHS.every((m) => !named(m) || months.has(m));
+}
+
+export function deriveListingDetails(
+  record: ListingSource,
+  /** Listing sentence written by the model, if any. Used only when it passes summarySupported. */
+  aiSummary?: string | null,
+): { value: ListingDetails; added: string[] } {
   const current = record.classification ?? {};
   const value: ListingDetails = { ...current };
   const added: string[] = [];
@@ -406,10 +462,16 @@ export function deriveListingDetails(record: {
     value.state = "All India";
     added.push("Location: All India");
   }
-  // A neutral line with nothing in it that can go out of date.
-  if (!current.shortDescription && record.identity.title.value) {
-    value.shortDescription = `${record.identity.title.value} — recruitment by ${record.identity.organizationName}. Check eligibility, important dates, application fee and how to apply.`.slice(0, 300);
-    added.push("Short description");
+  if (!current.shortDescription) {
+    // Qualification derived above counts as a record fact for the check.
+    if (summarySupported(aiSummary, { ...record, classification: value })) {
+      value.shortDescription = aiSummary.replace(/\s+/g, " ").trim();
+      added.push(`Short description (AI-written — read it before publishing): ${value.shortDescription}`);
+    } else if (record.identity.title.value) {
+      // A neutral line with nothing in it that can go out of date.
+      value.shortDescription = `${record.identity.title.value} — recruitment by ${record.identity.organizationName}. Check eligibility, important dates, application fee and how to apply.`.slice(0, 300);
+      added.push(`Short description (standard wording): ${value.shortDescription}`);
+    }
   }
   return { value, added };
 }
