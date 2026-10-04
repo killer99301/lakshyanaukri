@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { BrandMark } from "@/components/common/BrandMark";
 import { Mail, Heart } from "lucide-react";
 import { Container } from "../ui/Container";
 import { siteConfig } from "@/config/site";
@@ -12,21 +13,7 @@ export const Footer: React.FC = () => {
           {/* Brand Column */}
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-[#EA580C] flex items-center justify-center text-white shrink-0">
-                <svg
-                  className="h-4.5 w-4.5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                  <polyline points="2 17 12 22 22 17" />
-                  <polyline points="2 12 12 17 22 12" />
-                </svg>
-              </div>
+              <BrandMark className="h-8 w-8 shrink-0 rounded-lg border border-[#FED7AA]" />
               <span className="text-lg font-black tracking-tight text-[#0F172A]">
                 LAKSHYA<span className="text-[#EA580C]">NAUKRI</span>
               </span>

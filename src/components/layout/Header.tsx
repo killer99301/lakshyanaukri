@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { BrandMark } from "@/components/common/BrandMark";
 import { Container } from "../ui/Container";
 import { Button } from "../ui/Button";
 import { MainNav } from "./MainNav";
@@ -12,21 +13,7 @@ export const Header: React.FC = () => {
       <Container className="flex h-16 items-center justify-between">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="h-9 w-9 rounded-lg bg-[#EA580C] flex items-center justify-center text-white shrink-0 transition-transform group-hover:scale-105 shadow-2xs">
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polygon points="12 2 2 7 12 12 22 7 12 2" />
-              <polyline points="2 17 12 22 22 17" />
-              <polyline points="2 12 12 17 22 12" />
-            </svg>
-          </div>
+          <BrandMark className="h-9 w-9 shrink-0 rounded-[10px] border border-[#FED7AA] transition-transform group-hover:scale-105 shadow-2xs" />
           <div className="flex flex-col">
             <span className="text-lg font-black tracking-tight text-[#0F172A] leading-tight">
               LAKSHYA<span className="text-[#EA580C]">NAUKRI</span>

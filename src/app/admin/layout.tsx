@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { BrandMark } from "@/components/common/BrandMark";
 
 const NAV = [
   { href: "/admin/cms",          label: "Jobs",         hint: "Create, edit and publish job records" },
@@ -43,13 +44,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           height: 56,
         }}>
           <Link href="/admin/cms" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-            <span style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: "linear-gradient(135deg, #f97316, #ea580c)",
-              color: "#fff", fontSize: 14, fontWeight: 800,
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-            }}>
-              L
+            <span style={{ width: 28, height: 28, display: "inline-flex" }}>
+              <BrandMark />
             </span>
             <span style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0" }}>
               LakshyaNaukri <span style={{ color: "#8b949e", fontWeight: 500 }}>Admin</span>
