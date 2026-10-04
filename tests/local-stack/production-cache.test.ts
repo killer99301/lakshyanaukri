@@ -65,6 +65,9 @@ const section = (s: string) => console.log(`\n── ${s}`);
   check("/jobs does not contain record B yet", !jobs.html.includes("CACHE TEST B"));
   const pre = await page(`/jobs/${B_SLUG}`);
   check("record B's future URL is 404 before publication (this 404 gets cached)", pre.status === 404, pre.status);
+  // The sitemap is fetched here so a cached copy exists before B is published.
+  const preSitemap = await page("/sitemap.xml");
+  check("sitemap is served and does not list B yet", preSitemap.status === 200 && !preSitemap.html.includes(B_SLUG));
 
   section("Old behaviour reproduced: publish WITHOUT cache refresh");
   // Route handlers called outside the Next runtime: the database changes, no revalidation happens.

@@ -99,6 +99,9 @@ export async function POST(
     let revalidated = true;
     try {
       revalidatePath("/", "layout");
+      // The sitemap is a route handler, not a page under the root layout, so
+      // it has to be named on its own.
+      revalidatePath("/sitemap.xml");
     } catch (err) {
       revalidated = false;
       console.error("[CMS] published, but public cache revalidation failed", err);

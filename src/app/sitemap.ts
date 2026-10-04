@@ -2,6 +2,9 @@ import { MetadataRoute } from "next";
 import { getAllVerifiedOpportunitiesWithCMS } from "@/lib/repository";
 import { siteConfig } from "@/config/site";
 
+// Refreshed on publish; this hourly limit is the fallback if that is ever missed.
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
   const opportunities = await getAllVerifiedOpportunitiesWithCMS();
