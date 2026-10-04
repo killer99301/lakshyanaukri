@@ -11,24 +11,13 @@ import { JobsToolbar } from "@/components/jobs/JobsToolbar";
 import { MarketplaceJobCard } from "@/components/jobs/MarketplaceJobCard";
 import { JobsRightSidebar, SIDEBAR_ORGANIZATIONS, type QuickLinkKind } from "@/components/jobs/JobsRightSidebar";
 import { JobsPagination } from "@/components/jobs/JobsPagination";
-import { searchOpportunities, closestMatches, textSearch, getDefaultFilterState, SortOption } from "@/lib/filters";
-import type { Opportunity, FilterState, Category, Qualification } from "@/types";
+import { searchOpportunities, closestMatches, textSearch, getDefaultFilterState, jobsUrlState, SortOption } from "@/lib/filters";
+import type { Opportunity, FilterState } from "@/types";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 
 const ITEMS_PER_PAGE = 10;
 
-// Values accepted from links such as /jobs?category=banking or /jobs?qualification=Graduate.
-const URL_CATEGORIES = ["state-psc", "ssc", "banking", "railway", "teaching", "defence", "government", "private", "internship"];
-const URL_QUALIFICATIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"];
-
-/** Accepts both "12th Pass" and the link form "12th-pass"; an engineering degree is listed under Graduate. */
-function qualificationFromUrl(raw: string | null): Qualification | null {
-  if (!raw) return null;
-  const wanted = raw.toLowerCase().replace(/-/g, " ").trim();
-  if (wanted === "be btech") return "Graduate" as Qualification;
-  return (URL_QUALIFICATIONS.find((q) => q.toLowerCase() === wanted) as Qualification | undefined) ?? null;
-}
 
 interface JobsPageClientProps {
   opportunities: Opportunity[];
@@ -50,15 +39,7 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
   // Filter State. Links elsewhere on the site open this page with a category
   // or qualification already chosen.
   const initialFilterState = getDefaultFilterState();
-  const [filters, setFilters] = useState<FilterState>(() => {
-    const category = searchParams.get("category");
-    const qualification = qualificationFromUrl(searchParams.get("qualification"));
-    return {
-      ...initialFilterState,
-      categories: category && URL_CATEGORIES.includes(category) ? [category as Category] : [],
-      qualifications: qualification ? [qualification] : [],
-    };
-  });
+  const [filters, setFilters] = useState<FilterState>(() => jobsUrlState(searchParams).filters);
 
   // Only suggest searches that currently lead somewhere.
   const popularTerms = useMemo(

@@ -206,9 +206,9 @@ export const HOMEPAGE_ANSWER_KEYS: AnswerKeyItem[] = [
 ];
 
 export const EXPLORE_CATEGORIES = [
-  { id: "central-govt", label: "Central Govt", iconName: "Building2", href: "/jobs?category=government" },
-  { id: "state-govt", label: "State Govt", iconName: "Landmark", href: "/jobs?category=state-psc" },
-  { id: "psu-jobs", label: "PSU Jobs", iconName: "Factory", href: "/jobs?category=government&type=psu" },
+  { id: "central-govt", label: "Central Govt", iconName: "Building2", href: "/jobs?q=Central%20Govt" },
+  { id: "state-govt", label: "State Govt", iconName: "Landmark", href: "/jobs?q=State%20Govt" },
+  { id: "psu-jobs", label: "PSU Jobs", iconName: "Factory", href: "/jobs?q=PSU" },
   { id: "banking", label: "Banking", iconName: "CreditCard", href: "/jobs?category=banking" },
   { id: "teaching", label: "Teaching", iconName: "BookOpen", href: "/jobs?category=teaching" },
   { id: "defence", label: "Defence", iconName: "Shield", href: "/jobs?category=defence" },

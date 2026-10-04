@@ -1,7 +1,7 @@
 "use client";
 // HomePageClient — interactive shell. Metadata is exported from page.tsx (server).
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -40,6 +40,8 @@ import {
   HOW_IT_HELPS_STEPS,
 } from "@/data/homepage";
 
+import { sortOpportunities, textSearch } from "@/lib/filters";
+
 interface HomePageClientProps {
   opportunities: Opportunity[];
 }
@@ -48,6 +50,14 @@ export default function HomePageClient({ opportunities }: HomePageClientProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All India");
+
+  // Newest additions lead the page; search chips are offered only if they find something.
+  const latestFirst = useMemo(() => sortOpportunities(opportunities, "latest", new Date()), [opportunities]);
+  const popularSearches = useMemo(
+    () => [...POPULAR_SEARCHES, "SSC CHSL", "Graduate"].filter((term) => textSearch(opportunities, term).length > 0).slice(0, 7),
+    [opportunities],
+  );
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -170,7 +180,7 @@ export default function HomePageClient({ opportunities }: HomePageClientProps) {
             {/* Popular Searches Chips */}
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
               <span className="text-[#475569] font-semibold">Popular Searches:</span>
-              {POPULAR_SEARCHES.map((term) => (
+              {popularSearches.map((term) => (
                 <button
                   key={term}
                   onClick={() => handlePopularSearchClick(term)}
@@ -201,7 +211,7 @@ export default function HomePageClient({ opportunities }: HomePageClientProps) {
 
             {/* Dynamic Infinite Scroll Ticker */}
             <div className="flex-1 overflow-hidden w-full">
-              <Ticker opportunities={opportunities} />
+              <Ticker opportunities={latestFirst} />
             </div>
 
             <Link href="/jobs" className="shrink-0 pr-1">
@@ -227,7 +237,7 @@ export default function HomePageClient({ opportunities }: HomePageClientProps) {
           />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-3.5">
-            {opportunities.slice(0, 3).map((job, idx) => (
+            {latestFirst.slice(0, 3).map((job, idx) => (
               <React.Fragment key={job.id}>
                 {idx === 0 ? (
                   <CursorTiltCard maxTiltDegrees={3}>
@@ -267,14 +277,14 @@ export default function HomePageClient({ opportunities }: HomePageClientProps) {
       {/* SECTION 5: EXPLORE OPPORTUNITIES (CAREER ORBIT CENTERPIECE) */}
       {/* ================================================== */}
       <RevealSection>
-        <CareerOrbitCenterpiece />
+        <CareerOrbitCenterpiece opportunities={opportunities} />
       </RevealSection>
 
       {/* ================================================== */}
       {/* SECTION 6: POPULAR ORGANIZATIONS (BRAND TILES) */}
       {/* ================================================== */}
       <RevealSection delayMs={100}>
-        <PopularOrganizationsBento />
+        <PopularOrganizationsBento opportunities={opportunities} />
       </RevealSection>
 
       {/* ================================================== */}

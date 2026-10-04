@@ -29,6 +29,8 @@ import {
   EXPLORE_QUALIFICATIONS,
   EXPLORE_ROLES,
 } from "@/data/homepage";
+import { jobsLinkCount } from "@/lib/filters";
+import type { Opportunity } from "@/types";
 import { cn } from "@/lib/utils";
 
 type TabType = "categories" | "states" | "qualifications" | "roles";
@@ -52,7 +54,7 @@ const IDLE_ANIMATIONS = [
   { duration: "7.8s", delay: "2.7s", auraDuration: "8.5s" },
 ];
 
-export const CareerOrbitCenterpiece: React.FC = () => {
+export const CareerOrbitCenterpiece: React.FC<{ opportunities?: Opportunity[] }> = ({ opportunities = [] }) => {
   const [activeTab, setActiveTab] = useState<TabType>("categories");
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isHubHovered, setIsHubHovered] = useState<boolean>(false);
@@ -182,7 +184,16 @@ export const CareerOrbitCenterpiece: React.FC = () => {
     }
   };
 
-  const activeItems = getActiveItems();
+  // Each tile says how many jobs it leads to. A tile with none is dimmed and
+  // opens the full list instead of an empty results page.
+  const now = new Date();
+  const activeItems = getActiveItems().map((item) => {
+    const count = jobsLinkCount(opportunities, item.href, now);
+    if (count === null) return { ...item, empty: false, counted: false };
+    return count > 0
+      ? { ...item, subtitle: `${count} ${count === 1 ? "job" : "jobs"}`, empty: false, counted: true }
+      : { ...item, subtitle: "No openings yet", href: "/jobs", empty: true, counted: false };
+  });
 
   // Pure DOM Geometry Calculation Engine: calculates exact intersections using real DOM bounding rects
   const calculateGeometries = useCallback(() => {
@@ -439,6 +450,7 @@ export const CareerOrbitCenterpiece: React.FC = () => {
                     <div
                       className={cn(
                         "bg-white border rounded-2xl p-3.5 transition-all duration-300 flex items-center gap-3",
+                        item.empty && "opacity-60",
                         isHovered
                           ? "border-[#EA580C] shadow-md shadow-orange-500/10 -translate-y-1 scale-[1.015]"
                           : isOtherHovered
@@ -453,7 +465,7 @@ export const CareerOrbitCenterpiece: React.FC = () => {
                         <h5 className="text-xs sm:text-sm font-extrabold text-[#0F172A] group-hover:text-[#EA580C] transition-colors truncate">
                           {item.label}
                         </h5>
-                        <span className="text-[10px] font-semibold text-[#475569] block truncate">
+                        <span className={cn("text-[10px] block truncate", item.counted ? "font-extrabold text-[#C2410C]" : "font-semibold text-[#475569]")}>
                           {item.subtitle}
                         </span>
                       </div>
@@ -496,6 +508,7 @@ export const CareerOrbitCenterpiece: React.FC = () => {
                     <div
                       className={cn(
                         "bg-white border rounded-2xl p-3.5 transition-all duration-300 flex items-center gap-3",
+                        item.empty && "opacity-60",
                         isHovered
                           ? "border-[#EA580C] shadow-md shadow-orange-500/10 -translate-y-1 scale-[1.015]"
                           : isOtherHovered
@@ -510,7 +523,7 @@ export const CareerOrbitCenterpiece: React.FC = () => {
                         <h5 className="text-xs sm:text-sm font-extrabold text-[#0F172A] group-hover:text-[#EA580C] transition-colors truncate">
                           {item.label}
                         </h5>
-                        <span className="text-[10px] font-semibold text-[#475569] block truncate">
+                        <span className={cn("text-[10px] block truncate", item.counted ? "font-extrabold text-[#C2410C]" : "font-semibold text-[#475569]")}>
                           {item.subtitle}
                         </span>
                       </div>
@@ -528,7 +541,7 @@ export const CareerOrbitCenterpiece: React.FC = () => {
           <div className="lg:hidden grid grid-cols-2 sm:grid-cols-4 gap-3">
             {activeItems.map((item) => (
               <Link key={item.id} href={item.href} className="group block">
-                <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3 shadow-2xs hover:border-[#FED7AA] hover:bg-[#FFF7ED]/40 transition-all duration-200 flex flex-col justify-between h-full space-y-2">
+                <div className={cn("bg-white border border-[#E2E8F0] rounded-2xl p-3 shadow-2xs hover:border-[#FED7AA] hover:bg-[#FFF7ED]/40 transition-all duration-200 flex flex-col justify-between h-full space-y-2", item.empty && "opacity-60")}>
                   <div className="h-9 w-9 rounded-xl bg-[#FFF7ED] border border-[#FED7AA]/60 flex items-center justify-center shrink-0">
                     {item.icon}
                   </div>
@@ -536,7 +549,7 @@ export const CareerOrbitCenterpiece: React.FC = () => {
                     <h5 className="text-xs font-extrabold text-[#0F172A] group-hover:text-[#EA580C] transition-colors truncate">
                       {item.label}
                     </h5>
-                    <span className="text-[10px] font-medium text-[#475569] block truncate">
+                    <span className={cn("text-[10px] block truncate", item.counted ? "font-extrabold text-[#C2410C]" : "font-medium text-[#475569]")}>
                       {item.subtitle}
                     </span>
                   </div>

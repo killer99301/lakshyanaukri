@@ -411,3 +411,39 @@ export function getDefaultFilterState(): FilterState {
     applicationStatuses: [],
   };
 }
+
+// ─── Links into /jobs ───────────────────────────────────
+//
+// /jobs?q=…&location=…&category=…&qualification=… — one reading of those
+// parameters, shared by the jobs page and by anything that shows how many jobs
+// a link leads to.
+
+const URL_CATEGORIES = ["state-psc", "ssc", "banking", "railway", "teaching", "defence", "government", "private", "internship"];
+const URL_QUALIFICATIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"];
+
+export interface JobsUrlState {
+  query: string;
+  location: string;
+  filters: FilterState;
+}
+
+export function jobsUrlState(params: { get(name: string): string | null }): JobsUrlState {
+  const filters = getDefaultFilterState();
+  const category = params.get("category");
+  if (category && URL_CATEGORIES.includes(category)) filters.categories = [category as FilterState["categories"][number]];
+
+  // Accepts both "12th Pass" and the link form "12th-pass"; an engineering degree is listed under Graduate.
+  const wanted = (params.get("qualification") ?? "").toLowerCase().replace(/-/g, " ").trim();
+  const qualification = wanted === "be btech" ? "Graduate" : URL_QUALIFICATIONS.find((q) => q.toLowerCase() === wanted);
+  if (qualification) filters.qualifications = [qualification as FilterState["qualifications"][number]];
+
+  return { query: params.get("q") || "", location: params.get("location") || "All India", filters };
+}
+
+/** How many jobs a /jobs?… link shows. Null for any other link (including plain /jobs). */
+export function jobsLinkCount(opportunities: Opportunity[], href: string, now: Date): number | null {
+  const [path, search] = href.split("?");
+  if (path !== "/jobs" || !search) return null;
+  const state = jobsUrlState(new URLSearchParams(search));
+  return searchOpportunities(opportunities, state.query, state.location, state.filters, "latest", now).length;
+}
