@@ -3,7 +3,6 @@
 import React from "react";
 import Link from "next/link";
 import { Badge } from "../ui/Badge";
-import { IMPORTANT_UPDATES } from "@/data/homepage";
 import { deriveStatusBadge, getVacancyDisplay } from "@/lib/lifecycle";
 import type { Opportunity } from "@/types";
 
@@ -22,16 +21,9 @@ interface TickerProps {
 export const Ticker: React.FC<TickerProps> = ({ opportunities = [] }) => {
   const now = new Date();
 
-  // Combine IMPORTANT_UPDATES with key notifications from canonical repository
+  // Built from the jobs themselves, so it can never drift from what the job pages say.
   const items: TickerItem[] = [
-    ...IMPORTANT_UPDATES.map((up) => ({
-      id: up.id,
-      title: up.title,
-      href: up.href,
-      tag: up.tag,
-      tagVariant: up.tag === "New" ? ("coral" as const) : ("orange" as const),
-    })),
-    ...opportunities.slice(0, 4).map((job) => {
+    ...opportunities.slice(0, 6).map((job) => {
       const statusBadge = deriveStatusBadge(job, now);
       const vacancyText = getVacancyDisplay(job);
       return {

@@ -5,8 +5,8 @@ import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 import { CardHover } from "@/components/common/motion/CardHover";
 import { OrganizationLogo } from "@/components/common/OrganizationLogo";
-import { HOMEPAGE_ADMIT_CARDS } from "@/data/homepage";
-import { resolveDocumentAccess } from "@/lib/documents";
+import { getLifecycleLinks } from "@/lib/cms/lifecycle-links";
+import { LifecycleLinkGrid } from "@/components/lifecycle/LifecycleLinkList";
 
 export const metadata = {
   title: "Admit Cards & Hall Tickets 2026 | LakshyaNaukri",
@@ -53,7 +53,8 @@ const OFFICIAL_ADMIT_CARD_PORTALS = [
   },
 ];
 
-export default function AdmitCardsPage() {
+export default async function AdmitCardsPage() {
+  const links = await getLifecycleLinks();
   return (
     <div className="min-h-screen bg-[#F8FAFC] py-8 relative">
       <AmbientBackground />
@@ -102,83 +103,18 @@ export default function AdmitCardsPage() {
           </div>
         </div>
 
-        {/* Released & Active Admit Cards */}
-        {HOMEPAGE_ADMIT_CARDS && HOMEPAGE_ADMIT_CARDS.length > 0 && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-black text-[#0F172A] tracking-tight">
-                Active & Released Hall Tickets / Call Letters
-              </h2>
-              <p className="text-xs text-[#475569]">
-                Direct download portals for live exam admit cards and city intimation slips:
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {HOMEPAGE_ADMIT_CARDS.map((card) => {
-                const docAccess = resolveDocumentAccess({
-                  officialPortalUrl: card.officialUrl,
-                  organization: card.organization,
-                  publishedDate: card.releaseDateIso,
-                  documentTitle: card.title,
-                  customPortalLabel: "Official E-Admit Card Portal",
-                });
-
-                return (
-                  <CardHover key={card.id}>
-                    <div className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-2xs space-y-4 h-full flex flex-col justify-between">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <OrganizationLogo organizationName={card.organization} size="md" />
-                          <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 border border-blue-300 text-[10px] font-black uppercase">
-                            {card.statusText}
-                          </span>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700">
-                              Released: {card.releaseDateIso} • Exam: {card.examDateIso}
-                            </span>
-                            <span className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${docAccess.badgeClass}`}>
-                              {docAccess.badgeLabel}
-                            </span>
-                          </div>
-                          <h3 className="text-sm font-bold text-[#0F172A] leading-snug">
-                            {card.title}
-                          </h3>
-                          <p className="text-xs text-[#475569] font-medium mt-1">
-                            {card.organization}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs gap-2 flex-wrap">
-                        <div className="flex items-center gap-1 text-[11px] text-blue-700 font-semibold">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>Direct Authority Server</span>
-                        </div>
-
-                        {docAccess.url && (
-                          <a
-                            href={docAccess.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 font-bold text-[#EA580C] hover:underline ml-auto"
-                            title={docAccess.disclaimer}
-                          >
-                            <span>Download Hall Ticket</span>
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </CardHover>
-                );
-              })}
-            </div>
+        {/* Links added in the CMS to published jobs; empty until one exists */}
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-black text-[#0F172A] tracking-tight">
+              Admit Cards & Call Letters
+            </h2>
+            <p className="text-xs text-[#475569]">
+              Official admit card links added to jobs on this site, newest first:
+            </p>
           </div>
-        )}
+          <LifecycleLinkGrid kind="admitCard" items={links.admitCards} />
+        </div>
 
         {/* Official Board Admit Card Portals Directory */}
         <div className="space-y-4">

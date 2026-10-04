@@ -1,7 +1,4 @@
 import {
-  ResultItem,
-  AdmitCardItem,
-  AnswerKeyItem,
   UpcomingExamItem,
   QualificationOption,
   JobRoleOption,
@@ -65,145 +62,12 @@ export const OPPORTUNITY_TYPES: OpportunityTypeItem[] = [
   },
 ];
 
-export const IMPORTANT_UPDATES = [
-  {
-    id: "up-1",
-    title: "SSC CGL 2026: Applications Closed, Tier-I Tentatively Sep–Oct 2026 (SSC Notice)",
-    href: "/jobs/ssc-cgl-combined-graduate-level-2026",
-    tag: "Tentative Date",
-  },
-  {
-    id: "up-2",
-    title: "BPSC 72nd CCE: Prelims Tentatively 25 Oct 2026 (Exam Calendar)",
-    href: "/jobs/bpsc-72nd-combined-competitive-exam-2026",
-    tag: "Tentative Date",
-  },
-  {
-    id: "up-3",
-    title: "RRB NTPC Graduate (CEN 05/2024): DV/Medical in Progress",
-    href: "/jobs/rrb-ntpc-graduate-cen-05-2024",
-    tag: "Active",
-  },
-  {
-    id: "up-4",
-    title: "IBPS PO/MT CRP XVI: Prelims Conducted 22–23 Aug 2026 — Mains Date Awaited",
-    href: "/jobs/ibps-po-mt-crp-xvi-2026",
-    tag: "Result Expected",
-  },
-];
 
 
 
-/**
- * RECRUITMENT LIFECYCLE DATA (Phase 2A)
- */
-
-export const HOMEPAGE_RESULTS: ResultItem[] = [
-  {
-    id: "res-bpsc-71st",
-    slug: "bpsc-71st-final-result",
-    title: "BPSC 71st Combined Competitive Final Merit List",
-    organization: "Bihar Public Service Commission",
-    examName: "BPSC 71st CCE",
-    resultDateIso: "2026-08-14",
-    resultType: "Final Merit List",
-    statusText: "Declared",
-    officialUrl: "https://bpsc.bih.nic.in",
-  },
-  {
-    id: "res-ssc-chsl-2025-tier2",
-    slug: "ssc-chsl-2025-tier-2-result",
-    title: "SSC CHSL 2025 Tier II Exam Scorecard & Cutoff",
-    organization: "Staff Selection Commission",
-    examName: "SSC CHSL 2025 Tier II",
-    resultDateIso: "2026-08-12",
-    resultType: "Tier II Scorecard",
-    statusText: "Declared",
-    officialUrl: "https://ssc.gov.in",
-  },
-  {
-    id: "res-ibps-po-xiv",
-    slug: "ibps-po-xiv-mains-result",
-    title: "IBPS PO XIV Mains Exam Result & Interview Schedule",
-    organization: "IBPS",
-    examName: "IBPS PO XIV",
-    resultDateIso: "2026-08-10",
-    resultType: "Mains Result",
-    statusText: "Declared",
-    officialUrl: "https://ibps.in",
-  },
-];
-
-export const HOMEPAGE_ADMIT_CARDS: AdmitCardItem[] = [
-  {
-    id: "ac-upsc-cse-2026",
-    slug: "upsc-cse-prelims-2026-admit-card",
-    title: "UPSC CSE Prelims 2026 e-Admit Card",
-    organization: "Union Public Service Commission",
-    examName: "UPSC Civil Services 2026",
-    releaseDateIso: "2026-08-13",
-    examDateIso: "2026-09-20",
-    statusText: "Released",
-    officialUrl: "https://upsconline.nic.in",
-  },
-  {
-    id: "ac-rrb-alp-2026",
-    slug: "rrb-alp-cbt-1-admit-card",
-    title: "RRB Assistant Loco Pilot (ALP) CBT-1 City Intimation & Pass",
-    organization: "Railway Recruitment Boards",
-    examName: "RRB ALP 2026 CBT-1",
-    releaseDateIso: "2026-08-11",
-    examDateIso: "2026-09-01",
-    statusText: "Available Now",
-    officialUrl: "https://rrbapply.gov.in",
-  },
-  {
-    id: "ac-sbi-clerk-2026",
-    slug: "sbi-clerk-mains-2026-admit-card",
-    title: "SBI Junior Associate (Clerk) Mains Call Letter",
-    organization: "State Bank of India",
-    examName: "SBI Clerk Mains 2026",
-    releaseDateIso: "2026-08-09",
-    examDateIso: "2026-08-28",
-    statusText: "Released",
-    officialUrl: "https://sbi.co.in/careers",
-  },
-];
-
-export const HOMEPAGE_ANSWER_KEYS: AnswerKeyItem[] = [
-  {
-    id: "ak-ssc-cpo-2026",
-    slug: "ssc-cpo-2026-tentative-answer-key",
-    title: "SSC CPO 2026 Paper I Tentative Answer Key & Response Sheet",
-    organization: "Staff Selection Commission",
-    examName: "SSC CPO Paper I",
-    releaseDateIso: "2026-08-12",
-    objectionDeadlineIso: "2026-08-18",
-    statusText: "Tentative Key Out",
-    officialUrl: "https://ssc.gov.in",
-  },
-  {
-    id: "ak-nta-ugc-net-2026",
-    slug: "ugc-net-june-2026-provisional-answer-key",
-    title: "UGC NET June 2026 Cycle Provisional Answer Key",
-    organization: "National Testing Agency (NTA)",
-    examName: "UGC NET June 2026",
-    releaseDateIso: "2026-08-10",
-    objectionDeadlineIso: "2026-08-16",
-    statusText: "Provisional Key",
-    officialUrl: "https://ugcnet.nta.ac.in",
-  },
-  {
-    id: "ak-gate-2026",
-    slug: "gate-2026-final-answer-key",
-    title: "GATE 2026 Official Final Answer Key & Question Papers",
-    organization: "IIT Roorkee / GATE Board",
-    examName: "GATE 2026",
-    releaseDateIso: "2026-08-08",
-    statusText: "Final Key Out",
-    officialUrl: "https://gate2026.iitr.ac.in",
-  },
-];
+// Results, admit cards and answer keys are no longer listed here by hand.
+// They come from official links on published CMS records: see
+// src/lib/cms/lifecycle-links.ts. Do not re-add fixed entries.
 
 export const EXPLORE_CATEGORIES = [
   { id: "central-govt", label: "Central Govt", iconName: "Building2", href: "/jobs?govType=central" },
@@ -331,7 +195,7 @@ export const HOW_IT_HELPS_STEPS = [
   {
     stepNumber: 2,
     title: "2. Prepare",
-    description: "Use Career Campus 2 for structured study material, PYQs & mock tests.",
+    description: "Study material, PYQs & mock tests on LakshyaGyan (coming soon).",
     iconName: "BookMarked",
   },
   {

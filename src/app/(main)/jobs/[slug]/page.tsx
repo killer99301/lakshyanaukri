@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   ChevronRight,
   Sparkles,
-  ArrowRight,
   Calculator,
   Compass,
 } from "lucide-react";
@@ -154,28 +153,22 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
 
           {/* Right Sidebar - Ecosystem Cards & Related Jobs */}
           <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
-            {/* Ecosystem Card 1: Career Campus 2 Exam Prep */}
+            {/* Ecosystem Card 1: LakshyaGyan exam prep (not live yet, so no link) */}
             <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white rounded-3xl p-5 shadow-lg relative overflow-hidden group">
               <div className="absolute -right-4 -bottom-4 h-24 w-24 rounded-full bg-white/10 blur-lg" />
               <div className="space-y-3 relative z-10">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-black uppercase tracking-wider text-white">
-                  <Sparkles className="h-3 w-3" /> Career Campus 2
+                  <Sparkles className="h-3 w-3" /> LakshyaGyan
                 </div>
                 <h3 className="text-lg font-black tracking-tight leading-snug">
-                  Prepare for {job.organizationName} Mock Tests & PYQs
+                  Mock Tests & PYQs for {job.organizationName} Exams
                 </h3>
                 <p className="text-xs text-orange-100 leading-relaxed font-medium">
-                  Access 50,000+ chapter-wise questions, previous year papers, and speed tests tailored for this exam.
+                  Our preparation platform is on its way: chapter-wise practice, previous year papers and mock tests.
                 </p>
-                <a
-                  href={(job.type === "government" ? job.ecosystem?.careerCampus2 : undefined) || "https://cc2.careercampus.in"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[#EA580C] font-extrabold text-xs shadow-md hover:bg-orange-50 transition-colors cursor-pointer"
-                >
-                  <span>Start Free Mock Test</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </a>
+                <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 border border-white/30 text-white font-extrabold text-xs select-none">
+                  Coming soon
+                </span>
               </div>
             </div>
 

@@ -6,9 +6,10 @@
 //
 // Validates:
 //   1. ALL recruitment records (including NOT_VERIFIED, for audit)
-//   2. Homepage satellite data (UPCOMING_EXAMS, HOMEPAGE_RESULTS,
-//      HOMEPAGE_ADMIT_CARDS, HOMEPAGE_ANSWER_KEYS) for structural
-//      integrity and slug consistency with the canonical repository.
+//   2. Homepage satellite data (UPCOMING_EXAMS) for structural integrity
+//      and slug consistency with the canonical repository. Results, admit
+//      cards and answer keys are no longer hand-maintained lists: they come
+//      from CMS records (src/lib/cms/lifecycle-links.ts).
 //
 // Exit codes:
 //   0 = all records pass (or warnings only)
@@ -27,9 +28,6 @@ import { getAllOpportunities, getAllSlugs } from "@/lib/repository";
 import { validateAllRecords, printValidationResults } from "@/lib/validation";
 import {
   UPCOMING_EXAMS,
-  HOMEPAGE_RESULTS,
-  HOMEPAGE_ADMIT_CARDS,
-  HOMEPAGE_ANSWER_KEYS,
 } from "@/data/homepage";
 
 // ─── Satellite Data Validation ───────────────────────────────────────────────
@@ -90,89 +88,6 @@ function validateUpcomingExams(canonicalSlugs: string[]): SatelliteError[] {
   return errors;
 }
 
-function validateHomepageResultItems(): SatelliteError[] {
-  const errors: SatelliteError[] = [];
-
-  for (const result of HOMEPAGE_RESULTS) {
-    if (!result.officialUrl || !result.officialUrl.startsWith("http")) {
-      errors.push({
-        severity: "ERROR",
-        recordId: result.id,
-        field: "officialUrl",
-        message: `HOMEPAGE_RESULTS "${result.id}" is missing a valid officialUrl.`,
-      });
-    }
-    if (!result.resultDateIso) {
-      errors.push({
-        severity: "WARN",
-        recordId: result.id,
-        field: "resultDateIso",
-        message: `HOMEPAGE_RESULTS "${result.id}" is missing resultDateIso.`,
-      });
-    }
-    if (result.documentUrl && !result.documentUrl.startsWith("http")) {
-      errors.push({
-        severity: "WARN",
-        recordId: result.id,
-        field: "documentUrl",
-        message: `HOMEPAGE_RESULTS "${result.id}" documentUrl does not appear to be a valid URL.`,
-      });
-    }
-  }
-
-  return errors;
-}
-
-function validateHomepageAdmitCards(): SatelliteError[] {
-  const errors: SatelliteError[] = [];
-
-  for (const card of HOMEPAGE_ADMIT_CARDS) {
-    if (!card.officialUrl || !card.officialUrl.startsWith("http")) {
-      errors.push({
-        severity: "ERROR",
-        recordId: card.id,
-        field: "officialUrl",
-        message: `HOMEPAGE_ADMIT_CARDS "${card.id}" is missing a valid officialUrl.`,
-      });
-    }
-    if (!card.releaseDateIso) {
-      errors.push({
-        severity: "WARN",
-        recordId: card.id,
-        field: "releaseDateIso",
-        message: `HOMEPAGE_ADMIT_CARDS "${card.id}" is missing releaseDateIso.`,
-      });
-    }
-  }
-
-  return errors;
-}
-
-function validateHomepageAnswerKeys(): SatelliteError[] {
-  const errors: SatelliteError[] = [];
-
-  for (const key of HOMEPAGE_ANSWER_KEYS) {
-    if (!key.officialUrl || !key.officialUrl.startsWith("http")) {
-      errors.push({
-        severity: "ERROR",
-        recordId: key.id,
-        field: "officialUrl",
-        message: `HOMEPAGE_ANSWER_KEYS "${key.id}" is missing a valid officialUrl.`,
-      });
-    }
-    if (!key.releaseDateIso) {
-      errors.push({
-        severity: "WARN",
-        recordId: key.id,
-        field: "releaseDateIso",
-        message: `HOMEPAGE_ANSWER_KEYS "${key.id}" is missing releaseDateIso.`,
-      });
-    }
-  }
-
-  return errors;
-}
-
 function printSatelliteResults(errors: SatelliteError[]): boolean {
   let hasErrors = false;
 
@@ -219,21 +134,12 @@ async function main(): Promise<void> {
   console.log("\n─── Homepage Satellite Data Validation ───\n");
 
   const upcomingErrors = validateUpcomingExams(canonicalSlugs);
-  const resultErrors = validateHomepageResultItems();
-  const admitCardErrors = validateHomepageAdmitCards();
-  const answerKeyErrors = validateHomepageAnswerKeys();
 
   const allSatelliteErrors = [
     ...upcomingErrors,
-    ...resultErrors,
-    ...admitCardErrors,
-    ...answerKeyErrors,
   ];
 
-  console.log(`   UPCOMING_EXAMS: ${UPCOMING_EXAMS.length} records`);
-  console.log(`   HOMEPAGE_RESULTS: ${HOMEPAGE_RESULTS.length} records`);
-  console.log(`   HOMEPAGE_ADMIT_CARDS: ${HOMEPAGE_ADMIT_CARDS.length} records`);
-  console.log(`   HOMEPAGE_ANSWER_KEYS: ${HOMEPAGE_ANSWER_KEYS.length} records\n`);
+  console.log(`   UPCOMING_EXAMS: ${UPCOMING_EXAMS.length} records\n`);
 
   const satellitePassed = allSatelliteErrors.length === 0
     ? true

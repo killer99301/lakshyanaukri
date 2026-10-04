@@ -5,8 +5,8 @@ import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 import { CardHover } from "@/components/common/motion/CardHover";
 import { OrganizationLogo } from "@/components/common/OrganizationLogo";
-import { HOMEPAGE_RESULTS } from "@/data/homepage";
-import { resolveDocumentAccess } from "@/lib/documents";
+import { getLifecycleLinks } from "@/lib/cms/lifecycle-links";
+import { LifecycleLinkGrid } from "@/components/lifecycle/LifecycleLinkList";
 
 export const metadata = {
   title: "Exam Results & Cutoff Marks 2026 | LakshyaNaukri",
@@ -53,7 +53,8 @@ const OFFICIAL_RESULT_PORTALS = [
   },
 ];
 
-export default function ResultsPage() {
+export default async function ResultsPage() {
+  const links = await getLifecycleLinks();
   return (
     <div className="min-h-screen bg-[#F8FAFC] py-8 relative">
       <AmbientBackground />
@@ -102,95 +103,18 @@ export default function ResultsPage() {
           </div>
         </div>
 
-        {/* Declared Results & Merit Lists */}
-        {HOMEPAGE_RESULTS && HOMEPAGE_RESULTS.length > 0 && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-black text-[#0F172A] tracking-tight">
-                Recently Declared Official Results & Merit Lists
-              </h2>
-              <p className="text-xs text-[#475569]">
-                Direct download links for official merit lists, scorecards, and cutoff gazettes:
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {HOMEPAGE_RESULTS.map((res) => {
-                const docAccess = resolveDocumentAccess({
-                  officialPdfUrl: res.documentUrl,
-                  officialPortalUrl: res.officialUrl,
-                  organization: res.organization,
-                  publishedDate: res.resultDateIso,
-                  documentTitle: res.title,
-                  customPdfLabel: "Official PDF Gazette",
-                });
-
-                return (
-                  <CardHover key={res.id}>
-                    <div className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-2xs space-y-4 h-full flex flex-col justify-between">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <OrganizationLogo organizationName={res.organization} size="md" />
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-black uppercase">
-                            {res.statusText}
-                          </span>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">
-                              {res.resultType} • {res.resultDateIso}
-                            </span>
-                            <span className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${docAccess.badgeClass}`}>
-                              {docAccess.badgeLabel}
-                            </span>
-                          </div>
-                          <h3 className="text-sm font-bold text-[#0F172A] leading-snug">
-                            {res.title}
-                          </h3>
-                          <p className="text-xs text-[#475569] font-medium mt-1">
-                            {res.organization}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs gap-2 flex-wrap">
-                        {docAccess.isDirectPdf && docAccess.url ? (
-                          <a
-                            href={docAccess.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:underline"
-                            title={docAccess.disclaimer}
-                          >
-                            <span>{docAccess.label}</span>
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ) : (
-                          <span className="text-[11px] text-[#475569] font-semibold">
-                            Portal Sourced
-                          </span>
-                        )}
-
-                        {res.officialUrl && (
-                          <a
-                            href={res.officialUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 font-bold text-[#EA580C] hover:underline ml-auto"
-                          >
-                            <span>Official Portal</span>
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </CardHover>
-                );
-              })}
-            </div>
+        {/* Links added in the CMS to published jobs; empty until one exists */}
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-black text-[#0F172A] tracking-tight">
+              Results & Merit Lists
+            </h2>
+            <p className="text-xs text-[#475569]">
+              Official result links added to jobs on this site, newest first:
+            </p>
           </div>
-        )}
+          <LifecycleLinkGrid kind="result" items={links.results} />
+        </div>
 
         {/* Official Board Portals Directory */}
         <div className="space-y-4">

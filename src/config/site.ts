@@ -26,10 +26,13 @@ export const siteConfig = {
   // Ecosystem partner tools — these deliberately keep their original domains
   // as they are separate products in the Career Campus ecosystem
   ecosystem: {
-    careerCampus2: {
-      name: "Career Campus 2",
+    // LakshyaGyan (formerly "Career Campus 2") is not live yet and has no
+    // domain. Leave url empty until it does: every place that shows it then
+    // says "coming soon" instead of linking anywhere.
+    lakshyaGyan: {
+      name: "LakshyaGyan",
       description: "Preparation, study material, previous-year papers & mock tests",
-      url: "https://cc2.careercampus.in",
+      url: "",
     },
     calcInfinity: {
       name: "CalcInfinity",

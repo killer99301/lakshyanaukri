@@ -86,8 +86,13 @@ export const EcosystemCard: React.FC<EcosystemCardProps> = ({
           )}
         </div>
 
-        {/* CTA Button */}
+        {/* CTA Button — a product with no address yet is not linked */}
         <div className="pt-3 mt-3 border-t border-slate-100">
+          {!ctaUrl ? (
+            <div className="w-full text-center rounded-xl bg-slate-100 border border-slate-200 text-slate-500 font-bold py-2 text-xs select-none">
+              {ctaText}
+            </div>
+          ) : (
           <a
             href={ctaUrl}
             target="_blank"
@@ -103,6 +108,7 @@ export const EcosystemCard: React.FC<EcosystemCardProps> = ({
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-1" />
             </Button>
           </a>
+          )}
         </div>
       </div>
     </div>

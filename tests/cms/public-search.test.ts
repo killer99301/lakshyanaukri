@@ -13,6 +13,7 @@
 
 import { suite, test, assert } from "../intelligence/suite";
 import type { Opportunity } from "@/types";
+import { lifecycleLinksFrom } from "@/lib/cms/lifecycle-links";
 import { textSearch, searchWords, closestMatches, sortOpportunities, isNewlyAdded, jobsLinkCount, type SortOption } from "@/lib/filters";
 
 const job = (o: Record<string, unknown>): Opportunity =>
@@ -175,4 +176,29 @@ test("PS12 a link's job count follows the same rules as the page it opens", () =
   // Not /jobs query links: no count.
   assert.equal(n("/jobs"), null);
   assert.equal(n("/exams"), null);
+});
+
+suite("Results, admit cards and answer keys come from published records");
+
+test("PS13 only official RESULT / ADMIT_CARD / ANSWER_KEY links are listed, newest first", () => {
+  const snap = (id: string, projectedAt: string, links: Array<{ type: string; label: string; url: string; official: boolean }>) =>
+    ({ id, slug: `job-${id}`, title: `Job ${id}`, organizationName: "SSC", projectedAt, links }) as never;
+  const out = lifecycleLinksFrom([
+    snap("a", "2026-09-01T00:00:00Z", [
+      { type: "OFFICIAL_NOTIFICATION", label: "Notice", url: "https://ssc.gov.in/n.pdf", official: true },
+      { type: "ADMIT_CARD", label: "Tier-I Admit Card", url: "https://ssc.gov.in/admit", official: true },
+      { type: "RESULT", label: "Unofficial result page", url: "https://example.com/r", official: false },
+    ]),
+    snap("b", "2026-10-01T00:00:00Z", [
+      { type: "RESULT", label: "Tier-I Result", url: "https://ssc.gov.in/result.pdf", official: true },
+      { type: "ANSWER_KEY", label: "Tier-I Answer Key", url: "https://ssc.gov.in/key", official: true },
+      { type: "ADMIT_CARD", label: "Tier-II Admit Card", url: "https://ssc.gov.in/admit2", official: true },
+      { type: "RESULT", label: "Bad link", url: "javascript:alert(1)", official: true },
+    ]),
+  ]);
+  assert.deepEqual(out.results.map((l) => l.label), ["Tier-I Result"]);
+  assert.deepEqual(out.answerKeys.map((l) => l.label), ["Tier-I Answer Key"]);
+  assert.deepEqual(out.admitCards.map((l) => l.label), ["Tier-II Admit Card", "Tier-I Admit Card"]);
+  assert.equal(out.admitCards[0].jobSlug, "job-b");
+  assert.deepEqual(lifecycleLinksFrom([]), { results: [], admitCards: [], answerKeys: [] });
 });

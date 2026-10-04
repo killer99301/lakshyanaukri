@@ -97,15 +97,10 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <a
-                  href={siteConfig.ecosystem.careerCampus2.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#EA580C] transition-colors flex items-center gap-1"
-                >
-                  <span>Career Campus 2</span>
-                  <span className="text-[10px] bg-[#FFF7ED] text-[#EA580C] px-1.5 py-0.5 rounded font-semibold">Prep</span>
-                </a>
+                <span className="flex items-center gap-1">
+                  <span>LakshyaGyan</span>
+                  <span className="text-[10px] bg-[#FFF7ED] text-[#EA580C] px-1.5 py-0.5 rounded font-semibold">Coming soon</span>
+                </span>
               </li>
               <li>
                 <a

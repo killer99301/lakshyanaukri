@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import { siteConfig } from "@/config/site";
 import { getAllVerifiedOpportunitiesWithCMS } from "@/lib/repository";
+import { getLifecycleLinks } from "@/lib/cms/lifecycle-links";
 import HomePageClient from "./HomePageClient";
 
 export const metadata: Metadata = {
@@ -38,6 +39,9 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const opportunities = await getAllVerifiedOpportunitiesWithCMS();
-  return <HomePageClient opportunities={opportunities} />;
+  const [opportunities, lifecycleLinks] = await Promise.all([
+    getAllVerifiedOpportunitiesWithCMS(),
+    getLifecycleLinks(),
+  ]);
+  return <HomePageClient opportunities={opportunities} lifecycleLinks={lifecycleLinks} />;
 }

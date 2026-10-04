@@ -28,9 +28,8 @@ import { RevealSection } from "@/components/common/RevealSection";
 import { CursorTiltCard } from "@/components/common/CursorTiltCard";
 import { MagneticButton } from "@/components/common/MagneticButton";
 import { CareerOrbitCenterpiece } from "@/components/discovery/CareerOrbitCenterpiece";
-import { ResultsTimelineFeed } from "@/components/results/ResultsTimelineFeed";
-import { AdmitCardDocumentGrid } from "@/components/admit-cards/AdmitCardDocumentGrid";
-import { AnswerKeyHexCluster } from "@/components/answer-keys/AnswerKeyHexCluster";
+import { LifecycleHomeSection } from "@/components/lifecycle/LifecycleLinkList";
+import type { LifecycleLinks } from "@/lib/cms/lifecycle-links";
 import { PopularOrganizationsBento } from "@/components/organizations/PopularOrganizationsBento";
 import { UpcomingExamsTimeline } from "@/components/exams/UpcomingExamsTimeline";
 import { siteConfig } from "@/config/site";
@@ -44,9 +43,11 @@ import { sortOpportunities, textSearch } from "@/lib/filters";
 
 interface HomePageClientProps {
   opportunities: Opportunity[];
+  /** Official result, admit card and answer key links from published jobs. */
+  lifecycleLinks: LifecycleLinks;
 }
 
-export default function HomePageClient({ opportunities }: HomePageClientProps) {
+export default function HomePageClient({ opportunities, lifecycleLinks }: HomePageClientProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All India");
@@ -253,24 +254,10 @@ export default function HomePageClient({ opportunities }: HomePageClientProps) {
       </RevealSection>
 
       {/* ================================================== */}
-      {/* SECTION 2: LATEST RESULTS (LIVE TIMELINE FEED) */}
+      {/* SECTIONS 2–4: RESULTS, ADMIT CARDS, ANSWER KEYS (from the CMS) */}
       {/* ================================================== */}
       <RevealSection delayMs={100}>
-        <ResultsTimelineFeed />
-      </RevealSection>
-
-      {/* ================================================== */}
-      {/* SECTION 3: LATEST ADMIT CARDS (DOCUMENT CARDS) */}
-      {/* ================================================== */}
-      <RevealSection delayMs={150}>
-        <AdmitCardDocumentGrid />
-      </RevealSection>
-
-      {/* ================================================== */}
-      {/* SECTION 4: LATEST ANSWER KEYS (HEX CLUSTER) */}
-      {/* ================================================== */}
-      <RevealSection delayMs={200}>
-        <AnswerKeyHexCluster />
+        <LifecycleHomeSection links={lifecycleLinks} />
       </RevealSection>
 
       {/* ================================================== */}
@@ -306,20 +293,20 @@ export default function HomePageClient({ opportunities }: HomePageClientProps) {
           />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            {/* Card 1: Career Campus 2 */}
+            {/* Card 1: LakshyaGyan (not live yet) */}
             <EcosystemCard
               partnerId="cc2"
-              badgeText="Preparation Partner"
-              title="Career Campus 2"
+              badgeText="Preparation · Coming Soon"
+              title="LakshyaGyan"
               subtitle="EXAM PREPARATION & MOCK TESTS"
-              description="Access structured study material, previous-year question papers, topic-wise practice, and live mock tests for competitive exams."
+              description="Our upcoming preparation platform: structured study material, previous-year question papers, topic-wise practice and mock tests for competitive exams."
               features={[
                 "Exam Syllabus Breakdown",
                 "PYQ Papers with Solutions",
                 "Real-time Performance Analytics",
               ]}
-              ctaText="Go to Career Campus 2"
-              ctaUrl={siteConfig.ecosystem.careerCampus2.url}
+              ctaText={siteConfig.ecosystem.lakshyaGyan.url ? "Go to LakshyaGyan" : "Coming soon"}
+              ctaUrl={siteConfig.ecosystem.lakshyaGyan.url}
             />
 
             {/* Card 2: CalcInfinity */}
