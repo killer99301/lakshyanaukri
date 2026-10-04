@@ -23,6 +23,8 @@ import type { RecruitmentRecord, ProvenanceField } from "@/types/recruitment-rec
 import { updateLinks, updateHowToApply, updateClassification } from "@/lib/cms/record-ops";
 import { routeFieldUpdate } from "@/lib/cms/field-update-router";
 import { buildSlug, slugify } from "@/lib/cms/slug";
+import { savedFilePath, cleanPdfName, isAllowedSavedFilePath, savedFileProblem, MAX_SAVED_FILE_BYTES } from "@/lib/cms/saved-files";
+import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
 
 const ADMIN = randomUUID();
 
@@ -97,6 +99,23 @@ test("LK05 unknown properties dropped, sourceId kept", () => {
   const record = makeRecord();
   const { record: updated } = updateLinks(record, [{ ...NOTIF, sourceId: "src-1", injected: "<script>" }], ADMIN);
   assert.deepEqual(Object.keys(updated.links[0]).sort(), ["label", "official", "sourceId", "type", "url"]);
+});
+
+test("LK06 saved copy: needs its official source, is never official, gets a saved date", () => {
+  const record = makeRecord();
+  const COPY = { type: "RESULT", label: "Final Result (PDF)", url: "https://drive.google.com/file/d/abc123/view", official: false, savedFrom: " https://www.ibps.in/result.pdf " };
+  const { record: updated } = updateLinks(record, [...record.links, COPY], ADMIN);
+  const saved = updated.links[1];
+  assert.equal(saved.savedFrom, "https://www.ibps.in/result.pdf");
+  assert.equal(saved.official, false);
+  assert.ok(/^20\d{2}-\d{2}-\d{2}$/.test(saved.savedOn ?? ""));
+  assert.equal(updateLinks(record, [{ ...COPY, savedOn: "2026-10-01" }], ADMIN).record.links[0].savedOn, "2026-10-01");
+
+  assert.throws(() => updateLinks(record, [{ ...COPY, official: true }], ADMIN), /cannot be marked official/);
+  assert.throws(() => updateLinks(record, [{ ...COPY, savedFrom: "javascript:alert(1)" }], ADMIN), /official http/);
+  assert.throws(() => updateLinks(record, [{ ...COPY, savedFrom: "https://drive.google.com/file/d/other/view" }], ADMIN), /same site as the copy/);
+  // An ordinary link is unchanged: no saved-copy fields appear.
+  assert.equal("savedFrom" in updateLinks(record, [NOTIF], ADMIN).record.links[0], false);
 });
 
 suite("How-to-apply write path");
@@ -177,4 +196,44 @@ test("SL02 slugify handles punctuation, dashes and length", () => {
   assert.equal(slugify("Canara Bank", 40), "canara-bank");
   assert.equal(slugify("a".repeat(100)).length, 60);
   assert.equal(/^-|-$/.test(slugify("--x--")), false);
+});
+
+suite("Saved files (uploaded PDFs)");
+
+test("SF01 storage path is documents/<job-slug>/<clean-name>.pdf and nothing else is accepted", () => {
+  assert.equal(savedFilePath("ssc-chsl-2026", "Final Result (Tier-I) 2026.PDF"), "documents/ssc-chsl-2026/final-result-tier-i-2026.pdf");
+  assert.equal(savedFilePath("ssc-chsl-2026", "नतीजा.pdf"), "documents/ssc-chsl-2026/document.pdf");
+  assert.equal(cleanPdfName("a".repeat(200) + ".pdf").length, 84);
+  assert.throws(() => savedFilePath("../etc", "x.pdf"), /usable slug/);
+  assert.throws(() => savedFilePath("", "x.pdf"), /usable slug/);
+
+  assert.equal(isAllowedSavedFilePath("documents/ssc-chsl-2026/final-result.pdf"), true);
+  for (const bad of [
+    "documents/ssc-chsl-2026/final-result.exe",
+    "documents/ssc-chsl-2026/sub/final.pdf",
+    "documents/../secrets/final.pdf",
+    "images/ssc-chsl-2026/final.pdf",
+    "documents/SSC/final.pdf",
+    "documents/ssc-chsl-2026/Final Result.pdf",
+    "final.pdf",
+  ]) assert.equal(isAllowedSavedFilePath(bad), false, bad);
+});
+
+test("SF02 only real PDFs within the size limit can be uploaded", () => {
+  const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]);
+  const exe = new Uint8Array([0x4d, 0x5a, 0x90, 0x00, 0x03]);
+  assert.equal(savedFileProblem({ name: "result.pdf", size: 1000 }, pdf), null);
+  assert.match(savedFileProblem({ name: "result.docx", size: 1000 }, pdf) ?? "", /Only PDF/);
+  assert.match(savedFileProblem({ name: "renamed.pdf", size: 1000 }, exe) ?? "", /not a real PDF/);
+  assert.match(savedFileProblem({ name: "empty.pdf", size: 0 }, pdf) ?? "", /empty/);
+  assert.match(savedFileProblem({ name: "huge.pdf", size: MAX_SAVED_FILE_BYTES + 1 }, pdf) ?? "", /larger than/);
+  assert.equal(savedFileProblem({ name: "max.pdf", size: MAX_SAVED_FILE_BYTES }, pdf), null);
+});
+
+test("SF03 cut-off is a link type and is listed with results", () => {
+  const record = makeRecord();
+  const { record: updated } = updateLinks(record, [{ type: "CUT_OFF", label: "Tier-I Cut-off", url: "https://www.ibps.in/cutoff.pdf", official: true }], ADMIN);
+  assert.equal(updated.links[0].type, "CUT_OFF");
+  const listed = lifecycleLinksOf({ id: "x", slug: "job-x", title: "Job X", organizationName: "IBPS", projectedAt: "2026-10-04T00:00:00Z", links: updated.links } as never);
+  assert.deepEqual(listed.map((l) => [l.kind, l.label]), [["result", "Tier-I Cut-off"]]);
 });

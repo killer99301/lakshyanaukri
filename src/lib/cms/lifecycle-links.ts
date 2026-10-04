@@ -3,9 +3,12 @@
 // ═══════════════════════════════════════════════════════════
 //
 // These lists are NOT maintained by hand. Each entry is a link an admin added
-// to a published recruitment record and marked official (type RESULT,
-// ADMIT_CARD or ANSWER_KEY). Nothing appears until such a link exists, so the
-// site never shows a result or admit card it cannot point to.
+// to a published recruitment record (type RESULT, CUT_OFF, ADMIT_CARD or ANSWER_KEY)
+// and that is either
+//   - marked official, or
+//   - a saved copy: our own copy of the document, recorded together with the
+//     official address it was taken from. Always shown labelled as a copy.
+// Any other link is ignored, so the site never lists a third-party page.
 
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 
@@ -22,6 +25,8 @@ export interface LifecycleLink {
   organization: string;
   /** When the record carrying the link was last published. */
   updatedAtIso: string;
+  /** Present when the link is our saved copy rather than the official page. */
+  savedCopy?: { from: string; host: string; on?: string };
 }
 
 export interface LifecycleLinks {
@@ -32,31 +37,51 @@ export interface LifecycleLinks {
 
 const KIND_BY_TYPE: Record<string, LifecycleKind> = {
   RESULT: "result",
+  // Cut-off marks are published with results and are listed alongside them.
+  CUT_OFF: "result",
   ADMIT_CARD: "admitCard",
   ANSWER_KEY: "answerKey",
 };
 
+const isHttp = (value: string | undefined): value is string => !!value && /^https?:\/\//i.test(value);
+
 export const EMPTY_LIFECYCLE_LINKS: LifecycleLinks = { results: [], admitCards: [], answerKeys: [] };
 
-/** Pure: official result / admit card / answer key links from published snapshots, newest first. */
-export function lifecycleLinksFrom(snapshots: PublishedRecruitmentSnapshot[]): LifecycleLinks {
-  const all: LifecycleLink[] = [];
-  for (const snap of snapshots) {
-    (snap.links ?? []).forEach((link, index) => {
-      const kind = KIND_BY_TYPE[link.type];
-      if (!kind || !link.official || !/^https?:\/\//i.test(link.url)) return;
-      all.push({
-        id: `${snap.id}-${index}`,
-        kind,
-        label: link.label,
-        url: link.url,
-        jobTitle: snap.title ?? snap.slug,
-        jobSlug: snap.slug,
-        organization: snap.organizationName,
-        updatedAtIso: snap.projectedAt,
-      });
-    });
+function savedCopyOf(link: { savedFrom?: string; savedOn?: string }): LifecycleLink["savedCopy"] {
+  if (!isHttp(link.savedFrom)) return undefined;
+  try {
+    return { from: link.savedFrom, host: new URL(link.savedFrom).hostname.replace(/^www\./, ""), on: link.savedOn };
+  } catch {
+    return undefined;
   }
+}
+
+/** Pure: the listable result / admit card / answer key links of one published record. */
+export function lifecycleLinksOf(snap: PublishedRecruitmentSnapshot): LifecycleLink[] {
+  const out: LifecycleLink[] = [];
+  (snap.links ?? []).forEach((link, index) => {
+    const kind = KIND_BY_TYPE[link.type];
+    if (!kind || !isHttp(link.url)) return;
+    const savedCopy = savedCopyOf(link);
+    if (!link.official && !savedCopy) return;
+    out.push({
+      id: `${snap.id}-${index}`,
+      kind,
+      label: link.label,
+      url: link.url,
+      jobTitle: snap.title ?? snap.slug,
+      jobSlug: snap.slug,
+      organization: snap.organizationName,
+      updatedAtIso: snap.projectedAt,
+      ...(savedCopy ? { savedCopy } : {}),
+    });
+  });
+  return out;
+}
+
+/** Pure: those links across all published records, newest first. */
+export function lifecycleLinksFrom(snapshots: PublishedRecruitmentSnapshot[]): LifecycleLinks {
+  const all = snapshots.flatMap(lifecycleLinksOf);
   all.sort((a, b) => b.updatedAtIso.localeCompare(a.updatedAtIso));
   const of = (kind: LifecycleKind) => all.filter((l) => l.kind === kind);
   return { results: of("result"), admitCards: of("admitCard"), answerKeys: of("answerKey") };

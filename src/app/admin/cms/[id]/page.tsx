@@ -24,6 +24,7 @@ import type {
 import type { ExamStage, UpdateRecord, ExamStageStatus } from "@/types";
 import { projectForPreview } from "@/lib/cms/projector";
 import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
+import { savedFilePath, savedFileProblem, MAX_SAVED_FILE_LABEL, SAVED_FILE_CONTENT_TYPE } from "@/lib/cms/saved-files";
 import { aiAssistReason, buildAiField, describeAiValue } from "@/lib/cms/ai-assist-apply";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
@@ -396,6 +397,7 @@ const LINK_TYPE_OPTIONS: Array<{ type: RecruitmentLinkType; label: string }> = [
   { type: "ADMIT_CARD",            label: "Admit Card" },
   { type: "RESULT",                label: "Result" },
   { type: "ANSWER_KEY",            label: "Answer Key" },
+  { type: "CUT_OFF",               label: "Cut-off Marks" },
   { type: "EXAM_NOTICE",           label: "Exam Notice" },
   { type: "OTHER",                 label: "Other" },
 ];
@@ -406,6 +408,11 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [official, setOfficial] = useState(false);
+  // A saved copy is our own copy of the file (e.g. on Google Drive), listed with the official page it came from.
+  const [isCopy, setIsCopy] = useState(false);
+  const [savedFrom, setSavedFrom] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadedName, setUploadedName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -419,11 +426,40 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
     return true;
   }
 
+  // Sends the chosen PDF straight to file storage and puts its address in the URL box.
+  async function uploadPdf(file: File) {
+    setErr(null);
+    setUploadedName(null);
+    const head = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+    const problem = savedFileProblem(file, head);
+    if (problem) { setErr(problem); return; }
+    setUploading(true);
+    try {
+      const { upload } = await import("@vercel/blob/client");
+      const blob = await upload(savedFilePath(record.slug, file.name), file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/cms/upload",
+        contentType: SAVED_FILE_CONTENT_TYPE,
+      });
+      setUrl(blob.url);
+      setUploadedName(file.name);
+      setIsCopy(true);
+      setOfficial(false);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setErr(/not set up|Blob store/i.test(message) ? message : `Upload failed: ${message}`);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function addLink() {
     const defaultLabel = LINK_TYPE_OPTIONS.find((o) => o.type === type)?.label ?? "Link";
-    const link: CmsRecruitmentLink = { type, label: label.trim() || defaultLabel, url: url.trim(), official };
-    if (await save([...record.links, link], `Added link: ${link.label}`)) {
-      setLabel(""); setUrl(""); setOfficial(false);
+    const link: CmsRecruitmentLink = isCopy
+      ? { type, label: label.trim() || defaultLabel, url: url.trim(), official: false, savedFrom: savedFrom.trim() }
+      : { type, label: label.trim() || defaultLabel, url: url.trim(), official };
+    if (await save([...record.links, link], `Added ${isCopy ? "saved copy" : "link"}: ${link.label}`)) {
+      setLabel(""); setUrl(""); setOfficial(false); setIsCopy(false); setSavedFrom(""); setUploadedName(null);
     }
   }
 
@@ -452,7 +488,11 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
                 <td style={cell}>
                   <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: C.accent, fontSize: 12, wordBreak: "break-all" }}>{l.url}</a>
                 </td>
-                <td style={{ ...cell, color: l.official ? C.green : C.muted }}>{l.official ? "✓" : "—"}</td>
+                <td style={{ ...cell, color: l.official ? C.green : l.savedFrom ? C.amber : C.muted, fontSize: 12 }}>
+                  {l.official ? "✓" : l.savedFrom ? (
+                    <span title={`Saved from ${l.savedFrom}${l.savedOn ? ` on ${l.savedOn}` : ""}`}>Saved copy</span>
+                  ) : "—"}
+                </td>
                 <td style={cell}>
                   {editable && (
                     <button
@@ -487,22 +527,70 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
           </div>
           <div style={{ marginTop: 8 }}>
             <label style={labelStyle} htmlFor="link-url">URL</label>
-            <input id="link-url" type="url" value={url} onChange={(e) => setUrl(e.target.value)} style={inputStyle} placeholder="https://…" />
+            <input id="link-url" type="url" value={url} onChange={(e) => { setUrl(e.target.value); setUploadedName(null); }} style={inputStyle} placeholder="https://…" />
+          </div>
+          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <label
+              style={{
+                padding: "6px 12px", borderRadius: 5, fontSize: 12, fontWeight: 600,
+                border: `1px solid ${C.border}`, color: C.accent,
+                cursor: uploading ? "not-allowed" : "pointer", opacity: uploading ? 0.6 : 1,
+              }}
+            >
+              {uploading ? "Uploading…" : "Upload a PDF instead"}
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                disabled={uploading}
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void uploadPdf(f); }}
+                style={{ display: "none" }}
+              />
+            </label>
+            <span style={{ fontSize: 11, color: uploadedName ? C.green : C.muted }}>
+              {uploadedName
+                ? `Uploaded “${uploadedName}”. Now enter the official page it came from, then add it.`
+                : `For results, answer keys and cut-offs. PDF only, up to ${MAX_SAVED_FILE_LABEL}. Never upload a single candidate's admit card or scorecard.`}
+            </span>
           </div>
           <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 10, fontSize: 12, color: C.text, cursor: "pointer" }}>
-            <input type="checkbox" checked={official} onChange={(e) => setOfficial(e.target.checked)} style={{ marginTop: 2 }} />
-            <span>
+            <input type="checkbox" checked={official} disabled={isCopy} onChange={(e) => setOfficial(e.target.checked)} style={{ marginTop: 2 }} />
+            <span style={{ opacity: isCopy ? 0.5 : 1 }}>
               Official source — I have checked this URL is on the recruiting organisation&apos;s own website.
               <span style={{ color: C.muted }}> Leave unticked for third-party pages.</span>
             </span>
           </label>
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 8, fontSize: 12, color: C.text, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={isCopy}
+              onChange={(e) => { setIsCopy(e.target.checked); if (e.target.checked) setOfficial(false); }}
+              style={{ marginTop: 2 }}
+            />
+            <span>
+              My saved copy — the URL above is my own copy of the file (uploaded here, or hosted elsewhere).
+              <span style={{ color: C.muted }}> Shown to visitors as “Saved copy”, never as official.</span>
+            </span>
+          </label>
+          {isCopy && (
+            <div style={{ marginTop: 8 }}>
+              <label style={labelStyle} htmlFor="link-saved-from">Official page or file this copy came from</label>
+              <input
+                id="link-saved-from"
+                type="url"
+                value={savedFrom}
+                onChange={(e) => setSavedFrom(e.target.value)}
+                style={inputStyle}
+                placeholder="https://ssc.gov.in/…"
+              />
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
             <button
               onClick={() => { void addLink(); }}
-              disabled={saving || !url.trim()}
-              style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !url.trim() ? "not-allowed" : "pointer", opacity: saving || !url.trim() ? 0.6 : 1 }}
+              disabled={saving || !url.trim() || (isCopy && !savedFrom.trim())}
+              style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !url.trim() || (isCopy && !savedFrom.trim()) ? "not-allowed" : "pointer", opacity: saving || !url.trim() || (isCopy && !savedFrom.trim()) ? 0.6 : 1 }}
             >
-              {saving ? "Saving…" : "Add link"}
+              {saving ? "Saving…" : isCopy ? "Add saved copy" : "Add link"}
             </button>
           </div>
           {err && <div role="alert" style={{ color: C.red, fontSize: 12, marginTop: 8 }}>{err}</div>}

@@ -208,6 +208,7 @@ export type RecruitmentLinkType =
   | "ADMIT_CARD"
   | "RESULT"
   | "ANSWER_KEY"
+  | "CUT_OFF"
   | "EXAM_NOTICE"
   | "OTHER";
 
@@ -217,6 +218,14 @@ export interface CmsRecruitmentLink {
   url: string;
   official: boolean;
   sourceId?: string;  // FK → CmsEvidence if engine-discovered
+  /**
+   * Set when `url` is OUR saved copy of a document (e.g. on Google Drive):
+   * the official address the file was taken from. A saved copy is never
+   * `official` and is always shown labelled as a saved copy.
+   */
+  savedFrom?: string;
+  /** YYYY-MM-DD the copy was saved. Present whenever savedFrom is. */
+  savedOn?: string;
 }
 
 export type RecruitmentDocumentType =

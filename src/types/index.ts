@@ -228,6 +228,14 @@ export interface BaseOpportunity {
   category: Category;
   state: string;                  // "Bihar", "All India", "Karnataka"
   qualification: Qualification;
+  /** Result, admit card and answer key links for this job (official, or our labelled saved copy). */
+  downloads?: Array<{
+    id: string;
+    kind: "result" | "admitCard" | "answerKey";
+    label: string;
+    url: string;
+    savedCopy?: { from: string; host: string; on?: string };
+  }>;
   postDate?: string;              // ISO — optional: not always known at discovery time
   addedAt?: string;               // ISO — when the job first went live on this site
 

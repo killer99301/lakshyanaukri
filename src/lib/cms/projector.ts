@@ -71,7 +71,7 @@ export interface PublishedRecruitmentSnapshot {
   age: unknown | null;
   selection: unknown | null;
   howToApply: string[];
-  links: Array<{ type: string; label: string; url: string; official: boolean }>;
+  links: Array<{ type: string; label: string; url: string; official: boolean; savedFrom?: string; savedOn?: string }>;
   documents: Array<{ type: string; label: string; url: string; official: boolean; datePublished?: string }>;
   classification: {
     shortDescription: string | null;
@@ -143,6 +143,7 @@ function buildSnapshot(record: RecruitmentRecord): PublishedRecruitmentSnapshot 
       label:    l.label,
       url:      l.url,
       official: l.official,
+      ...(l.savedFrom ? { savedFrom: l.savedFrom, savedOn: l.savedOn } : {}),
     })),
 
     documents: record.documents.map((d) => ({

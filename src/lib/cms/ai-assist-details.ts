@@ -493,6 +493,7 @@ const LINK_LABELS: Partial<Record<RecruitmentLinkType, string>> = {
   ADMIT_CARD: "Admit Card",
   RESULT: "Result",
   ANSWER_KEY: "Answer Key",
+  CUT_OFF: "Cut-off Marks",
   EXAM_NOTICE: "Exam Notice",
 };
 
@@ -502,6 +503,7 @@ function classifyLink(context: string, href: URL): RecruitmentLinkType | null {
   if (/corrigendum|addendum/.test(c)) return "CORRIGENDUM";
   if (/admit\s*card|hall\s*ticket/.test(c)) return "ADMIT_CARD";
   if (/answer\s*key/.test(c)) return "ANSWER_KEY";
+  if (/cut[\s-]?off/.test(c)) return "CUT_OFF";
   if (/\bresult/.test(c)) return "RESULT";
   if (/exam\s+date|exam\s+schedule|exam\s+notice|city\s+intimation/.test(c)) return "EXAM_NOTICE";
   if (/apply|registration|register/.test(c) || /login|apply|register/.test(path)) return "APPLY_ONLINE";

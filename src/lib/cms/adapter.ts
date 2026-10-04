@@ -26,6 +26,7 @@ import type {
 } from "@/types";
 import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation } from "@/types/recruitment-record";
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
+import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
 
 // ─── Internal helpers ─────────────────────────────────────
 
@@ -58,8 +59,9 @@ function selectionInfoToProcessStrings(info: CmsSelectionInformation): string[] 
 export function snapshotToGovernmentRecruitment(
   snapshot: PublishedRecruitmentSnapshot,
 ): GovernmentRecruitment {
+  // A saved copy is never used where the page presents "the" link of a type.
   const linkByType = (type: string) =>
-    snapshot.links.find((l) => l.type === type)?.url;
+    snapshot.links.find((l) => l.type === type && !l.savedFrom)?.url;
 
   const govType = (() => {
     if (snapshot.govType === "PSU") return "PSU Bank" as const;
@@ -118,6 +120,7 @@ export function snapshotToGovernmentRecruitment(
     qualification:    (snapshot.classification.qualification ?? "") as GovernmentRecruitment["qualification"],
 
     addedAt:          snapshot.firstPublishedAt,
+    downloads:        lifecycleLinksOf(snapshot),
 
     govType,
     notificationNumber: snapshot.notificationNumber ?? "",

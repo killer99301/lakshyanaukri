@@ -13,7 +13,7 @@
 
 import { suite, test, assert } from "../intelligence/suite";
 import type { Opportunity } from "@/types";
-import { lifecycleLinksFrom } from "@/lib/cms/lifecycle-links";
+import { lifecycleLinksFrom, lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
 import { textSearch, searchWords, closestMatches, sortOpportunities, isNewlyAdded, jobsLinkCount, type SortOption } from "@/lib/filters";
 
 const job = (o: Record<string, unknown>): Opportunity =>
@@ -201,4 +201,18 @@ test("PS13 only official RESULT / ADMIT_CARD / ANSWER_KEY links are listed, newe
   assert.deepEqual(out.admitCards.map((l) => l.label), ["Tier-II Admit Card", "Tier-I Admit Card"]);
   assert.equal(out.admitCards[0].jobSlug, "job-b");
   assert.deepEqual(lifecycleLinksFrom([]), { results: [], admitCards: [], answerKeys: [] });
+});
+
+test("PS14 saved copies are listed and labelled; unofficial links without a source are not", () => {
+  const snap = { id: "x", slug: "job-x", title: "Job X", organizationName: "IBPS", projectedAt: "2026-10-04T00:00:00Z", links: [
+    { type: "RESULT", label: "Final Result (PDF)", url: "https://drive.google.com/file/d/abc/view", official: false, savedFrom: "https://www.ibps.in/result.pdf", savedOn: "2026-10-04" },
+    { type: "RESULT", label: "Blog post", url: "https://example.com/result", official: false },
+    { type: "ANSWER_KEY", label: "Answer Key", url: "https://www.ibps.in/key.pdf", official: true },
+    { type: "OFFICIAL_NOTIFICATION", label: "Notice copy", url: "https://drive.google.com/file/d/n/view", official: false, savedFrom: "https://www.ibps.in/n.pdf" },
+  ] } as never;
+  const mine = lifecycleLinksOf(snap);
+  assert.deepEqual(mine.map((l) => l.label), ["Final Result (PDF)", "Answer Key"]);
+  assert.deepEqual(mine[0].savedCopy, { from: "https://www.ibps.in/result.pdf", host: "ibps.in", on: "2026-10-04" });
+  assert.equal(mine[1].savedCopy, undefined);
+  assert.equal(lifecycleLinksFrom([snap]).results.length, 1);
 });

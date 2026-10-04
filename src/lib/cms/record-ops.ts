@@ -639,7 +639,7 @@ export function updateLifecycleStatusOverride(
 
 const LINK_TYPES: ReadonlySet<string> = new Set([
   "OFFICIAL_NOTIFICATION", "APPLY_ONLINE", "OFFICIAL_WEBSITE", "CORRIGENDUM",
-  "ADMIT_CARD", "RESULT", "ANSWER_KEY", "EXAM_NOTICE", "OTHER",
+  "ADMIT_CARD", "RESULT", "ANSWER_KEY", "CUT_OFF", "EXAM_NOTICE", "OTHER",
 ]);
 const MAX_LIST_ITEMS = 30;
 
@@ -677,12 +677,32 @@ export function updateLinks(
     if (typeof l.official !== "boolean") {
       throw new Error(`links invariant: link ${i + 1} must state whether it is official`);
     }
+
+    // A saved copy: our own copy of a document, with the official address it came from.
+    const saved: Pick<CmsRecruitmentLink, "savedFrom" | "savedOn"> = {};
+    if (l.savedFrom !== undefined && l.savedFrom !== null && l.savedFrom !== "") {
+      if (!isHttpUrl(l.savedFrom)) {
+        throw new Error(`links invariant: link ${i + 1} is a saved copy and needs the official http(s) address it came from`);
+      }
+      if (l.official) {
+        throw new Error(`links invariant: link ${i + 1} is a saved copy, so it cannot be marked official`);
+      }
+      const from = l.savedFrom.trim();
+      if (new URL(from).hostname === new URL(l.url.trim()).hostname) {
+        throw new Error(`links invariant: link ${i + 1}: the source address is on the same site as the copy — enter the official page the file came from`);
+      }
+      const on = typeof l.savedOn === "string" && /^20\d{2}-\d{2}-\d{2}$/.test(l.savedOn) ? l.savedOn : now().slice(0, 10);
+      saved.savedFrom = from;
+      saved.savedOn = on;
+    }
+
     return {
       type: l.type as CmsRecruitmentLink["type"],
       label,
       url: l.url.trim(),
       official: l.official,
       ...(typeof l.sourceId === "string" ? { sourceId: l.sourceId } : {}),
+      ...saved,
     };
   });
 

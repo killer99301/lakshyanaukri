@@ -31,7 +31,20 @@ const KIND_META: Record<LifecycleKind, { title: string; href: string; action: st
   },
 };
 
-/** One official link, with the job it belongs to. Used on the three listing pages. */
+/** "Saved copy · from ssc.gov.in · 4 Oct 2026", linking to where the file came from. */
+function SavedCopyNote({ copy, className }: { copy: NonNullable<LifecycleLink["savedCopy"]>; className?: string }) {
+  return (
+    <span className={className}>
+      Saved copy, from{" "}
+      <a href={copy.from} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:text-[#EA580C]">
+        {copy.host}
+      </a>
+      {copy.on ? ` on ${formatDate(copy.on)}` : ""}
+    </span>
+  );
+}
+
+/** One listed link, with the job it belongs to. Used on the three listing pages. */
 export function LifecycleLinkCard({ item }: { item: LifecycleLink }) {
   const meta = KIND_META[item.kind];
   return (
@@ -39,9 +52,15 @@ export function LifecycleLinkCard({ item }: { item: LifecycleLink }) {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <OrganizationLogo organizationName={item.organization} size="md" />
-          <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-black uppercase">
-            Official link
-          </span>
+          {item.savedCopy ? (
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-black uppercase">
+              Saved copy
+            </span>
+          ) : (
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-black uppercase">
+              Official link
+            </span>
+          )}
         </div>
         <div>
           <span className="text-[10px] font-black uppercase tracking-wider text-[#C2410C]">
@@ -50,6 +69,9 @@ export function LifecycleLinkCard({ item }: { item: LifecycleLink }) {
           <h3 className="text-sm font-bold text-[#0F172A] leading-snug mt-0.5">{item.label}</h3>
           <p className="text-xs text-[#475569] font-medium mt-1">{item.jobTitle}</p>
           <p className="text-[11px] text-slate-400 font-medium">{item.organization}</p>
+          {item.savedCopy && (
+            <SavedCopyNote copy={item.savedCopy} className="text-[11px] text-[#475569] block mt-1.5 leading-relaxed" />
+          )}
         </div>
       </div>
       <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs gap-2 flex-wrap">
@@ -62,10 +84,52 @@ export function LifecycleLinkCard({ item }: { item: LifecycleLink }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 font-bold text-[#EA580C] hover:underline"
         >
-          <span>{meta.action}</span>
+          <span>{item.savedCopy ? "Open saved copy" : meta.action}</span>
           <ExternalLink className="h-3 w-3" />
         </a>
       </div>
+    </div>
+  );
+}
+
+/** On a job's own page: its result, admit card and answer key links. Renders nothing when there are none. */
+export function JobDownloads({ items }: { items?: Array<Pick<LifecycleLink, "id" | "kind" | "label" | "url" | "savedCopy">> }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="bg-white border border-[#E2E8F0] rounded-3xl p-5 sm:p-6 shadow-xs space-y-3">
+      <h2 className="text-base font-black text-[#0F172A] tracking-tight">Results, Admit Cards & Answer Keys</h2>
+      <ul className="divide-y divide-slate-100">
+        {items.map((item) => (
+          <li key={item.id} className="py-3 flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#C2410C]">
+                  {KIND_META[item.kind].icon}
+                  {KIND_META[item.kind].title}
+                </span>
+                {item.savedCopy && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-black uppercase">
+                    Saved copy
+                  </span>
+                )}
+              </div>
+              <p className="text-sm font-bold text-[#0F172A] mt-0.5">{item.label}</p>
+              {item.savedCopy && (
+                <SavedCopyNote copy={item.savedCopy} className="text-[11px] text-[#475569] block mt-0.5" />
+              )}
+            </div>
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FFF7ED] border border-[#FED7AA] text-[#EA580C] font-extrabold text-xs hover:bg-[#EA580C] hover:text-white transition-colors shrink-0"
+            >
+              <span>{item.savedCopy ? "Open saved copy" : "Open official link"}</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -81,7 +145,7 @@ export function LifecycleLinkGrid({ kind, items }: { kind: LifecycleKind; items:
         </div>
         <h3 className="text-sm font-extrabold text-[#0F172A]">{meta.empty}</h3>
         <p className="text-xs text-[#475569] max-w-md mx-auto leading-relaxed">
-          We list one only after its official link has been checked and added to the job. Until then, use the
+          We list one only after its official link, or our saved copy of the official file, has been checked and added to the job. Until then, use the
           official portals below, or open a job to see its current stage.
         </p>
         <Link href="/jobs" className="inline-flex items-center gap-1 text-xs font-bold text-[#EA580C] hover:underline">
@@ -112,7 +176,7 @@ export function LifecycleHomeSection({ links }: { links: LifecycleLinks }) {
       <Container>
         <SectionHeading
           title="Results, Admit Cards & Answer Keys"
-          subtitle="Official links, added to a job only after they have been checked."
+          subtitle="Official links, and our saved copies where marked, added to a job only after they have been checked."
         />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-4">
           {columns.map(({ kind, items }) => {
@@ -144,7 +208,10 @@ export function LifecycleHomeSection({ links }: { links: LifecycleLinks }) {
                       <li key={item.id} className="py-2.5">
                         <a href={item.url} target="_blank" rel="noopener noreferrer" className="group block">
                           <span className="text-xs font-bold text-[#0F172A] group-hover:text-[#EA580C] transition-colors flex items-start justify-between gap-2">
-                            <span className="line-clamp-2">{item.label}</span>
+                            <span className="line-clamp-2">
+                              {item.label}
+                              {item.savedCopy && <span className="ml-1.5 text-[10px] font-black uppercase text-amber-700">Saved copy</span>}
+                            </span>
                             <ExternalLink className="h-3 w-3 shrink-0 mt-0.5 text-slate-400 group-hover:text-[#EA580C]" />
                           </span>
                         </a>

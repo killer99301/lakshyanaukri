@@ -13,6 +13,7 @@ import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobSectionTabs } from "@/components/jobs/JobSectionTabs";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
 import { OfficialNotificationCard } from "@/components/jobs/OfficialNotificationCard";
+import { JobDownloads } from "@/components/lifecycle/LifecycleLinkList";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 
@@ -147,6 +148,8 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
               sourceName={job.provenance.primarySourceType.replace(/_/g, " ")}
               verifiedAt={job.provenance.lastVerifiedAt}
             />
+
+            <JobDownloads items={job.downloads} />
 
             <JobDetailSections job={job} />
           </main>
