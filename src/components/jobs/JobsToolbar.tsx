@@ -25,11 +25,11 @@ export const JobsToolbar: React.FC<JobsToolbarProps> = ({
     <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3.5 shadow-2xs flex flex-wrap items-center justify-between gap-3">
       {/* Left Results Count */}
       <div className="flex items-center gap-2">
-        <span className="text-sm font-black text-[#0F172A]">
+        <span className="text-lg leading-none font-black text-[#EA580C] tabular-nums">
           {totalCount.toLocaleString()}
         </span>
-        <span className="text-xs font-semibold text-[#475569]">
-          Jobs Found
+        <span className="text-xs font-bold text-[#0F172A]">
+          {totalCount === 1 ? "Job Found" : "Jobs Found"}
         </span>
       </div>
 

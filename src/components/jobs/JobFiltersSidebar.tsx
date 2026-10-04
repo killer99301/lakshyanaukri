@@ -151,8 +151,12 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
                   </div>
                   <span
                     className={cn(
-                      "text-[10px] font-extrabold font-mono px-1.5 py-0.5 rounded",
-                      isDisabled ? "bg-slate-50 text-slate-300" : "bg-slate-100 text-slate-400"
+                      "text-[11px] font-extrabold font-mono px-1.5 py-0.5 rounded min-w-[22px] text-center",
+                      checked
+                        ? "bg-[#EA580C] text-white"
+                        : isDisabled
+                        ? "bg-slate-50 text-slate-300"
+                        : "bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA]"
                     )}
                   >
                     {opt.count}
@@ -209,8 +213,12 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
                   </div>
                   <span
                     className={cn(
-                      "text-[10px] font-extrabold font-mono px-1.5 py-0.5 rounded",
-                      isDisabled ? "bg-slate-50 text-slate-300" : "bg-slate-100 text-slate-400"
+                      "text-[11px] font-extrabold font-mono px-1.5 py-0.5 rounded min-w-[22px] text-center",
+                      checked
+                        ? "bg-[#EA580C] text-white"
+                        : isDisabled
+                        ? "bg-slate-50 text-slate-300"
+                        : "bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA]"
                     )}
                   >
                     {opt.count}
@@ -267,8 +275,12 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
                   </div>
                   <span
                     className={cn(
-                      "text-[10px] font-extrabold font-mono px-1.5 py-0.5 rounded",
-                      isDisabled ? "bg-slate-50 text-slate-300" : "bg-slate-100 text-slate-400"
+                      "text-[11px] font-extrabold font-mono px-1.5 py-0.5 rounded min-w-[22px] text-center",
+                      checked
+                        ? "bg-[#EA580C] text-white"
+                        : isDisabled
+                        ? "bg-slate-50 text-slate-300"
+                        : "bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA]"
                     )}
                   >
                     {opt.count}
@@ -325,8 +337,12 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
                   </div>
                   <span
                     className={cn(
-                      "text-[10px] font-extrabold font-mono px-1.5 py-0.5 rounded",
-                      isDisabled ? "bg-slate-50 text-slate-300" : "bg-slate-100 text-slate-400"
+                      "text-[11px] font-extrabold font-mono px-1.5 py-0.5 rounded min-w-[22px] text-center",
+                      checked
+                        ? "bg-[#EA580C] text-white"
+                        : isDisabled
+                        ? "bg-slate-50 text-slate-300"
+                        : "bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA]"
                     )}
                   >
                     {opt.count}
@@ -383,8 +399,12 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
                   </div>
                   <span
                     className={cn(
-                      "text-[10px] font-extrabold font-mono px-1.5 py-0.5 rounded",
-                      isDisabled ? "bg-slate-50 text-slate-300" : "bg-slate-100 text-slate-400"
+                      "text-[11px] font-extrabold font-mono px-1.5 py-0.5 rounded min-w-[22px] text-center",
+                      checked
+                        ? "bg-[#EA580C] text-white"
+                        : isDisabled
+                        ? "bg-slate-50 text-slate-300"
+                        : "bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA]"
                     )}
                   >
                     {opt.count}
