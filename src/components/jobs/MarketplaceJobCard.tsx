@@ -26,6 +26,7 @@ import {
 } from "@/lib/lifecycle";
 import { getDeadlineUrgency, formatDeadlineDate } from "@/lib/urgency";
 import { cn } from "@/lib/utils";
+import { isNewlyAdded } from "@/lib/filters";
 
 interface MarketplaceJobCardProps {
   job: Opportunity;
@@ -49,6 +50,7 @@ export const MarketplaceJobCard: React.FC<MarketplaceJobCardProps> = ({
   const daysRemaining = isDeadlineKnown ? getDaysRemaining(closeDate, now) : 0;
   const urgency = getDeadlineUrgency(daysRemaining, isDeadlineKnown);
   const derivedStatus = deriveStatusBadge(job, now);
+  const isNew = isNewlyAdded(job, now);
   const vacancyText = getVacancyDisplay(job);
   const provenance = getProvenanceSummary(job);
 
@@ -93,6 +95,15 @@ export const MarketplaceJobCard: React.FC<MarketplaceJobCardProps> = ({
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-start justify-between gap-2">
                 <Link href={`/jobs/${job.slug}`} className="min-w-0 flex-1">
+                  {isNew && (
+                    <span className="inline-flex items-center gap-1.5 mb-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#EA580C] to-[#F59E0B] text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-75 animate-ping motion-reduce:animate-none" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
+                      </span>
+                      New
+                    </span>
+                  )}
                   <h3 className="text-sm sm:text-base font-extrabold text-[#0F172A] group-hover:text-[#EA580C] transition-colors leading-snug line-clamp-2">
                     {job.title}
                   </h3>

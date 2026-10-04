@@ -13,7 +13,7 @@
 
 import { suite, test, assert } from "../intelligence/suite";
 import type { Opportunity } from "@/types";
-import { textSearch, searchWords, closestMatches, sortOpportunities, type SortOption } from "@/lib/filters";
+import { textSearch, searchWords, closestMatches, sortOpportunities, isNewlyAdded, type SortOption } from "@/lib/filters";
 
 const job = (o: Record<string, unknown>): Opportunity =>
   ({ type: "government", shortDescription: "", category: "government", state: "All India", qualification: "", ...o }) as unknown as Opportunity;
@@ -123,4 +123,29 @@ test("PS09 deadline puts open jobs first by urgency; vacancies sorts high to low
   const order = (sort: SortOption) => sortOpportunities([a, b, c], sort, now).map((o) => o.slug);
   assert.deepEqual(order("deadline"), ["b", "a", "c"]);
   assert.deepEqual(order("vacancies"), ["b", "c", "a"]);
+});
+
+suite("Latest first, and the New badge");
+
+test("PS10 latest sorts by when a job went live here; unknown dates go last", () => {
+  const now = new Date("2026-10-04T12:00:00Z");
+  const old = job({ slug: "old", title: "Old", addedAt: "2026-08-01T10:00:00Z", application: { closeDate: "2026-12-01" } });
+  const fresh = job({ slug: "fresh", title: "Fresh", addedAt: "2026-10-04T09:00:00Z", application: { closeDate: "2026-10-07" } });
+  const notified = job({ slug: "notified", title: "Notified", postDate: "2026-09-15", application: { closeDate: "2026-12-01" } });
+  const undated = job({ slug: "undated", title: "Undated", application: { closeDate: "2026-12-01" } });
+  assert.deepEqual(
+    sortOpportunities([undated, old, notified, fresh], "latest", now).map((o) => o.slug),
+    ["fresh", "notified", "old", "undated"],
+  );
+});
+
+test("PS11 New badge: added within 7 days and still open; never for closed or undated jobs", () => {
+  const now = new Date("2026-10-04T12:00:00Z");
+  const open = { closeDate: "2026-10-20" };
+  assert.equal(isNewlyAdded(job({ addedAt: "2026-10-04T09:00:00Z", application: open }), now), true);
+  assert.equal(isNewlyAdded(job({ addedAt: "2026-09-28T09:00:00Z", application: open }), now), true);
+  assert.equal(isNewlyAdded(job({ addedAt: "2026-09-20T09:00:00Z", application: open }), now), false);
+  assert.equal(isNewlyAdded(job({ addedAt: "2026-10-04T09:00:00Z", application: { closeDate: "2026-10-01" } }), now), false);
+  assert.equal(isNewlyAdded(job({ postDate: "2026-10-03", application: open }), now), false);
+  assert.equal(isNewlyAdded(job({ addedAt: "not-a-date", application: open }), now), false);
 });

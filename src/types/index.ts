@@ -229,6 +229,7 @@ export interface BaseOpportunity {
   state: string;                  // "Bihar", "All India", "Karnataka"
   qualification: Qualification;
   postDate?: string;              // ISO — optional: not always known at discovery time
+  addedAt?: string;               // ISO — when the job first went live on this site
 
   provenance: Provenance;
   updates?: UpdateRecord[];

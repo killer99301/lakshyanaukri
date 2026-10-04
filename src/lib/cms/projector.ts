@@ -83,6 +83,8 @@ export interface PublishedRecruitmentSnapshot {
   provenanceStatus: string;
   primarySourceUrl: string | null;
   projectedAt: string;
+  /** When the record first went live. Not stored in the snapshot — filled in when listings are read. */
+  firstPublishedAt?: string;
   projectionVersion: string;
   sourceRecordRevision: string;
 }

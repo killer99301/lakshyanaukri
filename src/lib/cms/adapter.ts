@@ -117,6 +117,8 @@ export function snapshotToGovernmentRecruitment(
     state:            snapshot.classification.state ?? "",
     qualification:    (snapshot.classification.qualification ?? "") as GovernmentRecruitment["qualification"],
 
+    addedAt:          snapshot.firstPublishedAt,
+
     govType,
     notificationNumber: snapshot.notificationNumber ?? "",
     totalVacancies:   snapshot.vacancies.total ?? 0,

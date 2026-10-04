@@ -54,13 +54,23 @@ export async function getPublishedSlugs(): Promise<string[]> {
  * Single batch query — no N+1. Used by the /jobs marketplace listing.
  */
 export async function getAllPublishedSnapshots(): Promise<PublishedRecruitmentSnapshot[]> {
+  // first_published_at is the earliest publication of the record, so editing
+  // and republishing a job does not make it look newly added.
   const rows = await sql`
-    SELECT DISTINCT ON (r.id) pr.snapshot
+    SELECT DISTINCT ON (r.id)
+      pr.snapshot,
+      (SELECT MIN(p.published_at) FROM published_recruitments p WHERE p.recruitment_id = r.id) AS first_published_at
     FROM published_recruitments pr
     JOIN recruitments r ON r.id = pr.recruitment_id
     WHERE r.last_published_revision IS NOT NULL
       AND r.draft_state != 'ARCHIVED'
     ORDER BY r.id, pr.published_at DESC
   `;
-  return rows.map((row) => row.snapshot as PublishedRecruitmentSnapshot);
+  return rows.map((row) => {
+    const first = row.first_published_at;
+    return {
+      ...(row.snapshot as PublishedRecruitmentSnapshot),
+      firstPublishedAt: first ? new Date(first as string | Date).toISOString() : undefined,
+    };
+  });
 }

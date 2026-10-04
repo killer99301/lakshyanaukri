@@ -284,6 +284,28 @@ export function applyFilters(
 
 export type SortOption = "latest" | "deadline" | "vacancies";
 
+/** When a job arrived: the day it went live here, else its notification date. Unknown sorts last. */
+function latestTime(opp: Opportunity): number {
+  const when = opp.addedAt ?? opp.postDate;
+  const time = when ? new Date(when).getTime() : 0;
+  return Number.isNaN(time) ? 0 : time;
+}
+
+const NEW_FOR_DAYS = 7;
+
+/**
+ * True for a job that went live here in the last week and can still be
+ * applied for. A closed job is never shown as new.
+ */
+export function isNewlyAdded(opp: Opportunity, now: Date): boolean {
+  if (!opp.addedAt) return false;
+  const added = new Date(opp.addedAt).getTime();
+  if (Number.isNaN(added)) return false;
+  const ageDays = (now.getTime() - added) / 86_400_000;
+  if (ageDays < 0 || ageDays > NEW_FOR_DAYS) return false;
+  return getOpportunityApplicationStatus(opp, now) !== "APPLICATIONS_CLOSED";
+}
+
 /**
  * Sort opportunities by the given criteria.
  * Returns a new sorted array; does not mutate input.
@@ -299,9 +321,7 @@ export function sortOpportunities(
     case "latest":
       return sorted.sort(
         (a, b) => {
-          const aTime = a.postDate ? new Date(a.postDate).getTime() : 0;
-          const bTime = b.postDate ? new Date(b.postDate).getTime() : 0;
-          return bTime - aTime;
+          return latestTime(b) - latestTime(a);
         }
       );
 
