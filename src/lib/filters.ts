@@ -85,24 +85,49 @@ export function textSearch(
   opportunities: Opportunity[],
   query: string
 ): Opportunity[] {
-  if (!query.trim()) return opportunities;
-  const q = query.toLowerCase().trim();
+  const words = searchWords(query);
+  if (words.length === 0) return opportunities;
 
   return opportunities.filter((opp) => {
-    const searchable = [
-      opp.title,
-      opp.organizationName,
-      opp.shortDescription,
-      opp.category,
-      opp.state,
-      opp.type === "government" ? (opp as GovernmentRecruitment).notificationNumber : "",
-      opp.qualification,
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    return searchable.includes(q);
+    const gov = opp.type === "government" ? (opp as GovernmentRecruitment) : null;
+    const searchable = searchText(
+      [
+        opp.title,
+        opp.organizationName,
+        opp.organizationId,
+        opp.slug,
+        opp.shortDescription,
+        opp.category,
+        opp.state,
+        opp.qualification,
+        gov?.notificationNumber,
+        gov?.govType,
+        ...(gov?.eligibility ?? []),
+      ].join(" "),
+    );
+    // Every word must start a word in the text, in any order: "chsl 2026" finds
+    // "SSC CHSL (Combined Higher Secondary Level) Examination 2026".
+    return words.every((w) => searchable.includes(` ${w}`));
   });
+}
+
+/** Lower-case, with punctuation turned into spaces, so "10+2", "(CHSL)" and "po/mt" match plain typing. */
+function searchText(text: string): string {
+  return ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+}
+
+// Words people add to a search that say nothing about which job they mean.
+const SEARCH_FILLER = new Set([
+  "job", "jobs", "recruitment", "vacancy", "vacancies", "notification", "bharti",
+  "exam", "examination", "apply", "online", "form", "latest", "new",
+  "govt", "government", "sarkari", "naukri", "for", "in", "of", "the", "and",
+]);
+
+/** The words a query is matched on. Filler is dropped unless nothing else is left. */
+export function searchWords(query: string): string[] {
+  const all = searchText(query).trim().split(" ").filter(Boolean);
+  const meaningful = all.filter((w) => !SEARCH_FILLER.has(w));
+  return meaningful.length > 0 ? meaningful : all;
 }
 
 // ─── Location Filter ────────────────────────────────────

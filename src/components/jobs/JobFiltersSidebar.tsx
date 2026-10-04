@@ -124,6 +124,7 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
               return (
                 <label
                   key={opt.value}
+                  onClick={() => !isDisabled && handleCheckboxToggle("types", opt.value)}
                   className={cn(
                     "flex items-center justify-between text-xs transition-colors",
                     isDisabled
@@ -133,7 +134,6 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <div
-                      onClick={() => !isDisabled && handleCheckboxToggle("types", opt.value)}
                       className={cn(
                         "h-4 w-4 rounded border transition-colors flex items-center justify-center shrink-0",
                         checked
@@ -182,6 +182,7 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
               return (
                 <label
                   key={opt.value}
+                  onClick={() => !isDisabled && handleCheckboxToggle("applicationStatuses", opt.value)}
                   className={cn(
                     "flex items-center justify-between text-xs transition-colors",
                     isDisabled
@@ -191,7 +192,6 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <div
-                      onClick={() => !isDisabled && handleCheckboxToggle("applicationStatuses", opt.value)}
                       className={cn(
                         "h-4 w-4 rounded border transition-colors flex items-center justify-center shrink-0",
                         checked
@@ -240,6 +240,7 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
               return (
                 <label
                   key={opt.value}
+                  onClick={() => !isDisabled && handleCheckboxToggle("categories", opt.value)}
                   className={cn(
                     "flex items-center justify-between text-xs transition-colors",
                     isDisabled
@@ -249,7 +250,6 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <div
-                      onClick={() => !isDisabled && handleCheckboxToggle("categories", opt.value)}
                       className={cn(
                         "h-4 w-4 rounded border transition-colors flex items-center justify-center shrink-0",
                         checked
@@ -298,6 +298,7 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
               return (
                 <label
                   key={opt.value}
+                  onClick={() => !isDisabled && handleCheckboxToggle("qualifications", opt.value)}
                   className={cn(
                     "flex items-center justify-between text-xs transition-colors",
                     isDisabled
@@ -307,7 +308,6 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <div
-                      onClick={() => !isDisabled && handleCheckboxToggle("qualifications", opt.value)}
                       className={cn(
                         "h-4 w-4 rounded border transition-colors flex items-center justify-center shrink-0",
                         checked
@@ -356,6 +356,7 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
               return (
                 <label
                   key={opt.value}
+                  onClick={() => !isDisabled && handleCheckboxToggle("experiences", opt.value)}
                   className={cn(
                     "flex items-center justify-between text-xs transition-colors",
                     isDisabled
@@ -365,7 +366,6 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <div
-                      onClick={() => !isDisabled && handleCheckboxToggle("experiences", opt.value)}
                       className={cn(
                         "h-4 w-4 rounded border transition-colors flex items-center justify-center shrink-0",
                         checked
