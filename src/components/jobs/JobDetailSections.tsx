@@ -384,10 +384,15 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                     <span>{q}</span>
                   </li>
                 ))
-              ) : (
+              ) : job.qualification ? (
                 <li className="flex items-start gap-2 text-xs sm:text-sm text-[#0F172A] font-semibold">
                   <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                   <span>{job.qualification} degree from a recognized Board or University in India.</span>
+                </li>
+              ) : (
+                // Never state a requirement nobody entered.
+                <li className="text-xs sm:text-sm text-[#475569] font-semibold">
+                  Not specified here. Please check the official notification.
                 </li>
               )}
             </ul>
@@ -401,7 +406,13 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#475569]">Age Range</span>
                   <span className="text-sm font-black text-[#EA580C]">
-                    {job.ageLimit.min ?? 18} to {job.ageLimit.max ?? 37} Years
+                    {job.ageLimit.min != null && job.ageLimit.max != null
+                      ? `${job.ageLimit.min} to ${job.ageLimit.max} Years`
+                      : job.ageLimit.max != null
+                        ? `Up to ${job.ageLimit.max} Years`
+                        : job.ageLimit.min != null
+                          ? `${job.ageLimit.min} Years and above`
+                          : "See official notification"}
                   </span>
                 </div>
                 {job.ageLimit.asOf && (
@@ -428,7 +439,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                 )}
               </div>
             ) : (
-              <p className="text-xs font-semibold text-[#0F172A]">As per organization standards.</p>
+              <p className="text-xs font-semibold text-[#475569]">Not specified here. Please check the official notification.</p>
             )}
           </div>
         </div>

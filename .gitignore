@@ -47,3 +47,6 @@ intelligence-runs/*.json
 .claude/
 
 .vercel
+
+# local test stack: throwaway certificate and test-admin credentials
+tests/local-stack/.tmp/

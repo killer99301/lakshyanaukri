@@ -30,6 +30,7 @@ import type {
   CmsRecruitmentPost,
   AgeCriteria,
   CmsSelectionInformation,
+  CmsRecruitmentLink,
 } from "@/types/recruitment-record";
 
 import type { VacancyRow } from "@/types";
@@ -628,6 +629,97 @@ export function updateLifecycleStatusOverride(
   );
 
   return { record: updated, revision };
+}
+
+// ─── Plain-array blocks: links and how-to-apply ───────────
+//
+// Not ProvenanceField-wrapped, but they still go through the typed writer so
+// every change is validated and leaves a FieldRevision.
+
+const LINK_TYPES: ReadonlySet<string> = new Set([
+  "OFFICIAL_NOTIFICATION", "APPLY_ONLINE", "OFFICIAL_WEBSITE", "CORRIGENDUM",
+  "ADMIT_CARD", "RESULT", "ANSWER_KEY", "EXAM_NOTICE", "OTHER",
+]);
+const MAX_LIST_ITEMS = 30;
+
+function isHttpUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function updateLinks(
+  record: RecruitmentRecord,
+  links: unknown,
+  adminId: string,
+  reason?: string,
+): FieldUpdateResult {
+  if (!Array.isArray(links)) throw new Error("links invariant: value must be an array");
+  if (links.length > MAX_LIST_ITEMS) throw new Error(`links invariant: at most ${MAX_LIST_ITEMS} links`);
+
+  const cleaned: CmsRecruitmentLink[] = links.map((raw, i) => {
+    const l = (raw ?? {}) as Record<string, unknown>;
+    const label = typeof l.label === "string" ? l.label.trim() : "";
+    if (typeof l.type !== "string" || !LINK_TYPES.has(l.type)) {
+      throw new Error(`links invariant: link ${i + 1} has an unknown type`);
+    }
+    if (!label || label.length > 120) {
+      throw new Error(`links invariant: link ${i + 1} needs a label (1–120 characters)`);
+    }
+    if (!isHttpUrl(l.url)) {
+      throw new Error(`links invariant: link ${i + 1} needs a valid http(s) URL`);
+    }
+    if (typeof l.official !== "boolean") {
+      throw new Error(`links invariant: link ${i + 1} must state whether it is official`);
+    }
+    return {
+      type: l.type as CmsRecruitmentLink["type"],
+      label,
+      url: l.url.trim(),
+      official: l.official,
+      ...(typeof l.sourceId === "string" ? { sourceId: l.sourceId } : {}),
+    };
+  });
+
+  const updated = cloneRecord(record);
+  updated.links = cleaned;
+  updated.updatedAt = now();
+  updated.updatedBy = adminId;
+
+  return {
+    record: updated,
+    revision: buildFieldRevision(record.id, "links", record.links, cleaned, adminId, reason),
+  };
+}
+
+export function updateHowToApply(
+  record: RecruitmentRecord,
+  steps: unknown,
+  adminId: string,
+  reason?: string,
+): FieldUpdateResult {
+  if (!Array.isArray(steps)) throw new Error("howToApply invariant: value must be an array");
+  const cleaned = steps.map((s) => (typeof s === "string" ? s.trim() : "")).filter(Boolean);
+  if (cleaned.length !== steps.length) {
+    throw new Error("howToApply invariant: every step must be non-empty text");
+  }
+  if (cleaned.length > MAX_LIST_ITEMS || cleaned.some((s) => s.length > 500)) {
+    throw new Error(`howToApply invariant: at most ${MAX_LIST_ITEMS} steps of up to 500 characters`);
+  }
+
+  const updated = cloneRecord(record);
+  updated.howToApply = cleaned;
+  updated.updatedAt = now();
+  updated.updatedBy = adminId;
+
+  return {
+    record: updated,
+    revision: buildFieldRevision(record.id, "howToApply", record.howToApply ?? [], cleaned, adminId, reason),
+  };
 }
 
 /** Shallow clone with deep-copied blocks that will be mutated. */

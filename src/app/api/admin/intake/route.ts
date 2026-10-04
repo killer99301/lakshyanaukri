@@ -16,7 +16,7 @@
 // Returns:
 //   { groups: EntityGroup[], rawResults: IntakeResult[], saved: boolean }
 //
-// Authentication: proxy.ts (ADMIN_SECRET cookie/header).
+// Authentication: proxy.ts (admin session required).
 // Node.js runtime — filesystem access required.
 //
 // INVARIANTS:

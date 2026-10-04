@@ -24,10 +24,15 @@ export function getSessionCookieName(): string {
 export const ORIGIN_ALLOWLIST: string[] = (() => {
   const env = process.env.ADMIN_ALLOWED_ORIGINS;
   if (env) {
-    return env.split(",").map((s) => s.trim()).filter(Boolean);
+    return env.split(",").map(normalizeOrigin).filter(Boolean);
   }
-  return [process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"];
+  return [normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000")];
 })();
+
+/** Browsers send Origin without a trailing slash; tolerate one in configuration. */
+function normalizeOrigin(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
 
 /**
  * Validate the Origin header for state-changing (non-GET/HEAD) requests.
@@ -45,9 +50,9 @@ export function validateOrigin(request: NextRequest): boolean {
     return false;
   }
 
-  return ORIGIN_ALLOWLIST.some(
-    (allowed) => origin === allowed || origin.startsWith(allowed)
-  );
+  // Exact match only. A prefix match would accept look-alike origins such as
+  // "https://lakshyanaukri.in.attacker.example".
+  return ORIGIN_ALLOWLIST.includes(origin);
 }
 
 /**

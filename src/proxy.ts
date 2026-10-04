@@ -5,9 +5,8 @@
 // Protects /admin/* and /api/admin/* routes.
 // Public: /admin/login, /api/admin/auth/**
 //
-// Authentication order:
-//   1. Session-based auth (primary — checks signed token against DB)
-//   2. ADMIN_SECRET legacy fallback (temporary — Gate 5 retires this)
+// Authentication: session only (token hash checked against the database).
+// Anything without a valid session is denied.
 //
 // Next.js 16: Middleware renamed to Proxy. Function export must be
 // `proxy` (or default). Runtime is nodejs, not edge.
@@ -46,50 +45,6 @@ function redirectOrUnauthorized(
   return NextResponse.redirect(loginUrl);
 }
 
-// ─── Legacy ADMIN_SECRET helpers (Phase 8 — removed at Gate 5) ─────────────
-
-/** Returns true if the request carries a valid ADMIN_SECRET credential. */
-function checkAdminSecret(request: NextRequest): boolean {
-  const secret = process.env.ADMIN_SECRET;
-  if (!secret) return false;
-
-  // Authorization: Bearer <ADMIN_SECRET> (API callers / CLI scripts)
-  const authHeader = request.headers.get("authorization");
-  if (authHeader === `Bearer ${secret}`) return true;
-
-  // admin_session cookie = ADMIN_SECRET (legacy browser session cookie)
-  const sessionCookie = request.cookies.get("admin_session")?.value;
-  if (sessionCookie === secret) return true;
-
-  return false;
-}
-
-/**
- * Handles ?s=<ADMIN_SECRET> query-param login.
- * Sets the legacy cookie and redirects to the same URL without the param.
- * Returns null if the param is absent or incorrect.
- */
-function handleAdminSecretQueryParam(
-  request: NextRequest
-): NextResponse | null {
-  const secret = process.env.ADMIN_SECRET;
-  if (!secret) return null;
-
-  const urlSecret = request.nextUrl.searchParams.get("s");
-  if (urlSecret !== secret) return null;
-
-  const url = request.nextUrl.clone();
-  url.searchParams.delete("s");
-  const response = NextResponse.redirect(url);
-  response.cookies.set("admin_session", secret, {
-    httpOnly: true,
-    sameSite: "strict",
-    maxAge: 60 * 60 * 8, // 8 hours
-    path: "/",
-  });
-  return response;
-}
-
 // ─── Main proxy function ────────────────────────────────────────────────────
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
@@ -101,11 +56,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     pathname.startsWith("/api/admin/auth/");
   if (isPublicAuthRoute) return NextResponse.next();
 
-  // ── 1. Session-based authentication (primary) ────────────────────────────
+  // ── Session-based authentication ─────────────────────────────────────────
   //
-  // Only attempted when DATABASE_URL is configured. A DB error does NOT grant
-  // access on its own — the request falls through to the ADMIN_SECRET check,
-  // which itself fails-closed when ADMIN_SECRET is absent.
+  // A missing DATABASE_URL or a database error never grants access: the
+  // request falls through to the deny step below.
 
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl) {
@@ -157,25 +111,15 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
           }
           // Session found but revoked / expired / idle-timed-out — fall through
         }
-        // No matching session row — fall through to legacy auth
+        // No matching session row — fall through to deny
       } catch (err) {
-        // DB error: fail-closed for session auth. Fall through to ADMIN_SECRET.
-        // If ADMIN_SECRET is not set, the request is denied at step 3.
+        // DB error: fail closed — fall through to the deny step.
         console.error("[proxy] DB error during session validation:", err);
       }
     }
-    // No session cookie — fall through to legacy auth
+    // No session cookie — fall through to deny
   }
 
-  // ── 2. Legacy ADMIN_SECRET fallback (Phase 8 — removed at Gate 5) ────────
-
-  // Query-param login: validates ADMIN_SECRET, sets cookie, redirects
-  const qpResponse = handleAdminSecretQueryParam(request);
-  if (qpResponse) return qpResponse;
-
-  // Bearer header or legacy session cookie
-  if (checkAdminSecret(request)) return NextResponse.next();
-
-  // ── 3. Deny — fail-closed ─────────────────────────────────────────────────
+  // ── Deny — fail-closed ─────────────────────────────────────────────────
   return redirectOrUnauthorized(request, pathname);
 }

@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
-import { getRecruitmentById, persistApproval } from "@/lib/cms/repository";
+import { getRecruitmentById, persistApproval, StateConflictError } from "@/lib/cms/repository";
 import { validateRecord } from "@/lib/cms/validation";
 
 export async function POST(
@@ -60,6 +60,9 @@ export async function POST(
     const saved = await persistApproval(record, auth.adminId);
     return NextResponse.json({ record: saved });
   } catch (err) {
+    if (err instanceof StateConflictError) {
+      return NextResponse.json({ error: err.message }, { status: 409 });
+    }
     console.error("[CMS] approve error", err);
     return NextResponse.json({ error: "Failed to approve record" }, { status: 500 });
   }

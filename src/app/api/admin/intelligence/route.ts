@@ -9,7 +9,7 @@
 // Returns:
 //   { draft: RecruitmentIntelligenceDraft }
 //
-// Authentication: proxy.ts (ADMIN_SECRET cookie/header).
+// Authentication: proxy.ts (admin session required).
 // Node.js runtime — requires HTTP fetching via fetchHtmlContent.
 //
 // INVARIANTS:

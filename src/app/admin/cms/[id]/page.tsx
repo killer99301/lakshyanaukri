@@ -18,10 +18,13 @@ import type {
   FieldStatus,
   FieldRevision,
   RecruitmentStatus,
+  CmsRecruitmentLink,
+  RecruitmentLinkType,
 } from "@/types/recruitment-record";
 import type { ExamStage, UpdateRecord, ExamStageStatus } from "@/types";
 import { projectForPreview } from "@/lib/cms/projector";
 import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
+import { aiAssistReason, buildAiField } from "@/lib/cms/ai-assist-apply";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
 import { OfficialNotificationCard } from "@/components/jobs/OfficialNotificationCard";
@@ -349,6 +352,239 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// ─── Plain-list editors: links and how-to-apply ───────────
+//
+// Both save through the same /fields endpoint as every other edit, so each
+// change is validated server-side and recorded in revision history.
+
+async function saveListField(
+  recordId: string,
+  recordRevision: string,
+  fieldPath: "links" | "howToApply",
+  value: unknown,
+  reason: string,
+): Promise<{ record?: RecruitmentRecord; error?: string }> {
+  try {
+    const res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fieldPath,
+        field: { value, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true },
+        clientRevision: recordRevision,
+        reason,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (res.status === 409 && data.error === "CONFLICT") {
+        return { error: "Conflict: record was modified by another session. Reload the page." };
+      }
+      return { error: data.error ?? `HTTP ${res.status}` };
+    }
+    return { record: data.record as RecruitmentRecord };
+  } catch (e) {
+    return { error: String(e) };
+  }
+}
+
+const LINK_TYPE_OPTIONS: Array<{ type: RecruitmentLinkType; label: string }> = [
+  { type: "OFFICIAL_NOTIFICATION", label: "Official Notification" },
+  { type: "APPLY_ONLINE",          label: "Apply Online" },
+  { type: "OFFICIAL_WEBSITE",      label: "Official Website" },
+  { type: "CORRIGENDUM",           label: "Corrigendum" },
+  { type: "ADMIT_CARD",            label: "Admit Card" },
+  { type: "RESULT",                label: "Result" },
+  { type: "ANSWER_KEY",            label: "Answer Key" },
+  { type: "EXAM_NOTICE",           label: "Exam Notice" },
+  { type: "OTHER",                 label: "Other" },
+];
+
+function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: (r: RecruitmentRecord) => void }) {
+  const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
+  const [type, setType] = useState<RecruitmentLinkType>("OFFICIAL_NOTIFICATION");
+  const [label, setLabel] = useState("");
+  const [url, setUrl] = useState("");
+  const [official, setOfficial] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function save(next: CmsRecruitmentLink[], reason: string) {
+    setSaving(true);
+    setErr(null);
+    const out = await saveListField(record.id, record.recordRevision, "links", next, reason);
+    setSaving(false);
+    if (out.error || !out.record) { setErr(out.error ?? "Save failed"); return false; }
+    onSaved(out.record);
+    return true;
+  }
+
+  async function addLink() {
+    const defaultLabel = LINK_TYPE_OPTIONS.find((o) => o.type === type)?.label ?? "Link";
+    const link: CmsRecruitmentLink = { type, label: label.trim() || defaultLabel, url: url.trim(), official };
+    if (await save([...record.links, link], `Added link: ${link.label}`)) {
+      setLabel(""); setUrl(""); setOfficial(false);
+    }
+  }
+
+  const cell: React.CSSProperties = { padding: "6px 10px", borderBottom: `1px solid ${C.border}` };
+
+  return (
+    <div>
+      {record.links.length === 0 ? (
+        <div style={{ color: C.muted, fontSize: 13 }}>
+          No links added. Publishing needs at least one link marked official.
+        </div>
+      ) : (
+        <table style={{ fontSize: 13, width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              {["Type", "Label", "URL", "Official", ""].map((h, i) => (
+                <th key={i} style={{ textAlign: "left", ...cell, color: C.muted, fontSize: 11 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {record.links.map((l, i) => (
+              <tr key={i}>
+                <td style={{ ...cell, color: C.muted, fontSize: 11 }}>{l.type}</td>
+                <td style={cell}>{l.label}</td>
+                <td style={cell}>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: C.accent, fontSize: 12, wordBreak: "break-all" }}>{l.url}</a>
+                </td>
+                <td style={{ ...cell, color: l.official ? C.green : C.muted }}>{l.official ? "✓" : "—"}</td>
+                <td style={cell}>
+                  {editable && (
+                    <button
+                      onClick={() => { void save(record.links.filter((_, j) => j !== i), `Removed link: ${l.label}`); }}
+                      disabled={saving}
+                      aria-label={`Remove link ${l.label}`}
+                      style={{ background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 12 }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {editable ? (
+        <div style={{ marginTop: 16, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: 12 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ minWidth: 190 }}>
+              <label style={labelStyle} htmlFor="link-type">Type</label>
+              <select id="link-type" value={type} onChange={(e) => setType(e.target.value as RecruitmentLinkType)} style={inputStyle}>
+                {LINK_TYPE_OPTIONS.map((o) => <option key={o.type} value={o.type}>{o.label}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <label style={labelStyle} htmlFor="link-label">Label (optional)</label>
+              <input id="link-label" type="text" value={label} onChange={(e) => setLabel(e.target.value)} style={inputStyle} placeholder="Defaults to the type name" />
+            </div>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <label style={labelStyle} htmlFor="link-url">URL</label>
+            <input id="link-url" type="url" value={url} onChange={(e) => setUrl(e.target.value)} style={inputStyle} placeholder="https://…" />
+          </div>
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 10, fontSize: 12, color: C.text, cursor: "pointer" }}>
+            <input type="checkbox" checked={official} onChange={(e) => setOfficial(e.target.checked)} style={{ marginTop: 2 }} />
+            <span>
+              Official source — I have checked this URL is on the recruiting organisation&apos;s own website.
+              <span style={{ color: C.muted }}> Leave unticked for third-party pages.</span>
+            </span>
+          </label>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+            <button
+              onClick={() => { void addLink(); }}
+              disabled={saving || !url.trim()}
+              style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !url.trim() ? "not-allowed" : "pointer", opacity: saving || !url.trim() ? 0.6 : 1 }}
+            >
+              {saving ? "Saving…" : "Add link"}
+            </button>
+          </div>
+          {err && <div role="alert" style={{ color: C.red, fontSize: 12, marginTop: 8 }}>{err}</div>}
+        </div>
+      ) : (
+        <div style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
+          Links can be edited while the record is a draft. Click “Edit Record” first.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HowToApplyEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: (r: RecruitmentRecord) => void }) {
+  const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const steps = record.howToApply ?? [];
+
+  async function save() {
+    const next = text.split("\n").map((s) => s.trim()).filter(Boolean);
+    setSaving(true);
+    setErr(null);
+    const out = await saveListField(record.id, record.recordRevision, "howToApply", next, "Edited how-to-apply steps");
+    setSaving(false);
+    if (out.error || !out.record) { setErr(out.error ?? "Save failed"); return; }
+    setEditing(false);
+    onSaved(out.record);
+  }
+
+  return (
+    <div>
+      {steps.length ? (
+        <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.7 }}>
+          {steps.map((step, i) => <li key={i} style={{ marginBottom: 4 }}>{step}</li>)}
+        </ol>
+      ) : (
+        <div style={{ color: C.muted, fontSize: 13 }}>No steps entered yet.</div>
+      )}
+
+      {!editable ? (
+        <div style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
+          Steps can be edited while the record is a draft. Click “Edit Record” first.
+        </div>
+      ) : !editing ? (
+        <button
+          onClick={() => { setText(steps.join("\n")); setErr(null); setEditing(true); }}
+          style={{ background: "none", border: "none", color: C.accent, cursor: "pointer", fontSize: 12, padding: 0, marginTop: 12 }}
+        >
+          Edit steps
+        </button>
+      ) : (
+        <div style={{ marginTop: 12, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: 12 }}>
+          <label style={labelStyle} htmlFor="how-to-apply-steps">One step per line</label>
+          <textarea
+            id="how-to-apply-steps"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            style={{ ...inputStyle, height: 160, resize: "vertical" }}
+            placeholder={"Visit the official website\nRegister and fill the application form\nPay the fee and submit"}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+            <button
+              onClick={() => { void save(); }}
+              disabled={saving}
+              style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              {saving ? "Saving…" : "Save steps"}
+            </button>
+            <button onClick={() => setEditing(false)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>
+              Cancel
+            </button>
+          </div>
+          {err && <div role="alert" style={{ color: C.red, fontSize: 12, marginTop: 8 }}>{err}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Date fields helper ───────────────────────────────────
 
 const DATE_FIELDS: Array<{ key: keyof RecruitmentRecord["dates"]; label: string }> = [
@@ -392,6 +628,25 @@ export default function CmsRecordEditorPage() {
   const [showAddUpdate, setShowAddUpdate] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const previewScrollRef = useRef<HTMLDivElement>(null);
+
+  // AI Assist
+  const [aiUrl, setAiUrl] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<{
+    filled: { fieldPath: string; label: string; value: unknown }[];
+    suggested: { fieldPath: string; label: string; aiValue: unknown; existingValue: unknown; existingEvidenceIds?: string[] }[];
+    notFound: string[];
+    confirmed: string[];
+    flagged: { label: string; value: unknown; reason: string }[];
+    identityCheck?: {
+      organization: { existing: string; detected: string | null; status: string };
+      year: { existing: number; detected: number[]; status: string };
+    };
+    sourceUrl: string;
+    sourceKind?: "html" | "pdf";
+  } | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiApplying, setAiApplying] = useState<string | null>(null);
 
   const loadRecord = useCallback(async () => {
     try {
@@ -466,10 +721,83 @@ export default function CmsRecordEditorPage() {
         return;
       }
       setRecord(publishData.record);
+      if (publishData.revalidated === false) {
+        setPublishSeqErr(
+          "Published, but the public site cache could not be refreshed. The public pages will update after the next deployment.",
+        );
+      }
     } catch (e) {
       setPublishSeqErr(String(e));
     } finally {
       setPublishingSeq(false);
+    }
+  }
+
+  async function handleAiAssist() {
+    if (!aiUrl.trim() || !record) return;
+    setAiLoading(true);
+    setAiError(null);
+    setAiResult(null);
+    try {
+      const res = await fetch(`/api/admin/cms/records/${id}/ai-assist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: aiUrl.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiError(data.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      setRecord(data.record);
+      void loadRevisions();
+      setAiResult({
+        filled: data.filled,
+        suggested: data.suggested,
+        notFound: data.notFound,
+        confirmed: data.confirmed ?? [],
+        flagged: data.flagged ?? [],
+        identityCheck: data.identityCheck,
+        sourceUrl: data.sourceUrl,
+        sourceKind: data.sourceKind,
+      });
+    } catch (e) {
+      setAiError(String(e));
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  async function handleAiApplySuggestion(fieldPath: string, label: string, aiValue: unknown, existingEvidenceIds: string[] = []) {
+    if (!record || !aiResult) return;
+    setAiApplying(fieldPath);
+    try {
+      const field = buildAiField(aiValue, existingEvidenceIds);
+      const res = await fetch(`/api/admin/cms/records/${id}/fields`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fieldPath,
+          field,
+          clientRevision: record.recordRevision,
+          reason: aiAssistReason(aiResult.sourceUrl, "applied"),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiError(data.error ?? `Could not apply ${label}`);
+        return;
+      }
+      setRecord(data.record);
+      void loadRevisions();
+      // Remove from suggested list
+      setAiResult((prev) =>
+        prev ? { ...prev, suggested: prev.suggested.filter((s) => s.fieldPath !== fieldPath) } : null
+      );
+    } catch (e) {
+      setAiError(String(e));
+    } finally {
+      setAiApplying(null);
     }
   }
 
@@ -641,6 +969,211 @@ export default function CmsRecordEditorPage() {
 
       {/* ── Right: section content ── */}
       <div style={{ flex: 1, minWidth: 0 }}>
+
+        {/* ── AI Assist panel (DRAFT / APPROVED only) ── */}
+        {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
+          <div style={{
+            background: C.surface,
+            border: `1px solid ${C.border}`,
+            borderRadius: 8,
+            marginBottom: 16,
+            overflow: "hidden",
+          }}>
+            <div style={{
+              padding: "10px 18px",
+              borderBottom: `1px solid ${C.border}`,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: C.muted,
+              background: "#0d1117",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}>
+              <span>✦</span>
+              <span>AI Assist</span>
+              <span style={{ fontWeight: 400, fontSize: 10, opacity: 0.6, textTransform: "none", letterSpacing: 0 }}>
+                — optional · fields stay editable · does not publish
+              </span>
+            </div>
+            <div style={{ padding: 18 }}>
+              <p style={{ fontSize: 12, color: C.muted, margin: "0 0 14px", lineHeight: 1.5 }}>
+                Paste an official notification URL. AI will extract what it can and pre-fill empty fields as{" "}
+                <span style={{ color: C.amber, fontWeight: 600 }}>Pending</span>.
+                Existing values are never overwritten.
+              </p>
+              <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                <input
+                  type="url"
+                  value={aiUrl}
+                  onChange={(e) => setAiUrl(e.target.value)}
+                  placeholder="https://ssc.gov.in/notice/... or https://..."
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    background: "#0d1117",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 6,
+                    color: C.text,
+                    fontSize: 13,
+                    outline: "none",
+                    fontFamily: "inherit",
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter") void handleAiAssist(); }}
+                />
+                <button
+                  onClick={() => { void handleAiAssist(); }}
+                  disabled={aiLoading || !aiUrl.trim()}
+                  style={{
+                    padding: "8px 18px",
+                    background: aiLoading ? "#21262d" : "#1a3a6b",
+                    color: aiLoading ? C.muted : C.accent,
+                    border: `1px solid ${aiLoading ? C.border : C.accent + "44"}`,
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: aiLoading || !aiUrl.trim() ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {aiLoading ? "Extracting…" : "Assist with AI"}
+                </button>
+              </div>
+
+              {aiError && (
+                <div style={{ color: C.red, fontSize: 12, padding: "8px 12px", background: C.red + "11", borderRadius: 5, border: `1px solid ${C.red}33`, marginBottom: 12 }}>
+                  {aiError}
+                </div>
+              )}
+
+              {aiResult && (
+                <div style={{ fontSize: 12 }}>
+                  {aiResult.sourceKind === "pdf" && (
+                    <div style={{ color: C.muted, marginBottom: 10 }}>Source read as PDF document</div>
+                  )}
+                  {/* Filled */}
+                  {aiResult.filled.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ color: C.green, fontWeight: 700, marginBottom: 6 }}>
+                        ✓ Filled {aiResult.filled.length} field{aiResult.filled.length !== 1 ? "s" : ""}
+                      </div>
+                      {aiResult.filled.map((f) => (
+                        <div key={f.fieldPath} style={{ display: "flex", gap: 8, marginBottom: 3, color: C.text }}>
+                          <span style={{ color: C.muted, minWidth: 160 }}>{f.label}</span>
+                          <span style={{ color: C.amber }}>Pending</span>
+                          <span style={{ color: C.text }}>{String(f.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Suggested (occupied fields) */}
+                  {aiResult.suggested.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ color: C.accent, fontWeight: 700, marginBottom: 6 }}>
+                        💡 Suggested {aiResult.suggested.length} field{aiResult.suggested.length !== 1 ? "s" : ""} (existing value preserved)
+                      </div>
+                      {aiResult.suggested.map((s) => (
+                        <div key={s.fieldPath} style={{ marginBottom: 8, padding: "8px 10px", background: "#0d1117", borderRadius: 5, border: `1px solid ${C.border}` }}>
+                          <div style={{ fontWeight: 600, color: C.muted, marginBottom: 4 }}>{s.label}</div>
+                          <div style={{ display: "flex", gap: 16, alignItems: "baseline", flexWrap: "wrap" }}>
+                            <span style={{ color: C.muted }}>Current: <span style={{ color: C.text }}>{String(s.existingValue)}</span></span>
+                            <span style={{ color: C.muted }}>AI: <span style={{ color: C.amber }}>{String(s.aiValue)}</span></span>
+                            <button
+                              onClick={() => { void handleAiApplySuggestion(s.fieldPath, s.label, s.aiValue, s.existingEvidenceIds ?? []); }}
+                              disabled={aiApplying === s.fieldPath}
+                              style={{
+                                padding: "2px 10px",
+                                background: "none",
+                                color: C.accent,
+                                border: `1px solid ${C.accent}44`,
+                                borderRadius: 4,
+                                fontSize: 11,
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {aiApplying === s.fieldPath ? "Applying…" : "Apply AI value"}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Source agrees with the record — nothing to apply */}
+                  {(aiResult.confirmed ?? []).length > 0 && (
+                    <div style={{ marginBottom: 12, color: C.muted }}>
+                      <span style={{ color: C.green, fontWeight: 700 }}>✓ Matches current value:</span>{" "}
+                      {(aiResult.confirmed ?? []).join(", ")}
+                    </div>
+                  )}
+
+                  {/* Organisation / year: read-only comparison, never applied */}
+                  {aiResult.identityCheck && (() => {
+                    const { organization: o, year: y } = aiResult.identityCheck;
+                    const tone = (s: string) => (s === "mismatch" ? C.red : s === "ambiguous" ? C.amber : s === "match" ? C.green : C.muted);
+                    const word = (s: string) => (s === "mismatch" ? "⚠ Mismatch" : s === "ambiguous" ? "Ambiguous" : s === "match" ? "Matches" : "Not detected");
+                    return (
+                      <div style={{ marginBottom: 12, padding: "8px 10px", background: "#0d1117", borderRadius: 5, border: `1px solid ${C.border}` }}>
+                        <div style={{ color: C.muted, fontWeight: 700, marginBottom: 6 }}>
+                          Organisation / year — comparison only, not editable here
+                        </div>
+                        <div style={{ marginBottom: 3, color: C.muted }}>
+                          Organisation — record: <span style={{ color: C.text }}>{o.existing}</span>
+                          {" · "}source: <span style={{ color: C.text }}>{o.detected ?? "—"}</span>
+                          {" · "}<span style={{ color: tone(o.status) }}>{word(o.status)}</span>
+                        </div>
+                        <div style={{ marginBottom: 6, color: C.muted }}>
+                          Year — record: <span style={{ color: C.text }}>{y.existing}</span>
+                          {" · "}source: <span style={{ color: C.text }}>{y.detected.length > 0 ? y.detected.join(" / ") : "—"}</span>
+                          {" · "}<span style={{ color: tone(y.status) }}>{word(y.status)}</span>
+                        </div>
+                        <a href={aiResult.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: C.accent, wordBreak: "break-all" }}>
+                          Open source: {aiResult.sourceUrl}
+                        </a>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Flagged: extracted but not trusted enough to apply or suggest */}
+                  {(aiResult.flagged ?? []).length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ color: C.amber, fontWeight: 700, marginBottom: 6 }}>
+                        ⚠ Needs manual check — {aiResult.flagged.length} value{aiResult.flagged.length !== 1 ? "s" : ""} not applied
+                      </div>
+                      {aiResult.flagged.map((f, i) => (
+                        <div key={`${f.label}-${i}`} style={{ marginBottom: 4, color: C.muted }}>
+                          <span style={{ color: C.text }}>{f.label}:</span>{" "}
+                          <span style={{ color: C.amber }}>{String(f.value)}</span> — {f.reason}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Not found */}
+                  {aiResult.notFound.length > 0 && (
+                    <div>
+                      <div style={{ color: C.muted, fontWeight: 700, marginBottom: 6 }}>
+                        — Not found: {aiResult.notFound.join(", ")}
+                      </div>
+                    </div>
+                  )}
+
+                  {aiResult.filled.length === 0 && aiResult.suggested.length === 0 && (aiResult.confirmed ?? []).length === 0 && (aiResult.flagged ?? []).length === 0 && (
+                    <div style={{ color: C.muted }}>
+                      AI could not extract any fields from this URL. Try a more specific page or enter values manually.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Identity ── */}
         {activeSection === "Identity" && (
           <Section title="Identity">
@@ -912,49 +1445,14 @@ export default function CmsRecordEditorPage() {
         {/* ── How to Apply ── */}
         {activeSection === "How to Apply" && (
           <Section title="How to Apply">
-            {record.howToApply?.length ? (
-              <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.7 }}>
-                {record.howToApply.map((step, i) => (
-                  <li key={i} style={{ marginBottom: 4 }}>{step}</li>
-                ))}
-              </ol>
-            ) : (
-              <div style={{ color: C.muted, fontSize: 13 }}>No steps entered yet.</div>
-            )}
-            <div style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
-              How to Apply is a plain string[] — edit via PATCH with fieldPath "howToApply" (Phase E editor).
-            </div>
+            <HowToApplyEditor record={record} onSaved={onFieldSaved} />
           </Section>
         )}
 
         {/* ── Links ── */}
         {activeSection === "Links" && (
           <Section title="Links">
-            {record.links.length === 0 ? (
-              <div style={{ color: C.muted, fontSize: 13 }}>No links added.</div>
-            ) : (
-              <table style={{ fontSize: 13, width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    {["Type", "Label", "URL", "Official"].map((h) => (
-                      <th key={h} style={{ textAlign: "left", padding: "6px 10px", borderBottom: `1px solid ${C.border}`, color: C.muted, fontSize: 11 }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {record.links.map((l, i) => (
-                    <tr key={i}>
-                      <td style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}`, color: C.muted, fontSize: 11 }}>{l.type}</td>
-                      <td style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>{l.label}</td>
-                      <td style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>
-                        <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: C.accent, fontSize: 12, wordBreak: "break-all" }}>{l.url}</a>
-                      </td>
-                      <td style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}`, color: l.official ? C.green : C.muted }}>{l.official ? "✓" : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <LinksEditor record={record} onSaved={onFieldSaved} />
           </Section>
         )}
 
@@ -1115,7 +1613,7 @@ export default function CmsRecordEditorPage() {
                       </span>
                     </div>
                     {rev.reason && (
-                      <div style={{ fontSize: 12, color: C.amber, marginBottom: 4, fontStyle: "italic" }}>"{rev.reason}"</div>
+                      <div style={{ fontSize: 12, color: C.amber, marginBottom: 4, fontStyle: "italic" }}>&ldquo;{rev.reason}&rdquo;</div>
                     )}
                     <div style={{ display: "flex", gap: 16, fontSize: 12 }}>
                       <div style={{ flex: 1 }}>
@@ -1510,7 +2008,6 @@ function AddUpdateModal({
 
     try {
       let res: Response;
-      let data: { record: RecruitmentRecord; error?: string };
 
       if (isStructural && fieldPath.trim()) {
         // Structural path: PATCH /fields with the updateEntry appended atomically.
@@ -1542,7 +2039,7 @@ function AddUpdateModal({
         });
       }
 
-      data = await res.json() as { record: RecruitmentRecord; error?: string };
+      const data = await res.json() as { record: RecruitmentRecord; error?: string };
       if (!res.ok) {
         setErr(data.error ?? `Failed: HTTP ${res.status}`);
         return;

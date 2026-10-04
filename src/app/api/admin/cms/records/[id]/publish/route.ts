@@ -20,6 +20,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { getRecruitmentById, persistPublication } from "@/lib/cms/repository";
 import { projectToPublished, PROJECTION_VERSION } from "@/lib/cms/projector";
@@ -68,7 +69,8 @@ export async function POST(
   if (!hasOfficialLink && !hasOfficialEvidence) {
     return NextResponse.json(
       {
-        error: "Cannot publish: at least one official evidence source or official link is required",
+        error:
+          "Cannot publish yet: add at least one link marked Official (for example the official notification) in the Links section.",
         code: "MISSING_OFFICIAL_EVIDENCE",
       },
       { status: 422 },
@@ -90,7 +92,19 @@ export async function POST(
   // ── Persist ───────────────────────────────────────────────
   try {
     const published = await persistPublication(record, snapshot, PROJECTION_VERSION, auth.adminId);
-    return NextResponse.json({ record: published });
+
+    // Public pages are statically cached. Without this, a new or updated job
+    // stays invisible on the listing, home, sitemap and its own page until the
+    // next deployment. Everything is re-rendered on its next visit.
+    let revalidated = true;
+    try {
+      revalidatePath("/", "layout");
+    } catch (err) {
+      revalidated = false;
+      console.error("[CMS] published, but public cache revalidation failed", err);
+    }
+
+    return NextResponse.json({ record: published, revalidated });
   } catch (err) {
     const msg = String(err);
     if (msg.includes("state") && msg.includes("APPROVED")) {

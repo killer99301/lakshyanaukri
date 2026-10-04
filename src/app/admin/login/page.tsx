@@ -523,6 +523,34 @@ function ShieldIcon() {
   );
 }
 
+// ─── Safe redirect helper ─────────────────────────────────
+// Resolves ?next= against the current origin and verifies the
+// result is same-origin before using it. This catches:
+//   - Absolute URLs (https://evil.com)
+//   - Protocol-relative paths (//evil.com)
+//   - Backslash tricks (\evil.com → parsed as //evil.com by some browsers)
+//   - Malformed URLs (caught by the URL constructor)
+// Returns the normalised path+search+hash, never the raw input.
+
+function getSafeNext(): string {
+  if (typeof window === "undefined") return "/admin/history";
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next") ?? "";
+  try {
+    const resolved = new URL(next, window.location.origin);
+    if (
+      next &&
+      resolved.origin === window.location.origin &&
+      !next.includes("\\")
+    ) {
+      return resolved.pathname + resolved.search + resolved.hash;
+    }
+  } catch {
+    // malformed URL — fall through to default
+  }
+  return "/admin/history";
+}
+
 // ─── Main page ────────────────────────────────────────────
 
 export default function AdminLoginPage() {
@@ -564,7 +592,7 @@ export default function AdminLoginPage() {
       });
       if (res.ok) {
         setLoginSuccess(true);
-        setTimeout(() => { window.location.href = "/admin/history"; }, 480);
+        setTimeout(() => { window.location.href = getSafeNext(); }, 480);
       } else {
         const data = await res.json().catch(() => ({ error: "Login failed" }));
         setError(data.error ?? "Login failed");

@@ -155,6 +155,14 @@ export class OccConflictError extends Error {
   }
 }
 
+/** Thrown when a state transition finds the record no longer in the expected state. */
+export class StateConflictError extends Error {
+  constructor(expected: DraftState) {
+    super(`Record is no longer in ${expected} state`);
+    this.name = "StateConflictError";
+  }
+}
+
 // ─── Write operations ─────────────────────────────────────
 //
 // Every write that modifies a field MUST go through these functions.
@@ -331,31 +339,30 @@ export async function persistApproval(
 ): Promise<RecruitmentRecord> {
   const result: StateTransitionResult = approveRecord(record, adminId);
 
-  await sql`BEGIN`;
-  try {
-    await sql`
+  // One statement: the Neon HTTP driver has no multi-statement transactions,
+  // so the state change and its audit row must travel together.
+  const rows = await sql`
+    WITH updated AS (
       UPDATE recruitments SET
         draft_state = 'APPROVED',
         updated_at  = now(),
         updated_by  = ${adminId}
       WHERE id = ${record.id}
         AND draft_state = 'DRAFT'
-    `;
+      RETURNING id
+    )
+    INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+    SELECT
+      id,
+      ${adminId},
+      ${result.auditEvent.eventType},
+      ${JSON.stringify(result.auditEvent.metadata)}
+    FROM updated
+    RETURNING recruitment_id
+  `;
 
-    await sql`
-      INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
-      VALUES (
-        ${record.id},
-        ${adminId},
-        ${result.auditEvent.eventType},
-        ${JSON.stringify(result.auditEvent.metadata)}
-      )
-    `;
-
-    await sql`COMMIT`;
-  } catch (err) {
-    await sql`ROLLBACK`;
-    throw err;
+  if (rows.length === 0) {
+    throw new StateConflictError("DRAFT");
   }
 
   const saved = await getRecruitmentById(record.id);
@@ -376,9 +383,10 @@ export async function persistPublication(
   const sourceRevision = record.recordRevision;
   const result = markPublished(record, adminId, sourceRevision);
 
-  await sql`BEGIN`;
-  try {
-    await sql`
+  // One statement: state change, snapshot and audit row succeed or fail together.
+  // A failed snapshot insert must never leave the record marked PUBLISHED.
+  const rows = await sql`
+    WITH updated AS (
       UPDATE recruitments SET
         draft_state             = 'PUBLISHED',
         published_at            = coalesce(published_at, now()),
@@ -387,34 +395,32 @@ export async function persistPublication(
         updated_by              = ${adminId}
       WHERE id = ${record.id}
         AND draft_state = 'APPROVED'
-    `;
-
-    await sql`
+      RETURNING id
+    ),
+    snap AS (
       INSERT INTO published_recruitments
         (recruitment_id, source_record_revision, projection_version, snapshot, published_by)
-      VALUES (
-        ${record.id},
+      SELECT
+        id,
         ${sourceRevision},
         ${projectionVersion},
         ${JSON.stringify(snapshot)},
         ${adminId}
-      )
-    `;
+      FROM updated
+      RETURNING recruitment_id
+    )
+    INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+    SELECT
+      id,
+      ${adminId},
+      ${result.auditEvent.eventType},
+      ${JSON.stringify(result.auditEvent.metadata)}
+    FROM updated
+    RETURNING recruitment_id
+  `;
 
-    await sql`
-      INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
-      VALUES (
-        ${record.id},
-        ${adminId},
-        ${result.auditEvent.eventType},
-        ${JSON.stringify(result.auditEvent.metadata)}
-      )
-    `;
-
-    await sql`COMMIT`;
-  } catch (err) {
-    await sql`ROLLBACK`;
-    throw err;
+  if (rows.length === 0) {
+    throw new StateConflictError("APPROVED");
   }
 
   const saved = await getRecruitmentById(record.id);

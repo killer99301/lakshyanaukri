@@ -43,11 +43,19 @@
     "intelligence:harness": "npx tsx --tsconfig tsconfig.json tests/intelligence/confirmation-harness.test.ts",
     "intelligence:queue-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue.test.ts",
     "intelligence:e2e-test": "npx tsx --tsconfig tsconfig.json tests/intelligence/review-queue-e2e.test.ts",
-    "cms:test": "npx tsx --tsconfig tsconfig.json tests/cms/provenance.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/projector.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/phase-d.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/phase-e.test.ts",
+    "cms:test": "npx tsx --tsconfig tsconfig.json tests/cms/provenance.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/projector.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/phase-d.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/phase-e.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/ai-assist.test.ts && npx tsx --tsconfig tsconfig.json tests/cms/links-and-create.test.ts",
     "cms:projector-test": "npx tsx --tsconfig tsconfig.json tests/cms/projector.test.ts",
     "cms:phase-d-test": "npx tsx --tsconfig tsconfig.json tests/cms/phase-d.test.ts",
     "cms:phase-d-integration-test": "npx tsx --tsconfig tsconfig.json tests/cms/phase-d-integration.test.ts",
     "cms:phase-e-test": "npx tsx --tsconfig tsconfig.json tests/cms/phase-e.test.ts",
+    "cms:ai-assist-test": "npx tsx --tsconfig tsconfig.json tests/cms/ai-assist.test.ts",
+    "test:stack": "npx tsx --tsconfig tsconfig.json tests/local-stack/cms-workflows.test.ts",
+    "test:stack:db": "npx tsx --tsconfig tsconfig.json tests/local-stack/serve.ts",
+    "test:stack:app": "node tests/local-stack/run-next.mjs dev",
+    "test:stack:build": "node tests/local-stack/run-next.mjs build",
+    "test:stack:start": "node tests/local-stack/run-next.mjs start",
+    "test:stack:cache": "node tests/local-stack/run-next.mjs cache-test",
+    "test:stack:auth": "node tests/local-stack/run-next.mjs auth-test",
     "build": "npm run validate && next build",
     "start": "next start",
     "lint": "eslint"
@@ -68,6 +76,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
