@@ -421,10 +421,27 @@ export function getDefaultFilterState(): FilterState {
 const URL_CATEGORIES = ["state-psc", "ssc", "banking", "railway", "teaching", "defence", "government", "private", "internship"];
 const URL_QUALIFICATIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"];
 
+/** Who is recruiting: links such as /jobs?govType=central narrow the list to that kind of body. */
+export type GovScope = "central" | "state" | "psu";
+
+export const GOV_SCOPE_LABELS: Record<GovScope, string> = {
+  central: "Central Govt",
+  state: "State Govt",
+  psu: "PSU",
+};
+
+export function inGovScope(opp: Opportunity, scope: GovScope | null): boolean {
+  if (!scope) return true;
+  if (opp.type !== "government") return false;
+  const govType = ((opp as GovernmentRecruitment).govType ?? "").toLowerCase();
+  return govType.startsWith(scope);
+}
+
 export interface JobsUrlState {
   query: string;
   location: string;
   filters: FilterState;
+  govScope: GovScope | null;
 }
 
 export function jobsUrlState(params: { get(name: string): string | null }): JobsUrlState {
@@ -437,7 +454,10 @@ export function jobsUrlState(params: { get(name: string): string | null }): Jobs
   const qualification = wanted === "be btech" ? "Graduate" : URL_QUALIFICATIONS.find((q) => q.toLowerCase() === wanted);
   if (qualification) filters.qualifications = [qualification as FilterState["qualifications"][number]];
 
-  return { query: params.get("q") || "", location: params.get("location") || "All India", filters };
+  const scope = (params.get("govType") ?? "").toLowerCase();
+  const govScope = scope === "central" || scope === "state" || scope === "psu" ? scope : null;
+
+  return { query: params.get("q") || "", location: params.get("location") || "All India", filters, govScope };
 }
 
 /** How many jobs a /jobs?… link shows. Null for any other link (including plain /jobs). */
@@ -445,5 +465,6 @@ export function jobsLinkCount(opportunities: Opportunity[], href: string, now: D
   const [path, search] = href.split("?");
   if (path !== "/jobs" || !search) return null;
   const state = jobsUrlState(new URLSearchParams(search));
-  return searchOpportunities(opportunities, state.query, state.location, state.filters, "latest", now).length;
+  const scoped = opportunities.filter((opp) => inGovScope(opp, state.govScope));
+  return searchOpportunities(scoped, state.query, state.location, state.filters, "latest", now).length;
 }

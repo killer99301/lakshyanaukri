@@ -13,7 +13,7 @@
 
 import { suite, test, assert } from "../intelligence/suite";
 import type { Opportunity } from "@/types";
-import { textSearch, searchWords, closestMatches, sortOpportunities, isNewlyAdded, type SortOption } from "@/lib/filters";
+import { textSearch, searchWords, closestMatches, sortOpportunities, isNewlyAdded, jobsLinkCount, type SortOption } from "@/lib/filters";
 
 const job = (o: Record<string, unknown>): Opportunity =>
   ({ type: "government", shortDescription: "", category: "government", state: "All India", qualification: "", ...o }) as unknown as Opportunity;
@@ -148,4 +148,31 @@ test("PS11 New badge: added within 7 days and still open; never for closed or un
   assert.equal(isNewlyAdded(job({ addedAt: "2026-10-04T09:00:00Z", application: { closeDate: "2026-10-01" } }), now), false);
   assert.equal(isNewlyAdded(job({ postDate: "2026-10-03", application: open }), now), false);
   assert.equal(isNewlyAdded(job({ addedAt: "not-a-date", application: open }), now), false);
+});
+
+suite("Links into /jobs");
+
+test("PS12 a link's job count follows the same rules as the page it opens", () => {
+  const now = new Date("2026-10-04T12:00:00Z");
+  const open = { closeDate: "2026-12-01" };
+  const jobs = [
+    job({ slug: "c1", title: "SSC CHSL 2026", category: "ssc", qualification: "12th Pass", govType: "Central Govt", application: open }),
+    job({ slug: "s1", title: "BPSC 72nd CCE", category: "state-psc", qualification: "Graduate", govType: "State Govt", state: "Bihar", application: open }),
+    job({ slug: "p1", title: "IBPS PO 2026", category: "banking", qualification: "Graduate", govType: "PSU Bank", application: open }),
+  ];
+  const n = (href: string) => jobsLinkCount(jobs, href, now);
+  assert.equal(n("/jobs?govType=central"), 1);
+  assert.equal(n("/jobs?govType=state"), 1);
+  assert.equal(n("/jobs?govType=psu"), 1);
+  assert.equal(n("/jobs?govType=nonsense"), 3);
+  assert.equal(n("/jobs?category=banking"), 1);
+  assert.equal(n("/jobs?qualification=graduate"), 2);
+  assert.equal(n("/jobs?qualification=be-btech"), 2);
+  assert.equal(n("/jobs?qualification=12th-pass"), 1);
+  assert.equal(n("/jobs?q=Teacher"), 0);
+  // "State" in a title or a state name is not a State Govt job.
+  assert.equal(n("/jobs?govType=state&q=bpsc"), 1);
+  // Not /jobs query links: no count.
+  assert.equal(n("/jobs"), null);
+  assert.equal(n("/exams"), null);
 });

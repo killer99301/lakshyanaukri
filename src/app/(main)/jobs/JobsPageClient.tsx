@@ -11,7 +11,7 @@ import { JobsToolbar } from "@/components/jobs/JobsToolbar";
 import { MarketplaceJobCard } from "@/components/jobs/MarketplaceJobCard";
 import { JobsRightSidebar, SIDEBAR_ORGANIZATIONS, type QuickLinkKind } from "@/components/jobs/JobsRightSidebar";
 import { JobsPagination } from "@/components/jobs/JobsPagination";
-import { searchOpportunities, closestMatches, textSearch, getDefaultFilterState, jobsUrlState, SortOption } from "@/lib/filters";
+import { searchOpportunities, closestMatches, textSearch, getDefaultFilterState, jobsUrlState, inGovScope, GOV_SCOPE_LABELS, SortOption, type GovScope } from "@/lib/filters";
 import type { Opportunity, FilterState } from "@/types";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
@@ -40,6 +40,9 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
   // or qualification already chosen.
   const initialFilterState = getDefaultFilterState();
   const [filters, setFilters] = useState<FilterState>(() => jobsUrlState(searchParams).filters);
+  // Set by links such as "Central Govt" on the home page; cleared from the notice above the results.
+  const [govScope, setGovScope] = useState<GovScope | null>(() => jobsUrlState(searchParams).govScope);
+  const scopedJobs = useMemo(() => opportunities.filter((opp) => inGovScope(opp, govScope)), [opportunities, govScope]);
 
   // Only suggest searches that currently lead somewhere.
   const popularTerms = useMemo(
@@ -62,6 +65,7 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
 
   const handleResetFilters = () => {
     setFilters(initialFilterState);
+    setGovScope(null);
     setSearchQuery("");
     setSelectedLocation("All India");
     setCurrentPage(1);
@@ -116,21 +120,21 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
   const filteredJobs = useMemo(() => {
     const now = new Date();
     return searchOpportunities(
-      opportunities,
+      scopedJobs,
       searchQuery,
       selectedLocation,
       filters,
       sortBy,
       now
     );
-  }, [opportunities, searchQuery, selectedLocation, filters, sortBy]);
+  }, [scopedJobs, searchQuery, selectedLocation, filters, sortBy]);
 
   // Nothing matched every word: offer the jobs that match most of them
   // (still within the chosen location and filters) rather than a dead end.
   const closestJobs = useMemo(() => {
     if (filteredJobs.length > 0 || !searchQuery.trim()) return [];
-    return searchOpportunities(closestMatches(opportunities, searchQuery), "", selectedLocation, filters, sortBy, new Date());
-  }, [opportunities, filteredJobs, searchQuery, selectedLocation, filters, sortBy]);
+    return searchOpportunities(closestMatches(scopedJobs, searchQuery), "", selectedLocation, filters, sortBy, new Date());
+  }, [scopedJobs, filteredJobs, searchQuery, selectedLocation, filters, sortBy]);
   const showingClosest = closestJobs.length > 0;
   const shownJobs = showingClosest ? closestJobs : filteredJobs;
 
@@ -175,7 +179,7 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
                   setCurrentPage(1);
                 }}
                 handleResetFilters={handleResetFilters}
-                allJobs={opportunities}
+                allJobs={scopedJobs}
               />
             </div>
 
@@ -193,6 +197,21 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
                 setViewMode={setViewMode}
                 onOpenMobileFilters={() => setIsMobileFilterOpen(true)}
               />
+
+              {govScope && (
+                <div className="bg-[#FFF7ED] border border-[#FED7AA] rounded-2xl px-4 py-2.5 text-xs text-[#475569] flex items-center justify-between gap-3">
+                  <span>
+                    Showing <span className="font-extrabold text-[#0F172A]">{GOV_SCOPE_LABELS[govScope]}</span> jobs only.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setGovScope(null); setCurrentPage(1); }}
+                    className="font-extrabold text-[#EA580C] hover:underline cursor-pointer shrink-0"
+                  >
+                    Show all jobs
+                  </button>
+                </div>
+              )}
 
               {showingClosest && (
                 <div className="bg-[#FFF7ED] border border-[#FED7AA] rounded-2xl px-4 py-3 text-xs text-[#475569]">
@@ -287,7 +306,7 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
                 setCurrentPage(1);
               }}
               handleResetFilters={handleResetFilters}
-              allJobs={opportunities}
+              allJobs={scopedJobs}
               className="border-none shadow-none p-0"
             />
 
