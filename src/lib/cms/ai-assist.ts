@@ -389,8 +389,10 @@ export function buildFeeSections(content: string, kind: SourceKind, url: string)
 export function feeValueSupported(value: number, evidence: string): boolean {
   if (!Number.isInteger(value) || value < 0 || value > 100_000) return false;
   const e = evidence.replace(/(\d),(?=\d)/g, "$1");
-  if (value === 0) return /\bnil\b|\bexempt(?:ed|ion)?\b|\bno\s+fees?\b|\bfree\b|(?<![\d.])0(?![\d.])/i.test(e);
-  return new RegExp(`(?<![\\d.])${value}(?![\\d])`).test(e);
+  // A preceding digit or "digit." means the number is part of a longer one
+  // ("1850", "1.850"). A bare dot does not: notices write "Rs.850/-".
+  if (value === 0) return /\bnil\b|\bexempt(?:ed|ion)?\b|\bno\s+fees?\b|\bfree\b|(?<!\d)(?<!\d\.)0(?!\d)(?!\.\d)/i.test(e);
+  return new RegExp(`(?<!\\d)(?<!\\d\\.)${value}(?!\\d)`).test(e);
 }
 
 export type FeeOutcome =

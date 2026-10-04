@@ -44,15 +44,20 @@ async function main() {
   const schemaPath = join(process.cwd(), "src", "lib", "intelligence", "schema.sql");
   const schema = readFileSync(schemaPath, "utf-8");
 
+  // Drop comment lines first: a statement preceded by a comment must not be
+  // discarded with it.
   const statements = schema
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n")
     .split(";")
     .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("--"));
+    .filter((s) => s.length > 0);
 
   for (const stmt of statements) {
-    if (stmt.trim()) {
-      await sql.unsafe(stmt);
-    }
+    // sql.query() executes. sql.unsafe() only builds a fragment and sends nothing.
+    await sql.query(stmt);
+    console.log(`  applied: ${stmt.split("\n")[0].slice(0, 70)}`);
   }
 
   console.log("Intelligence draft schema applied.\n");

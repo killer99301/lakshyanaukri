@@ -542,6 +542,9 @@ test("FE05 fee amount absent from its own (real) quote is rejected", async () =>
 test("FE06 feeValueSupported: whole-number match only", () => {
   assert.equal(feeValueSupported(500, "Rs. 500/-"), true);
   assert.equal(feeValueSupported(1180, "Rs. 1,180/- incl. GST"), true);
+  assert.equal(feeValueSupported(850, "Rs.850/- (Inclusive of GST) for all others"), true);
+  assert.equal(feeValueSupported(175, "Rs.175/- (Inclusive of GST) for SC/ST/ PwBD"), true);
+  assert.equal(feeValueSupported(850, "Rs. 1.850"), false);
   assert.equal(feeValueSupported(50, "Rs. 500/-"), false);
   assert.equal(feeValueSupported(500, "Rs. 1500/-"), false);
   assert.equal(feeValueSupported(0, "SC/ST/PwBD NIL"), true);
