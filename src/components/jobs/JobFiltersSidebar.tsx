@@ -231,7 +231,7 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
       </div>
 
       {/* 3. Category Section */}
-      <div className="space-y-2 border-b border-slate-100 pb-3">
+      <div data-filter-section="category" className="space-y-2 border-b border-slate-100 pb-3 rounded-lg transition-shadow duration-300">
         <button
           onClick={() => toggleSection("category")}
           className="w-full flex items-center justify-between text-xs font-bold text-[#0F172A] cursor-pointer"
@@ -293,7 +293,7 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
       </div>
 
       {/* 4. Qualification Section */}
-      <div className="space-y-2 border-b border-slate-100 pb-3">
+      <div data-filter-section="qualification" className="space-y-2 border-b border-slate-100 pb-3 rounded-lg transition-shadow duration-300">
         <button
           onClick={() => toggleSection("qualification")}
           className="w-full flex items-center justify-between text-xs font-bold text-[#0F172A] cursor-pointer"

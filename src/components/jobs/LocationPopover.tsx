@@ -183,6 +183,7 @@ export const LocationPopover: React.FC<LocationPopoverProps> = ({
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        data-location-trigger
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "w-full sm:w-36 h-9 pl-8 pr-7 bg-slate-50 border rounded-xl text-xs font-bold text-[#0F172A] hover:bg-[#FFF7ED] hover:border-[#FED7AA] hover:text-[#EA580C] transition-all flex items-center justify-between cursor-pointer shadow-2xs relative select-none",

@@ -9,7 +9,7 @@ import { JobsHero } from "@/components/jobs/JobsHero";
 import { JobFiltersSidebar } from "@/components/jobs/JobFiltersSidebar";
 import { JobsToolbar } from "@/components/jobs/JobsToolbar";
 import { MarketplaceJobCard } from "@/components/jobs/MarketplaceJobCard";
-import { JobsRightSidebar } from "@/components/jobs/JobsRightSidebar";
+import { JobsRightSidebar, SIDEBAR_ORGANIZATIONS, type QuickLinkKind } from "@/components/jobs/JobsRightSidebar";
 import { JobsPagination } from "@/components/jobs/JobsPagination";
 import { searchOpportunities, closestMatches, textSearch, getDefaultFilterState, SortOption } from "@/lib/filters";
 import type { Opportunity, FilterState, Category, Qualification } from "@/types";
@@ -21,6 +21,14 @@ const ITEMS_PER_PAGE = 10;
 // Values accepted from links such as /jobs?category=banking or /jobs?qualification=Graduate.
 const URL_CATEGORIES = ["state-psc", "ssc", "banking", "railway", "teaching", "defence", "government", "private", "internship"];
 const URL_QUALIFICATIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"];
+
+/** Accepts both "12th Pass" and the link form "12th-pass"; an engineering degree is listed under Graduate. */
+function qualificationFromUrl(raw: string | null): Qualification | null {
+  if (!raw) return null;
+  const wanted = raw.toLowerCase().replace(/-/g, " ").trim();
+  if (wanted === "be btech") return "Graduate" as Qualification;
+  return (URL_QUALIFICATIONS.find((q) => q.toLowerCase() === wanted) as Qualification | undefined) ?? null;
+}
 
 interface JobsPageClientProps {
   opportunities: Opportunity[];
@@ -44,11 +52,11 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
   const initialFilterState = getDefaultFilterState();
   const [filters, setFilters] = useState<FilterState>(() => {
     const category = searchParams.get("category");
-    const qualification = searchParams.get("qualification");
+    const qualification = qualificationFromUrl(searchParams.get("qualification"));
     return {
       ...initialFilterState,
       categories: category && URL_CATEGORIES.includes(category) ? [category as Category] : [],
-      qualifications: qualification && URL_QUALIFICATIONS.includes(qualification) ? [qualification as Qualification] : [],
+      qualifications: qualification ? [qualification] : [],
     };
   });
 
@@ -84,16 +92,44 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
     );
   };
 
-  const handleQuickCategoryClick = (cat: string) => {
-    if (!cat) return;
-    setFilters((prev) => ({
-      ...prev,
-      categories: prev.categories.includes(cat as Category)
-        ? prev.categories
-        : [...prev.categories, cat as Category],
-    }));
-    setCurrentPage(1);
+  // "Jobs by Category / State / Qualification" take the visitor to the control
+  // where that choice is made, rather than picking one for them.
+  const handleQuickLink = (kind: QuickLinkKind) => {
+    if (kind === "state") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      // Opened after this click has finished, or the popover's outside-click handler closes it again.
+      window.setTimeout(() => {
+        const trigger = document.querySelector<HTMLButtonElement>("[data-location-trigger]");
+        if (trigger && trigger.getAttribute("aria-expanded") !== "true") trigger.click();
+      }, 350);
+      return;
+    }
+
+    const reveal = () => {
+      const section = Array.from(document.querySelectorAll<HTMLElement>(`[data-filter-section="${kind}"]`))
+        .find((el) => el.offsetParent !== null);
+      if (!section) return;
+      // A collapsed section has no options showing; its header button expands it.
+      if (!section.querySelector("label")) section.querySelector("button")?.click();
+      section.scrollIntoView({ behavior: "smooth", block: "center" });
+      section.classList.add("ring-2", "ring-[#EA580C]", "ring-offset-4");
+      window.setTimeout(() => section.classList.remove("ring-2", "ring-[#EA580C]", "ring-offset-4"), 1800);
+    };
+
+    // The filter panel is a drawer below the lg breakpoint.
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      reveal();
+    } else {
+      setIsMobileFilterOpen(true);
+      window.setTimeout(reveal, 150);
+    }
   };
+
+  // Organisations are listed only while they have a job to show.
+  const sidebarOrganizations = useMemo(
+    () => SIDEBAR_ORGANIZATIONS.filter((org) => textSearch(opportunities, org.name).length > 0).slice(0, 5),
+    [opportunities],
+  );
 
   // Canonical Dynamic Filtering & Sorting Logic via searchOpportunities
   const filteredJobs = useMemo(() => {
@@ -240,7 +276,7 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
 
             {/* RIGHT: SUPPORTING UTILITIES (Desktop lg:col-span-3) */}
             <div className="lg:col-span-3 space-y-4">
-              <JobsRightSidebar onQuickCategoryClick={handleQuickCategoryClick} />
+              <JobsRightSidebar onQuickLink={handleQuickLink} organizations={sidebarOrganizations} />
             </div>
           </div>
         </Container>

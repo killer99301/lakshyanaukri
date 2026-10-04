@@ -6,30 +6,45 @@ import { ChevronRight, Bell, ArrowRight } from "lucide-react";
 import { Card } from "../ui/Card";
 import { cn } from "@/lib/utils";
 
+export type QuickLinkKind = "category" | "state" | "qualification";
+
+export interface SidebarOrganization {
+  name: string;
+  fullName: string;
+  href: string;
+}
+
 interface JobsRightSidebarProps {
-  onQuickCategoryClick?: (cat: string) => void;
+  /** Takes the visitor to the control where that choice is made. */
+  onQuickLink?: (kind: QuickLinkKind) => void;
+  /** Organisations to list; only ones with jobs should be passed. */
+  organizations?: SidebarOrganization[];
   className?: string;
 }
 
+export const SIDEBAR_ORGANIZATIONS: SidebarOrganization[] = [
+  { name: "SSC", fullName: "Staff Selection Commission", href: "/jobs?q=SSC" },
+  { name: "UPSC", fullName: "Union Public Service Commission", href: "/jobs?q=UPSC" },
+  { name: "BPSC", fullName: "Bihar Public Service Commission", href: "/jobs?q=BPSC" },
+  { name: "RRB", fullName: "Railway Recruitment Boards", href: "/jobs?q=RRB" },
+  { name: "IBPS", fullName: "Institute of Banking Personnel Selection", href: "/jobs?q=IBPS" },
+  { name: "SBI", fullName: "State Bank of India", href: "/jobs?q=SBI" },
+];
+
 export const JobsRightSidebar: React.FC<JobsRightSidebarProps> = ({
-  onQuickCategoryClick,
+  onQuickLink,
+  organizations = SIDEBAR_ORGANIZATIONS,
   className,
 }) => {
-  const quickLinks = [
+  const quickLinks: Array<{ label: string; href?: string; kind?: QuickLinkKind }> = [
     { label: "Latest Jobs", href: "/jobs" },
-    { label: "Jobs by Category", category: "state-psc" },
-    { label: "Jobs by State", category: "Bihar" },
-    { label: "Jobs by Qualification", category: "Graduate" },
+    { label: "Jobs by Category", kind: "category" },
+    { label: "Jobs by State", kind: "state" },
+    { label: "Jobs by Qualification", kind: "qualification" },
     { label: "Jobs by Recruiting Board", href: "/companies" },
   ];
 
-  const topOrganizations = [
-    { name: "BPSC", fullName: "Bihar Public Service Commission", href: "/jobs?q=BPSC" },
-    { name: "SSC", fullName: "Staff Selection Commission", href: "/jobs?q=SSC" },
-    { name: "RRB", fullName: "Railway Recruitment Boards", href: "/jobs?q=RRB" },
-    { name: "IBPS", fullName: "Institute of Banking Personnel Selection", href: "/jobs?q=IBPS" },
-    { name: "SBI", fullName: "State Bank of India", href: "/jobs?q=SBI" },
-  ];
+  const topOrganizations = organizations;
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -53,7 +68,7 @@ export const JobsRightSidebar: React.FC<JobsRightSidebarProps> = ({
               ) : (
                 <button
                   type="button"
-                  onClick={() => onQuickCategoryClick?.(item.category || "")}
+                  onClick={() => item.kind && onQuickLink?.(item.kind)}
                   className="flex items-center justify-between w-full p-2 rounded-xl text-xs font-bold text-[#0F172A] hover:bg-[#FFF7ED] hover:text-[#EA580C] transition-all group cursor-pointer text-left"
                 >
                   <span>{item.label}</span>
@@ -85,6 +100,7 @@ export const JobsRightSidebar: React.FC<JobsRightSidebarProps> = ({
       </Card>
 
       {/* 3. TOP HIRING ORGANIZATIONS POD */}
+      {topOrganizations.length > 0 && (
       <Card className="p-4 bg-white border-[#E2E8F0] rounded-2xl shadow-2xs space-y-3">
         <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-wider">
           Top Hiring Organizations
@@ -122,6 +138,7 @@ export const JobsRightSidebar: React.FC<JobsRightSidebarProps> = ({
           </Link>
         </div>
       </Card>
+      )}
     </div>
   );
 };
