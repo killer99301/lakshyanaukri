@@ -24,7 +24,7 @@ import type {
 import type { ExamStage, UpdateRecord, ExamStageStatus } from "@/types";
 import { projectForPreview } from "@/lib/cms/projector";
 import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
-import { aiAssistReason, buildAiField } from "@/lib/cms/ai-assist-apply";
+import { aiAssistReason, buildAiField, describeAiValue } from "@/lib/cms/ai-assist-apply";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
 import { OfficialNotificationCard } from "@/components/jobs/OfficialNotificationCard";
@@ -638,6 +638,7 @@ export default function CmsRecordEditorPage() {
     notFound: string[];
     confirmed: string[];
     flagged: { label: string; value: unknown; reason: string }[];
+    suggestedLinks: (CmsRecruitmentLink & { context: string; host: string })[];
     identityCheck?: {
       organization: { existing: string; detected: string | null; status: string };
       year: { existing: number; detected: number[]; status: string };
@@ -757,6 +758,7 @@ export default function CmsRecordEditorPage() {
         notFound: data.notFound,
         confirmed: data.confirmed ?? [],
         flagged: data.flagged ?? [],
+        suggestedLinks: data.suggestedLinks ?? [],
         identityCheck: data.identityCheck,
         sourceUrl: data.sourceUrl,
         sourceKind: data.sourceKind,
@@ -799,6 +801,29 @@ export default function CmsRecordEditorPage() {
     } finally {
       setAiApplying(null);
     }
+  }
+
+  // Adding a suggested link is the admin's statement that they checked it.
+  async function handleAiAddLink(link: CmsRecruitmentLink & { context: string; host: string }) {
+    if (!record || !aiResult) return;
+    setAiApplying(link.url);
+    setAiError(null);
+    const next: CmsRecruitmentLink = { type: link.type, label: link.label, url: link.url, official: true };
+    const out = await saveListField(
+      record.id,
+      record.recordRevision,
+      "links",
+      [...record.links, next],
+      `AI Assist (link added by admin) — found on ${aiResult.sourceUrl}`,
+    );
+    setAiApplying(null);
+    if (out.error || !out.record) {
+      setAiError(out.error ?? `Could not add ${link.label}`);
+      return;
+    }
+    setRecord(out.record);
+    void loadRevisions();
+    setAiResult((prev) => (prev ? { ...prev, suggestedLinks: prev.suggestedLinks.filter((l) => l.url !== link.url) } : null));
   }
 
   if (loading) return <div style={{ color: C.muted, padding: 40 }}>Loading…</div>;
@@ -1064,7 +1089,7 @@ export default function CmsRecordEditorPage() {
                         <div key={f.fieldPath} style={{ display: "flex", gap: 8, marginBottom: 3, color: C.text }}>
                           <span style={{ color: C.muted, minWidth: 160 }}>{f.label}</span>
                           <span style={{ color: C.amber }}>Pending</span>
-                          <span style={{ color: C.text }}>{String(f.value)}</span>
+                          <span style={{ color: C.text, whiteSpace: "pre-wrap", minWidth: 0 }}>{describeAiValue(f.value)}</span>
                         </div>
                       ))}
                     </div>
@@ -1080,8 +1105,8 @@ export default function CmsRecordEditorPage() {
                         <div key={s.fieldPath} style={{ marginBottom: 8, padding: "8px 10px", background: "#0d1117", borderRadius: 5, border: `1px solid ${C.border}` }}>
                           <div style={{ fontWeight: 600, color: C.muted, marginBottom: 4 }}>{s.label}</div>
                           <div style={{ display: "flex", gap: 16, alignItems: "baseline", flexWrap: "wrap" }}>
-                            <span style={{ color: C.muted }}>Current: <span style={{ color: C.text }}>{String(s.existingValue)}</span></span>
-                            <span style={{ color: C.muted }}>AI: <span style={{ color: C.amber }}>{String(s.aiValue)}</span></span>
+                            <span style={{ color: C.muted }}>Current: <span style={{ color: C.text, whiteSpace: "pre-wrap" }}>{describeAiValue(s.existingValue)}</span></span>
+                            <span style={{ color: C.muted }}>AI: <span style={{ color: C.amber, whiteSpace: "pre-wrap" }}>{describeAiValue(s.aiValue)}</span></span>
                             <button
                               onClick={() => { void handleAiApplySuggestion(s.fieldPath, s.label, s.aiValue, s.existingEvidenceIds ?? []); }}
                               disabled={aiApplying === s.fieldPath}
@@ -1138,6 +1163,32 @@ export default function CmsRecordEditorPage() {
                       </div>
                     );
                   })()}
+
+                  {/* Links to official domains found on the source page — added only on click */}
+                  {(aiResult.suggestedLinks ?? []).length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ color: C.accent, fontWeight: 700, marginBottom: 6 }}>
+                        🔗 Official links found on this page — open each one to check, then add
+                      </div>
+                      {aiResult.suggestedLinks.map((l) => (
+                        <div key={l.url} style={{ marginBottom: 8, padding: "8px 10px", background: "#0d1117", borderRadius: 5, border: `1px solid ${C.border}` }}>
+                          <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
+                            <span style={{ fontWeight: 600, color: C.text }}>{l.label}</span>
+                            <span style={{ color: C.green }}>on {l.host}</span>
+                            <button
+                              onClick={() => { void handleAiAddLink(l); }}
+                              disabled={aiApplying === l.url}
+                              style={{ padding: "2px 10px", background: "none", color: C.accent, border: `1px solid ${C.accent}44`, borderRadius: 4, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
+                            >
+                              {aiApplying === l.url ? "Adding…" : "Add as official link"}
+                            </button>
+                          </div>
+                          <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: C.accent, wordBreak: "break-all" }}>{l.url}</a>
+                          <div style={{ color: C.muted }}>Shown on the page as: {l.context}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Flagged: extracted but not trusted enough to apply or suggest */}
                   {(aiResult.flagged ?? []).length > 0 && (

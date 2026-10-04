@@ -219,7 +219,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
                 Find optimal dates and timings to submit high-priority competitive exam applications.
               </p>
               <a
-                href={(job.type === "government" ? job.ecosystem?.anantamarg : undefined) || "https://anantamarg.com/shubh-muhurat"}
+                href={(job.type === "government" ? job.ecosystem?.anantamarg : undefined) || "https://anantamarg.com/"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-[#0F172A] hover:border-[#FED7AA] hover:bg-[#FFF7ED] hover:text-[#EA580C] transition-colors cursor-pointer"

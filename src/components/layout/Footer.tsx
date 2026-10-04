@@ -144,10 +144,7 @@ export const Footer: React.FC = () => {
                   {siteConfig.contact.email}
                 </a>
               </li>
-              <li className="flex items-start gap-2">
-                <span className="text-[#EA580C] shrink-0 mt-0.5">📍</span>
-                <span>Patna, Bihar, India</span>
-              </li>
+              <li>Made in India 💕</li>
             </ul>
           </div>
         </div>

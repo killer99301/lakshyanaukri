@@ -48,7 +48,9 @@ function postsToEligibilityStrings(posts: CmsRecruitmentPost[]): string[] {
 }
 
 function selectionInfoToProcessStrings(info: CmsSelectionInformation): string[] {
-  return info.stages?.map((s) => s.name) ?? [];
+  const steps = info.stages?.map((s) => (s.description ? `${s.name} — ${s.description}` : s.name)) ?? [];
+  if (steps.length > 0 && info.negativeMarking) steps.push(`Negative marking: ${info.negativeMarking}`);
+  return steps;
 }
 
 // ─── Main adapter ─────────────────────────────────────────

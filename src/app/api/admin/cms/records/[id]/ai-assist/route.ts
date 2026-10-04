@@ -40,6 +40,13 @@ import {
   type SourceKind,
 } from "@/lib/cms/ai-assist";
 import { aiAssistReason } from "@/lib/cms/ai-assist-apply";
+import {
+  buildDetailSections,
+  extractDetails,
+  extractOfficialLinks,
+  DETAIL_FIELDS,
+  type SuggestedLink,
+} from "@/lib/cms/ai-assist-details";
 
 interface AiAssistRequest {
   url: string;
@@ -68,6 +75,8 @@ export interface AiAssistResponse {
   confirmed: string[];
   notFound: string[];
   flagged: AssistFlag[];
+  // Links to official domains found on the source page; never added automatically.
+  suggestedLinks: SuggestedLink[];
   // Read-only comparison — organisation and year are never written by AI Assist.
   identityCheck: IdentityCheck;
   sourceUrl: string;
@@ -144,12 +153,16 @@ export async function POST(
   const base = buildAssistCandidates(source.content, source.kind, url);
   const identityCheck = compareIdentity(record.identity, base.detected);
 
-  // One AI call per click: fees and application dates, each evidence-checked.
-  const ai = await extractWithAi({
-    sections: buildAiSections(source.content, source.kind, url),
-    url,
-    apiKey: process.env.GEMINI_API_KEY,
-  });
+  // Two AI requests per click, run together: (1) fees, dates and notification
+  // number; (2) eligibility, age, selection, how to apply and pay scale.
+  // Every item is evidence-checked. Either can fail without affecting the other.
+  const apiKey = process.env.GEMINI_API_KEY;
+  // Tells the model which recruitment this is, so other jobs on the page are ignored.
+  const subject = `${record.identity.title.value ?? ""} — ${record.identity.organizationName}`;
+  const [ai, details] = await Promise.all([
+    extractWithAi({ sections: buildAiSections(source.content, source.kind, url), url, apiKey }),
+    extractDetails({ sections: buildDetailSections(source.content, source.kind, url, subject), url, apiKey, subject }),
+  ]);
   const fees = ai.fees;
   const merged = mergeAiDates(mergeAiNotificationNumber(base, ai.notificationNumber), ai.dates);
   const flagged = merged.flagged;
@@ -170,6 +183,30 @@ export async function POST(
   };
   addFee("financial.feeGeneral", "Application Fee (General/OBC)", fees.general);
   addFee("financial.feeSCST", "Application Fee (SC/ST/PwBD)", fees.scst);
+
+  for (const { key, fieldPath, label } of DETAIL_FIELDS) {
+    const outcome = details[key];
+    if (outcome.status === "accepted") {
+      candidates.push({ fieldPath, label, value: outcome.value });
+      if (outcome.dropped > 0) {
+        flagged.push({
+          label,
+          value: `${outcome.dropped} item${outcome.dropped === 1 ? "" : "s"} left out`,
+          reason: "could not be matched to the source text — check this section against the notification",
+        });
+      }
+    } else if (outcome.status === "rejected") {
+      flagged.push({ label, value: "not applied", reason: outcome.reason });
+    } else if (outcome.status === "skipped") {
+      notFound.push(`${label} (${outcome.reason})`);
+    } else {
+      notFound.push(label);
+    }
+  }
+
+  // Links to official domains found on the page. Suggested only — the admin adds them.
+  const suggestedLinks =
+    source.kind === "html" ? extractOfficialLinks(source.content, url, record.links.map((l) => l.url)) : [];
 
   const filled: AiAssistFilledEntry[] = [];
   const suggested: AiAssistSuggestedEntry[] = [];
@@ -225,6 +262,7 @@ export async function POST(
     confirmed,
     notFound,
     flagged,
+    suggestedLinks,
     identityCheck,
     sourceUrl: url,
     sourceKind: source.kind,

@@ -20,6 +20,7 @@ export function isEmpty(field: ProvenanceField<unknown> | undefined | null): boo
   if (!field) return true;
   if (field.status === "NOT_SPECIFIED") return true;
   const v = field.value;
+  if (Array.isArray(v)) return v.length === 0;
   return v === null || v === undefined || v === "";
 }
 
@@ -31,6 +32,17 @@ export function readField(
   record: RecruitmentRecord,
   fieldPath: string,
 ): ProvenanceField<unknown> | undefined {
+  // Whole-block fields.
+  if (fieldPath === "eligibility") return record.eligibility as ProvenanceField<unknown> | undefined;
+  if (fieldPath === "age") return record.age as ProvenanceField<unknown> | undefined;
+  if (fieldPath === "selection") return record.selection as ProvenanceField<unknown> | undefined;
+  // A plain list on the record; presented in field shape so the same
+  // fill-or-suggest logic applies.
+  if (fieldPath === "howToApply") {
+    const steps = record.howToApply ?? [];
+    return steps.length > 0 ? buildAiField<unknown>(steps) : undefined;
+  }
+
   const [ns, key] = fieldPath.split(".");
   if (ns === "identity") {
     return (record.identity as unknown as Record<string, unknown>)[key] as ProvenanceField<unknown> | undefined;
@@ -654,8 +666,55 @@ function asCandidate<T extends "number" | "string">(
   >;
 }
 
+export type AiJsonAnswer = { ok: true; data: Record<string, unknown> } | { ok: false; reason: string };
+
+// One JSON request to the configured model. Never throws, never retries
+// (retrying a rate limit only deepens it), and never surfaces error text:
+// it can carry the request URL, which holds the API key.
+export async function callAiJson(opts: {
+  prompt: string;
+  apiKey: string | undefined;
+  fetchFn?: typeof fetch;
+  maxOutputTokens?: number;
+}): Promise<AiJsonAnswer> {
+  if (!opts.apiKey) return { ok: false, reason: "AI extraction not configured" };
+
+  const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${opts.apiKey}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  let status = 0;
+
+  try {
+    const response = await (opts.fetchFn ?? globalThis.fetch)(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          maxOutputTokens: opts.maxOutputTokens ?? resolveFeeMaxOutputTokens(process.env.GEMINI_MAX_OUTPUT_TOKENS),
+        },
+      }),
+      signal: controller.signal,
+    });
+    status = response.status;
+    if (!response.ok) return { ok: false, reason: feeFailureMessage(status) };
+
+    const body = (await response.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    // Models sometimes wrap the object in a one-element list.
+    const parsed: unknown = JSON.parse(text);
+    const data = (Array.isArray(parsed) ? parsed[0] : parsed) ?? {};
+    return { ok: true, data: data as Record<string, unknown> };
+  } catch {
+    return { ok: false, reason: feeFailureMessage(status) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Never throws. Called only from the user-triggered AI Assist request.
-// One request, no retries: retrying a rate limit only deepens it.
 export async function extractWithAi(opts: {
   sections: PageSection[];
   url: string;
@@ -673,52 +732,21 @@ export async function extractWithAi(opts: {
     };
   };
   if (opts.sections.length === 0) return skipAll("nothing relevant found in the source");
-  if (!opts.apiKey) return skipAll("AI extraction not configured");
 
-  const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${opts.apiKey}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
-  let status = 0;
+  const answer = await callAiJson({ ...opts, prompt: buildAiPrompt(opts.sections, opts.url) });
+  if (!answer.ok) return skipAll(answer.reason);
+  const raw = answer.data;
 
-  try {
-    const response = await (opts.fetchFn ?? globalThis.fetch)(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: buildAiPrompt(opts.sections, opts.url) }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          maxOutputTokens: opts.maxOutputTokens ?? resolveFeeMaxOutputTokens(process.env.GEMINI_MAX_OUTPUT_TOKENS),
-        },
-      }),
-      signal: controller.signal,
-    });
-    status = response.status;
-    if (!response.ok) return skipAll(feeFailureMessage(status));
-
-    const body = (await response.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-    // Models sometimes wrap the object in a one-element list.
-    const parsed: unknown = JSON.parse(text);
-    const raw = ((Array.isArray(parsed) ? parsed[0] : parsed) ?? {}) as Record<string, unknown>;
-
-    const dates = {} as Record<DateField, DateOutcome>;
-    for (const field of DATE_FIELDS) dates[field] = judgeDate(field, asCandidate(raw[field], "string"), opts.sections);
-    return {
-      fees: {
-        general: judgeFee(asCandidate(raw.applicationFeeGeneral, "number"), opts.sections),
-        scst: judgeFee(asCandidate(raw.applicationFeeSCST, "number"), opts.sections),
-      },
-      dates,
-      notificationNumber: judgeNotificationNumber(asCandidate(raw.notificationNumber, "string"), opts.sections),
-    };
-  } catch {
-    // Error text can carry the request URL (and with it the key): report by status only.
-    return skipAll(feeFailureMessage(status));
-  } finally {
-    clearTimeout(timer);
-  }
+  const dates = {} as Record<DateField, DateOutcome>;
+  for (const field of DATE_FIELDS) dates[field] = judgeDate(field, asCandidate(raw[field], "string"), opts.sections);
+  return {
+    fees: {
+      general: judgeFee(asCandidate(raw.applicationFeeGeneral, "number"), opts.sections),
+      scst: judgeFee(asCandidate(raw.applicationFeeSCST, "number"), opts.sections),
+    },
+    dates,
+    notificationNumber: judgeNotificationNumber(asCandidate(raw.notificationNumber, "string"), opts.sections),
+  };
 }
 
 /** Fees only. Same request path as extractWithAi. */

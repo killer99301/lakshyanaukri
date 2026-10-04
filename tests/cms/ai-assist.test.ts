@@ -198,7 +198,8 @@ test("AB07 isEmpty: undefined/null field → true; NOT_SPECIFIED → true; PENDI
   assert.equal(isEmpty(pf("some value")), false);
   assert.equal(isEmpty(pending("some value")), false);
   assert.equal(isEmpty(pending(0)), false);
-  assert.equal(isEmpty(pending([])), false);
+  assert.equal(isEmpty(pending([])), true);   // an empty list has nothing in it to preserve
+  assert.equal(isEmpty(pending(["step"])), false);
 });
 
 test("AB08 pending<T> produces correct shape with PENDING status", () => {

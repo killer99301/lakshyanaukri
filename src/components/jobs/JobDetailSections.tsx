@@ -228,6 +228,18 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                   )}
                 </td>
               </tr>
+              {isGov && job.application.feeDeadline && (
+                <tr className="text-[#0F172A]">
+                  <td className="py-3.5 px-4 font-semibold">Last Date for Fee Payment</td>
+                  <td className="py-3.5 px-4 text-right font-bold">{job.application.feeDeadline}</td>
+                </tr>
+              )}
+              {isGov && job.application.correctionWindowEnd && (
+                <tr className="text-[#0F172A]">
+                  <td className="py-3.5 px-4 font-semibold">Application Correction Window Closes</td>
+                  <td className="py-3.5 px-4 text-right font-bold">{job.application.correctionWindowEnd}</td>
+                </tr>
+              )}
               {isGov && job.examStages && job.examStages.length > 0 && (
                 job.examStages.map((stage) => {
                   const certainty = getStageCertainty(stage);

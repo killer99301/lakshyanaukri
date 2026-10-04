@@ -137,6 +137,14 @@ test("SL01 buildSlug avoids repeated organisation and year", () => {
   assert.equal(buildSlug("canara-bank", "Canara Bank Graduate Apprentice 2026", 2026), "canara-bank-graduate-apprentice-2026");
   assert.equal(buildSlug("upsc", "Civil Services", 2026), "upsc-civil-services-2026");
   assert.equal(buildSlug("ssc", "SSC", 2026), "ssc-2026");
+  // A long title is shortened at a word boundary, never through the year.
+  assert.equal(
+    buildSlug("ssc", "TEST SSC CHSL (Combined Higher Secondary Level) Examination 2026", 2026),
+    "ssc-test-ssc-chsl-combined-higher-secondary-level-examination-2026",
+  );
+  const long = buildSlug("upsc", "Engineering Services Examination for Civil Mechanical Electrical and Electronics Branches 2026", 2026);
+  assert.equal(/-\d{1,3}-2026$/.test(long), false);
+  assert.ok(long.endsWith("-2026") && long.length <= 72 && !long.includes("--"));
 });
 
 test("SL02 slugify handles punctuation, dashes and length", () => {
