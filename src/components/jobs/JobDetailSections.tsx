@@ -21,6 +21,7 @@ import { formatDate } from "@/lib/utils";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
 import { RecruitmentTimeline } from "@/components/jobs/RecruitmentTimeline";
 import { ExamPatternSection, SyllabusSection } from "@/components/jobs/ExamPatternSyllabus";
+import { EligibilityChecker } from "@/components/jobs/EligibilityChecker";
 
 interface JobDetailSectionsProps {
   job: Opportunity;
@@ -462,6 +463,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
             )}
           </div>
         </div>
+        {isGov && <EligibilityChecker ageLimit={job.ageLimit} />}
       </section>
 
       {/* 6. Application Fee Section (Government only) */}

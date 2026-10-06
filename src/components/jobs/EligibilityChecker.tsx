@@ -1,0 +1,124 @@
+"use client";
+
+import React, { useState } from "react";
+import { AlertTriangle, CheckCircle2, HelpCircle, XCircle } from "lucide-react";
+import type { AgeLimit } from "@/types";
+import { CATEGORY_LABELS, checkAge, describeAge, type AgeVerdict, type CasteCategory } from "@/lib/eligibility";
+import { cn, formatDate } from "@/lib/utils";
+
+const TONE: Record<AgeVerdict, { box: string; icon: React.ReactNode; title: string }> = {
+  WITHIN: {
+    box: "bg-emerald-50 border-emerald-200 text-emerald-900",
+    icon: <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />,
+    title: "Your age is within the limit",
+  },
+  WITHIN_RELAXED: {
+    box: "bg-emerald-50 border-emerald-200 text-emerald-900",
+    icon: <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />,
+    title: "Your age is within the limit, with relaxation",
+  },
+  CHECK_NOTICE: {
+    box: "bg-amber-50 border-amber-200 text-amber-900",
+    icon: <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />,
+    title: "You are right at the upper limit — check the notice",
+  },
+  TOO_YOUNG: {
+    box: "bg-red-50 border-red-200 text-red-900",
+    icon: <XCircle className="h-5 w-5 text-red-600 shrink-0" />,
+    title: "You are below the minimum age",
+  },
+  TOO_OLD: {
+    box: "bg-red-50 border-red-200 text-red-900",
+    icon: <XCircle className="h-5 w-5 text-red-600 shrink-0" />,
+    title: "You are above the upper age limit",
+  },
+  UNKNOWN: {
+    box: "bg-slate-50 border-slate-200 text-slate-700",
+    icon: <HelpCircle className="h-5 w-5 text-slate-500 shrink-0" />,
+    title: "This cannot be worked out yet",
+  },
+};
+
+const field = "h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/40";
+const label = "block text-[11px] font-bold uppercase tracking-wider text-[#475569] mb-1";
+
+/**
+ * Works out the visitor's age on the notice's cut-off date and compares it
+ * with the printed limit. Runs in the browser; nothing typed here leaves it.
+ * Shown only when the record has an age limit and its cut-off date.
+ */
+export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
+  const [dob, setDob] = useState("");
+  const [category, setCategory] = useState<CasteCategory>("GEN");
+  const [pwbd, setPwbd] = useState(false);
+
+  if (!ageLimit?.asOf || (ageLimit.min == null && ageLimit.max == null)) return null;
+
+  const result = dob ? checkAge(ageLimit, dob, category, pwbd) : null;
+  const tone = result ? TONE[result.verdict] : null;
+
+  return (
+    <div className="p-5 rounded-2xl border border-[#FED7AA] bg-[#FFF7ED]/60 space-y-4" id="age-check">
+      <div>
+        <h3 className="text-sm font-black text-[#0F172A]">Check your age for this recruitment</h3>
+        <p className="text-xs font-medium text-[#475569] mt-0.5">
+          Your age is counted on {formatDate(ageLimit.asOf)}, the date the notice uses. Nothing you enter is saved or sent.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div>
+          <label className={label} htmlFor="age-check-dob">Date of birth</label>
+          <input id="age-check-dob" type="date" value={dob} max={ageLimit.asOf} onChange={(e) => setDob(e.target.value)} className={field} />
+        </div>
+        <div>
+          <label className={label} htmlFor="age-check-category">Category</label>
+          <select id="age-check-category" value={category} onChange={(e) => setCategory(e.target.value as CasteCategory)} className={field}>
+            {(Object.keys(CATEGORY_LABELS) as CasteCategory[]).map((c) => (
+              <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+            ))}
+          </select>
+        </div>
+        <label className="flex items-center gap-2 text-sm font-semibold text-[#0F172A] sm:pt-6 cursor-pointer">
+          <input type="checkbox" checked={pwbd} onChange={(e) => setPwbd(e.target.checked)} className="h-4 w-4 accent-[#EA580C]" />
+          Person with disability (PwBD)
+        </label>
+      </div>
+
+      {result && tone && (
+        <div role="status" className={cn("rounded-2xl border px-4 py-3 flex items-start gap-3", tone.box)}>
+          {tone.icon}
+          <div className="min-w-0 space-y-1">
+            <p className="text-sm font-black">{tone.title}</p>
+            {result.age && (
+              <p className="text-xs font-semibold">
+                On {formatDate(ageLimit.asOf)} you will be {describeAge(result.age)} old.
+              </p>
+            )}
+            {result.verdict === "UNKNOWN" && <p className="text-xs font-semibold">{result.reason}</p>}
+            {result.relaxation && result.effectiveMax != null && (
+              <p className="text-xs font-semibold">
+                Relaxation used: {result.relaxation.category}, {result.relaxation.years} years — upper limit {result.effectiveMax} for you.
+              </p>
+            )}
+            {result.verdict === "CHECK_NOTICE" && (
+              <p className="text-xs font-semibold">
+                You have completed {result.effectiveMax ?? ageLimit.max} years but not your next birthday. Some notices allow this and some do not;
+                look for the date-of-birth range in the official notification.
+              </p>
+            )}
+            {result.verdict === "TOO_OLD" && !result.relaxation && (
+              <p className="text-xs font-semibold">
+                No relaxation for your category is listed here. Ex-servicemen, women and some other groups may get more; see the notification.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <p className="text-[11px] font-medium text-slate-500">
+        This checks age only, using the limits shown above. Qualification, other relaxations and the final decision are as per the official notification.
+      </p>
+    </div>
+  );
+}
