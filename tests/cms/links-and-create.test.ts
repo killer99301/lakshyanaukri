@@ -22,7 +22,7 @@ import { randomUUID } from "node:crypto";
 import type { RecruitmentRecord, ProvenanceField } from "@/types/recruitment-record";
 import { updateLinks, updateHowToApply, updateClassification } from "@/lib/cms/record-ops";
 import { routeFieldUpdate } from "@/lib/cms/field-update-router";
-import { buildSlug, slugify } from "@/lib/cms/slug";
+import { buildSlug, isValidSlug, slugify } from "@/lib/cms/slug";
 import { savedFilePath, cleanPdfName, isAllowedSavedFilePath, savedFileProblem, MAX_SAVED_FILE_BYTES } from "@/lib/cms/saved-files";
 import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
 
@@ -189,6 +189,32 @@ test("SL01 buildSlug avoids repeated organisation and year", () => {
   const long = buildSlug("upsc", "Engineering Services Examination for Civil Mechanical Electrical and Electronics Branches 2026", 2026);
   assert.equal(/-\d{1,3}-2026$/.test(long), false);
   assert.ok(long.endsWith("-2026") && long.length <= 72 && !long.includes("--"));
+});
+
+test("SL03 buildSlug keeps addresses short for custom organisations and notice numbers", () => {
+  // A custom organisation's whole name is not put in front of a title that does not start with it.
+  assert.equal(
+    buildSlug("high-court-of-punjab-and-haryana-s-s-s-c", "Punjab District Courts Clerk Recruitment 2026 (Notice No. 37C/SSSC/PB/2026)", 2026),
+    "punjab-district-courts-clerk-recruitment-2026",
+  );
+  assert.equal(
+    buildSlug("indian-coast-guard", "Coast Guard CGEPT 01/2027 and 02/2027 (Navik and Yantrik)", 2026),
+    "coast-guard-cgept-01-2027-and-02-2027-navik-and-yantrik-2026",
+  );
+  // "(Advt. No. …)" is dropped; "(CEN …)" stays because it tells two RRB jobs apart.
+  assert.equal(buildSlug("bpsc", "BPSC TRE 4.0 School Teacher Recruitment 2026 (Advt. No. 15/2026)", 2026), "bpsc-tre-4-0-school-teacher-recruitment-2026");
+  assert.equal(buildSlug("rrb", "RRB NTPC Graduate Level Recruitment 2026 (CEN 06/2026)", 2026), "rrb-ntpc-graduate-level-recruitment-2026-cen-06");
+  assert.equal(buildSlug("rrb", "RRB NTPC Undergraduate Level Recruitment 2026 (CEN 07/2026)", 2026), "rrb-ntpc-undergraduate-level-recruitment-2026-cen-07");
+  // A year already shown is not added again; a cut never ends on a joining word.
+  assert.equal(buildSlug("sail-bhilai-steel-plant", "SAIL Bhilai Steel Plant Apprentice Recruitment 2026-27", 2026), "sail-bhilai-steel-plant-apprentice-recruitment-2026-27");
+  assert.equal(
+    buildSlug("central-reserve-police-force", "CRPF Sports Quota Recruitment 2026 (Head Constable and Constable GD)", 2026),
+    "crpf-sports-quota-recruitment-2026-head-constable",
+  );
+  assert.equal(isValidSlug("crpf-sports-quota-recruitment-2026-head-constable"), true);
+  for (const bad of ["Short", "has space-here-2026", "double--hyphen-2026", "-leading-hyphen-2026", "UPPER-case-slug-2026", "a".repeat(91)]) {
+    assert.equal(isValidSlug(bad), false);
+  }
 });
 
 test("SL02 slugify handles punctuation, dashes and length", () => {

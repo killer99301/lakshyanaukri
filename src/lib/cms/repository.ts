@@ -34,6 +34,7 @@ import {
 } from "@/lib/cms/record-ops";
 
 import { validateRecord } from "@/lib/cms/validation";
+import { isValidSlug } from "@/lib/cms/slug";
 
 // ─── Row shape from DB ────────────────────────────────────
 
@@ -117,6 +118,29 @@ export async function getRecruitmentBySlug(slug: string): Promise<RecruitmentRec
   `;
   if (rows.length === 0) return null;
   return rowToRecord(rows[0] as RecruitmentRow);
+}
+
+/**
+ * Change the address of a record that has never been public.
+ *
+ * The slug is a job's permanent URL, so this refuses anything that has been
+ * published even once. The whole check is one statement: the row is updated
+ * only if it is still a draft, was never published, and no other record
+ * already has the new address. Resolves to false when nothing was changed.
+ */
+export async function renameUnpublishedSlug(id: string, newSlug: string): Promise<boolean> {
+  if (!isValidSlug(newSlug)) return false;
+  const rows = await sql`
+    UPDATE recruitments r
+    SET slug = ${newSlug}, updated_at = now()
+    WHERE r.id = ${id}
+      AND r.draft_state IN ('DRAFT', 'APPROVED')
+      AND r.published_at IS NULL
+      AND NOT EXISTS (SELECT 1 FROM published_recruitments p WHERE p.recruitment_id = r.id)
+      AND NOT EXISTS (SELECT 1 FROM recruitments o WHERE o.slug = ${newSlug} AND o.id <> r.id)
+    RETURNING r.id
+  `;
+  return rows.length === 1;
 }
 
 export async function getFieldRevisions(
