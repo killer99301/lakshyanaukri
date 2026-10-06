@@ -49,8 +49,8 @@ const ORG_NAMES: Record<string, string> = {
 
 const S = {
   card: {
-    background: "#161b22",
-    border: "1px solid #21262d",
+    background: "#0e1526",
+    border: "1px solid #1c2740",
     borderRadius: 10,
     padding: 32,
     maxWidth: 560,
@@ -66,7 +66,7 @@ const S = {
     display: "block",
     fontSize: 12,
     fontWeight: 600,
-    color: "#8b949e",
+    color: "#8c9bb8",
     marginBottom: 6,
     letterSpacing: "0.05em",
     textTransform: "uppercase" as const,
@@ -75,8 +75,8 @@ const S = {
   input: {
     width: "100%",
     padding: "8px 12px",
-    background: "#0d1117",
-    border: "1px solid #21262d",
+    background: "#070b16",
+    border: "1px solid #1c2740",
     borderRadius: 6,
     color: "#e2e8f0",
     fontSize: 13,
@@ -86,8 +86,8 @@ const S = {
   select: {
     width: "100%",
     padding: "8px 12px",
-    background: "#0d1117",
-    border: "1px solid #21262d",
+    background: "#070b16",
+    border: "1px solid #1c2740",
     borderRadius: 6,
     color: "#e2e8f0",
     fontSize: 13,
@@ -100,7 +100,7 @@ const S = {
   } as React.CSSProperties,
   btn: {
     padding: "10px 24px",
-    background: "#1f6feb",
+    background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
     color: "#fff",
     border: "none",
     borderRadius: 6,
@@ -182,7 +182,7 @@ export default function NewCmsRecordPage() {
   return (
     <div>
       <h1 style={{ ...S.h1, marginBottom: 0 }}>New Recruitment Record</h1>
-      <p style={{ color: "#8b949e", fontSize: 13, marginBottom: 24, marginTop: 6 }}>
+      <p style={{ color: "#8c9bb8", fontSize: 13, marginBottom: 24, marginTop: 6 }}>
         Creates a DRAFT record. You can fill all fields in the editor after creation.
       </p>
 
@@ -215,7 +215,7 @@ export default function NewCmsRecordPage() {
                 placeholder="e.g. Canara Bank"
                 maxLength={160}
               />
-              <div style={{ color: "#8b949e", fontSize: 12, marginTop: 6 }}>
+              <div style={{ color: "#8c9bb8", fontSize: 12, marginTop: 6 }}>
                 This is shown on the public page and cannot be changed in the editor later.
               </div>
             </div>
@@ -275,14 +275,14 @@ export default function NewCmsRecordPage() {
               <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
                 {duplicates.map((d) => (
                   <li key={d.id} style={{ marginBottom: 4 }}>
-                    <Link href={`/admin/cms/${d.id}`} style={{ color: "#58a6ff" }}>
+                    <Link href={`/admin/cms/${d.id}`} style={{ color: "#62b5ff" }}>
                       {d.title || d.slug}
                     </Link>
-                    <span style={{ color: "#8b949e" }}> — {d.draftState}</span>
+                    <span style={{ color: "#8c9bb8" }}> — {d.draftState}</span>
                   </li>
                 ))}
               </ul>
-              <div style={{ color: "#8b949e", marginBottom: 10 }}>
+              <div style={{ color: "#8c9bb8", marginBottom: 10 }}>
                 Open the existing record to update it, or create a separate record if this is a different recruitment.
               </div>
               <button

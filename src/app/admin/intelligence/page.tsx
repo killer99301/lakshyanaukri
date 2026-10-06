@@ -26,16 +26,16 @@ const S = {
   th: {
     textAlign: "left" as const,
     padding: "8px 12px",
-    color: "#8b949e",
+    color: "#8c9bb8",
     fontSize: 11,
     fontWeight: 600,
     letterSpacing: "0.06em",
     textTransform: "uppercase" as const,
-    borderBottom: "1px solid #21262d",
+    borderBottom: "1px solid #1c2740",
   } as React.CSSProperties,
   td: {
     padding: "10px 12px",
-    borderBottom: "1px solid #161b22",
+    borderBottom: "1px solid #0e1526",
     fontSize: 13,
     color: "#e2e8f0",
     verticalAlign: "top" as const,
@@ -44,7 +44,7 @@ const S = {
 
 function statusColor(s: string): string {
   if (s === "IN_REVIEW") return "#d29922";
-  return "#8b949e";
+  return "#8c9bb8";
 }
 
 export default function IntelligenceDraftsPage() {
@@ -93,7 +93,7 @@ export default function IntelligenceDraftsPage() {
       </div>
 
       {loading && (
-        <div style={{ color: "#8b949e", fontSize: 13 }}>Loading…</div>
+        <div style={{ color: "#8c9bb8", fontSize: 13 }}>Loading…</div>
       )}
       {error && (
         <div style={{ background: "#f8514922", border: "1px solid #f8514944", borderRadius: 6, padding: "12px 16px", color: "#f85149", fontSize: 13 }}>
@@ -102,15 +102,15 @@ export default function IntelligenceDraftsPage() {
       )}
 
       {!loading && !error && drafts.length === 0 && (
-        <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: 8, padding: "32px 24px", textAlign: "center", color: "#8b949e", fontSize: 13 }}>
+        <div style={{ background: "#0e1526", border: "1px solid #1c2740", borderRadius: 8, padding: "32px 24px", textAlign: "center", color: "#8c9bb8", fontSize: 13 }}>
           No intelligence drafts yet.{" "}
-          <Link href="/admin/intake" style={{ color: "#58a6ff" }}>Run an intake</Link>{" "}
+          <Link href="/admin/intake" style={{ color: "#62b5ff" }}>Run an intake</Link>{" "}
           to create the first one.
         </div>
       )}
 
       {drafts.length > 0 && (
-        <div style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ background: "#070b16", border: "1px solid #1c2740", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
@@ -126,24 +126,24 @@ export default function IntelligenceDraftsPage() {
               {drafts.map((d) => (
                 <tr key={d.id} style={{ cursor: "pointer" }}>
                   <td style={S.td}>
-                    <Link href={`/admin/intelligence/${d.id}`} style={{ color: "#58a6ff", textDecoration: "none", fontWeight: 500 }}>
-                      {d.titlePreview ?? <em style={{ color: "#8b949e" }}>untitled</em>}
+                    <Link href={`/admin/intelligence/${d.id}`} style={{ color: "#62b5ff", textDecoration: "none", fontWeight: 500 }}>
+                      {d.titlePreview ?? <em style={{ color: "#8c9bb8" }}>untitled</em>}
                     </Link>
                   </td>
-                  <td style={{ ...S.td, color: "#8b949e" }}>{d.orgPreview ?? "—"}</td>
+                  <td style={{ ...S.td, color: "#8c9bb8" }}>{d.orgPreview ?? "—"}</td>
                   <td style={S.td}>
                     <span style={{ color: statusColor(d.status), fontWeight: 600, fontSize: 11 }}>
                       {d.status}
                     </span>
                   </td>
-                  <td style={{ ...S.td, color: "#8b949e" }}>v{d.currentRevision}</td>
-                  <td style={{ ...S.td, color: "#8b949e" }}>
+                  <td style={{ ...S.td, color: "#8c9bb8" }}>v{d.currentRevision}</td>
+                  <td style={{ ...S.td, color: "#8c9bb8" }}>
                     {new Date(d.updatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                   </td>
                   <td style={{ ...S.td, textAlign: "right" as const }}>
                     <Link
                       href={`/admin/intelligence/${d.id}`}
-                      style={{ color: "#58a6ff", fontSize: 12, textDecoration: "none" }}
+                      style={{ color: "#62b5ff", fontSize: 12, textDecoration: "none" }}
                     >
                       Review →
                     </Link>

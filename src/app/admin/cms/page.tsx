@@ -16,14 +16,16 @@ const S = {
     marginBottom: 20,
   } as React.CSSProperties,
   h1: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: "#e2e8f0",
+    fontSize: 24,
+    fontWeight: 800,
+    letterSpacing: "-0.01em",
+    color: "#f1f5ff",
     margin: 0,
   } as React.CSSProperties,
   btn: {
     padding: "9px 18px",
-    background: "#f97316",
+    background: "linear-gradient(135deg, #f97316, #fb7185)",
+    boxShadow: "0 0 22px rgba(249,115,22,0.35)",
     color: "#fff",
     border: "none",
     borderRadius: 8,
@@ -34,10 +36,13 @@ const S = {
     display: "inline-block",
   } as React.CSSProperties,
   card: {
-    background: "#0f141b",
-    border: "1px solid #21262d",
-    borderRadius: 10,
+    background: "rgba(14,21,38,0.72)",
+    border: "1px solid rgba(148,163,184,0.14)",
+    borderRadius: 14,
     overflow: "hidden",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset, 0 18px 40px rgba(0,0,0,0.28)",
   } as React.CSSProperties,
   table: {
     width: "100%",
@@ -47,29 +52,29 @@ const S = {
   th: {
     textAlign: "left" as const,
     padding: "10px 16px",
-    color: "#8b949e",
-    background: "#0d1117",
+    color: "#8c9bb8",
+    background: "rgba(7,11,22,0.55)",
     fontSize: 11,
     fontWeight: 600,
     letterSpacing: "0.06em",
     textTransform: "uppercase" as const,
-    borderBottom: "1px solid #21262d",
+    borderBottom: "1px solid #1c2740",
   } as React.CSSProperties,
   td: {
     padding: "12px 16px",
-    borderBottom: "1px solid #1c2128",
+    borderBottom: "1px solid #131c31",
     color: "#e2e8f0",
     verticalAlign: "top" as const,
   } as React.CSSProperties,
   link: {
-    color: "#58a6ff",
+    color: "#62b5ff",
     textDecoration: "none",
     fontWeight: 600,
     fontSize: 14,
   } as React.CSSProperties,
   empty: {
     textAlign: "center" as const,
-    color: "#8b949e",
+    color: "#8c9bb8",
     padding: "60px 24px",
     fontSize: 14,
   } as React.CSSProperties,
@@ -78,8 +83,8 @@ const S = {
 const STATE_COLORS: Record<string, string> = {
   DRAFT:     "#d29922",
   APPROVED:  "#3fb950",
-  PUBLISHED: "#58a6ff",
-  ARCHIVED:  "#8b949e",
+  PUBLISHED: "#62b5ff",
+  ARCHIVED:  "#8c9bb8",
 };
 
 const STATE_LABELS: Record<string, string> = {
@@ -167,7 +172,7 @@ export default function CmsListPage() {
       <div style={S.header}>
         <div>
           <h1 style={S.h1}>Jobs</h1>
-          <div style={{ fontSize: 13, color: "#8b949e", marginTop: 4 }}>
+          <div style={{ fontSize: 13, color: "#8c9bb8", marginTop: 4 }}>
             Create a record, fill it with AI Assist, check it, then publish.
           </div>
         </div>
@@ -177,7 +182,7 @@ export default function CmsListPage() {
       {records.length === 0 ? (
         <div style={{ ...S.card, ...S.empty }}>
           No records yet.{" "}
-          <Link href="/admin/cms/new" style={{ color: "#58a6ff" }}>
+          <Link href="/admin/cms/new" style={{ color: "#62b5ff" }}>
             Create the first one.
           </Link>
         </div>
@@ -197,9 +202,9 @@ export default function CmsListPage() {
                       fontSize: 12,
                       fontWeight: 600,
                       cursor: "pointer",
-                      background: active ? "#1f2937" : "transparent",
-                      color: active ? "#fff" : "#8b949e",
-                      border: `1px solid ${active ? "#f97316" : "#30363d"}`,
+                      background: active ? "#16223d" : "transparent",
+                      color: active ? "#fff" : "#8c9bb8",
+                      border: `1px solid ${active ? "#f97316" : "#2b3a5c"}`,
                     }}
                   >
                     {f === "ALL" ? "All" : STATE_LABELS[f]}{" "}
@@ -218,8 +223,8 @@ export default function CmsListPage() {
                 marginLeft: "auto",
                 width: "min(320px, 100%)",
                 padding: "8px 12px",
-                background: "#0d1117",
-                border: "1px solid #30363d",
+                background: "#070b16",
+                border: "1px solid #2b3a5c",
                 borderRadius: 8,
                 color: "#e2e8f0",
                 fontSize: 13,
@@ -244,7 +249,7 @@ export default function CmsListPage() {
                 </thead>
                 <tbody>
                   {visible.map((r) => {
-                    const color = STATE_COLORS[r.draft_state] ?? "#8b949e";
+                    const color = STATE_COLORS[r.draft_state] ?? "#8c9bb8";
                     return (
                       <tr key={r.id} className="cms-row">
                         <td style={S.td}>
@@ -272,7 +277,7 @@ export default function CmsListPage() {
                             {STATE_LABELS[r.draft_state] ?? r.draft_state}
                           </span>
                         </td>
-                        <td style={{ ...S.td, color: "#8b949e", fontSize: 12, whiteSpace: "nowrap" }}>
+                        <td style={{ ...S.td, color: "#8c9bb8", fontSize: 12, whiteSpace: "nowrap" }}>
                           {updatedLabel(r.updated_at, loadedAt)}
                         </td>
                         <td style={{ ...S.td, textAlign: "right", whiteSpace: "nowrap" }}>
@@ -281,12 +286,12 @@ export default function CmsListPage() {
                               href={`/jobs/${r.slug}`}
                               target="_blank"
                               rel="noreferrer"
-                              style={{ color: "#8b949e", fontSize: 12, textDecoration: "none", marginRight: 14 }}
+                              style={{ color: "#8c9bb8", fontSize: 12, textDecoration: "none", marginRight: 14 }}
                             >
                               View live ↗
                             </a>
                           )}
-                          <Link href={`/admin/cms/${r.id}`} style={{ color: "#58a6ff", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                          <Link href={`/admin/cms/${r.id}`} style={{ color: "#62b5ff", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
                             Open →
                           </Link>
                         </td>
@@ -297,7 +302,7 @@ export default function CmsListPage() {
               </table>
             )}
           </div>
-          <style>{".cms-row:hover td { background: #161b22; }"}</style>
+          <style>{".cms-row td { transition: background-color .15s ease; } .cms-row:hover td { background: rgba(99,102,241,0.08); }"}</style>
         </>
       )}
     </div>

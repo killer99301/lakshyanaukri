@@ -26,8 +26,8 @@ import type { DuplicateCandidate } from "@/lib/cms/duplicate-detector";
 
 const S = {
   card: {
-    background: "#161b22",
-    border: "1px solid #21262d",
+    background: "#0e1526",
+    border: "1px solid #1c2740",
     borderRadius: 8,
     padding: "20px 24px",
     marginBottom: 16,
@@ -37,12 +37,12 @@ const S = {
     fontWeight: 700,
     letterSpacing: "0.1em",
     textTransform: "uppercase" as const,
-    color: "#8b949e",
-    borderBottom: "1px solid #21262d",
+    color: "#8c9bb8",
+    borderBottom: "1px solid #1c2740",
     paddingBottom: 6,
     marginBottom: 12,
   } as React.CSSProperties,
-  label: { color: "#8b949e", fontWeight: 500, fontSize: 12 } as React.CSSProperties,
+  label: { color: "#8c9bb8", fontWeight: 500, fontSize: 12 } as React.CSSProperties,
   value: { color: "#e2e8f0", fontSize: 13 } as React.CSSProperties,
   row: {
     display: "grid",
@@ -53,7 +53,7 @@ const S = {
   code: {
     fontFamily: "monospace",
     fontSize: 12,
-    background: "#21262d",
+    background: "#1c2740",
     padding: "1px 6px",
     borderRadius: 3,
     color: "#e2e8f0",
@@ -84,7 +84,7 @@ function FieldRow({
               </span>
             )}
             {fv?.evidence && fv.evidence.length > 0 && (
-              <span style={{ marginLeft: 6, fontSize: 11, color: "#58a6ff" }}>
+              <span style={{ marginLeft: 6, fontSize: 11, color: "#62b5ff" }}>
                 [{fv.evidence.length} source{fv.evidence.length !== 1 ? "s" : ""}]
               </span>
             )}
@@ -184,7 +184,7 @@ export default function IntelligenceDraftPage() {
   }
 
   if (loading) {
-    return <div style={{ color: "#8b949e", fontSize: 13 }}>Loading draft…</div>;
+    return <div style={{ color: "#8c9bb8", fontSize: 13 }}>Loading draft…</div>;
   }
   if (error && !draftData) {
     return (
@@ -204,13 +204,13 @@ export default function IntelligenceDraftPage() {
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
           <div>
-            <Link href="/admin/intelligence" style={{ color: "#8b949e", fontSize: 12, textDecoration: "none" }}>
+            <Link href="/admin/intelligence" style={{ color: "#8c9bb8", fontSize: 12, textDecoration: "none" }}>
               ← Intelligence Drafts
             </Link>
             <h1 style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0", margin: "6px 0 0" }}>
-              {d.identity.title.value ?? <em style={{ color: "#8b949e" }}>Untitled Draft</em>}
+              {d.identity.title.value ?? <em style={{ color: "#8c9bb8" }}>Untitled Draft</em>}
             </h1>
-            <div style={{ fontSize: 12, color: "#8b949e", marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: "#8c9bb8", marginTop: 4 }}>
               {d.identity.organizationName.value && <span>{d.identity.organizationName.value} · </span>}
               {d.identity.notificationNumber.value && (
                 <code style={S.code}>{d.identity.notificationNumber.value}</code>
@@ -226,8 +226,8 @@ export default function IntelligenceDraftPage() {
               disabled={promoting}
               style={{
                 padding: "9px 20px",
-                background: promoting ? "#21262d" : "#1f6feb",
-                color: promoting ? "#8b949e" : "#fff",
+                background: promoting ? "#1c2740" : "#6366f1",
+                color: promoting ? "#8c9bb8" : "#fff",
                 border: "none",
                 borderRadius: 6,
                 fontSize: 13,
@@ -243,7 +243,7 @@ export default function IntelligenceDraftPage() {
           {promoted && (
             <div style={{ background: "#23863622", border: "1px solid #23863644", borderRadius: 6, padding: "10px 16px", fontSize: 13, color: "#3fb950" }}>
               {promoted.alreadyExisted ? "Already promoted." : "Promoted!"}{" "}
-              <Link href={`/admin/cms/${promoted.recordId}`} style={{ color: "#58a6ff" }}>
+              <Link href={`/admin/cms/${promoted.recordId}`} style={{ color: "#62b5ff" }}>
                 Review in CMS →
               </Link>
             </div>
@@ -263,22 +263,22 @@ export default function IntelligenceDraftPage() {
           <div style={{ fontSize: 13, fontWeight: 700, color: "#d29922", marginBottom: 8 }}>
             Potential Duplicate Detected
           </div>
-          <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 12 }}>
+          <div style={{ fontSize: 12, color: "#8c9bb8", marginBottom: 12 }}>
             {duplicate.matchReason === "notification_number"
               ? "An existing CMS record has the same notification number."
               : "An existing CMS record has the same organisation and year. (Notification number is missing on one or both records.)"}
           </div>
-          <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: 6, padding: "12px 16px", marginBottom: 14, fontSize: 12 }}>
+          <div style={{ background: "#0e1526", border: "1px solid #1c2740", borderRadius: 6, padding: "12px 16px", marginBottom: 14, fontSize: 12 }}>
             <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 6 }}>
-              {duplicate.title ?? <em style={{ color: "#8b949e" }}>No title</em>}
+              {duplicate.title ?? <em style={{ color: "#8c9bb8" }}>No title</em>}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "3px 8px", color: "#8b949e" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "3px 8px", color: "#8c9bb8" }}>
               <span>Organisation</span>
               <span style={{ color: "#e2e8f0" }}>{duplicate.organizationName ?? duplicate.organizationId}</span>
               {duplicate.notificationNumber && (
                 <>
                   <span>Notification #</span>
-                  <code style={{ fontFamily: "monospace", fontSize: 11, background: "#21262d", padding: "1px 5px", borderRadius: 3, color: "#e2e8f0" }}>
+                  <code style={{ fontFamily: "monospace", fontSize: 11, background: "#1c2740", padding: "1px 5px", borderRadius: 3, color: "#e2e8f0" }}>
                     {duplicate.notificationNumber}
                   </code>
                 </>
@@ -294,7 +294,7 @@ export default function IntelligenceDraftPage() {
               href={`/admin/cms/${duplicate.id}`}
               style={{
                 padding: "8px 16px",
-                background: "#1f6feb",
+                background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
                 color: "#fff",
                 borderRadius: 6,
                 fontSize: 12,
@@ -311,8 +311,8 @@ export default function IntelligenceDraftPage() {
               style={{
                 padding: "8px 16px",
                 background: "transparent",
-                color: promoting ? "#8b949e" : "#e2e8f0",
-                border: "1px solid #30363d",
+                color: promoting ? "#8c9bb8" : "#e2e8f0",
+                border: "1px solid #2b3a5c",
                 borderRadius: 6,
                 fontSize: 12,
                 fontWeight: 600,
@@ -374,7 +374,7 @@ export default function IntelligenceDraftPage() {
             <span style={S.label}>Derived total</span>
             <span style={S.value}>
               {d.vacancies.derivedTotal}
-              <span style={{ marginLeft: 8, fontSize: 11, color: "#8b949e" }}>
+              <span style={{ marginLeft: 8, fontSize: 11, color: "#8c9bb8" }}>
                 {d.vacancies.derivedTotalExplanation}
               </span>
             </span>
@@ -382,12 +382,12 @@ export default function IntelligenceDraftPage() {
         )}
         {d.vacancies.rows.length > 0 && (
           <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 6, fontWeight: 600 }}>BREAKDOWN ({d.vacancies.rows.length} posts)</div>
+            <div style={{ fontSize: 11, color: "#8c9bb8", marginBottom: 6, fontWeight: 600 }}>BREAKDOWN ({d.vacancies.rows.length} posts)</div>
             <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: "left", color: "#8b949e", padding: "2px 8px 6px", fontWeight: 500 }}>Post</th>
-                  <th style={{ textAlign: "right", color: "#8b949e", padding: "2px 8px 6px", fontWeight: 500 }}>Total</th>
+                  <th style={{ textAlign: "left", color: "#8c9bb8", padding: "2px 8px 6px", fontWeight: 500 }}>Post</th>
+                  <th style={{ textAlign: "right", color: "#8c9bb8", padding: "2px 8px 6px", fontWeight: 500 }}>Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -402,10 +402,10 @@ export default function IntelligenceDraftPage() {
           </div>
         )}
         {d.vacancies.extractionNotes && d.vacancies.extractionNotes.length > 0 && (
-          <div style={{ marginTop: 10, padding: "8px 10px", background: "#0d1117", borderRadius: 4, border: "1px solid #21262d" }}>
+          <div style={{ marginTop: 10, padding: "8px 10px", background: "#070b16", borderRadius: 4, border: "1px solid #1c2740" }}>
             <div style={{ fontSize: 10, color: "#6e7681", fontWeight: 600, marginBottom: 4, letterSpacing: "0.05em" }}>EXTRACTION EVIDENCE</div>
             {d.vacancies.extractionNotes.map((note, i) => (
-              <div key={i} style={{ fontSize: 11, color: "#8b949e", fontFamily: "monospace", lineHeight: 1.6, wordBreak: "break-word" }}>
+              <div key={i} style={{ fontSize: 11, color: "#8c9bb8", fontFamily: "monospace", lineHeight: 1.6, wordBreak: "break-word" }}>
                 {note}
               </div>
             ))}
@@ -418,7 +418,7 @@ export default function IntelligenceDraftPage() {
         <div style={S.card}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, ...S.sectionHead }}>
             Application Fees
-            <span style={{ fontSize: 10, background: "#1f6feb22", color: "#58a6ff", border: "1px solid #1f6feb44", borderRadius: 3, padding: "1px 6px", fontWeight: 700 }}>
+            <span style={{ fontSize: 10, background: "#6366f122", color: "#62b5ff", border: "1px solid #6366f144", borderRadius: 3, padding: "1px 6px", fontWeight: 700 }}>
               Gemini
             </span>
           </div>
@@ -428,7 +428,7 @@ export default function IntelligenceDraftPage() {
               <span style={S.value}>
                 ₹{fee.amount}
                 {fee.description && (
-                  <span style={{ marginLeft: 8, fontSize: 11, color: "#8b949e", fontStyle: "italic" }}>
+                  <span style={{ marginLeft: 8, fontSize: 11, color: "#8c9bb8", fontStyle: "italic" }}>
                     — {fee.description.slice(0, 80)}
                   </span>
                 )}
@@ -445,7 +445,7 @@ export default function IntelligenceDraftPage() {
           {d.links.map((l, i) => (
             <div key={i} style={{ ...S.row, marginBottom: 4 }}>
               <span style={S.label}>{l.type}</span>
-              <a href={l.url} target="_blank" rel="noreferrer" style={{ color: "#58a6ff", fontSize: 12, wordBreak: "break-all" }}>
+              <a href={l.url} target="_blank" rel="noreferrer" style={{ color: "#62b5ff", fontSize: 12, wordBreak: "break-all" }}>
                 {l.url}
               </a>
             </div>
@@ -463,7 +463,7 @@ export default function IntelligenceDraftPage() {
                 {c.field} — {c.severity}
               </div>
               {c.values.map((v, j) => (
-                <div key={j} style={{ fontSize: 12, color: "#8b949e", padding: "1px 0" }}>
+                <div key={j} style={{ fontSize: 12, color: "#8c9bb8", padding: "1px 0" }}>
                   <code style={S.code}>{v.sourceKind}</code>
                   <span style={{ marginLeft: 6 }}>{String(v.value)}</span>
                 </div>
@@ -489,7 +489,7 @@ export default function IntelligenceDraftPage() {
               </code>
             ))}
           </div>
-          <p style={{ fontSize: 12, color: "#8b949e", marginTop: 8 }}>
+          <p style={{ fontSize: 12, color: "#8c9bb8", marginTop: 8 }}>
             These fields can be filled manually in the CMS editor after promoting.
           </p>
         </div>
@@ -505,12 +505,12 @@ export default function IntelligenceDraftPage() {
               borderRadius: 3,
               fontSize: 10,
               fontWeight: 600,
-              background: src.kind === "OFFICIAL" ? "#238636" : "#21262d",
-              color: src.kind === "OFFICIAL" ? "#fff" : "#8b949e",
+              background: src.kind === "OFFICIAL" ? "#238636" : "#1c2740",
+              color: src.kind === "OFFICIAL" ? "#fff" : "#8c9bb8",
             }}>
               {src.kind}
             </span>
-            <a href={src.url} target="_blank" rel="noreferrer" style={{ color: "#58a6ff", wordBreak: "break-all" }}>
+            <a href={src.url} target="_blank" rel="noreferrer" style={{ color: "#62b5ff", wordBreak: "break-all" }}>
               {src.url}
             </a>
             {!src.success && <span style={{ color: "#f85149" }}>✗ failed</span>}
@@ -519,7 +519,7 @@ export default function IntelligenceDraftPage() {
       </div>
 
       {/* Confidence + overall */}
-      <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 24 }}>
+      <div style={{ fontSize: 12, color: "#8c9bb8", marginBottom: 24 }}>
         Overall confidence:{" "}
         <strong style={{ color: "#e2e8f0" }}>{Math.round(d.overallConfidence * 100)}%</strong>
         {" · "}

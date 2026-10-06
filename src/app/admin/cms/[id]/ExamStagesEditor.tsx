@@ -15,10 +15,11 @@
 import { useState } from "react";
 import type { ExamStage, ExamStageStatus, DateCertainty } from "@/types";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
+import { InfoTip } from "../InfoTip";
 
 const C = {
-  bg: "#0d1117", border: "#21262d", text: "#e2e8f0", muted: "#8b949e",
-  accent: "#58a6ff", green: "#3fb950", amber: "#d29922", red: "#f85149",
+  bg: "#070b16", border: "#1c2740", text: "#e2e8f0", muted: "#8c9bb8",
+  accent: "#62b5ff", green: "#3fb950", amber: "#d29922", red: "#f85149",
 };
 
 const STATUS_OPTIONS: Array<{ value: ExamStageStatus; label: string; color: string }> = [
@@ -74,7 +75,7 @@ function toPayload(d: Draft): Record<string, unknown> {
 }
 
 const input: React.CSSProperties = {
-  width: "100%", padding: "7px 10px", background: C.bg, border: "1px solid #30363d",
+  width: "100%", padding: "7px 10px", background: C.bg, border: "1px solid #2b3a5c",
   borderRadius: 5, color: C.text, fontSize: 13, boxSizing: "border-box", fontFamily: "inherit",
 };
 const label: React.CSSProperties = { display: "block", fontSize: 11, color: C.muted, marginBottom: 4, fontWeight: 500 };
@@ -195,7 +196,7 @@ export function ExamStagesEditor({
         <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
           <button
             onClick={() => { setEditing(-1); setDraft(EMPTY); setErr(null); }}
-            style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
           >
             + Add stage
           </button>
@@ -221,7 +222,7 @@ export function ExamStagesEditor({
               <input id="stage-name" style={input} value={draft.name} onChange={(e) => set("name", e.target.value)} placeholder="Tier-I Exam, Skill Test, Document Verification…" />
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
-              <label style={label} htmlFor="stage-status">Where it stands</label>
+              <label style={label} htmlFor="stage-status">Where it stands<InfoTip id="Where it stands" /></label>
               <select id="stage-status" style={input} value={draft.status} onChange={(e) => set("status", e.target.value as ExamStageStatus)}>
                 {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -233,11 +234,11 @@ export function ExamStagesEditor({
               <input id="stage-date" type="date" style={input} value={draft.dateIso} onChange={(e) => set("dateIso", e.target.value)} />
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
-              <label style={label} htmlFor="stage-date-text">Or as written (range or month)</label>
+              <label style={label} htmlFor="stage-date-text">Or as written (range or month)<InfoTip id="Or as written" /></label>
               <input id="stage-date-text" style={input} value={draft.dateDisplay} onChange={(e) => set("dateDisplay", e.target.value)} placeholder="12–20 Dec 2026, or December 2026" />
             </div>
             <div style={{ flex: 1, minWidth: 160 }}>
-              <label style={label} htmlFor="stage-certainty">Is the date confirmed?</label>
+              <label style={label} htmlFor="stage-certainty">Is the date confirmed?<InfoTip id="Is the date confirmed?" /></label>
               <select
                 id="stage-certainty"
                 style={{ ...input, opacity: hasDate && draft.status !== "POSTPONED" ? 1 : 0.5 }}
@@ -269,7 +270,7 @@ export function ExamStagesEditor({
             <button
               onClick={() => { void submit(); }}
               disabled={saving || !draft.name.trim()}
-              style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !draft.name.trim() ? "not-allowed" : "pointer", opacity: saving || !draft.name.trim() ? 0.6 : 1 }}
+              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !draft.name.trim() ? "not-allowed" : "pointer", opacity: saving || !draft.name.trim() ? 0.6 : 1 }}
             >
               {saving ? "Saving…" : editing === -1 ? "Add stage" : "Save stage"}
             </button>

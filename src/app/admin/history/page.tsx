@@ -8,8 +8,8 @@ const STATUS_COLORS: Record<string, string> = {
   PR_CREATED: "#3fb950",
   PR_FAILED: "#f85149",
   PR_BRANCH_ORPHANED: "#f0883e",
-  APPROVED: "#58a6ff",
-  REJECTED: "#8b949e",
+  APPROVED: "#62b5ff",
+  REJECTED: "#8c9bb8",
 };
 
 interface AuditEntry {
@@ -64,20 +64,20 @@ export default function HistoryPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0 }}>History</h1>
-          <p style={{ fontSize: 13, color: "#8b949e", margin: "4px 0 0" }}>
+          <p style={{ fontSize: 13, color: "#8c9bb8", margin: "4px 0 0" }}>
             {candidates.length} total candidates · {auditEntries.length} audit log entries
           </p>
         </div>
         <button
           onClick={refresh}
-          style={{ padding: "6px 14px", background: "#21262d", border: "1px solid #30363d", borderRadius: 4, color: "#8b949e", fontSize: 12, cursor: "pointer" }}
+          style={{ padding: "6px 14px", background: "#1c2740", border: "1px solid #2b3a5c", borderRadius: 4, color: "#8c9bb8", fontSize: 12, cursor: "pointer" }}
         >
           Refresh
         </button>
       </div>
 
       {/* Tab switcher */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: "1px solid #21262d", paddingBottom: 0 }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: "1px solid #1c2740", paddingBottom: 0 }}>
         {(["candidates", "audit"] as const).map((t) => (
           <button
             key={t}
@@ -86,8 +86,8 @@ export default function HistoryPage() {
               padding: "8px 16px",
               background: "none",
               border: "none",
-              borderBottom: tab === t ? "2px solid #58a6ff" : "2px solid transparent",
-              color: tab === t ? "#58a6ff" : "#8b949e",
+              borderBottom: tab === t ? "2px solid #62b5ff" : "2px solid transparent",
+              color: tab === t ? "#62b5ff" : "#8c9bb8",
               fontSize: 13,
               fontWeight: tab === t ? 600 : 400,
               cursor: "pointer",
@@ -100,7 +100,7 @@ export default function HistoryPage() {
       </div>
 
       {loading ? (
-        <p style={{ color: "#8b949e", fontSize: 13 }}>Loading…</p>
+        <p style={{ color: "#8c9bb8", fontSize: 13 }}>Loading…</p>
       ) : tab === "candidates" ? (
         <CandidatesTab candidates={candidates} />
       ) : (
@@ -113,10 +113,10 @@ export default function HistoryPage() {
 function CandidatesTab({ candidates }: { candidates: CandidateNewRecruitment[] }) {
   if (candidates.length === 0) {
     return (
-      <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: 8, padding: "40px 24px", textAlign: "center", color: "#8b949e" }}>
+      <div style={{ background: "#0e1526", border: "1px solid #1c2740", borderRadius: 8, padding: "40px 24px", textAlign: "center", color: "#8c9bb8" }}>
         <div style={{ fontSize: 14 }}>No candidates yet.</div>
         <div style={{ fontSize: 13, marginTop: 8 }}>
-          <a href="/admin/intake" style={{ color: "#58a6ff" }}>Run your first intake →</a>
+          <a href="/admin/intake" style={{ color: "#62b5ff" }}>Run your first intake →</a>
         </div>
       </div>
     );
@@ -126,27 +126,27 @@ function CandidatesTab({ candidates }: { candidates: CandidateNewRecruitment[] }
     <div style={{ overflow: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>
-          <tr style={{ borderBottom: "1px solid #21262d" }}>
+          <tr style={{ borderBottom: "1px solid #1c2740" }}>
             {["Title", "Org", "Notif #", "Status", "Discovered", "PR"].map((h) => (
-              <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#8b949e", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</th>
+              <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#8c9bb8", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {candidates.map((c) => {
-            const statusColor = STATUS_COLORS[c.status] ?? "#8b949e";
+            const statusColor = STATUS_COLORS[c.status] ?? "#8c9bb8";
             return (
-              <tr key={c.candidateId} style={{ borderBottom: "1px solid #21262d" }}>
+              <tr key={c.candidateId} style={{ borderBottom: "1px solid #1c2740" }}>
                 <td style={{ padding: "10px 12px", color: "#e2e8f0", maxWidth: 280 }}>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {c.title ?? <em style={{ color: "#484f58" }}>no title</em>}
                   </div>
                 </td>
-                <td style={{ padding: "10px 12px", color: "#8b949e", whiteSpace: "nowrap" }}>
+                <td style={{ padding: "10px 12px", color: "#8c9bb8", whiteSpace: "nowrap" }}>
                   {c.organizationName}
                 </td>
-                <td style={{ padding: "10px 12px", color: "#8b949e" }}>
-                  <code style={{ fontSize: 11, background: "#21262d", padding: "1px 5px", borderRadius: 3 }}>
+                <td style={{ padding: "10px 12px", color: "#8c9bb8" }}>
+                  <code style={{ fontSize: 11, background: "#1c2740", padding: "1px 5px", borderRadius: 3 }}>
                     {c.notificationNumber ?? "—"}
                   </code>
                 </td>
@@ -155,12 +155,12 @@ function CandidatesTab({ candidates }: { candidates: CandidateNewRecruitment[] }
                     {c.status}
                   </span>
                 </td>
-                <td style={{ padding: "10px 12px", color: "#8b949e", whiteSpace: "nowrap" }}>
+                <td style={{ padding: "10px 12px", color: "#8c9bb8", whiteSpace: "nowrap" }}>
                   {fmt(c.discoveredAt)}
                 </td>
                 <td style={{ padding: "10px 12px" }}>
                   {c.prUrl ? (
-                    <a href={c.prUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#58a6ff", fontSize: 12 }}>
+                    <a href={c.prUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#62b5ff", fontSize: 12 }}>
                       #{c.prNumber} →
                     </a>
                   ) : "—"}
@@ -177,7 +177,7 @@ function CandidatesTab({ candidates }: { candidates: CandidateNewRecruitment[] }
 function AuditTab({ entries }: { entries: AuditEntry[] }) {
   if (entries.length === 0) {
     return (
-      <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: 8, padding: "40px 24px", textAlign: "center", color: "#8b949e", fontSize: 14 }}>
+      <div style={{ background: "#0e1526", border: "1px solid #1c2740", borderRadius: 8, padding: "40px 24px", textAlign: "center", color: "#8c9bb8", fontSize: 14 }}>
         No audit log entries yet.
       </div>
     );
@@ -189,12 +189,12 @@ function AuditTab({ entries }: { entries: AuditEntry[] }) {
         const ts = entry.ts ?? entry.timestamp;
         const hasError = !!entry.error;
         return (
-          <div key={i} style={{ display: "flex", gap: 16, padding: "10px 0", borderBottom: "1px solid #21262d", alignItems: "flex-start" }}>
+          <div key={i} style={{ display: "flex", gap: 16, padding: "10px 0", borderBottom: "1px solid #1c2740", alignItems: "flex-start" }}>
             <span style={{ fontSize: 11, color: "#484f58", whiteSpace: "nowrap", fontFamily: "monospace", minWidth: 160 }}>
               {fmt(ts)}
             </span>
             <div style={{ flex: 1 }}>
-              <span style={{ fontSize: 12, color: hasError ? "#f85149" : "#8b949e" }}>
+              <span style={{ fontSize: 12, color: hasError ? "#f85149" : "#8c9bb8" }}>
                 {entry.source ?? "intake"}{" "}
                 {entry.result && <strong style={{ color: hasError ? "#f85149" : "#3fb950" }}>{String(entry.result)}</strong>}
                 {typeof entry.recruited === "number" && <> · {entry.recruited} recruited</>}

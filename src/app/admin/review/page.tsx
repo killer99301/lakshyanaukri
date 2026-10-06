@@ -15,8 +15,8 @@ import type { CandidateNewRecruitment } from "@/intelligence/types";
 
 const S = {
   card: {
-    background: "#161b22",
-    border: "1px solid #21262d",
+    background: "#0e1526",
+    border: "1px solid #1c2740",
     borderRadius: 8,
     overflow: "hidden",
     marginBottom: 8,
@@ -26,15 +26,15 @@ const S = {
     fontWeight: 700,
     letterSpacing: "0.1em",
     textTransform: "uppercase" as const,
-    color: "#8b949e",
-    borderBottom: "1px solid #21262d",
+    color: "#8c9bb8",
+    borderBottom: "1px solid #1c2740",
     paddingBottom: 6,
     marginBottom: 10,
   } as React.CSSProperties,
   input: {
     padding: "5px 10px",
-    background: "#0d1117",
-    border: "1px solid #21262d",
+    background: "#070b16",
+    border: "1px solid #1c2740",
     borderRadius: 4,
     color: "#e2e8f0",
     fontSize: 13,
@@ -49,8 +49,8 @@ const STATUS_COLORS: Record<string, string> = {
   PR_CREATED: "#3fb950",
   PR_FAILED: "#f85149",
   PR_BRANCH_ORPHANED: "#f0883e",
-  APPROVED: "#58a6ff",
-  REJECTED: "#8b949e",
+  APPROVED: "#62b5ff",
+  REJECTED: "#8c9bb8",
 };
 
 // Extend type for adminNote
@@ -71,7 +71,7 @@ function EditField({
 }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 8, alignItems: "center", padding: "4px 0" }}>
-      <label style={{ fontSize: 12, color: "#8b949e", fontWeight: 500 }}>{label}</label>
+      <label style={{ fontSize: 12, color: "#8c9bb8", fontWeight: 500 }}>{label}</label>
       <input
         type={type}
         value={value ?? ""}
@@ -91,7 +91,7 @@ interface TrustGate {
 }
 
 function TrustGatePanel({ tg }: { tg: TrustGate | null }) {
-  if (!tg) return <p style={{ fontSize: 12, color: "#8b949e" }}>Run Trust Gate check by clicking Approve (dry run)</p>;
+  if (!tg) return <p style={{ fontSize: 12, color: "#8c9bb8" }}>Run Trust Gate check by clicking Approve (dry run)</p>;
   return (
     <div>
       <span style={{
@@ -191,7 +191,7 @@ function CandidateCard({ candidate: initial, onUpdated }: {
   }
 
   const hasEdits = Object.keys(edits).length > 0;
-  const statusColor = STATUS_COLORS[c.status] ?? "#8b949e";
+  const statusColor = STATUS_COLORS[c.status] ?? "#8c9bb8";
 
   return (
     <div style={S.card}>
@@ -202,12 +202,12 @@ function CandidateCard({ candidate: initial, onUpdated }: {
       >
         <div>
           <span style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0" }}>
-            {c.title ?? <em style={{ color: "#8b949e", fontWeight: 400 }}>title not set</em>}
+            {c.title ?? <em style={{ color: "#8c9bb8", fontWeight: 400 }}>title not set</em>}
           </span>
-          <div style={{ fontSize: 12, color: "#8b949e", marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: "#8c9bb8", marginTop: 2 }}>
             <span>{c.organizationName}</span>
-            {c.notificationNumber && <span> · <code style={{ fontFamily: "monospace", fontSize: 11, background: "#21262d", padding: "1px 5px", borderRadius: 3 }}>{c.notificationNumber}</code></span>}
-            {c.adminNote && <span style={{ color: "#58a6ff" }}> · note: {c.adminNote.slice(0, 60)}</span>}
+            {c.notificationNumber && <span> · <code style={{ fontFamily: "monospace", fontSize: 11, background: "#1c2740", padding: "1px 5px", borderRadius: 3 }}>{c.notificationNumber}</code></span>}
+            {c.adminNote && <span style={{ color: "#62b5ff" }}> · note: {c.adminNote.slice(0, 60)}</span>}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -215,16 +215,16 @@ function CandidateCard({ candidate: initial, onUpdated }: {
             {c.status}
           </span>
           {c.prUrl && (
-            <a href={c.prUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#58a6ff" }} onClick={(e) => e.stopPropagation()}>
+            <a href={c.prUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#62b5ff" }} onClick={(e) => e.stopPropagation()}>
               PR →
             </a>
           )}
-          <span style={{ color: "#8b949e", fontSize: 16 }}>{expanded ? "▾" : "▸"}</span>
+          <span style={{ color: "#8c9bb8", fontSize: 16 }}>{expanded ? "▾" : "▸"}</span>
         </div>
       </div>
 
       {expanded && (
-        <div style={{ borderTop: "1px solid #21262d", padding: "20px" }}>
+        <div style={{ borderTop: "1px solid #1c2740", padding: "20px" }}>
           {/* Editable fields */}
           <div style={S.sectionHead}>Fields — edit before approving</div>
           <div style={{ marginBottom: 16 }}>
@@ -242,13 +242,13 @@ function CandidateCard({ candidate: initial, onUpdated }: {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                style={{ padding: "6px 16px", background: "#1f6feb", border: "none", borderRadius: 4, color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", border: "none", borderRadius: 4, color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
               >
                 {saving ? "Saving…" : "Save Edits"}
               </button>
               <button
                 onClick={() => setEdits({})}
-                style={{ padding: "6px 16px", background: "none", border: "1px solid #21262d", borderRadius: 4, color: "#8b949e", fontSize: 13, cursor: "pointer" }}
+                style={{ padding: "6px 16px", background: "none", border: "1px solid #1c2740", borderRadius: 4, color: "#8c9bb8", fontSize: 13, cursor: "pointer" }}
               >
                 Discard
               </button>
@@ -264,7 +264,7 @@ function CandidateCard({ candidate: initial, onUpdated }: {
 
           {/* Provenance info */}
           <div style={S.sectionHead}>Provenance</div>
-          <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 16, fontFamily: "monospace" }}>
+          <div style={{ fontSize: 12, color: "#8c9bb8", marginBottom: 16, fontFamily: "monospace" }}>
             <div>ID: {c.candidateId}</div>
             <div>Org ID: {c.organizationId}</div>
             <div>Discovery source: {c.discoverySourceUrl}</div>
@@ -281,8 +281,8 @@ function CandidateCard({ candidate: initial, onUpdated }: {
               title={hasEdits ? "Save edits first" : ""}
               style={{
                 padding: "7px 18px",
-                background: "#21262d",
-                border: "1px solid #30363d",
+                background: "#1c2740",
+                border: "1px solid #2b3a5c",
                 borderRadius: 4,
                 color: hasEdits ? "#484f58" : "#e2e8f0",
                 fontSize: 13,
@@ -298,7 +298,7 @@ function CandidateCard({ candidate: initial, onUpdated }: {
               title={hasEdits ? "Save edits first" : c.status === "PR_CREATED" ? "PR already created" : ""}
               style={{
                 padding: "7px 18px",
-                background: hasEdits || c.status === "PR_CREATED" ? "#21262d" : "#238636",
+                background: hasEdits || c.status === "PR_CREATED" ? "#1c2740" : "#238636",
                 border: "none",
                 borderRadius: 4,
                 color: hasEdits || c.status === "PR_CREATED" ? "#484f58" : "white",
@@ -365,7 +365,7 @@ export default function ReviewPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0 }}>Pending Review</h1>
-          <p style={{ fontSize: 13, color: "#8b949e", margin: "4px 0 0" }}>
+          <p style={{ fontSize: 13, color: "#8c9bb8", margin: "4px 0 0" }}>
             {counts.pending} pending · {counts.prCreated} PR created · {counts.failed} failed
           </p>
         </div>
@@ -373,27 +373,27 @@ export default function ReviewPage() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as typeof filter)}
-            style={{ padding: "6px 10px", background: "#21262d", border: "1px solid #30363d", borderRadius: 4, color: "#e2e8f0", fontSize: 12, cursor: "pointer" }}
+            style={{ padding: "6px 10px", background: "#1c2740", border: "1px solid #2b3a5c", borderRadius: 4, color: "#e2e8f0", fontSize: 12, cursor: "pointer" }}
           >
             <option value="PENDING_REVIEW">Pending only</option>
             <option value="ALL">All candidates</option>
           </select>
-          <button onClick={load} style={{ padding: "6px 14px", background: "#21262d", border: "1px solid #30363d", borderRadius: 4, color: "#8b949e", fontSize: 12, cursor: "pointer" }}>
+          <button onClick={load} style={{ padding: "6px 14px", background: "#1c2740", border: "1px solid #2b3a5c", borderRadius: 4, color: "#8c9bb8", fontSize: 12, cursor: "pointer" }}>
             Refresh
           </button>
         </div>
       </div>
 
       {loading ? (
-        <p style={{ color: "#8b949e", fontSize: 13 }}>Loading…</p>
+        <p style={{ color: "#8c9bb8", fontSize: 13 }}>Loading…</p>
       ) : visible.length === 0 ? (
-        <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: 8, padding: "40px 24px", textAlign: "center", color: "#8b949e" }}>
+        <div style={{ background: "#0e1526", border: "1px solid #1c2740", borderRadius: 8, padding: "40px 24px", textAlign: "center", color: "#8c9bb8" }}>
           {filter === "PENDING_REVIEW" ? (
             <>
               <div style={{ fontSize: 32, marginBottom: 12 }}>✓</div>
               <div style={{ fontSize: 14 }}>Queue is empty — all caught up.</div>
               <div style={{ fontSize: 13, marginTop: 8 }}>
-                <a href="/admin/intake" style={{ color: "#58a6ff" }}>Run a new intake →</a>
+                <a href="/admin/intake" style={{ color: "#62b5ff" }}>Run a new intake →</a>
               </div>
             </>
           ) : (

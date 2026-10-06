@@ -17,8 +17,8 @@ import type { IntakeResult } from "@/intelligence/intake";
 
 const S = {
   card: {
-    background: "#161b22",
-    border: "1px solid #21262d",
+    background: "#0e1526",
+    border: "1px solid #1c2740",
     borderRadius: 8,
     padding: "20px 24px",
     marginBottom: 16,
@@ -28,8 +28,8 @@ const S = {
     fontWeight: 700,
     letterSpacing: "0.1em",
     textTransform: "uppercase" as const,
-    color: "#8b949e",
-    borderBottom: "1px solid #21262d",
+    color: "#8c9bb8",
+    borderBottom: "1px solid #1c2740",
     paddingBottom: 6,
     marginBottom: 12,
   } as React.CSSProperties,
@@ -40,11 +40,11 @@ const S = {
     padding: "3px 0",
     fontSize: 13,
   } as React.CSSProperties,
-  label: { color: "#8b949e", fontWeight: 500 } as React.CSSProperties,
+  label: { color: "#8c9bb8", fontWeight: 500 } as React.CSSProperties,
   code: {
     fontFamily: "monospace",
     fontSize: 12,
-    background: "#21262d",
+    background: "#1c2740",
     padding: "1px 6px",
     borderRadius: 3,
     color: "#e2e8f0",
@@ -55,14 +55,14 @@ const S = {
 
 const KIND_COLOR: Record<string, string> = {
   OFFICIAL_PDF: "#238636",
-  OFFICIAL_SPECIFIC: "#1f6feb",
+  OFFICIAL_SPECIFIC: "#6366f1",
   OFFICIAL_GENERIC: "#388bfd66",
   THIRD_PARTY: "#bb800966",
   UNKNOWN: "#484f5866",
 };
 
 function SourceBadge({ kind }: { kind: string }) {
-  const bg = KIND_COLOR[kind] ?? "#21262d";
+  const bg = KIND_COLOR[kind] ?? "#1c2740";
   return (
     <span style={{
       display: "inline-block",
@@ -72,7 +72,7 @@ function SourceBadge({ kind }: { kind: string }) {
       fontWeight: 600,
       background: bg,
       color: "#e2e8f0",
-      border: "1px solid #30363d",
+      border: "1px solid #2b3a5c",
     }}>
       {kind}
     </span>
@@ -99,7 +99,7 @@ function TrustGatePanel({ passed, errors, warnings }: {
         }}>
           {passed ? "PASS" : "FAIL"}
         </span>
-        <span style={{ fontSize: 12, color: "#8b949e" }}>Trust Gate</span>
+        <span style={{ fontSize: 12, color: "#8c9bb8" }}>Trust Gate</span>
       </div>
       {errors.map((e, i) => (
         <div key={i} style={{ fontSize: 12, color: "#f85149", padding: "2px 0" }}>✗ {e}</div>
@@ -151,14 +151,14 @@ function EntityGroupCard({ group }: { group: EntityGroup }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: "#e2e8f0" }}>
-            {m.title ?? <em style={{ color: "#8b949e" }}>title not extracted</em>}
+            {m.title ?? <em style={{ color: "#8c9bb8" }}>title not extracted</em>}
           </div>
-          <div style={{ fontSize: 12, color: "#8b949e", marginTop: 3 }}>
+          <div style={{ fontSize: 12, color: "#8c9bb8", marginTop: 3 }}>
             {m.organizationName && <span>{m.organizationName} · </span>}
             {m.notificationNumber && <code style={S.code}>{m.notificationNumber}</code>}
             {!m.notificationNumber && <em style={{ color: "#f85149" }}>no notification number</em>}
             {group.results.length > 1 && (
-              <span style={{ marginLeft: 8, color: "#58a6ff", fontSize: 11 }}>
+              <span style={{ marginLeft: 8, color: "#62b5ff", fontSize: 11 }}>
                 {group.results.length} sources merged
               </span>
             )}
@@ -185,7 +185,7 @@ function EntityGroupCard({ group }: { group: EntityGroup }) {
           {savedDraftId ? (
             <a
               href={`/admin/intelligence/${savedDraftId}`}
-              style={{ padding: "4px 12px", background: isDuplicate ? "#21262d" : "#1f6feb", color: isDuplicate ? "#8b949e" : "#fff", borderRadius: 4, fontSize: 11, fontWeight: 700, textDecoration: "none" }}
+              style={{ padding: "4px 12px", background: isDuplicate ? "#1c2740" : "#6366f1", color: isDuplicate ? "#8c9bb8" : "#fff", borderRadius: 4, fontSize: 11, fontWeight: 700, textDecoration: "none" }}
             >
               {isDuplicate ? "Duplicate — View Draft →" : "View Draft →"}
             </a>
@@ -193,7 +193,7 @@ function EntityGroupCard({ group }: { group: EntityGroup }) {
             <button
               onClick={handleSaveAsDraft}
               disabled={saving}
-              style={{ padding: "4px 12px", background: saving ? "#21262d" : "#238636", color: saving ? "#8b949e" : "#fff", border: "none", borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: saving ? "default" : "pointer" }}
+              style={{ padding: "4px 12px", background: saving ? "#1c2740" : "#238636", color: saving ? "#8c9bb8" : "#fff", border: "none", borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: saving ? "default" : "pointer" }}
             >
               {saving ? "Saving…" : "Save as Intelligence Draft"}
             </button>
@@ -204,7 +204,7 @@ function EntityGroupCard({ group }: { group: EntityGroup }) {
 
           <button
             onClick={() => setExpanded((v) => !v)}
-            style={{ background: "none", border: "1px solid #21262d", color: "#8b949e", borderRadius: 4, padding: "2px 10px", cursor: "pointer", fontSize: 12 }}
+            style={{ background: "none", border: "1px solid #1c2740", color: "#8c9bb8", borderRadius: 4, padding: "2px 10px", cursor: "pointer", fontSize: 12 }}
           >
             {expanded ? "Collapse" : "Expand"}
           </button>
@@ -256,11 +256,11 @@ function EntityGroupCard({ group }: { group: EntityGroup }) {
             <div>
               <div style={S.sectionHead}>Evidence Chain</div>
               {m.evidenceChainSummary.length === 0 ? (
-                <p style={{ fontSize: 12, color: "#8b949e" }}>No evidence chain</p>
+                <p style={{ fontSize: 12, color: "#8c9bb8" }}>No evidence chain</p>
               ) : (
                 <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
                   {m.evidenceChainSummary.map((line, i) => (
-                    <li key={i} style={{ fontSize: 12, color: "#8b949e", padding: "2px 0" }}>
+                    <li key={i} style={{ fontSize: 12, color: "#8c9bb8", padding: "2px 0" }}>
                       {line}
                     </li>
                   ))}
@@ -304,13 +304,13 @@ function EntityGroupCard({ group }: { group: EntityGroup }) {
               <div style={S.sectionHead}>Analysis Notes</div>
               <ul style={{ margin: 0, paddingLeft: 16 }}>
                 {m.analysisNotes.map((n, i) => (
-                  <li key={i} style={{ fontSize: 12, color: "#8b949e", padding: "1px 0" }}>{n}</li>
+                  <li key={i} style={{ fontSize: 12, color: "#8c9bb8", padding: "1px 0" }}>{n}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          <div style={{ marginTop: 12, fontSize: 12, color: "#8b949e" }}>
+          <div style={{ marginTop: 12, fontSize: 12, color: "#8c9bb8" }}>
             Confidence: <strong style={{ color: "#e2e8f0" }}>{Math.round(m.confidence * 100)}%</strong>
             {" · "}
             Official source: <strong style={{ color: m.officialSourceFound ? "#3fb950" : "#f85149" }}>
@@ -329,13 +329,13 @@ function SourcesBreakdown({ results }: { results: IntakeResult[] }) {
     <div style={{ marginTop: 12 }}>
       <button
         onClick={() => setOpen((v) => !v)}
-        style={{ background: "none", border: "none", color: "#58a6ff", fontSize: 12, cursor: "pointer", padding: 0 }}
+        style={{ background: "none", border: "none", color: "#62b5ff", fontSize: 12, cursor: "pointer", padding: 0 }}
       >
         {open ? "▾" : "▸"} {results.length} individual source results
       </button>
       {open && results.map((r, i) => (
-        <div key={i} style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 4, padding: "10px 14px", marginTop: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#8b949e", marginBottom: 6 }}>
+        <div key={i} style={{ background: "#070b16", border: "1px solid #1c2740", borderRadius: 4, padding: "10px 14px", marginTop: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#8c9bb8", marginBottom: 6 }}>
             Source {i + 1}: {r.sourceUrl}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
@@ -418,7 +418,7 @@ export default function AdminIntakePage() {
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0 }}>New Intake</h1>
-        <p style={{ fontSize: 13, color: "#8b949e", marginTop: 4, marginBottom: 0 }}>
+        <p style={{ fontSize: 13, color: "#8c9bb8", marginTop: 4, marginBottom: 0 }}>
           Submit official URLs and/or upload PDFs. The engine fetches, classifies, extracts, and resolves entities.
         </p>
       </div>
@@ -437,8 +437,8 @@ export default function AdminIntakePage() {
                 style={{
                   flex: 1,
                   padding: "8px 12px",
-                  background: "#0d1117",
-                  border: "1px solid #21262d",
+                  background: "#070b16",
+                  border: "1px solid #1c2740",
                   borderRadius: 6,
                   color: "#e2e8f0",
                   fontSize: 13,
@@ -446,28 +446,28 @@ export default function AdminIntakePage() {
                 }}
               />
               {urls.length > 1 && (
-                <button type="button" onClick={() => removeUrl(i)} style={{ background: "none", border: "1px solid #21262d", color: "#8b949e", borderRadius: 6, padding: "0 12px", cursor: "pointer", fontSize: 18 }}>×</button>
+                <button type="button" onClick={() => removeUrl(i)} style={{ background: "none", border: "1px solid #1c2740", color: "#8c9bb8", borderRadius: 6, padding: "0 12px", cursor: "pointer", fontSize: 18 }}>×</button>
               )}
             </div>
           ))}
-          <button type="button" onClick={addUrl} style={{ background: "none", border: "none", color: "#58a6ff", fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 20 }}>
+          <button type="button" onClick={addUrl} style={{ background: "none", border: "none", color: "#62b5ff", fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 20 }}>
             + Add another URL
           </button>
 
           {/* PDF uploads */}
           <div style={S.sectionHead}>Local Documents (optional)</div>
-          <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: "#8c9bb8", marginBottom: 8 }}>
             PDFs are used for Stage C extraction only. Local paths are never stored as provenance. An official URL is still required.
           </div>
           {pdfFiles.map((f, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, fontSize: 13, color: "#8b949e" }}>
-              <span style={{ color: "#58a6ff" }}>📄</span>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, fontSize: 13, color: "#8c9bb8" }}>
+              <span style={{ color: "#62b5ff" }}>📄</span>
               <span>{f.name}</span>
               <span style={{ fontSize: 12 }}>({(f.size / 1024).toFixed(0)} KB)</span>
-              <button type="button" onClick={() => removePdf(i)} style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 14 }}>×</button>
+              <button type="button" onClick={() => removePdf(i)} style={{ background: "none", border: "none", color: "#8c9bb8", cursor: "pointer", fontSize: 14 }}>×</button>
             </div>
           ))}
-          <label style={{ display: "inline-block", padding: "7px 14px", background: "#21262d", border: "1px solid #30363d", borderRadius: 6, cursor: "pointer", fontSize: 13, color: "#8b949e", marginBottom: 20 }}>
+          <label style={{ display: "inline-block", padding: "7px 14px", background: "#1c2740", border: "1px solid #2b3a5c", borderRadius: 6, cursor: "pointer", fontSize: 13, color: "#8c9bb8", marginBottom: 20 }}>
             Upload PDF
             <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" multiple onChange={handleFileChange} style={{ display: "none" }} />
           </label>
@@ -482,8 +482,8 @@ export default function AdminIntakePage() {
             style={{
               width: "100%",
               padding: "8px 12px",
-              background: "#0d1117",
-              border: "1px solid #21262d",
+              background: "#070b16",
+              border: "1px solid #1c2740",
               borderRadius: 6,
               color: "#e2e8f0",
               fontSize: 13,
@@ -500,8 +500,8 @@ export default function AdminIntakePage() {
               disabled={loading || (urls.every((u) => !u.trim()) && pdfFiles.length === 0)}
               style={{
                 padding: "9px 24px",
-                background: loading ? "#21262d" : "#238636",
-                color: loading ? "#8b949e" : "white",
+                background: loading ? "#1c2740" : "#238636",
+                color: loading ? "#8c9bb8" : "white",
                 border: "none",
                 borderRadius: 6,
                 fontSize: 14,
@@ -511,7 +511,7 @@ export default function AdminIntakePage() {
             >
               {loading ? "Processing…" : "Process Sources"}
             </button>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#8b949e", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#8c9bb8", cursor: "pointer" }}>
               <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} />
               Dry run (don&apos;t save to queue)
             </label>
@@ -532,13 +532,13 @@ export default function AdminIntakePage() {
               Results — {result.groups.length} {result.groups.length === 1 ? "entity" : "entities"}
             </h2>
             <div style={{ display: "flex", gap: 8, fontSize: 12 }}>
-              <span style={{ color: "#8b949e" }}>{result.urlCount} URLs · {result.pdfCount} PDFs</span>
+              <span style={{ color: "#8c9bb8" }}>{result.urlCount} URLs · {result.pdfCount} PDFs</span>
               {result.dryRun ? (
                 <span style={{ color: "#d29922" }}>dry run — nothing saved</span>
               ) : result.savedIds.length > 0 ? (
                 <span style={{ color: "#3fb950" }}>✓ {result.savedIds.length} saved to review queue</span>
               ) : (
-                <span style={{ color: "#8b949e" }}>no new candidates (all duplicates)</span>
+                <span style={{ color: "#8c9bb8" }}>no new candidates (all duplicates)</span>
               )}
             </div>
           </div>
@@ -550,7 +550,7 @@ export default function AdminIntakePage() {
           {result.savedIds.length > 0 && !result.dryRun && (
             <div style={{ background: "#238636" + "22", border: "1px solid " + "#238636" + "44", borderRadius: 6, padding: "12px 16px", fontSize: 13, color: "#3fb950" }}>
               {result.savedIds.length} candidate{result.savedIds.length !== 1 ? "s" : ""} saved to review queue.{" "}
-              <a href="/admin/review" style={{ color: "#58a6ff" }}>Go to Review →</a>
+              <a href="/admin/review" style={{ color: "#62b5ff" }}>Go to Review →</a>
             </div>
           )}
         </div>

@@ -27,6 +27,7 @@ import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
 import { savedFilePath, savedFileProblem, MAX_SAVED_FILE_LABEL, SAVED_FILE_CONTENT_TYPE } from "@/lib/cms/saved-files";
 import { aiAssistReason, buildAiField, describeAiValue } from "@/lib/cms/ai-assist-apply";
 import { ExamStagesEditor } from "./ExamStagesEditor";
+import { InfoTip, HELP } from "../InfoTip";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
 import { OfficialNotificationCard } from "@/components/jobs/OfficialNotificationCard";
@@ -34,12 +35,13 @@ import { OfficialNotificationCard } from "@/components/jobs/OfficialNotification
 // ─── Design tokens ────────────────────────────────────────
 
 const C = {
-  bg:      "#0d1117",
-  surface: "#161b22",
-  border:  "#21262d",
+  bg:      "#070b16",
+  // Panels are slightly see-through so the page glow shows behind them.
+  surface: "rgba(14,21,38,0.72)",
+  border:  "rgba(148,163,184,0.14)",
   text:    "#e2e8f0",
-  muted:   "#8b949e",
-  accent:  "#58a6ff",
+  muted:   "#8c9bb8",
+  accent:  "#62b5ff",
   green:   "#3fb950",
   amber:   "#d29922",
   red:     "#f85149",
@@ -51,7 +53,7 @@ const BADGE_COLORS: Record<FieldStatus, { bg: string; text: string; label: strin
   PENDING:      { bg: C.amber + "22",  text: C.amber,  label: "Pending"       },
   CONFLICTED:   { bg: C.red + "22",    text: C.red,    label: "Conflicted"    },
   NEEDS_UPDATE: { bg: C.orange + "22", text: C.orange, label: "Needs Update"  },
-  NOT_SPECIFIED:{ bg: "#8b949e22",      text: C.muted,  label: "Not Specified" },
+  NOT_SPECIFIED:{ bg: "#8c9bb822",      text: C.muted,  label: "Not Specified" },
 };
 
 // ─── Provenance badge ─────────────────────────────────────
@@ -59,7 +61,8 @@ const BADGE_COLORS: Record<FieldStatus, { bg: string; text: string; label: strin
 function Badge({ status }: { status: FieldStatus }) {
   const c = BADGE_COLORS[status];
   return (
-    <span style={{
+    <span title={HELP[status]} style={{
+      cursor: "help",
       display: "inline-block",
       padding: "1px 7px",
       borderRadius: 4,
@@ -175,6 +178,7 @@ function EditableField<T>({
         <span style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           {label}
         </span>
+        <InfoTip id={fieldPath} />
         {field && <Badge status={field.status} />}
         {field?.conflict && (
           <span style={{ marginLeft: 6, fontSize: 11, color: C.red }}>⚠ conflict</span>
@@ -240,7 +244,7 @@ function EditableField<T>({
             <button
               onClick={() => { void save(); }}
               disabled={saving}
-              style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
             >
               {saving ? "Saving…" : "Save"}
             </button>
@@ -310,8 +314,8 @@ async function setValNotSpecified(
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "7px 10px",
-  background: "#0d1117",
-  border: "1px solid #30363d",
+  background: "#070b16",
+  border: "1px solid #2b3a5c",
   borderRadius: 5,
   color: "#e2e8f0",
   fontSize: 13,
@@ -321,33 +325,43 @@ const inputStyle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: 11,
-  color: "#8b949e",
+  color: "#8c9bb8",
   marginBottom: 4,
   fontWeight: 500,
+};
+
+// ─── Panel look ───────────────────────────────────────────
+
+const PANEL: React.CSSProperties = {
+  background: C.surface,
+  border: `1px solid ${C.border}`,
+  borderRadius: 14,
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)",
+  boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset, 0 18px 40px rgba(0,0,0,0.28)",
 };
 
 // ─── Section wrapper ──────────────────────────────────────
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{
-      background: C.surface,
-      border: `1px solid ${C.border}`,
-      borderRadius: 8,
-      marginBottom: 16,
-      overflow: "hidden",
-    }}>
+    <div style={{ ...PANEL, marginBottom: 16 }}>
       <div style={{
-        padding: "10px 18px",
+        padding: "11px 18px",
         borderBottom: `1px solid ${C.border}`,
+        borderRadius: "14px 14px 0 0",
         fontSize: 11,
         fontWeight: 700,
-        letterSpacing: "0.08em",
+        letterSpacing: "0.12em",
         textTransform: "uppercase",
-        color: C.muted,
-        background: "#0d1117",
+        color: "#c7d2e6",
+        background: "linear-gradient(90deg, rgba(249,115,22,0.10), rgba(99,102,241,0.08) 45%, transparent 80%)",
+        display: "flex",
+        alignItems: "center",
       }}>
+        <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: "#f97316", boxShadow: "0 0 10px #f97316", marginRight: 10 }} />
         {title}
+        <InfoTip id={title} />
       </div>
       <div style={{ padding: 18 }}>{children}</div>
     </div>
@@ -516,7 +530,7 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
         <div style={{ marginTop: 16, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: 12 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <div style={{ minWidth: 190 }}>
-              <label style={labelStyle} htmlFor="link-type">Type</label>
+              <label style={labelStyle} htmlFor="link-type">Type<InfoTip id="Link type" /></label>
               <select id="link-type" value={type} onChange={(e) => setType(e.target.value as RecruitmentLinkType)} style={inputStyle}>
                 {LINK_TYPE_OPTIONS.map((o) => <option key={o.type} value={o.type}>{o.label}</option>)}
               </select>
@@ -589,7 +603,7 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
             <button
               onClick={() => { void addLink(); }}
               disabled={saving || !url.trim() || (isCopy && !savedFrom.trim())}
-              style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !url.trim() || (isCopy && !savedFrom.trim()) ? "not-allowed" : "pointer", opacity: saving || !url.trim() || (isCopy && !savedFrom.trim()) ? 0.6 : 1 }}
+              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !url.trim() || (isCopy && !savedFrom.trim()) ? "not-allowed" : "pointer", opacity: saving || !url.trim() || (isCopy && !savedFrom.trim()) ? 0.6 : 1 }}
             >
               {saving ? "Saving…" : isCopy ? "Add saved copy" : "Add link"}
             </button>
@@ -654,6 +668,7 @@ function ListingDetailsEditor({ record, onSaved }: { record: RecruitmentRecord; 
     <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
       <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
         Listing details
+        <InfoTip id="Listing details" />
       </div>
       {!editing ? (
         <>
@@ -696,7 +711,7 @@ function ListingDetailsEditor({ record, onSaved }: { record: RecruitmentRecord; 
             <textarea id="ld-description" value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} style={{ ...inputStyle, height: 70, resize: "vertical" }} maxLength={300} />
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
-            <button onClick={() => { void save(); }} disabled={saving} style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <button onClick={() => { void save(); }} disabled={saving} style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               {saving ? "Saving…" : "Save"}
             </button>
             <button onClick={() => setEditing(false)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>Cancel</button>
@@ -762,7 +777,7 @@ function HowToApplyEditor({ record, onSaved }: { record: RecruitmentRecord; onSa
             <button
               onClick={() => { void save(); }}
               disabled={saving}
-              style={{ padding: "6px 16px", background: "#1f6feb", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
             >
               {saving ? "Saving…" : "Save steps"}
             </button>
@@ -826,6 +841,29 @@ const SECTION_GROUPS: Array<{ group: string; items: Array<{ key: string; label: 
   ] },
 ];
 
+// The side menu's keys, matched to the section titles the help text is filed under.
+const SECTION_HELP: Record<string, string> = {
+  "Identity": HELP["Identity"],
+  "Dates": HELP["Important Dates"],
+  "Vacancies": HELP["Vacancies"],
+  "Eligibility": HELP["Post-wise Eligibility"],
+  "Age": HELP["Age Criteria"],
+  "Financial": HELP["Fees & Pay"],
+  "Selection": HELP["Selection Process"],
+  "Exam Stages": HELP["Exam Stages"],
+  "Exam Pattern": HELP["Exam Pattern"],
+  "Syllabus": HELP["Syllabus"],
+  "How to Apply": HELP["How to Apply"],
+  "Links": HELP["Links"],
+  "Documents": HELP["Candidate Documents"],
+  "Status": HELP["Recruitment Status"],
+  "Updates": HELP["Official Update History"],
+  "Conditions": HELP["Special Conditions"],
+  "Evidence": HELP["Evidence Sources"],
+  "Conflicts": HELP["Conflicts"],
+  "Revisions": HELP["Revision History"],
+};
+
 type Fill = "filled" | "partial" | "empty";
 
 const hasValue = (f: { value: unknown } | null | undefined): boolean => {
@@ -861,7 +899,7 @@ function sectionFill(record: RecruitmentRecord, key: string): Fill | null {
   }
 }
 
-const FILL_COLORS: Record<Fill, string> = { filled: C.green, partial: C.amber, empty: "#30363d" };
+const FILL_COLORS: Record<Fill, string> = { filled: C.green, partial: C.amber, empty: "#2b3a5c" };
 const FILL_TITLES: Record<Fill, string> = { filled: "Filled", partial: "Partly filled", empty: "Empty" };
 
 const STATE_INFO: Record<string, { label: string; note: string }> = {
@@ -905,15 +943,15 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
   const pct = Math.round((done / items.length) * 100);
 
   return (
-    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 18px", marginBottom: 16 }}>
+    <div style={{ ...PANEL, padding: "16px 18px", marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
           {blocked ? "Not ready to publish yet" : done === items.length ? "Ready to publish" : "Can be published — some details are still empty"}
         </div>
         <div style={{ fontSize: 12, color: C.muted }}>{done} of {items.length} filled</div>
       </div>
-      <div style={{ height: 6, background: "#0d1117", borderRadius: 999, marginTop: 10, overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: blocked ? C.amber : C.green, borderRadius: 999, transition: "width 0.2s" }} />
+      <div style={{ height: 6, background: "#070b16", borderRadius: 999, marginTop: 10, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: blocked ? "linear-gradient(90deg, #f59e0b, #f97316)" : "linear-gradient(90deg, #22c55e, #22d3ee)", boxShadow: blocked ? "0 0 12px rgba(249,115,22,0.55)" : "0 0 12px rgba(34,211,238,0.5)", borderRadius: 999, transition: "width 0.3s" }} />
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
         {items.map((i) => (
@@ -1180,9 +1218,7 @@ export default function CmsRecordEditorPage() {
       }}>
         {/* Shown below the actions, which come later in the markup. */}
         <div style={{
-          background: C.surface,
-          border: `1px solid ${C.border}`,
-          borderRadius: 10,
+          ...PANEL,
           overflow: "hidden",
           flexShrink: 0,
           order: 2,
@@ -1201,6 +1237,7 @@ export default function CmsRecordEditorPage() {
                   return (
                     <button
                       key={key}
+                      title={SECTION_HELP[key]}
                       onClick={() => setActiveSection(key)}
                       style={{
                         display: "flex",
@@ -1210,7 +1247,7 @@ export default function CmsRecordEditorPage() {
                         width: "100%",
                         textAlign: "left",
                         padding: "7px 14px",
-                        background: active ? "#1f2937" : "transparent",
+                        background: active ? "linear-gradient(90deg, rgba(249,115,22,0.16), rgba(99,102,241,0.10))" : "transparent",
                         border: "none",
                         borderLeft: active ? `2px solid ${C.orange}` : "2px solid transparent",
                         color: active ? C.text : "#adb5bd",
@@ -1248,14 +1285,16 @@ export default function CmsRecordEditorPage() {
           <div>
             <button
               onClick={() => { void handlePublishSequence(); }}
+              title={HELP["Approve & Publish"]}
               disabled={publishingSeq}
               style={{
                 width: "100%",
                 padding: "9px 14px",
-                background: C.green,
-                color: "#0d1117",
+                background: "linear-gradient(135deg, #22c55e, #14b8a6)",
+                color: "#04130c",
                 border: "none",
-                borderRadius: 6,
+                boxShadow: "0 0 22px rgba(34,197,94,0.35)",
+                borderRadius: 10,
                 fontSize: 13,
                 fontWeight: 700,
                 cursor: "pointer",
@@ -1275,12 +1314,13 @@ export default function CmsRecordEditorPage() {
           <div>
             <button
               onClick={() => { void handleRevert(); }}
+              title={HELP["Edit Record"]}
               disabled={reverting}
               style={{
                 width: "100%",
                 padding: "9px 14px",
-                background: reverting ? "#21262d" : C.amber,
-                color: reverting ? C.muted : "#0d1117",
+                background: reverting ? "#1c2740" : C.amber,
+                color: reverting ? C.muted : "#070b16",
                 border: reverting ? `1px solid ${C.border}` : "none",
                 borderRadius: 6,
                 fontSize: 13,
@@ -1302,6 +1342,7 @@ export default function CmsRecordEditorPage() {
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           <button
             onClick={() => setShowPreview(true)}
+            title={HELP["Preview public page"]}
             style={{
               width: "100%",
               padding: "7px 14px",
@@ -1385,13 +1426,7 @@ export default function CmsRecordEditorPage() {
 
         {/* ── AI Assist panel (DRAFT / APPROVED only) ── */}
         {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
-          <div style={{
-            background: C.surface,
-            border: `1px solid ${C.border}`,
-            borderRadius: 8,
-            marginBottom: 16,
-            overflow: "hidden",
-          }}>
+          <div style={{ ...PANEL, marginBottom: 16, overflow: "hidden" }}>
             <div style={{
               padding: "10px 18px",
               borderBottom: `1px solid ${C.border}`,
@@ -1400,13 +1435,14 @@ export default function CmsRecordEditorPage() {
               letterSpacing: "0.08em",
               textTransform: "uppercase",
               color: C.muted,
-              background: "#0d1117",
+              background: "#070b16",
               display: "flex",
               alignItems: "center",
               gap: 8,
             }}>
               <span>✦</span>
               <span>AI Assist</span>
+              <InfoTip id="AI Assist" />
               <span style={{ fontWeight: 400, fontSize: 10, opacity: 0.6, textTransform: "none", letterSpacing: 0 }}>
                 — optional · fields stay editable · does not publish
               </span>
@@ -1426,7 +1462,7 @@ export default function CmsRecordEditorPage() {
                   style={{
                     flex: 1,
                     padding: "8px 12px",
-                    background: "#0d1117",
+                    background: "#070b16",
                     border: `1px solid ${C.border}`,
                     borderRadius: 6,
                     color: C.text,
@@ -1441,7 +1477,7 @@ export default function CmsRecordEditorPage() {
                   disabled={aiLoading || !aiUrl.trim()}
                   style={{
                     padding: "8px 18px",
-                    background: aiLoading ? "#21262d" : "#1a3a6b",
+                    background: aiLoading ? "#1c2740" : "#1a3a6b",
                     color: aiLoading ? C.muted : C.accent,
                     border: `1px solid ${aiLoading ? C.border : C.accent + "44"}`,
                     borderRadius: 6,
@@ -1490,7 +1526,7 @@ export default function CmsRecordEditorPage() {
                         💡 Suggested {aiResult.suggested.length} field{aiResult.suggested.length !== 1 ? "s" : ""} (existing value preserved)
                       </div>
                       {aiResult.suggested.map((s) => (
-                        <div key={s.fieldPath} style={{ marginBottom: 8, padding: "8px 10px", background: "#0d1117", borderRadius: 5, border: `1px solid ${C.border}` }}>
+                        <div key={s.fieldPath} style={{ marginBottom: 8, padding: "8px 10px", background: "#070b16", borderRadius: 5, border: `1px solid ${C.border}` }}>
                           <div style={{ fontWeight: 600, color: C.muted, marginBottom: 4 }}>{s.label}</div>
                           <div style={{ display: "flex", gap: 16, alignItems: "baseline", flexWrap: "wrap" }}>
                             <span style={{ color: C.muted }}>Current: <span style={{ color: C.text, whiteSpace: "pre-wrap" }}>{describeAiValue(s.existingValue)}</span></span>
@@ -1531,7 +1567,7 @@ export default function CmsRecordEditorPage() {
                     const tone = (s: string) => (s === "mismatch" ? C.red : s === "ambiguous" ? C.amber : s === "match" ? C.green : C.muted);
                     const word = (s: string) => (s === "mismatch" ? "⚠ Mismatch" : s === "ambiguous" ? "Ambiguous" : s === "match" ? "Matches" : "Not detected");
                     return (
-                      <div style={{ marginBottom: 12, padding: "8px 10px", background: "#0d1117", borderRadius: 5, border: `1px solid ${C.border}` }}>
+                      <div style={{ marginBottom: 12, padding: "8px 10px", background: "#070b16", borderRadius: 5, border: `1px solid ${C.border}` }}>
                         <div style={{ color: C.muted, fontWeight: 700, marginBottom: 6 }}>
                           Organisation / year — comparison only, not editable here
                         </div>
@@ -1559,7 +1595,7 @@ export default function CmsRecordEditorPage() {
                         🔗 Official links found on this page — open each one to check, then add
                       </div>
                       {aiResult.suggestedLinks.map((l) => (
-                        <div key={l.url} style={{ marginBottom: 8, padding: "8px 10px", background: "#0d1117", borderRadius: 5, border: `1px solid ${C.border}` }}>
+                        <div key={l.url} style={{ marginBottom: 8, padding: "8px 10px", background: "#070b16", borderRadius: 5, border: `1px solid ${C.border}` }}>
                           <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
                             <span style={{ fontWeight: 600, color: C.text }}>{l.label}</span>
                             <span style={{ color: C.green }}>on {l.host}</span>
@@ -1961,7 +1997,7 @@ export default function CmsRecordEditorPage() {
               <div style={{ color: C.muted, fontSize: 13 }}>No special conditions.</div>
             )}
             {record.conditions?.notes && (
-              <div style={{ marginTop: 12, padding: "10px 14px", background: "#21262d", borderRadius: 6, fontSize: 13, color: C.muted }}>
+              <div style={{ marginTop: 12, padding: "10px 14px", background: "#1c2740", borderRadius: 6, fontSize: 13, color: C.muted }}>
                 <span style={{ color: C.amber, fontWeight: 600 }}>Admin note: </span>{record.conditions.notes}
               </div>
             )}
@@ -1997,7 +2033,7 @@ export default function CmsRecordEditorPage() {
                   <div key={i} style={{
                     marginBottom: 16,
                     padding: "12px 14px",
-                    background: c.resolvedAt ? "#21262d" : C.red + "11",
+                    background: c.resolvedAt ? "#1c2740" : C.red + "11",
                     border: `1px solid ${c.resolvedAt ? C.border : C.red + "44"}`,
                     borderRadius: 6,
                   }}>
@@ -2042,7 +2078,7 @@ export default function CmsRecordEditorPage() {
                     borderBottom: `1px solid ${C.border}`,
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <code style={{ fontSize: 12, color: C.accent, background: "#1f2937", padding: "1px 6px", borderRadius: 4 }}>
+                      <code style={{ fontSize: 12, color: C.accent, background: "#16223d", padding: "1px 6px", borderRadius: 4 }}>
                         {rev.fieldPath}
                       </code>
                       <span style={{ fontSize: 11, color: C.muted }}>
@@ -2055,13 +2091,13 @@ export default function CmsRecordEditorPage() {
                     <div style={{ display: "flex", gap: 16, fontSize: 12 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ color: C.muted, fontSize: 10, marginBottom: 2 }}>BEFORE</div>
-                        <pre style={{ margin: 0, color: C.muted, fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "#0d1117", padding: "6px 8px", borderRadius: 4, maxHeight: 80, overflow: "auto" }}>
+                        <pre style={{ margin: 0, color: C.muted, fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "#070b16", padding: "6px 8px", borderRadius: 4, maxHeight: 80, overflow: "auto" }}>
                           {JSON.stringify(rev.oldValue, null, 2)}
                         </pre>
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ color: C.green, fontSize: 10, marginBottom: 2 }}>AFTER</div>
-                        <pre style={{ margin: 0, color: C.text, fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "#0d1117", padding: "6px 8px", borderRadius: 4, maxHeight: 80, overflow: "auto" }}>
+                        <pre style={{ margin: 0, color: C.text, fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "#070b16", padding: "6px 8px", borderRadius: 4, maxHeight: 80, overflow: "auto" }}>
                           {JSON.stringify(rev.newValue, null, 2)}
                         </pre>
                       </div>
@@ -2116,7 +2152,7 @@ function ProvenanceBlockDisplay({
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div style={{ display: "flex", gap: 12, marginBottom: 8, fontSize: 13 }}>
-      <div style={{ width: 160, color: C.muted, flexShrink: 0, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", paddingTop: 2 }}>{label}</div>
+      <div style={{ width: 160, color: C.muted, flexShrink: 0, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", paddingTop: 2 }}>{label}<InfoTip id={label} /></div>
       <div style={{ color: C.text, fontFamily: mono ? "monospace" : "inherit", fontSize: mono ? 12 : 13 }}>{value}</div>
     </div>
   );
@@ -2304,7 +2340,7 @@ function UpdateRecordCard({ update }: { update: UpdateRecord }) {
       <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>{update.description}</div>
       {update.field && (
         <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>
-          Field: <code style={{ color: C.accent, background: "#1f2937", padding: "1px 5px", borderRadius: 3 }}>{update.field}</code>
+          Field: <code style={{ color: C.accent, background: "#16223d", padding: "1px 5px", borderRadius: 3 }}>{update.field}</code>
           {update.previousValue !== undefined && (
             <span> {String(update.previousValue)} → {String(update.newValue)}</span>
           )}
@@ -2579,8 +2615,8 @@ function AddUpdateModal({
             disabled={submitting}
             style={{
               padding: "7px 16px",
-              background: submitting ? "#21262d" : C.accent,
-              color: submitting ? C.muted : "#0d1117",
+              background: submitting ? "#1c2740" : C.accent,
+              color: submitting ? C.muted : "#070b16",
               border: "none",
               borderRadius: 5,
               fontSize: 13,
@@ -2646,7 +2682,7 @@ function DraftPreviewOverlay({
         alignItems: "center",
         justifyContent: "space-between",
         padding: "10px 24px",
-        background: "#0d1117",
+        background: "#070b16",
         borderBottom: "2px solid #f0883e",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2664,7 +2700,7 @@ function DraftPreviewOverlay({
           }}>
             DRAFT PREVIEW
           </span>
-          <span style={{ fontSize: 12, color: "#8b949e" }}>
+          <span style={{ fontSize: 12, color: "#8c9bb8" }}>
             Showing current editor state — not the published page
           </span>
           <span style={{
@@ -2683,7 +2719,7 @@ function DraftPreviewOverlay({
           onClick={onClose}
           style={{
             background: "none",
-            border: `1px solid #21262d`,
+            border: `1px solid #1c2740`,
             color: "#e2e8f0",
             borderRadius: 5,
             padding: "5px 14px",

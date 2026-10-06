@@ -268,7 +268,7 @@ const CSS = `
 
 .ln-btn:disabled {
   background: #111827;
-  color: #1f2937;
+  color: #16223d;
   cursor: default;
   box-shadow: none;
   transform: none;
