@@ -70,6 +70,10 @@ export interface PublishedRecruitmentSnapshot {
   eligibility: unknown | null;
   age: unknown | null;
   selection: unknown | null;
+  /** ExamPatternPaper[] — absent on snapshots published before the field existed. */
+  examPattern?: unknown | null;
+  /** SyllabusSubject[] — absent on snapshots published before the field existed. */
+  syllabus?: unknown | null;
   howToApply: string[];
   links: Array<{ type: string; label: string; url: string; official: boolean; savedFrom?: string; savedOn?: string }>;
   documents: Array<{ type: string; label: string; url: string; official: boolean; datePublished?: string }>;
@@ -136,6 +140,8 @@ function buildSnapshot(record: RecruitmentRecord): PublishedRecruitmentSnapshot 
     eligibility: pv(record.eligibility),
     age:         pv(record.age),
     selection:   pv(record.selection),
+    examPattern: pv(record.examPattern),
+    syllabus:    pv(record.syllabus),
     howToApply:  record.howToApply ?? [],
 
     links: record.links.map((l) => ({

@@ -36,6 +36,8 @@ export function readField(
   if (fieldPath === "eligibility") return record.eligibility as ProvenanceField<unknown> | undefined;
   if (fieldPath === "age") return record.age as ProvenanceField<unknown> | undefined;
   if (fieldPath === "selection") return record.selection as ProvenanceField<unknown> | undefined;
+  if (fieldPath === "examPattern") return record.examPattern as ProvenanceField<unknown> | undefined;
+  if (fieldPath === "syllabus") return record.syllabus as ProvenanceField<unknown> | undefined;
   // A plain list on the record; presented in field shape so the same
   // fill-or-suggest logic applies.
   if (fieldPath === "howToApply") {

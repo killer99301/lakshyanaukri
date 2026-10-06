@@ -57,6 +57,8 @@ interface RecruitmentRow {
   lifecycle: unknown;
   conditions: unknown;
   exam_stages: unknown;
+  exam_pattern?: unknown;
+  syllabus?: unknown;
   classification: unknown;
   provenance: unknown;
   updates: unknown;
@@ -81,6 +83,8 @@ function rowToRecord(row: RecruitmentRow): RecruitmentRecord {
     age:                    row.age as RecruitmentRecord["age"],
     financial:              row.financial as RecruitmentRecord["financial"],
     selection:              row.selection as RecruitmentRecord["selection"],
+    examPattern:            (row.exam_pattern as RecruitmentRecord["examPattern"]) ?? undefined,
+    syllabus:               (row.syllabus as RecruitmentRecord["syllabus"]) ?? undefined,
     howToApply:             row.how_to_apply as string[] | undefined,
     links:                  (row.links as RecruitmentRecord["links"]) ?? [],
     documents:              (row.documents as RecruitmentRecord["documents"]) ?? [],
@@ -284,6 +288,8 @@ export async function persistFieldUpdate(
         age               = ${record.age !== undefined ? JSON.stringify(record.age) : null},
         financial         = ${JSON.stringify(record.financial)},
         selection         = ${record.selection !== undefined ? JSON.stringify(record.selection) : null},
+        exam_pattern      = ${record.examPattern !== undefined ? JSON.stringify(record.examPattern) : null},
+        syllabus          = ${record.syllabus !== undefined ? JSON.stringify(record.syllabus) : null},
         how_to_apply      = ${record.howToApply !== undefined ? JSON.stringify(record.howToApply) : null},
         links             = ${JSON.stringify(record.links)},
         documents         = ${JSON.stringify(record.documents)},

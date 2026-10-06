@@ -54,6 +54,8 @@ export async function createDb(): Promise<PGlite> {
   // Columns added to production after schema.sql was written.
   await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS classification JSONB");
   await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS exam_stages JSONB");
+  await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS exam_pattern JSONB");
+  await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS syllabus JSONB");
   return pg;
 }
 

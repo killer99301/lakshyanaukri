@@ -198,6 +198,36 @@ export interface CmsSelectionInformation {
   finalMeritFormula?: string;
 }
 
+// ─── Exam pattern and syllabus ────────────────────────────
+//
+// Facts printed in the official notification. Preparation advice, tricks and
+// paper analysis are NOT stored here: they belong on LakshyaGyan.
+
+export interface ExamPatternSection {
+  subject: string;
+  questions?: number;
+  marks?: number;
+}
+
+/** One paper or tier of the exam. */
+export interface ExamPatternPaper {
+  name: string;                  // "Tier-I", "Paper II", "Skill Test"
+  mode?: string;                 // "Computer Based", "Descriptive", "Typing test"
+  durationMinutes?: number;
+  negativeMarking?: string;      // as written: "0.50 marks per wrong answer"
+  sections: ExamPatternSection[];
+  totalQuestions?: number;
+  totalMarks?: number;
+  note?: string;                 // "Qualifying in nature"
+}
+
+/** One subject of the syllabus, optionally tied to a paper. */
+export interface SyllabusSubject {
+  paper?: string;                // "Tier-I" — matches ExamPatternPaper.name when it applies to one paper
+  subject: string;               // "General Intelligence"
+  topics: string[];
+}
+
 // ─── Links and Documents ──────────────────────────────────
 
 export type RecruitmentLinkType =
@@ -330,6 +360,8 @@ export interface RecruitmentRecord {
   eligibility?: ProvenanceField<CmsRecruitmentPost[]>;  // fieldPath "eligibility"
   age?:         ProvenanceField<AgeCriteria>;            // fieldPath "age"
   selection?:   ProvenanceField<CmsSelectionInformation>; // fieldPath "selection"
+  examPattern?: ProvenanceField<ExamPatternPaper[]>;      // fieldPath "examPattern"
+  syllabus?:    ProvenanceField<SyllabusSubject[]>;       // fieldPath "syllabus"
 
   examStages?: ExamStage[];
   howToApply?: string[];

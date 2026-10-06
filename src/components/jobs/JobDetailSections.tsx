@@ -20,6 +20,7 @@ import { resolveDocumentAccess } from "@/lib/documents";
 import { formatDate } from "@/lib/utils";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
 import { RecruitmentTimeline } from "@/components/jobs/RecruitmentTimeline";
+import { ExamPatternSection, SyllabusSection } from "@/components/jobs/ExamPatternSyllabus";
 
 interface JobDetailSectionsProps {
   job: Opportunity;
@@ -533,6 +534,10 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
           </div>
         </section>
       )}
+
+      {/* Exam pattern and syllabus, when the record has them */}
+      {isGov && <ExamPatternSection papers={job.examPattern} />}
+      {isGov && <SyllabusSection subjects={job.syllabus} />}
 
       {/* 8. How to Apply Section */}
       <section id="how-to-apply" className="bg-white border border-[#E2E8F0] rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">

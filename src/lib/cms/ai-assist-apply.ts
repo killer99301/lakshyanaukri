@@ -20,7 +20,26 @@ export function describeAiValue(value: unknown): string {
     if (value.every((v) => typeof v === "string")) return value.map((v, i) => `${i + 1}. ${v}`).join("\n");
     return value
       .map((v) => {
-        const item = v as { post?: string; qualification?: string[]; count?: number };
+        const item = v as {
+          post?: string; qualification?: string[]; count?: number;
+          // exam pattern paper
+          name?: string; sections?: Array<{ subject: string; questions?: number; marks?: number }>;
+          durationMinutes?: number; totalQuestions?: number; totalMarks?: number; negativeMarking?: string;
+          // syllabus subject
+          subject?: string; topics?: string[]; paper?: string;
+        };
+        if (item.subject && Array.isArray(item.topics)) {
+          return `${item.paper ? `[${item.paper}] ` : ""}${item.subject} (${item.topics.length} topics): ${item.topics.join(", ")}`;
+        }
+        if (item.name && Array.isArray(item.sections)) {
+          const facts = [
+            item.durationMinutes ? `${item.durationMinutes} min` : "",
+            item.totalQuestions ? `${item.totalQuestions} questions` : "",
+            item.totalMarks ? `${item.totalMarks} marks` : "",
+          ].filter(Boolean).join(", ");
+          const rows = item.sections.map((s) => `   ${s.subject}${s.questions ? ` — ${s.questions} questions` : ""}${s.marks ? `, ${s.marks} marks` : ""}`);
+          return [`${item.name}${facts ? ` (${facts})` : ""}`, ...rows, item.negativeMarking ? `   Negative marking: ${item.negativeMarking}` : ""].filter(Boolean).join("\n");
+        }
         if (item.post && item.qualification) return `${item.post}: ${item.qualification.join("; ")}`;
         if (item.post && item.count !== undefined) return `${item.post}: ${item.count}`;
         return JSON.stringify(v);

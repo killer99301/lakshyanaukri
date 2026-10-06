@@ -40,6 +40,7 @@ import {
   type SourceKind,
 } from "@/lib/cms/ai-assist";
 import { aiAssistReason } from "@/lib/cms/ai-assist-apply";
+import { buildSyllabusSections, extractPatternAndSyllabus, SYLLABUS_FIELDS } from "@/lib/cms/ai-assist-syllabus";
 import {
   buildDetailSections,
   extractDetails,
@@ -154,15 +155,17 @@ export async function POST(
   const base = buildAssistCandidates(source.content, source.kind, url);
   const identityCheck = compareIdentity(record.identity, base.detected);
 
-  // Two AI requests per click, run together: (1) fees, dates and notification
-  // number; (2) eligibility, age, selection, how to apply and pay scale.
-  // Every item is evidence-checked. Either can fail without affecting the other.
+  // Up to three AI requests per click, run together: (1) fees, dates and
+  // notification number; (2) eligibility, age, selection, how to apply and pay
+  // scale; (3) exam pattern and syllabus, sent only if the source has any.
+  // Every item is evidence-checked. Any can fail without affecting the others.
   const apiKey = process.env.GEMINI_API_KEY;
   // Tells the model which recruitment this is, so other jobs on the page are ignored.
   const subject = `${record.identity.title.value ?? ""} — ${record.identity.organizationName}`;
-  const [ai, details] = await Promise.all([
+  const [ai, details, pattern] = await Promise.all([
     extractWithAi({ sections: buildAiSections(source.content, source.kind, url), url, apiKey }),
     extractDetails({ sections: buildDetailSections(source.content, source.kind, url, subject), url, apiKey, subject }),
+    extractPatternAndSyllabus({ sections: buildSyllabusSections(source.content, source.kind, url, subject), url, apiKey, subject }),
   ]);
   const fees = ai.fees;
   const merged = mergeAiDates(mergeAiNotificationNumber(base, ai.notificationNumber), ai.dates);
@@ -194,6 +197,26 @@ export async function POST(
           label,
           value: `${outcome.dropped} item${outcome.dropped === 1 ? "" : "s"} left out`,
           reason: "could not be matched to the source text — check this section against the notification",
+        });
+      }
+    } else if (outcome.status === "rejected") {
+      flagged.push({ label, value: "not applied", reason: outcome.reason });
+    } else if (outcome.status === "skipped") {
+      notFound.push(`${label} (${outcome.reason})`);
+    } else {
+      notFound.push(label);
+    }
+  }
+
+  for (const { key, fieldPath, label } of SYLLABUS_FIELDS) {
+    const outcome = pattern[key];
+    if (outcome.status === "accepted") {
+      candidates.push({ fieldPath, label, value: outcome.value });
+      if (outcome.dropped > 0) {
+        flagged.push({
+          label,
+          value: `${outcome.dropped} item${outcome.dropped === 1 ? "" : "s"} left out`,
+          reason: "not found word for word in the source — compare this section with the notification",
         });
       }
     } else if (outcome.status === "rejected") {

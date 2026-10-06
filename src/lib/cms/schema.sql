@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS recruitments (
   financial                JSONB       NOT NULL DEFAULT '{}',
   selection                JSONB,             -- ProvenanceField<CmsSelectionInformation>
   how_to_apply             JSONB,             -- string[]
+  exam_pattern             JSONB,             -- ProvenanceField<ExamPatternPaper[]>
+  syllabus                 JSONB,             -- ProvenanceField<SyllabusSubject[]>
   links                    JSONB       NOT NULL DEFAULT '[]',
   documents                JSONB       NOT NULL DEFAULT '[]',
   lifecycle                JSONB       NOT NULL DEFAULT '{"status":"DRAFT","conflicts":[],"events":[]}',

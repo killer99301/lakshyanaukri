@@ -34,6 +34,9 @@ import type {
   CmsSelectionInformation,
   CmsRecruitmentLink,
   RecruitmentClassification,
+  ExamPatternPaper,
+  ExamPatternSection,
+  SyllabusSubject,
 } from "@/types/recruitment-record";
 
 import type { VacancyRow } from "@/types";
@@ -554,6 +557,9 @@ export function computeRecordRevision(record: RecruitmentRecord): string {
     eligibility: record.eligibility,
     age: record.age,
     selection: record.selection,
+    // Absent on older records, so their fingerprint is unchanged.
+    examPattern: record.examPattern,
+    syllabus: record.syllabus,
     howToApply: record.howToApply,
     lifecycle: record.lifecycle,
     conditions: record.conditions,
@@ -717,6 +723,111 @@ export function updateLinks(
     record: updated,
     revision: buildFieldRevision(record.id, "links", record.links, cleaned, adminId, reason),
   };
+}
+
+// ─── Exam pattern and syllabus ────────────────────────────
+//
+// Both are whole-block provenance fields, like eligibility. The value is
+// cleaned and bounded here so a bad paste or a bad AI answer cannot store junk.
+
+const tidy = (v: unknown, max: number): string | undefined => {
+  if (typeof v !== "string") return undefined;
+  const t = v.replace(/\s+/g, " ").trim();
+  return t.length > 0 && t.length <= max ? t : undefined;
+};
+
+const wholeNumber = (v: unknown, max: number): number | undefined =>
+  typeof v === "number" && Number.isInteger(v) && v > 0 && v <= max ? v : undefined;
+
+/** A marks figure: positive, at most `max`, whole or with a simple decimal part. */
+const marksNumber = (v: unknown, max: number): number | undefined =>
+  typeof v === "number" && Number.isFinite(v) && v > 0 && v <= max ? Math.round(v * 100) / 100 : undefined;
+
+export function cleanExamPattern(value: unknown): ExamPatternPaper[] {
+  if (!Array.isArray(value)) throw new Error("examPattern invariant: value must be an array of papers");
+  if (value.length > 8) throw new Error("examPattern invariant: at most 8 papers");
+  return value.map((raw, i) => {
+    const p = (raw ?? {}) as Record<string, unknown>;
+    const name = tidy(p.name, 80);
+    if (!name) throw new Error(`examPattern invariant: paper ${i + 1} needs a name`);
+    if (p.sections !== undefined && !Array.isArray(p.sections)) {
+      throw new Error(`examPattern invariant: paper ${i + 1} sections must be a list`);
+    }
+    const rawSections = (p.sections as unknown[] | undefined) ?? [];
+    if (rawSections.length > 15) throw new Error(`examPattern invariant: paper ${i + 1} has more than 15 subjects`);
+    const sections: ExamPatternSection[] = rawSections.map((rs, j) => {
+      const s = (rs ?? {}) as Record<string, unknown>;
+      const subject = tidy(s.subject, 100);
+      if (!subject) throw new Error(`examPattern invariant: paper ${i + 1}, subject ${j + 1} needs a name`);
+      const questions = wholeNumber(s.questions, 1000);
+      const marks = marksNumber(s.marks, 2000);
+      return { subject, ...(questions ? { questions } : {}), ...(marks ? { marks } : {}) };
+    });
+    const mode = tidy(p.mode, 80);
+    const durationMinutes = wholeNumber(p.durationMinutes, 600);
+    const negativeMarking = tidy(p.negativeMarking, 160);
+    const totalQuestions = wholeNumber(p.totalQuestions, 2000);
+    const totalMarks = marksNumber(p.totalMarks, 5000);
+    const note = tidy(p.note, 200);
+    return {
+      name,
+      ...(mode ? { mode } : {}),
+      ...(durationMinutes ? { durationMinutes } : {}),
+      ...(negativeMarking ? { negativeMarking } : {}),
+      sections,
+      ...(totalQuestions ? { totalQuestions } : {}),
+      ...(totalMarks ? { totalMarks } : {}),
+      ...(note ? { note } : {}),
+    };
+  });
+}
+
+export function cleanSyllabus(value: unknown): SyllabusSubject[] {
+  if (!Array.isArray(value)) throw new Error("syllabus invariant: value must be an array of subjects");
+  if (value.length > 40) throw new Error("syllabus invariant: at most 40 subjects");
+  return value.map((raw, i) => {
+    const s = (raw ?? {}) as Record<string, unknown>;
+    const subject = tidy(s.subject, 100);
+    if (!subject) throw new Error(`syllabus invariant: subject ${i + 1} needs a name`);
+    if (!Array.isArray(s.topics)) throw new Error(`syllabus invariant: subject ${i + 1} topics must be a list`);
+    if (s.topics.length > 80) throw new Error(`syllabus invariant: subject ${i + 1} has more than 80 topics`);
+    const topics = s.topics.map((t) => tidy(t, 160)).filter((t): t is string => t !== undefined);
+    if (topics.length === 0) throw new Error(`syllabus invariant: subject ${i + 1} needs at least one topic`);
+    const paper = tidy(s.paper, 80);
+    return { ...(paper ? { paper } : {}), subject, topics: Array.from(new Set(topics)) };
+  });
+}
+
+function updateBlock<K extends "examPattern" | "syllabus">(
+  record: RecruitmentRecord,
+  fieldPath: K,
+  newField: ProvenanceField<unknown>,
+  clean: (value: unknown) => NonNullable<RecruitmentRecord[K]>["value"],
+  adminId: string,
+  reason?: string,
+): FieldUpdateResult {
+  // A null value clears the block (used for "not specified").
+  const field = (newField.value === null
+    ? newField
+    : { ...newField, value: clean(newField.value) }) as NonNullable<RecruitmentRecord[K]>;
+
+  const errors = validateProvenanceField(field as ProvenanceField<unknown>, fieldPath);
+  if (errors.length > 0) throw new Error(errors.map((e) => e.message).join("; "));
+
+  const updated = cloneRecord(record);
+  (updated as Record<K, unknown>)[fieldPath] = field;
+  updated.updatedAt = now();
+  updated.updatedBy = adminId;
+
+  return { record: updated, revision: buildFieldRevision(record.id, fieldPath, record[fieldPath], field, adminId, reason) };
+}
+
+export function updateExamPattern(record: RecruitmentRecord, newField: ProvenanceField<unknown>, adminId: string, reason?: string): FieldUpdateResult {
+  return updateBlock(record, "examPattern", newField, cleanExamPattern, adminId, reason);
+}
+
+export function updateSyllabus(record: RecruitmentRecord, newField: ProvenanceField<unknown>, adminId: string, reason?: string): FieldUpdateResult {
+  return updateBlock(record, "syllabus", newField, cleanSyllabus, adminId, reason);
 }
 
 // ─── Exam stages ──────────────────────────────────────────

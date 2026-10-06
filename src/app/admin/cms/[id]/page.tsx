@@ -27,6 +27,7 @@ import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
 import { savedFilePath, savedFileProblem, MAX_SAVED_FILE_LABEL, SAVED_FILE_CONTENT_TYPE } from "@/lib/cms/saved-files";
 import { aiAssistReason, buildAiField, describeAiValue } from "@/lib/cms/ai-assist-apply";
 import { ExamStagesEditor } from "./ExamStagesEditor";
+import { ExamPatternEditor, SyllabusEditor } from "./PatternSyllabusEditors";
 import { InfoTip, HELP } from "../InfoTip";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
@@ -376,7 +377,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 async function saveListField(
   recordId: string,
   recordRevision: string,
-  fieldPath: "links" | "howToApply" | "classification" | "examStages",
+  fieldPath: "links" | "howToApply" | "classification" | "examStages" | "examPattern" | "syllabus",
   value: unknown,
   reason: string,
 ): Promise<{ record?: RecruitmentRecord; error?: string }> {
@@ -825,6 +826,8 @@ const SECTION_GROUPS: Array<{ group: string; items: Array<{ key: string; label: 
   { group: "Selection & applying", items: [
     { key: "Selection",    label: "Selection process" },
     { key: "Exam Stages",  label: "Exam stages" },
+    { key: "Exam Pattern", label: "Exam pattern" },
+    { key: "Syllabus",     label: "Syllabus" },
     { key: "How to Apply", label: "How to apply" },
     { key: "Links",        label: "Links" },
     { key: "Documents",    label: "Documents" },
@@ -890,6 +893,8 @@ function sectionFill(record: RecruitmentRecord, key: string): Fill | null {
     case "Financial":    return one(hasValue(record.financial.feeGeneral));
     case "Selection":    return one(hasValue(record.selection));
     case "Exam Stages":  return one((record.examStages ?? []).length > 0);
+    case "Exam Pattern": return one(hasValue(record.examPattern));
+    case "Syllabus":     return one(hasValue(record.syllabus));
     case "How to Apply": return one((record.howToApply ?? []).length > 0);
     case "Links":
       if (record.links.some((l) => l.official)) return "filled";
@@ -921,6 +926,8 @@ function countPending(record: RecruitmentRecord): number {
     record.eligibility,
     record.age,
     record.selection,
+    record.examPattern,
+    record.syllabus,
   ];
   return fields.filter((f) => f && typeof f === "object" && hasValue(f) && f.status === "PENDING").length;
 }
@@ -1051,6 +1058,15 @@ export default function CmsRecordEditorPage() {
     void loadRecord();
     void loadRevisions();
   }, [loadRecord, loadRevisions]);
+
+  // Used by the exam pattern and syllabus editors. Resolves to an error message, or null.
+  async function saveBlock(fieldPath: "examPattern" | "syllabus", value: unknown, reason: string): Promise<string | null> {
+    if (!record) return "Record not loaded";
+    const out = await saveListField(record.id, record.recordRevision, fieldPath, value, reason);
+    if (out.error || !out.record) return out.error ?? "Save failed";
+    onFieldSaved(out.record);
+    return null;
+  }
 
   function onFieldSaved(updated: RecruitmentRecord) {
     setRecord(updated);
@@ -1912,6 +1928,20 @@ export default function CmsRecordEditorPage() {
                 return null;
               }}
             />
+          </Section>
+        )}
+
+        {/* ── Exam Pattern ── */}
+        {activeSection === "Exam Pattern" && (
+          <Section title="Exam Pattern">
+            <ExamPatternEditor record={record} onSave={saveBlock} />
+          </Section>
+        )}
+
+        {/* ── Syllabus ── */}
+        {activeSection === "Syllabus" && (
+          <Section title="Syllabus">
+            <SyllabusEditor record={record} onSave={saveBlock} />
           </Section>
         )}
 

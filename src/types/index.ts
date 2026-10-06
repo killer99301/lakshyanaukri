@@ -12,6 +12,8 @@
 
 // ─── Organization ────────────────────────────────────────
 
+import type { ExamPatternPaper, SyllabusSubject } from "@/types/recruitment-record";
+
 export interface Organization {
   id: string;                     // "bpsc", "rrb", "ssc", "upsc", "ibps"
   name: string;                   // "Bihar Public Service Commission"
@@ -262,6 +264,10 @@ export interface GovernmentRecruitment extends BaseOpportunity {
   ageLimit?: AgeLimit;
   eligibility?: string[];
   selectionProcess?: string[];
+  /** Papers of the exam: subjects, questions, marks, time. From the official notification. */
+  examPattern?: ExamPatternPaper[];
+  /** Subjects and topics, from the official notification. */
+  syllabus?: SyllabusSubject[];
   howToApply?: string[];
 
   links: {

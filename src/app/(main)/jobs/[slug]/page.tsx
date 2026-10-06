@@ -135,7 +135,10 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
         <JobDetailHeader job={job} />
 
         {/* Sticky Section Nav */}
-        <JobSectionTabs />
+        <JobSectionTabs
+          hasExamPattern={job.type === "government" && (job.examPattern?.length ?? 0) > 0}
+          hasSyllabus={job.type === "government" && (job.syllabus?.length ?? 0) > 0}
+        />
 
         {/* Content Layout Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

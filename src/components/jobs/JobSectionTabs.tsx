@@ -5,10 +5,15 @@ import { cn } from "@/lib/utils";
 
 interface JobSectionTabsProps {
   activeSection?: string;
+  /** Show the tab only when the job page has that section. */
+  hasExamPattern?: boolean;
+  hasSyllabus?: boolean;
 }
 
 export const JobSectionTabs: React.FC<JobSectionTabsProps> = ({
   activeSection: initialActive = "overview",
+  hasExamPattern = false,
+  hasSyllabus = false,
 }) => {
   const [activeSection, setActiveSection] = useState(initialActive);
 
@@ -19,6 +24,8 @@ export const JobSectionTabs: React.FC<JobSectionTabsProps> = ({
     { id: "eligibility", label: "Eligibility & Age" },
     { id: "application-fee", label: "Application Fee" },
     { id: "selection-process", label: "Selection Process" },
+    ...(hasExamPattern ? [{ id: "exam-pattern", label: "Exam Pattern" }] : []),
+    ...(hasSyllabus ? [{ id: "syllabus", label: "Syllabus" }] : []),
     { id: "how-to-apply", label: "How to Apply" },
     { id: "official-notification", label: "Notification PDF" },
   ];

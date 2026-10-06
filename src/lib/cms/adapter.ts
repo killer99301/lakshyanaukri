@@ -24,7 +24,7 @@ import type {
   GovernmentRecruitment, VerificationStatus, SourceType,
   ExamStage, AgeLimit, AgeRelaxation, VacancyRow, UpdateRecord,
 } from "@/types";
-import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation } from "@/types/recruitment-record";
+import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, ExamPatternPaper, SyllabusSubject } from "@/types/recruitment-record";
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
 
@@ -97,6 +97,10 @@ export function snapshotToGovernmentRecruitment(
     ? selectionInfoToProcessStrings(snapshot.selection as CmsSelectionInformation)
     : undefined;
 
+  // Snapshots published before these fields existed simply have none.
+  const examPattern = Array.isArray(snapshot.examPattern) ? (snapshot.examPattern as ExamPatternPaper[]) : [];
+  const syllabus = Array.isArray(snapshot.syllabus) ? (snapshot.syllabus as SyllabusSubject[]) : [];
+
   const updates = snapshot.updates
     ? (snapshot.updates as UpdateRecord[])
     : [];
@@ -145,6 +149,8 @@ export function snapshotToGovernmentRecruitment(
     ageLimit,
     eligibility:      eligibility && eligibility.length > 0 ? eligibility : undefined,
     selectionProcess: selectionProcess && selectionProcess.length > 0 ? selectionProcess : undefined,
+    examPattern:      examPattern.length > 0 ? examPattern : undefined,
+    syllabus:         syllabus.length > 0 ? syllabus : undefined,
     howToApply:       snapshot.howToApply.length > 0 ? snapshot.howToApply : undefined,
 
     links: {

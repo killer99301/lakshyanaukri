@@ -57,7 +57,7 @@ export function subjectTokens(subject: string | undefined): string[] {
 // Officer Recruitment 2026 – Apply Online"). Their facts must never be mixed in.
 const OTHER_JOB_HEADING_RE = /recruitment|notification|vacanc|bharti|apply\s+online/i;
 
-function isOtherJobHeading(heading: string, tokens: string[]): boolean {
+export function isOtherJobHeading(heading: string, tokens: string[]): boolean {
   if (tokens.length === 0 || !OTHER_JOB_HEADING_RE.test(heading)) return false;
   const h = normalizeForMatching(heading);
   return !tokens.some((t) => h.split(" ").includes(t));
@@ -143,7 +143,7 @@ Rules:
 
 // ─── Verification ─────────────────────────────────────────
 
-interface Evidence {
+export interface Evidence {
   /** Normalised text of every passage sent to the model. */
   text: string;
   /** Every number that appears in those passages. */
@@ -165,7 +165,7 @@ const str = (v: unknown, max: number): string | null => {
   return t.length > 0 && t.length <= max ? t : null;
 };
 
-function quoteFound(quote: unknown, ev: Evidence): quote is string {
+export function quoteFound(quote: unknown, ev: Evidence): quote is string {
   if (typeof quote !== "string") return false;
   const q = normalizeForMatching(quote);
   return q.length >= 8 && ev.text.includes(q);
