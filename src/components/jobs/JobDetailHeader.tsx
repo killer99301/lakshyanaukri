@@ -239,32 +239,6 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                 </>
               ) : (
                 <>
-                  {job.links.apply && (
-                    <a
-                      href={job.links.apply}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-[#EA580C] to-[#F95738] text-white font-extrabold text-sm shadow-md shadow-orange-500/20 hover:opacity-95 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                    >
-                      <span>Apply Online</span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-
-                  {/* Beside Apply, only while applications are open: AnantaMarg's muhurat finder */}
-                  {job.type === "government" && siteConfig.ecosystem.anantamarg.formMuhuratLive && (
-                    <a
-                      href={siteConfig.ecosystem.anantamarg.muhuratUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-[#6D28D9] text-white font-extrabold text-sm shadow-md shadow-violet-500/20 hover:bg-[#5B21B6] hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                      title="Good days to fill this form, on AnantaMarg. Your deadline comes first."
-                    >
-                      <Compass className="h-4 w-4" />
-                      <span>Check Muhurat</span>
-                    </a>
-                  )}
-
                   {job.type === "government" && job.links.notification && (
                     <a
                       href={job.links.notification}
@@ -285,6 +259,32 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                       <FileText className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">PDF Unavailable</span>
                     </span>
+                  )}
+
+                  {/* Only while applications are open: AnantaMarg's muhurat finder */}
+                  {job.type === "government" && siteConfig.ecosystem.anantamarg.formMuhuratLive && (
+                    <a
+                      href={siteConfig.ecosystem.anantamarg.muhuratUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl bg-[#6D28D9] text-white font-bold text-sm hover:bg-[#5B21B6] transition-colors cursor-pointer"
+                      title="Good days to fill this form, on AnantaMarg. Your deadline comes first."
+                    >
+                      <Compass className="h-4 w-4 text-violet-200" />
+                      <span>Muhurat</span>
+                    </a>
+                  )}
+
+                  {job.links.apply && (
+                    <a
+                      href={job.links.apply}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-[#EA580C] to-[#F95738] text-white font-extrabold text-sm shadow-md shadow-orange-500/20 hover:opacity-95 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                    >
+                      <span>Apply Online</span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
                   )}
                 </>
               )}
