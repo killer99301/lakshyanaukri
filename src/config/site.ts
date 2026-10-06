@@ -43,6 +43,11 @@ export const siteConfig = {
       name: "Anantamarg",
       description: "Auspicious timings & Muhurat for application submission & key milestones",
       url: "https://anantamarg.com",
+      // The Muhurat finder, which carries the "Starting Important Work"
+      // (Exam Form / Job Application) purpose. Used ONLY by the card on real
+      // exam and job notices (components/jobs/MuhuratCard.tsx) — not on the
+      // home page, footer or listings, which link to `url`.
+      muhuratUrl: "https://anantamarg.com/muhurat",
     },
   },
 };

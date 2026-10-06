@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Sparkles,
   Calculator,
-  Compass,
 } from "lucide-react";
 import { getBySlug, getAllSlugs, getRelated } from "@/lib/repository";
 import { siteConfig } from "@/config/site";
@@ -14,6 +13,7 @@ import { JobSectionTabs } from "@/components/jobs/JobSectionTabs";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
 import { OfficialNotificationCard } from "@/components/jobs/OfficialNotificationCard";
 import { JobDownloads } from "@/components/lifecycle/LifecycleLinkList";
+import { MuhuratCard } from "@/components/jobs/MuhuratCard";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 
@@ -200,30 +200,8 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
               </a>
             </div>
 
-            {/* Ecosystem Card 3: Anantamarg Shubh Muhurat */}
-            <div className="bg-white border border-[#E2E8F0] rounded-3xl p-5 shadow-xs space-y-3">
-              <div className="flex items-center gap-2.5 text-[#0F172A]">
-                <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
-                  <Compass className="h-4 w-4" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-[#0F172A]">Anantamarg Muhurat</h4>
-                  <p className="text-[11px] text-[#475569] font-medium">Auspicious Application Times</p>
-                </div>
-              </div>
-              <p className="text-xs text-[#475569] leading-relaxed">
-                Find optimal dates and timings to submit high-priority competitive exam applications.
-              </p>
-              <a
-                href={(job.type === "government" ? job.ecosystem?.anantamarg : undefined) || "https://anantamarg.com/"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-[#0F172A] hover:border-[#FED7AA] hover:bg-[#FFF7ED] hover:text-[#EA580C] transition-colors cursor-pointer"
-              >
-                <span>Check Auspicious Time ↗</span>
-                <ChevronRight className="h-3.5 w-3.5" />
-              </a>
-            </div>
+            {/* Ecosystem Card 3: AnantaMarg muhurat — only on notices still open for application */}
+            <MuhuratCard job={job} />
 
             {/* Related Jobs Box */}
             {relatedJobs.length > 0 && (
