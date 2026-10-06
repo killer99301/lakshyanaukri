@@ -55,7 +55,7 @@ export const siteConfig = {
       // the live site that day — check anantamarg.com/muhurat offers it before
       // deploying. Set formMuhuratLive to false to hide every muhurat link.
       muhuratUrl: "https://anantamarg.com/muhurat",
-      formMuhuratLive: true,
+      formMuhuratLive: false,
     },
   },
 };
