@@ -106,7 +106,13 @@ interface RecordRow {
   title_text: string;
   gov_type: string;
   updated_at: string;
+  /** Set the first time the record went live; stays set while it is edited again. */
+  published_at?: string | null;
 }
+
+// A job that is live but has been reopened for editing: the public still sees
+// the last published version.
+const editingLive = (r: RecordRow) => Boolean(r.published_at) && (r.draft_state === "DRAFT" || r.draft_state === "APPROVED");
 
 // Approved records are drafts that have not gone live yet.
 const filterOf = (state: string): string => (state === "APPROVED" ? "DRAFT" : state);
@@ -274,14 +280,14 @@ export default function CmsListPage() {
                             border: `1px solid ${color}44`,
                             whiteSpace: "nowrap",
                           }}>
-                            {STATE_LABELS[r.draft_state] ?? r.draft_state}
+                            {editingLive(r) ? "Live · being edited" : STATE_LABELS[r.draft_state] ?? r.draft_state}
                           </span>
                         </td>
                         <td style={{ ...S.td, color: "#8c9bb8", fontSize: 12, whiteSpace: "nowrap" }}>
                           {updatedLabel(r.updated_at, loadedAt)}
                         </td>
                         <td style={{ ...S.td, textAlign: "right", whiteSpace: "nowrap" }}>
-                          {r.draft_state === "PUBLISHED" && (
+                          {(r.draft_state === "PUBLISHED" || editingLive(r)) && (
                             <a
                               href={`/jobs/${r.slug}`}
                               target="_blank"

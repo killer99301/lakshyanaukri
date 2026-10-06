@@ -1356,6 +1356,8 @@ export default function CmsRecordEditorPage() {
   if (!record) return <div style={{ color: C.muted, padding: 40 }}>Record not found.</div>;
 
   const stateColor = { DRAFT: C.amber, APPROVED: C.green, PUBLISHED: C.accent, ARCHIVED: C.muted }[record.draftState] ?? C.muted;
+  // Live, but reopened for editing: the public still sees the last published version.
+  const editingLive = Boolean(record.publishedAt) && (record.draftState === "DRAFT" || record.draftState === "APPROVED");
 
   return (
     <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
@@ -1553,12 +1555,13 @@ export default function CmsRecordEditorPage() {
               color: stateColor,
               border: `1px solid ${stateColor}44`,
             }}>
-              {STATE_INFO[record.draftState]?.label ?? record.draftState}
+              {editingLive ? "Live · being edited" : STATE_INFO[record.draftState]?.label ?? record.draftState}
             </span>
           </div>
           <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>
-            {record.identity.organizationName} · {STATE_INFO[record.draftState]?.note}
-            {record.draftState === "PUBLISHED" && (
+            {record.identity.organizationName} ·{" "}
+            {editingLive ? "The public still sees the last published version until you publish again" : STATE_INFO[record.draftState]?.note}
+            {(record.draftState === "PUBLISHED" || editingLive) && (
               <>
                 {" · "}
                 <a href={`/jobs/${record.slug}`} target="_blank" rel="noreferrer" style={{ color: C.accent, textDecoration: "none" }}>
