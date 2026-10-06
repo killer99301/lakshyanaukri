@@ -43,11 +43,16 @@ export const siteConfig = {
       name: "Anantamarg",
       description: "Auspicious timings & Muhurat for application submission & key milestones",
       url: "https://anantamarg.com",
-      // The Muhurat finder, which carries the "Starting Important Work"
-      // (Exam Form / Job Application) purpose. Used ONLY by the card on real
-      // exam and job notices (components/jobs/MuhuratCard.tsx) — not on the
-      // home page, footer or listings, which link to `url`.
+      // Offered to someone about to fill a form, ONLY on exam and job notices
+      // still open for application (components/jobs/MuhuratCard.tsx) — not on
+      // the home page, footer or listings, which link to `url`.
+      panchangUrl: "https://anantamarg.com/panchang",
+      // The Muhurat finder. Its "Exam Form / Job Application" purpose
+      // ("Starting Important Work") was built on 2026-10-06 but was not yet on
+      // the live site. Set formMuhuratLive to true once anantamarg.com/muhurat
+      // offers it; until then only the panchang link is shown.
       muhuratUrl: "https://anantamarg.com/muhurat",
+      formMuhuratLive: false,
     },
   },
 };

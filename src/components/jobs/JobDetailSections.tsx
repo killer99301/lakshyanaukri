@@ -17,6 +17,7 @@ import {
 import type { Opportunity } from "@/types";
 import { getVacancyDisplay, getStageCertainty, getCategoryLabel } from "@/lib/lifecycle";
 import { resolveDocumentAccess } from "@/lib/documents";
+import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
 
 interface JobDetailSectionsProps {
   job: Opportunity;
@@ -553,6 +554,8 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
             Visit the official portal link provided above to register and complete your application.
           </p>
         )}
+
+        <MuhuratPrompt job={job} />
       </section>
 
       {/* 9. About Organization Section */}
