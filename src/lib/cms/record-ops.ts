@@ -374,6 +374,7 @@ export function updateVacancyBreakdown(
   if (errors.length > 0) {
     throw new Error(errors.map((e) => e.message).join("; "));
   }
+  newField = { ...newField, value: cleanVacancyBreakdown(newField.value) };
 
   const updated = cloneRecord(record);
   updated.vacancies = { ...record.vacancies, breakdown: newField };
@@ -742,6 +743,34 @@ const wholeNumber = (v: unknown, max: number): number | undefined =>
 /** A marks figure: positive, at most `max`, whole or with a simple decimal part. */
 const marksNumber = (v: unknown, max: number): number | undefined =>
   typeof v === "number" && Number.isFinite(v) && v > 0 && v <= max ? Math.round(v * 100) / 100 : undefined;
+
+/** Post-wise vacancy rows: a post name and a whole number each. Nothing is summed or inferred. */
+export function cleanVacancyBreakdown(value: unknown): VacancyRow[] {
+  if (!Array.isArray(value)) throw new Error("vacancies.breakdown invariant: value must be a list of posts");
+  if (value.length > 200) throw new Error("vacancies.breakdown invariant: at most 200 posts");
+  return value.map((raw, i) => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const post = tidy(r.post, 160);
+    if (!post) throw new Error(`vacancies.breakdown invariant: row ${i + 1} needs a post name`);
+    const count = wholeNumber(r.count, 1_000_000);
+    if (!count) throw new Error(`vacancies.breakdown invariant: "${post}" needs a whole number of posts`);
+    const payScale = tidy(r.payScale, 120);
+    const eligibility = tidy(r.eligibility, 400);
+    const categories: Record<string, number> = {};
+    if (r.breakdown && typeof r.breakdown === "object" && !Array.isArray(r.breakdown)) {
+      for (const [k, v] of Object.entries(r.breakdown as Record<string, unknown>)) {
+        if (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 1_000_000) categories[k] = v;
+      }
+    }
+    return {
+      post,
+      count,
+      ...(payScale ? { payScale } : {}),
+      ...(eligibility ? { eligibility } : {}),
+      ...(Object.keys(categories).length ? { breakdown: categories as VacancyRow["breakdown"] } : {}),
+    };
+  });
+}
 
 export function cleanExamPattern(value: unknown): ExamPatternPaper[] {
   if (!Array.isArray(value)) throw new Error("examPattern invariant: value must be an array of papers");

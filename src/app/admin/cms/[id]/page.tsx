@@ -377,7 +377,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 async function saveListField(
   recordId: string,
   recordRevision: string,
-  fieldPath: "links" | "howToApply" | "classification" | "examStages" | "examPattern" | "syllabus",
+  fieldPath: "links" | "howToApply" | "classification" | "examStages" | "examPattern" | "syllabus" | "vacancies.breakdown",
   value: unknown,
   reason: string,
 ): Promise<{ record?: RecruitmentRecord; error?: string }> {
@@ -793,6 +793,118 @@ function HowToApplyEditor({ record, onSaved }: { record: RecruitmentRecord; onSa
   );
 }
 
+// ─── Vacancy breakdown ────────────────────────────────────
+//
+// Post-wise numbers typed one per line, the way they are copied from a
+// notification table. The total above is a separate field and is never
+// worked out from these rows.
+
+function VacancyBreakdownEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: (r: RecruitmentRecord) => void }) {
+  const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const rows = record.vacancies.breakdown?.value ?? [];
+  const sum = rows.reduce((n, r) => n + r.count, 0);
+  const total = record.vacancies.total?.value;
+
+  async function save() {
+    const next = [];
+    for (const [i, line] of text.split("\n").map((l) => l.trim()).filter(Boolean).entries()) {
+      const [post, count, payScale] = line.split("|").map((part) => part.trim());
+      const n = Number((count ?? "").replace(/,/g, ""));
+      if (!post || !Number.isInteger(n) || n <= 0) {
+        setErr(`Line ${i + 1}: write it as “Post name | number”, for example “Warder | 560”.`);
+        return;
+      }
+      // Details that were on the row before (category split, eligibility) stay with it.
+      const before = rows.find((r) => r.post === post);
+      next.push({ ...(before ?? {}), post, count: n, ...(payScale ? { payScale } : before?.payScale ? { payScale: before.payScale } : {}) });
+    }
+    setSaving(true);
+    setErr(null);
+    const out = await saveListField(record.id, record.recordRevision, "vacancies.breakdown", next, "Edited post-wise vacancies");
+    setSaving(false);
+    if (out.error || !out.record) { setErr((out.error ?? "Save failed").replace(/^.*invariant:\s*/, "")); return; }
+    setEditing(false);
+    onSaved(out.record);
+  }
+
+  const cell: React.CSSProperties = { padding: "6px 10px", borderBottom: `1px solid ${C.border}` };
+
+  return (
+    <div>
+      {rows.length ? (
+        <>
+          <table style={{ fontSize: 13, width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                {["Post", "Count", "Pay Scale"].map((h) => (
+                  <th key={h} style={{ textAlign: "left", padding: "6px 10px", borderBottom: `1px solid ${C.border}`, color: C.muted, fontSize: 11 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={i}>
+                  <td style={cell}>{row.post}</td>
+                  <td style={cell}>{row.count}</td>
+                  <td style={{ ...cell, color: C.muted }}>{row.payScale ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {typeof total === "number" && sum !== total && (
+            <div role="status" style={{ color: C.amber, fontSize: 12, marginTop: 8 }}>
+              These rows add up to {sum}, but Total Vacancies says {total}. Check both against the notification.
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ color: C.muted, fontSize: 13 }}>No post-wise numbers entered yet.</div>
+      )}
+
+      {!editable ? (
+        <div style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
+          The breakdown can be edited while the record is a draft. Click “Edit Record” first.
+        </div>
+      ) : !editing ? (
+        <button
+          onClick={() => { setText(rows.map((r) => [r.post, r.count, r.payScale ?? ""].join(" | ").replace(/ \| $/, "")).join("\n")); setErr(null); setEditing(true); }}
+          style={{ background: "none", border: "none", color: C.accent, cursor: "pointer", fontSize: 12, padding: 0, marginTop: 12 }}
+        >
+          {rows.length ? "Edit breakdown" : "Add post-wise numbers"}
+        </button>
+      ) : (
+        <div style={{ marginTop: 12, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: 12 }}>
+          <label style={labelStyle} htmlFor="vacancy-breakdown-rows">One post per line: Post name | number | pay scale (optional)</label>
+          <textarea
+            id="vacancy-breakdown-rows"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            style={{ ...inputStyle, height: 160, resize: "vertical" }}
+            placeholder={"Warder (RPC) | 560\nInstructor Grade-II (RPC) | 16\nJailor (Kalyana Karnataka) | 5 | ₹61,300 – ₹1,12,900"}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+            <button
+              onClick={() => { void save(); }}
+              disabled={saving}
+              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              {saving ? "Saving…" : "Save breakdown"}
+            </button>
+            <button onClick={() => setEditing(false)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>
+              Cancel
+            </button>
+          </div>
+          {err && <div role="alert" style={{ color: C.red, fontSize: 12, marginTop: 8 }}>{err}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Date fields helper ───────────────────────────────────
 
 const DATE_FIELDS: Array<{ key: keyof RecruitmentRecord["dates"]; label: string }> = [
@@ -1126,17 +1238,30 @@ export default function CmsRecordEditorPage() {
     }
   }
 
-  async function handleAiAssist() {
+  // With a file, the PDF itself is sent along with the address it came from.
+  async function handleAiAssist(file?: File) {
     if (!aiUrl.trim() || !record) return;
     setAiLoading(true);
     setAiError(null);
     setAiResult(null);
     try {
-      const res = await fetch(`/api/admin/cms/records/${id}/ai-assist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: aiUrl.trim() }),
-      });
+      let res: Response;
+      if (file) {
+        const form = new FormData();
+        form.set("url", aiUrl.trim());
+        form.set("file", file);
+        res = await fetch(`/api/admin/cms/records/${id}/ai-assist`, { method: "POST", body: form });
+      } else {
+        res = await fetch(`/api/admin/cms/records/${id}/ai-assist`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: aiUrl.trim() }),
+        });
+      }
+      if (res.status === 413) {
+        setAiError("This PDF is larger than 4 MB, which is the most that can be uploaded here.");
+        return;
+      }
       const data = await res.json();
       if (!res.ok) {
         setAiError(data.error ?? `HTTP ${res.status}`);
@@ -1507,6 +1632,24 @@ export default function CmsRecordEditorPage() {
                   {aiLoading ? "Extracting…" : "Assist with AI"}
                 </button>
               </div>
+              <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+                Link gives an error? Some official sites block us. Download the PDF yourself, keep its link in the box, then{" "}
+                <label style={{ color: aiLoading || !aiUrl.trim() ? C.muted : C.accent, cursor: aiLoading || !aiUrl.trim() ? "not-allowed" : "pointer", fontWeight: 600 }}>
+                  upload the PDF
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    disabled={aiLoading || !aiUrl.trim()}
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) void handleAiAssist(file);
+                    }}
+                  />
+                </label>
+                {" "}(up to 4 MB).
+              </div>
 
               {aiError && (
                 <div style={{ color: C.red, fontSize: 12, padding: "8px 12px", background: C.red + "11", borderRadius: 5, border: `1px solid ${C.red}33`, marginBottom: 12 }}>
@@ -1763,28 +1906,7 @@ export default function CmsRecordEditorPage() {
                 Breakdown
                 {record.vacancies.breakdown && <Badge status={record.vacancies.breakdown.status} />}
               </div>
-              {record.vacancies.breakdown?.value ? (
-                <table style={{ fontSize: 13, width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr>
-                      {["Post", "Count", "Pay Scale"].map((h) => (
-                        <th key={h} style={{ textAlign: "left", padding: "6px 10px", borderBottom: `1px solid ${C.border}`, color: C.muted, fontSize: 11 }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {record.vacancies.breakdown.value.map((row, i) => (
-                      <tr key={i}>
-                        <td style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>{row.post}</td>
-                        <td style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>{row.count}</td>
-                        <td style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}`, color: C.muted }}>{row.payScale ?? "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div style={{ color: C.muted, fontSize: 13 }}>No breakdown set. (Promote from IntelligenceDraft or enter manually in Phase E)</div>
-              )}
+              <VacancyBreakdownEditor record={record} onSaved={onFieldSaved} />
             </div>
           </Section>
         )}

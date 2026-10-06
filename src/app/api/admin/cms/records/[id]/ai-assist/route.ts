@@ -54,6 +54,9 @@ interface AiAssistRequest {
   url: string;
 }
 
+// Vercel refuses request bodies over 4.5 MB before they reach this route.
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
 export interface AiAssistFilledEntry {
   fieldPath: string;
   label: string;
@@ -98,16 +101,45 @@ export async function POST(
 
   const { id } = await params;
 
-  let body: AiAssistRequest;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  // Two ways in: JSON { url } to fetch the source, or a form with the PDF
+  // itself plus the address it was downloaded from. The second exists because
+  // several official sites refuse requests from the server.
+  let url: unknown;
+  let upload: Buffer | null = null;
+  if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return NextResponse.json({ error: "Could not read the uploaded file" }, { status: 400 });
+    }
+    url = form.get("url");
+    const file = form.get("file");
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "Choose a PDF file to upload" }, { status: 400 });
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json({ error: "This PDF is larger than 4 MB, which is the most that can be uploaded here" }, { status: 413 });
+    }
+    upload = Buffer.from(await file.arrayBuffer());
+    if (upload.subarray(0, 5).toString("latin1") !== "%PDF-") {
+      return NextResponse.json({ error: "That file is not a PDF" }, { status: 400 });
+    }
+  } else {
+    let body: AiAssistRequest;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    url = body.url;
   }
 
-  const { url } = body;
   if (!url || typeof url !== "string") {
-    return NextResponse.json({ error: "url is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: upload ? "Paste the address this PDF was downloaded from, then upload it" : "url is required" },
+      { status: 400 },
+    );
   }
 
   let parsedUrl: URL;
@@ -120,6 +152,9 @@ export async function POST(
     return NextResponse.json({ error: "URL must use http or https" }, { status: 400 });
   }
 
+  // Shown in the change history, so a later reader knows the file was supplied by hand.
+  const sourceLabel = upload ? `${url} (PDF uploaded by admin)` : url;
+
   let record = await getRecruitmentById(id);
   if (!record) {
     return NextResponse.json({ error: "Record not found" }, { status: 404 });
@@ -131,20 +166,30 @@ export async function POST(
     );
   }
 
-  // Fetch the source, then resolve it to HTML or PDF text
+  // Read the uploaded PDF, or fetch the source and resolve it to HTML or PDF text
   let source;
   try {
-    const { fetchHtmlContent } = await import("@/intelligence/fetcher");
-    const { fetchResult, htmlContent } = await fetchHtmlContent(url, { maxRetries: 1 });
-    source = await resolveSourceContent(
-      {
-        ok: fetchResult.status === "OK",
-        contentType: fetchResult.contentType,
-        error: fetchResult.error,
-        htmlContent,
-      },
-      url,
-    );
+    if (upload) {
+      const { extractPdfFromBuffer } = await import("@/intelligence/pdf-extractor");
+      const buf = upload;
+      source = await resolveSourceContent(
+        { ok: true, contentType: "application/pdf", htmlContent: null },
+        url,
+        async () => extractPdfFromBuffer(buf),
+      );
+    } else {
+      const { fetchHtmlContent } = await import("@/intelligence/fetcher");
+      const { fetchResult, htmlContent } = await fetchHtmlContent(url, { maxRetries: 1 });
+      source = await resolveSourceContent(
+        {
+          ok: fetchResult.status === "OK",
+          contentType: fetchResult.contentType,
+          error: fetchResult.error,
+          htmlContent,
+        },
+        url,
+      );
+    }
   } catch (err) {
     return NextResponse.json({ error: `Fetch failed: ${String(err)}` }, { status: 422 });
   }
@@ -251,7 +296,7 @@ export async function POST(
           fieldPath,
           pending(value) as ProvenanceField<unknown>,
           auth.adminId,
-          aiAssistReason(url, "filled"),
+          aiAssistReason(sourceLabel, "filled"),
         );
         const { record: saved } = await persistFieldUpdate(result, record.recordRevision);
         record = saved;
@@ -289,7 +334,7 @@ export async function POST(
         "classification",
         pending(listing.value) as ProvenanceField<unknown>,
         auth.adminId,
-        aiAssistReason(url, "filled"),
+        aiAssistReason(sourceLabel, "filled"),
       );
       const { record: saved } = await persistFieldUpdate(result, record.recordRevision);
       record = saved;
