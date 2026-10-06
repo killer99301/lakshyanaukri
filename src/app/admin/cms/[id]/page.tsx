@@ -1231,6 +1231,9 @@ export default function CmsRecordEditorPage() {
           "Published, but the public site cache could not be refreshed. The public pages will update after the next deployment.",
         );
       }
+      if (publishData.announced === "failed") {
+        setPublishSeqErr("Published. The Telegram channel post did not go through — post it by hand if you want it there.");
+      }
     } catch (e) {
       setPublishSeqErr(String(e));
     } finally {

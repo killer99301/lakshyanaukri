@@ -25,6 +25,7 @@ import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { getRecruitmentById, persistPublication } from "@/lib/cms/repository";
 import { projectToPublished, PROJECTION_VERSION } from "@/lib/cms/projector";
 import { sql } from "@/lib/db";
+import { buildJobAnnouncement, sendToChannel, type AnnouncementResult } from "@/lib/telegram";
 
 export async function POST(
   request: NextRequest,
@@ -91,6 +92,8 @@ export async function POST(
 
   // ── Persist ───────────────────────────────────────────────
   try {
+    // Asked before the write, so the channel post can say "New" or "Updated".
+    const earlier = await sql`SELECT 1 FROM published_recruitments WHERE recruitment_id = ${id} LIMIT 1`;
     const published = await persistPublication(record, snapshot, PROJECTION_VERSION, auth.adminId);
 
     // Public pages are statically cached. Without this, a new or updated job
@@ -107,7 +110,12 @@ export async function POST(
       console.error("[CMS] published, but public cache revalidation failed", err);
     }
 
-    return NextResponse.json({ record: published, revalidated });
+    // The job is live at this point; a failed channel post never undoes that.
+    const announced: AnnouncementResult = await sendToChannel(
+      buildJobAnnouncement(snapshot, earlier.length > 0 ? "UPDATED" : "NEW"),
+    );
+
+    return NextResponse.json({ record: published, revalidated, announced });
   } catch (err) {
     const msg = String(err);
     if (msg.includes("state") && msg.includes("APPROVED")) {
