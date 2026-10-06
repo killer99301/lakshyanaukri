@@ -1044,7 +1044,10 @@ function countPending(record: RecruitmentRecord): number {
   return fields.filter((f) => f && typeof f === "object" && hasValue(f) && f.status === "PENDING").length;
 }
 
+// Shown on drafts and on live jobs. On a live job it is a reading of what the
+// public page still lacks; nothing changes until Edit Record and a new publish.
 function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJump: (section: string) => void }) {
+  const live = record.draftState === "PUBLISHED";
   const items: Array<{ label: string; section: string; done: boolean; required?: boolean }> = [
     { label: "Official link",    section: "Links",        done: record.links.some((l) => l.official), required: true },
     { label: "Last date",        section: "Dates",        done: hasValue(record.dates.applicationCloseDate) },
@@ -1065,7 +1068,9 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
     <div style={{ ...PANEL, padding: "16px 18px", marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
-          {blocked ? "Not ready to publish yet" : done === items.length ? "Ready to publish" : "Can be published — some details are still empty"}
+          {live
+            ? done === items.length ? "Live — nothing is missing" : `Live — ${items.length - done} detail${items.length - done === 1 ? " is" : "s are"} still empty on the public page`
+            : blocked ? "Not ready to publish yet" : done === items.length ? "Ready to publish" : "Can be published — some details are still empty"}
         </div>
         <div style={{ fontSize: 12, color: C.muted }}>{done} of {items.length} filled</div>
       </div>
@@ -1092,14 +1097,14 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
           </button>
         ))}
       </div>
-      {blocked && (
+      {blocked && !live && (
         <div style={{ fontSize: 12, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>
           Publishing needs at least one link marked official. Open <b style={{ color: C.text }}>Links</b>, or run AI Assist and click “Add as official link”.
         </div>
       )}
       {pending > 0 && (
         <div style={{ fontSize: 12, color: C.amber, marginTop: 8, lineHeight: 1.5 }}>
-          {pending} value{pending === 1 ? " is" : "s are"} marked Pending — check {pending === 1 ? "it" : "them"} against the official notification before publishing.
+          {pending} value{pending === 1 ? " is" : "s are"} marked Pending — check {pending === 1 ? "it" : "them"} against the official notification{live ? ". Click Edit Record to change anything." : " before publishing."}
         </div>
       )}
     </div>
@@ -1564,7 +1569,7 @@ export default function CmsRecordEditorPage() {
           </div>
         </div>
 
-        {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
+        {record.draftState !== "ARCHIVED" && (
           <PublishChecklist record={record} onJump={setActiveSection} />
         )}
 
