@@ -17,6 +17,7 @@ import {
   Compass,
 } from "lucide-react";
 import { siteConfig } from "@/config/site";
+import { formatDate } from "@/lib/utils";
 import type { Opportunity } from "@/types";
 import { OrganizationLogo } from "@/components/common/OrganizationLogo";
 import {
@@ -120,7 +121,7 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                     <span>Official Update • {latestUpdate.type.replace(/_/g, " ")}</span>
                   </span>
                   <span className="text-xs text-amber-950 font-extrabold">
-                    Published: {latestUpdate.date}
+                    Published: {formatDate(latestUpdate.date)}
                   </span>
                 </div>
                 <h4 className="text-sm sm:text-base font-black text-[#0F172A] leading-snug">{latestUpdate.title}</h4>

@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { UrgencyInfo } from "@/types";
+import { formatDate } from "@/lib/utils";
 
 /**
  * Convert days remaining into urgency tier, display label, and Tailwind classes.
@@ -96,9 +97,5 @@ export function getDeadlineUrgency(
  * Format a deadline date for display.
  */
 export function formatDeadlineDate(dateIso: string): string {
-  return new Date(dateIso).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDate(dateIso);
 }

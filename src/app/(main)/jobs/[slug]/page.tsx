@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { getBySlug, getAllSlugs, getRelated } from "@/lib/repository";
 import { siteConfig } from "@/config/site";
+import { formatDate } from "@/lib/utils";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobSectionTabs } from "@/components/jobs/JobSectionTabs";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
@@ -118,10 +119,8 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
   // Related Jobs in same category/state from canonical repository
   const relatedJobs = getRelated(job, 4);
 
-  const asOfDate =
-    job.type === "government" && job.ageLimit?.asOf
-      ? job.ageLimit.asOf
-      : "2026-08-01";
+  // The cutoff date is shown only when the record states one; never a stand-in.
+  const asOfDate = job.type === "government" ? job.ageLimit?.asOf : undefined;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-16 pt-4 relative">
@@ -187,7 +186,9 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
                 </div>
               </div>
               <p className="text-xs text-[#475569] leading-relaxed">
-                Check exact age as of cutoff date ({asOfDate}) with category relaxations.
+                {asOfDate
+                  ? `Check your exact age as of the cutoff date (${formatDate(asOfDate)}), with category relaxations.`
+                  : "Check your exact age against the cutoff date in the notification, with category relaxations."}
               </p>
               <a
                 href={(job.type === "government" ? job.ecosystem?.calcInfinityAge : undefined) || "https://calcinfinity.com/age-calculator"}

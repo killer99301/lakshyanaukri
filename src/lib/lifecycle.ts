@@ -14,6 +14,7 @@ import type {
   Opportunity,
   UpdateRecord,
 } from "@/types";
+import { formatDate } from "@/lib/utils";
 
 // ─── Date Helpers ────────────────────────────────────────
 
@@ -413,11 +414,7 @@ export function getProvenanceSummary(opp: Opportunity): ProvenanceSummary {
 
   const status = statusMap[provenance.status] ?? statusMap.NOT_VERIFIED;
 
-  const lastVerifiedDate = new Date(provenance.lastVerifiedAt).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const lastVerifiedDate = formatDate(provenance.lastVerifiedAt);
 
   return {
     statusLabel: status.label,

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { FileText, ExternalLink, ShieldCheck, AlertCircle } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 interface OfficialNotificationCardProps {
   notificationPdfUrl?: string;
@@ -39,7 +40,7 @@ export const OfficialNotificationCard: React.FC<OfficialNotificationCardProps> =
           {sourceName && (
             <p className="text-[11px] text-slate-400 font-medium">
               Source: <span className="text-slate-200 font-semibold">{sourceName}</span>
-              {verifiedAt && ` • Verified: ${verifiedAt}`}
+              {verifiedAt && ` • Checked: ${formatDate(verifiedAt)}`}
             </p>
           )}
         </div>

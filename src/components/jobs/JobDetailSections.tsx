@@ -17,6 +17,7 @@ import {
 import type { Opportunity } from "@/types";
 import { getVacancyDisplay, getStageCertainty, getCategoryLabel } from "@/lib/lifecycle";
 import { resolveDocumentAccess } from "@/lib/documents";
+import { formatDate } from "@/lib/utils";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
 import { RecruitmentTimeline } from "@/components/jobs/RecruitmentTimeline";
 
@@ -150,7 +151,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                       <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded">
                         {item.type}
                       </span>
-                      <span className="text-xs font-bold text-amber-950">Published Date: {item.date}</span>
+                      <span className="text-xs font-bold text-amber-950">Published Date: {formatDate(item.date)}</span>
                     </div>
 
                     {docAccess.isAvailable && docAccess.url && (
@@ -218,31 +219,31 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
             <tbody className="divide-y divide-slate-100">
               <tr className="text-[#0F172A]">
                 <td className="py-3.5 px-4 font-semibold">Application Open Date</td>
-                <td className="py-3.5 px-4 text-right font-bold">{job.application.openDate}</td>
+                <td className="py-3.5 px-4 text-right font-bold">{formatDate(job.application.openDate)}</td>
               </tr>
               <tr className="bg-[#FFF7ED] text-[#EA580C]">
                 <td className="py-3.5 px-4 font-extrabold">Application Closing Date</td>
                 <td className="py-3.5 px-4 text-right font-extrabold">
                   {isGov && job.application.extendedCloseDate ? (
                     <span>
-                      {job.application.extendedCloseDate}{" "}
+                      {formatDate(job.application.extendedCloseDate)}{" "}
                       <span className="text-[10px] underline font-bold">(Extended)</span>
                     </span>
                   ) : (
-                    job.application.closeDate
+                    formatDate(job.application.closeDate)
                   )}
                 </td>
               </tr>
               {isGov && job.application.feeDeadline && (
                 <tr className="text-[#0F172A]">
                   <td className="py-3.5 px-4 font-semibold">Last Date for Fee Payment</td>
-                  <td className="py-3.5 px-4 text-right font-bold">{job.application.feeDeadline}</td>
+                  <td className="py-3.5 px-4 text-right font-bold">{formatDate(job.application.feeDeadline)}</td>
                 </tr>
               )}
               {isGov && job.application.correctionWindowEnd && (
                 <tr className="text-[#0F172A]">
                   <td className="py-3.5 px-4 font-semibold">Application Correction Window Closes</td>
-                  <td className="py-3.5 px-4 text-right font-bold">{job.application.correctionWindowEnd}</td>
+                  <td className="py-3.5 px-4 text-right font-bold">{formatDate(job.application.correctionWindowEnd)}</td>
                 </tr>
               )}
               {isGov && job.examStages && job.examStages.length > 0 && (
@@ -309,7 +310,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                               : "text-[#0F172A]"
                           }`}
                         >
-                          {stage.dateDisplay || stage.dateIso || "TBA"}
+                          {stage.dateDisplay || (stage.dateIso ? formatDate(stage.dateIso) : "TBA")}
                         </span>
                         {(() => {
                           const stageDoc = resolveDocumentAccess({
@@ -434,7 +435,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                 </div>
                 {job.ageLimit.asOf && (
                   <p className="text-[11px] font-semibold text-slate-500">
-                    Calculated as of: {job.ageLimit.asOf}
+                    Calculated as of: {formatDate(job.ageLimit.asOf)}
                   </p>
                 )}
                 {job.ageLimit.relaxation && job.ageLimit.relaxation.length > 0 && (

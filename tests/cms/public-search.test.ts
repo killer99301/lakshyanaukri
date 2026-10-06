@@ -14,6 +14,7 @@
 import { suite, test, assert } from "../intelligence/suite";
 import type { Opportunity } from "@/types";
 import { lifecycleLinksFrom, lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
+import { formatDate } from "@/lib/utils";
 import { textSearch, searchWords, closestMatches, sortOpportunities, isNewlyAdded, jobsLinkCount, type SortOption } from "@/lib/filters";
 
 const job = (o: Record<string, unknown>): Opportunity =>
@@ -215,4 +216,16 @@ test("PS14 saved copies are listed and labelled; unofficial links without a sour
   assert.deepEqual(mine[0].savedCopy, { from: "https://www.ibps.in/result.pdf", host: "ibps.in", on: "2026-10-04" });
   assert.equal(mine[1].savedCopy, undefined);
   assert.equal(lifecycleLinksFrom([snap]).results.length, 1);
+});
+
+suite("Dates shown to visitors");
+
+test("PS15 day, then month, then year; the same text on every machine", () => {
+  assert.equal(formatDate("2026-10-01"), "1 Oct 2026");
+  assert.equal(formatDate("2026-09-07"), "7 Sep 2026");
+  assert.equal(formatDate("2026-10-04T13:13:35.555Z"), "4 Oct 2026");
+  // Text that is not a date is left as written; nothing is shown for nothing.
+  assert.equal(formatDate("December 2026"), "December 2026");
+  assert.equal(formatDate("Nov–Dec 2026"), "Nov–Dec 2026");
+  assert.equal(formatDate(""), "");
 });
