@@ -46,13 +46,16 @@ export const siteConfig = {
       // Offered to someone about to fill a form, ONLY on exam and job notices
       // still open for application (components/jobs/MuhuratCard.tsx) — not on
       // the home page, footer or listings, which link to `url`.
-      panchangUrl: "https://anantamarg.com/panchang",
-      // The Muhurat finder. Its "Exam Form / Job Application" purpose
-      // ("Starting Important Work") was built on 2026-10-06 but was not yet on
-      // the live site. Set formMuhuratLive to true once anantamarg.com/muhurat
-      // offers it; until then only the panchang link is shown.
+      // "Today's panchang & Rahu Kaal" opens AnantaMarg's home page, which
+      // leads with today's panchang (the owner's choice, 2026-10-06).
+      panchangUrl: "https://anantamarg.com",
+      // The "Check Muhurat" button beside Apply Online opens the Muhurat
+      // finder directly. Its "Exam Form / Job Application" purpose
+      // ("Starting Important Work") was built on 2026-10-06 and was not yet on
+      // the live site that day — check anantamarg.com/muhurat offers it before
+      // deploying. Set formMuhuratLive to false to hide every muhurat link.
       muhuratUrl: "https://anantamarg.com/muhurat",
-      formMuhuratLive: false,
+      formMuhuratLive: true,
     },
   },
 };

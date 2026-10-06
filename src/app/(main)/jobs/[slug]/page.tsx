@@ -13,7 +13,7 @@ import { JobSectionTabs } from "@/components/jobs/JobSectionTabs";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
 import { OfficialNotificationCard } from "@/components/jobs/OfficialNotificationCard";
 import { JobDownloads } from "@/components/lifecycle/LifecycleLinkList";
-import { MuhuratCard, MuhuratPrompt } from "@/components/jobs/MuhuratCard";
+import { MuhuratCard } from "@/components/jobs/MuhuratCard";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 
@@ -134,9 +134,6 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
       <PageReveal className="relative z-10 container mx-auto px-4 max-w-7xl space-y-6">
         {/* Header Hero */}
         <JobDetailHeader job={job} />
-
-        {/* For someone about to apply: shown only while applications are open */}
-        <MuhuratPrompt job={job} />
 
         {/* Sticky Section Nav */}
         <JobSectionTabs />

@@ -14,7 +14,9 @@ import {
   AlertTriangle,
   Lock,
   ShieldCheck,
+  Compass,
 } from "lucide-react";
+import { siteConfig } from "@/config/site";
 import type { Opportunity } from "@/types";
 import { OrganizationLogo } from "@/components/common/OrganizationLogo";
 import {
@@ -246,6 +248,20 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                     >
                       <span>Apply Online</span>
                       <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+
+                  {/* Beside Apply, only while applications are open: AnantaMarg's muhurat finder */}
+                  {job.type === "government" && siteConfig.ecosystem.anantamarg.formMuhuratLive && (
+                    <a
+                      href={siteConfig.ecosystem.anantamarg.muhuratUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-[#6D28D9] text-white font-extrabold text-sm shadow-md shadow-violet-500/20 hover:bg-[#5B21B6] hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                      title="Good days to fill this form, on AnantaMarg. Your deadline comes first."
+                    >
+                      <Compass className="h-4 w-4" />
+                      <span>Check Muhurat</span>
                     </a>
                   )}
 

@@ -10,8 +10,9 @@ import { siteConfig } from "@/config/site";
 // AnantaMarg links for someone about to fill a form
 // ═══════════════════════════════════════════════════════════
 //
-// Offered on every exam or job notice that can still be applied for — beside
-// the apply button, with the how-to-apply steps, and in the sidebar. Never on
+// Offered on every exam or job notice that can still be applied for — with the
+// how-to-apply steps and in the sidebar. (The "Check Muhurat" button beside
+// Apply Online lives in JobDetailHeader.) Never on
 // the home page, listings, results pages or closed notices: a good day to
 // apply means nothing where there is nothing to apply to.
 //
@@ -30,13 +31,12 @@ function linksFor(job: Opportunity): MuhuratLink[] {
   if (getOpportunityApplicationStatus(job, new Date()) === "APPLICATIONS_CLOSED") return [];
   const { anantamarg } = siteConfig.ecosystem;
   const links: MuhuratLink[] = [];
-  // The muhurat finder gains its "Exam Form / Job Application" purpose in a later AnantaMarg release.
   if (anantamarg.formMuhuratLive) links.push({ label: "Best muhurat to fill the form", href: anantamarg.muhuratUrl });
   links.push({ label: "Today's panchang & Rahu Kaal", href: anantamarg.panchangUrl });
   return links;
 }
 
-/** One compact line, for beside the apply button and under the how-to-apply steps. */
+/** One compact line, shown under the how-to-apply steps. */
 export function MuhuratPrompt({ job, className }: { job: Opportunity; className?: string }) {
   const links = linksFor(job);
   if (links.length === 0) return null;
