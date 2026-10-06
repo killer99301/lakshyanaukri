@@ -18,6 +18,7 @@ import type { Opportunity } from "@/types";
 import { getVacancyDisplay, getStageCertainty, getCategoryLabel } from "@/lib/lifecycle";
 import { resolveDocumentAccess } from "@/lib/documents";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
+import { RecruitmentTimeline } from "@/components/jobs/RecruitmentTimeline";
 
 interface JobDetailSectionsProps {
   job: Opportunity;
@@ -202,6 +203,9 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
           </div>
           <h2 className="text-lg font-black text-[#0F172A]">Important Dates & Schedule</h2>
         </div>
+
+        {/* What's next and the dated path, from the same dates and stages as the table below */}
+        <RecruitmentTimeline job={job} />
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs sm:text-sm">

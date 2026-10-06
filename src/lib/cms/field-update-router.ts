@@ -38,6 +38,7 @@ import {
   updateLinks,
   updateHowToApply,
   updateClassification,
+  updateExamStages,
   type FieldUpdateResult,
 } from "@/lib/cms/record-ops";
 
@@ -174,6 +175,9 @@ export function routeFieldUpdate(
     return updateLinks(record, newField.value, adminId, reason);
   }
 
+  if (fieldPath === "examStages") {
+    return updateExamStages(record, newField.value, adminId, reason);
+  }
   if (fieldPath === "howToApply") {
     return updateHowToApply(record, newField.value, adminId, reason);
   }
@@ -193,7 +197,7 @@ export function routeFieldUpdate(
 
   throw new Error(
     `Unknown or unroutable fieldPath: "${fieldPath}". ` +
-      `Known blocks: eligibility, age, selection, vacancies.breakdown, vacancies.total, links, howToApply, classification, lifecycle.statusOverride. ` +
+      `Known blocks: eligibility, age, selection, vacancies.breakdown, vacancies.total, links, howToApply, examStages, classification, lifecycle.statusOverride. ` +
       `Namespace prefixes: identity., dates., financial.`,
   );
 }

@@ -21,11 +21,12 @@ import type {
   CmsRecruitmentLink,
   RecruitmentLinkType,
 } from "@/types/recruitment-record";
-import type { ExamStage, UpdateRecord, ExamStageStatus } from "@/types";
+import type { UpdateRecord } from "@/types";
 import { projectForPreview } from "@/lib/cms/projector";
 import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
 import { savedFilePath, savedFileProblem, MAX_SAVED_FILE_LABEL, SAVED_FILE_CONTENT_TYPE } from "@/lib/cms/saved-files";
 import { aiAssistReason, buildAiField, describeAiValue } from "@/lib/cms/ai-assist-apply";
+import { ExamStagesEditor } from "./ExamStagesEditor";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
 import { OfficialNotificationCard } from "@/components/jobs/OfficialNotificationCard";
@@ -361,7 +362,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 async function saveListField(
   recordId: string,
   recordRevision: string,
-  fieldPath: "links" | "howToApply" | "classification",
+  fieldPath: "links" | "howToApply" | "classification" | "examStages",
   value: unknown,
   reason: string,
 ): Promise<{ record?: RecruitmentRecord; error?: string }> {
@@ -1866,18 +1867,15 @@ export default function CmsRecordEditorPage() {
         {/* ── Exam Stages ── */}
         {activeSection === "Exam Stages" && (
           <Section title="Exam Stages">
-            {!record.examStages?.length ? (
-              <div style={{ color: C.muted, fontSize: 13 }}>No exam stages defined yet.</div>
-            ) : (
-              <div>
-                {record.examStages.map((stage, i) => (
-                  <ExamStageCard key={i} stage={stage} />
-                ))}
-              </div>
-            )}
-            <div style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
-              Exam stage editing is in the Phase E promotion form.
-            </div>
+            <ExamStagesEditor
+              record={record}
+              onSave={async (stages, reason) => {
+                const out = await saveListField(record.id, record.recordRevision, "examStages", stages, reason);
+                if (out.error || !out.record) return out.error ?? "Save failed";
+                onFieldSaved(out.record);
+                return null;
+              }}
+            />
           </Section>
         )}
 
@@ -2258,71 +2256,6 @@ function LifecycleStatusSelect({
         <Row label="Conflicts" value={record.lifecycle.conflicts.length === 0 ? "None" : `${record.lifecycle.conflicts.filter((c) => !c.resolvedAt).length} unresolved`} />
         <Row label="Events" value={String(record.lifecycle.events.length)} />
       </div>
-    </div>
-  );
-}
-
-// ─── Exam Stage Card ──────────────────────────────────────
-
-const STAGE_STATUS_COLORS: Record<ExamStageStatus, string> = {
-  NOT_DECLARED: C.muted,
-  SCHEDULED: C.accent,
-  ADMIT_CARD_OUT: C.accent,
-  POSTPONED: C.amber,
-  CONDUCTED: C.green,
-  RESULT_DECLARED: C.green,
-};
-
-function ExamStageCard({ stage }: { stage: ExamStage }) {
-  const statusColor = STAGE_STATUS_COLORS[stage.status] ?? C.muted;
-  return (
-    <div style={{
-      marginBottom: 12,
-      padding: "12px 14px",
-      background: C.bg,
-      border: `1px solid ${C.border}`,
-      borderRadius: 6,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 11, color: C.muted, fontWeight: 600, minWidth: 20 }}>{stage.order}.</span>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>{stage.name}</span>
-        <span style={{
-          display: "inline-block",
-          padding: "1px 8px",
-          borderRadius: 4,
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          background: statusColor + "22",
-          color: statusColor,
-          border: `1px solid ${statusColor}44`,
-        }}>
-          {stage.status.replace(/_/g, " ")}
-        </span>
-        {stage.certainty && stage.certainty !== "CONFIRMED" && (
-          <span style={{ fontSize: 11, color: C.amber, fontStyle: "italic" }}>
-            {stage.certainty.toLowerCase()}
-          </span>
-        )}
-      </div>
-      <div style={{ fontSize: 13, color: C.muted, display: "flex", gap: 16, flexWrap: "wrap" }}>
-        {stage.dateDisplay && (
-          <span>📅 {stage.dateDisplay}{stage.dateIso ? ` (${stage.dateIso})` : ""}</span>
-        )}
-        {stage.dateProvenance && (
-          <span style={{ fontStyle: "italic" }}>via {stage.dateProvenance}</span>
-        )}
-      </div>
-      {stage.noticeUrl && (
-        <a href={stage.noticeUrl} target="_blank" rel="noopener noreferrer"
-          style={{ fontSize: 12, color: C.accent, marginTop: 6, display: "block" }}>
-          Official Notice ↗
-        </a>
-      )}
-      {stage.notes && (
-        <div style={{ marginTop: 8, fontSize: 12, color: C.muted, fontStyle: "italic" }}>{stage.notes}</div>
-      )}
     </div>
   );
 }

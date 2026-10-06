@@ -16,6 +16,8 @@
 
 import { randomUUID } from "node:crypto";
 
+import type { ExamStage } from "@/types";
+
 import type {
   RecruitmentRecord,
   FieldRevision,
@@ -714,6 +716,104 @@ export function updateLinks(
   return {
     record: updated,
     revision: buildFieldRevision(record.id, "links", record.links, cleaned, adminId, reason),
+  };
+}
+
+// ─── Exam stages ──────────────────────────────────────────
+//
+// The ordered stages of a recruitment after the application window: Tier-I,
+// Tier-II, document verification and so on. One list feeds the public dates
+// table, the timeline, "What's next" and (later) the exam calendar.
+//
+// Nothing is inferred: a stage with no date is stored with no date.
+
+export const EXAM_STAGE_STATUSES = [
+  "NOT_DECLARED", "SCHEDULED", "ADMIT_CARD_OUT", "POSTPONED", "CONDUCTED", "RESULT_DECLARED",
+] as const;
+export const EXAM_STAGE_CERTAINTIES = ["CONFIRMED", "TENTATIVE", "POSTPONED", "TBA"] as const;
+const MAX_EXAM_STAGES = 12;
+
+const isIsoDate = (v: unknown): v is string => {
+  if (typeof v !== "string" || !/^20\d{2}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+};
+
+export function updateExamStages(
+  record: RecruitmentRecord,
+  stages: unknown,
+  adminId: string,
+  reason?: string,
+): FieldUpdateResult {
+  if (!Array.isArray(stages)) throw new Error("examStages invariant: value must be an array");
+  if (stages.length > MAX_EXAM_STAGES) throw new Error(`examStages invariant: at most ${MAX_EXAM_STAGES} stages`);
+
+  const text = (v: unknown, max: number, what: string, i: number): string | undefined => {
+    if (v === undefined || v === null || v === "") return undefined;
+    if (typeof v !== "string") throw new Error(`examStages invariant: stage ${i + 1} ${what} must be text`);
+    const t = v.replace(/\s+/g, " ").trim();
+    if (t.length > max) throw new Error(`examStages invariant: stage ${i + 1} ${what} is at most ${max} characters`);
+    return t || undefined;
+  };
+
+  const cleaned: ExamStage[] = stages.map((raw, i) => {
+    const s = (raw ?? {}) as Record<string, unknown>;
+    const name = text(s.name, 80, "name", i);
+    if (!name) throw new Error(`examStages invariant: stage ${i + 1} needs a name`);
+    if (typeof s.status !== "string" || !(EXAM_STAGE_STATUSES as readonly string[]).includes(s.status)) {
+      throw new Error(`examStages invariant: stage ${i + 1} has an unknown status`);
+    }
+    if (s.dateIso !== undefined && s.dateIso !== null && s.dateIso !== "" && !isIsoDate(s.dateIso)) {
+      throw new Error(`examStages invariant: stage ${i + 1} date must be a real date (YYYY-MM-DD)`);
+    }
+    const dateIso = isIsoDate(s.dateIso) ? s.dateIso : undefined;
+    const dateDisplay = text(s.dateDisplay, 60, "date text", i);
+    const hasDate = Boolean(dateIso || dateDisplay);
+
+    let certainty: ExamStage["certainty"];
+    if (s.certainty !== undefined && s.certainty !== null && s.certainty !== "") {
+      if (typeof s.certainty !== "string" || !(EXAM_STAGE_CERTAINTIES as readonly string[]).includes(s.certainty)) {
+        throw new Error(`examStages invariant: stage ${i + 1} has an unknown date certainty`);
+      }
+      certainty = s.certainty as ExamStage["certainty"];
+    }
+    // A date must say whether it is confirmed; a stage with no date cannot claim one.
+    if (hasDate && (!certainty || certainty === "TBA")) {
+      throw new Error(`examStages invariant: stage ${i + 1} has a date, so say whether it is confirmed or tentative`);
+    }
+    if (!hasDate && (certainty === "CONFIRMED" || certainty === "TENTATIVE")) {
+      throw new Error(`examStages invariant: stage ${i + 1} is marked ${certainty.toLowerCase()} but has no date`);
+    }
+    if (s.status === "SCHEDULED" && !hasDate) {
+      throw new Error(`examStages invariant: stage ${i + 1} is scheduled, so it needs a date`);
+    }
+
+    const noticeUrl = text(s.noticeUrl, 500, "notice link", i);
+    if (noticeUrl && !isHttpUrl(noticeUrl)) {
+      throw new Error(`examStages invariant: stage ${i + 1} notice link must be a valid http(s) URL`);
+    }
+
+    return {
+      name,
+      order: i + 1,
+      status: s.status as ExamStage["status"],
+      ...(certainty ? { certainty } : hasDate ? {} : { certainty: "TBA" as const }),
+      ...(dateDisplay ? { dateDisplay } : {}),
+      ...(dateIso ? { dateIso } : {}),
+      ...(text(s.dateProvenance, 120, "date source", i) ? { dateProvenance: text(s.dateProvenance, 120, "date source", i) } : {}),
+      ...(noticeUrl ? { noticeUrl } : {}),
+      ...(text(s.notes, 200, "note", i) ? { notes: text(s.notes, 200, "note", i) } : {}),
+    };
+  });
+
+  const updated = cloneRecord(record);
+  updated.examStages = cleaned;
+  updated.updatedAt = now();
+  updated.updatedBy = adminId;
+
+  return {
+    record: updated,
+    revision: buildFieldRevision(record.id, "examStages", record.examStages ?? [], cleaned, adminId, reason),
   };
 }
 
