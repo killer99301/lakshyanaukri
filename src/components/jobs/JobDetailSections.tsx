@@ -511,7 +511,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                     <tr key={idx} className="text-[#0F172A] font-semibold">
                       <td className="py-3 px-4 font-bold">{fee.category}</td>
                       <td className="py-3 px-4 text-right font-black text-[#EA580C]">
-                        {fee.note || (fee.amount !== null ? `₹${fee.amount}` : "Nil")}
+                        {fee.note || (fee.amount ? `₹${fee.amount.toLocaleString("en-IN")}` : "Nil")}
                       </td>
                     </tr>
                   ))}
