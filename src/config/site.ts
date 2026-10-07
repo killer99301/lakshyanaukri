@@ -49,13 +49,13 @@ export const siteConfig = {
       // "Today's panchang & Rahu Kaal" opens AnantaMarg's home page, which
       // leads with today's panchang (the owner's choice, 2026-10-06).
       panchangUrl: "https://anantamarg.com",
-      // The "Check Muhurat" button beside Apply Online opens the Muhurat
-      // finder directly. Its "Exam Form / Job Application" purpose
-      // ("Starting Important Work") was built on 2026-10-06 and was not yet on
-      // the live site that day — check anantamarg.com/muhurat offers it before
-      // deploying. Set formMuhuratLive to false to hide every muhurat link.
+      // The "Muhurat" button beside Apply Online opens the Muhurat finder.
+      // Its "Exam Form / Job Application" purpose went live on 2026-10-07.
+      // The visitor picks that purpose on the page; AnantaMarg has no link
+      // that opens with it already chosen. Set formMuhuratLive to false to
+      // hide every muhurat link.
       muhuratUrl: "https://anantamarg.com/muhurat",
-      formMuhuratLive: false,
+      formMuhuratLive: true,
     },
   },
 };
