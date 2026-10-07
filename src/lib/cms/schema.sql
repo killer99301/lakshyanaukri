@@ -165,6 +165,23 @@ CREATE INDEX IF NOT EXISTS idx_recruitment_audit_events_recruitment_id
 CREATE INDEX IF NOT EXISTS idx_recruitment_audit_events_event_type
   ON recruitment_audit_events(event_type, created_at DESC);
 
+-- ─── Syllabus library (added 2026-10-07) ─────────────────────
+-- One prepared content file per recurring exam. Offered to the admin as a
+-- suggestion when a job title matches; never applied to a record by itself.
+-- Applied to production by scripts/cms-add-syllabus-library.ts.
+
+CREATE TABLE IF NOT EXISTS syllabus_library (
+  id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  exam_key    VARCHAR(160) NOT NULL UNIQUE,
+  exam        VARCHAR(160) NOT NULL,
+  match_terms JSONB        NOT NULL,
+  basis       TEXT,
+  content     TEXT         NOT NULL,
+  updated_by  UUID         REFERENCES admins(id),
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
 -- ─── Phase F Migration (applied 2026-09-20) ──────────────────
 -- Adds plain classification metadata block.
 -- Safe to re-run (IF NOT EXISTS).

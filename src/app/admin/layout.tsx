@@ -6,6 +6,7 @@ import { BrandMark } from "@/components/common/BrandMark";
 
 const NAV = [
   { href: "/admin/cms",          label: "Jobs",         hint: "Create, edit and publish job records" },
+  { href: "/admin/library",      label: "Syllabus",     hint: "Prepared syllabus files, one per recurring exam" },
   { href: "/admin/intake",       label: "Intake",       hint: "Turn a notification URL or PDF into a draft" },
   { href: "/admin/review",       label: "Review",       hint: "Drafts waiting for your decision" },
   { href: "/admin/history",      label: "History",      hint: "What was done and when" },

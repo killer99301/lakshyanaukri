@@ -9,10 +9,15 @@
 // admin sees exactly what was read, and every warning, before anything is
 // saved. Saving replaces the current exam pattern and/or syllabus, as Pending,
 // through the normal field route.
+//
+// It also offers files from the syllabus library whose match words fit this
+// job. Choosing one only loads it into the same box, so it is read, checked
+// and saved exactly like a pasted file.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
 import { parseContentFile } from "@/lib/cms/content-import";
+import { stripLibraryBlock, suggestFromLibrary, type LibraryEntrySummary } from "@/lib/cms/syllabus-library";
 
 const C = {
   bg: "#070b16", border: "rgba(148,163,184,0.14)", text: "#e2e8f0", muted: "#8c9bb8",
@@ -29,6 +34,44 @@ export function ContentImportBox({ record, onSaveMany }: { record: RecruitmentRe
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [library, setLibrary] = useState<LibraryEntrySummary[]>([]);
+  const [fromLibrary, setFromLibrary] = useState<LibraryEntrySummary | null>(null);
+  const [loadingEntry, setLoadingEntry] = useState(false);
+
+  // The library is only a convenience: if it cannot be read, the paste box still works.
+  useEffect(() => {
+    if (!editable) return;
+    let alive = true;
+    fetch("/api/admin/cms/syllabus-library")
+      .then((res) => (res.ok ? res.json() : { entries: [] }))
+      .then((data) => { if (alive) setLibrary(data.entries ?? []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [editable]);
+
+  const suggested = useMemo(
+    () => suggestFromLibrary(library, [record.identity.title?.value, record.identity.shortTitle?.value, record.identity.organizationName]),
+    [library, record.identity.title?.value, record.identity.shortTitle?.value, record.identity.organizationName],
+  );
+  const others = library.filter((e) => !suggested.includes(e));
+
+  async function loadEntry(id: string) {
+    setLoadingEntry(true);
+    setErr(null);
+    setDone(null);
+    try {
+      const res = await fetch(`/api/admin/cms/syllabus-library?id=${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (!res.ok || !data.entry) throw new Error(data.error ?? "That library file could not be loaded.");
+      setText(stripLibraryBlock(data.entry.content));
+      setFromLibrary(data.entry);
+      setOpen(true);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "That library file could not be loaded.");
+    } finally {
+      setLoadingEntry(false);
+    }
+  }
 
   const read = useMemo(() => (text.trim() ? parseContentFile(text) : null), [text]);
   const papers = read?.examPattern.length ?? 0;
@@ -41,14 +84,15 @@ export function ContentImportBox({ record, onSaveMany }: { record: RecruitmentRe
   async function save() {
     if (!read) return;
     const blocks: Block[] = [];
-    if (papers > 0) blocks.push({ fieldPath: "examPattern", value: read.examPattern, reason: "Exam pattern pasted from a prepared file" });
-    if (subjects > 0) blocks.push({ fieldPath: "syllabus", value: read.syllabus, reason: "Syllabus pasted from a prepared file" });
+    if (papers > 0) blocks.push({ fieldPath: "examPattern", value: read.examPattern, reason: fromLibrary ? `Exam pattern taken from the syllabus library (${fromLibrary.exam})` : "Exam pattern pasted from a prepared file" });
+    if (subjects > 0) blocks.push({ fieldPath: "syllabus", value: read.syllabus, reason: fromLibrary ? `Syllabus taken from the syllabus library (${fromLibrary.exam})` : "Syllabus pasted from a prepared file" });
     if (blocks.length === 0) { setErr("Nothing in this text could be read as an exam pattern or a syllabus."); return; }
     setSaving(true);
     setErr(null);
     const problem = await onSaveMany(blocks);
     setSaving(false);
     if (problem) { setErr(problem.replace(/^.*invariant:\s*/, "")); return; }
+    setFromLibrary(null);
     setDone(`Saved ${[papers > 0 ? `${papers} paper${papers === 1 ? "" : "s"}` : "", subjects > 0 ? `${subjects} subject${subjects === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ")} as Pending.`);
     setText("");
     setOpen(false);
@@ -60,18 +104,52 @@ export function ContentImportBox({ record, onSaveMany }: { record: RecruitmentRe
     return (
       <div style={{ marginBottom: 14 }}>
         <button
-          onClick={() => { setOpen(true); setErr(null); setDone(null); }}
+          onClick={() => { setOpen(true); setFromLibrary(null); setErr(null); setDone(null); }}
           style={{ background: "none", border: `1px dashed ${C.border}`, color: C.accent, cursor: "pointer", fontSize: 12, padding: "6px 12px", borderRadius: 6 }}
         >
           Paste a prepared file (exam pattern and syllabus together)
         </button>
         {done && <span role="status" style={{ color: C.green, fontSize: 12, marginLeft: 10 }}>{done}</span>}
+        {library.length > 0 && (
+          <div style={{ marginTop: 10, fontSize: 12, color: C.muted, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            {suggested.length > 0 ? <span style={{ color: C.text }}>The syllabus library has a file that looks like this exam:</span> : <span>Nothing in the syllabus library matches this job’s title.</span>}
+            {suggested.map((e) => (
+              <button
+                key={e.id}
+                onClick={() => { void loadEntry(e.id); }}
+                disabled={loadingEntry}
+                style={{ background: "rgba(98,181,255,0.1)", border: `1px solid ${C.accent}`, color: C.accent, cursor: loadingEntry ? "wait" : "pointer", fontSize: 12, padding: "4px 10px", borderRadius: 6 }}
+              >
+                Look at “{e.exam}”
+              </button>
+            ))}
+            {others.length > 0 && (
+              <select
+                aria-label="Choose another library file"
+                value=""
+                disabled={loadingEntry}
+                onChange={(e) => { if (e.target.value) void loadEntry(e.target.value); }}
+                style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12, padding: "4px 8px", borderRadius: 6 }}
+              >
+                <option value="">{suggested.length > 0 ? "or choose another…" : "Choose from the library…"}</option>
+                {others.map((e) => <option key={e.id} value={e.id}>{e.exam}</option>)}
+              </select>
+            )}
+          </div>
+        )}
+        {err && <div role="alert" style={{ color: C.red, fontSize: 12, marginTop: 8 }}>{err}</div>}
       </div>
     );
   }
 
   return (
     <div style={{ marginBottom: 16, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: 12 }}>
+      {fromLibrary && (
+        <div role="note" style={{ color: C.amber, fontSize: 12, marginBottom: 8, lineHeight: 1.5 }}>
+          From the syllabus library: “{fromLibrary.exam}”, kept since {new Date(fromLibrary.updatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.
+          {" "}It was written for an earlier cycle of this exam. Compare it with this job’s notification, correct it here, then save. Nothing is saved until you press the button.
+        </div>
+      )}
       <label htmlFor="content-import-text" style={{ display: "block", fontSize: 11, color: C.muted, marginBottom: 4, fontWeight: 500 }}>
         Paste the whole file, including its SOURCE, EXAM PATTERN and SYLLABUS headings
       </label>
@@ -115,7 +193,7 @@ export function ContentImportBox({ record, onSaveMany }: { record: RecruitmentRe
         >
           {saving ? "Saving…" : "Save what was read"}
         </button>
-        <button onClick={() => { setOpen(false); setText(""); }} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>
+        <button onClick={() => { setOpen(false); setText(""); setFromLibrary(null); }} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>
           Cancel
         </button>
       </div>
