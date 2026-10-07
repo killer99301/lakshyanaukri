@@ -93,6 +93,10 @@ test("SY05 whole words only: Graduate is not offered on an Undergraduate job", (
   assert.deepEqual(offered("RRB NTPC Undergraduate Level Recruitment (CEN 07/2026)"), ["RRB NTPC (Undergraduate)", "RRB (any)"]);
   assert.deepEqual(offered("RRB NTPC Graduate Level Recruitment (CEN 06/2026)"), ["RRB NTPC (Graduate)", "RRB (any)"]);
   assert.deepEqual(offered("RRBs Group D"), []);
+  // Notices also write it as two words, or hyphenated.
+  assert.deepEqual(offered("RRB NTPC Under Graduate Level (CEN 07/2026)"), ["RRB NTPC (Undergraduate)", "RRB (any)"]);
+  assert.deepEqual(offered("RRB NTPC Under-Graduate Posts"), ["RRB NTPC (Undergraduate)", "RRB (any)"]);
+  assert.deepEqual(suggestFromLibrary([{ exam: "Graduate file", match: ["kvs graduate teacher"] }], ["KVS Post Graduate Teacher 2026"]), []);
 });
 
 test("SY06 the most specific match comes first", () => {

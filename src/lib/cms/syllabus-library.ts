@@ -34,9 +34,14 @@ export interface LibraryEntrySummary {
   updatedAt: string;
 }
 
-/** Lower-case words and numbers; "RRB-NTPC (Graduate)" → ["rrb", "ntpc", "graduate"]. */
+/**
+ * Lower-case words and numbers; "RRB-NTPC (Graduate)" → ["rrb", "ntpc", "graduate"].
+ * "Under Graduate" and "Post Graduate" are read as one word each, so a file for
+ * a graduate-level exam is not offered on an "Under Graduate Level" job.
+ */
 export function tokens(text: string): string[] {
-  return text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  const joined = text.toLowerCase().replace(/\b(under|post)[\s-]+graduate/g, "$1graduate");
+  return joined.match(/[a-z0-9]+/g) ?? [];
 }
 
 /** The address-like key one exam is stored under: "SSC CHSL (10+2)" → "ssc-chsl-10-2". */
