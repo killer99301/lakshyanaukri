@@ -7,8 +7,9 @@
 //  AG01  age in completed years, months and days, across month and leap-year edges
 //  AG02  bad or future dates of birth give no age
 //  EL01  inside the limits; below the minimum; no upper limit
-//  EL02  exactly the upper age on the cut-off date is within
-//  EL03  completed the upper age but not the next birthday → check the notice
+//  EL02  turning the upper age on the cut-off date itself is not "within"
+//  EL03  already past the upper age but not the next birthday → flagged, never "within"
+//  EL08  matches the date-of-birth table an RRB notice prints for 18 to 33
 //  EL04  category relaxation is used only for that category, and only if printed
 //  EL05  disability rows apply only when ticked; category-specific row preferred
 //  EL06  ex-servicemen and similar rows are never applied
@@ -60,13 +61,32 @@ test("EL01 inside the limits; below the minimum; no upper limit", () => {
   assert.equal(checkAge({ min: 21, asOf: "2026-06-01" }, "1970-01-01", "GEN", false).verdict, "WITHIN");
 });
 
-test("EL02 exactly the upper age on the cut-off date is within", () => {
+test("EL02 turning the upper age on the cut-off date itself is not \"within\"", () => {
   const out = checkAge(LIMIT, "1999-06-01", "GEN", false);
-  assert.equal(out.verdict, "WITHIN");
+  assert.equal(out.verdict, "CHECK_NOTICE");
   assert.deepEqual(out.age, { years: 27, months: 0, days: 0 });
+  // One day younger has not turned 27 yet.
+  assert.equal(checkAge(LIMIT, "1999-06-02", "GEN", false).verdict, "WITHIN");
+  // Turning the minimum age on the cut-off date is enough.
+  assert.equal(checkAge(LIMIT, "2008-06-01", "GEN", false).verdict, "WITHIN");
 });
 
-test("EL03 completed the upper age but not the next birthday → check the notice", () => {
+// CEN 05/2026, para 5.1: for the 18-33 group as on 01.01.2027, date of birth
+// not after 01.01.2009 and not earlier than 02.01.1994 (UR), 02.01.1991 (OBC-NCL),
+// 02.01.1989 (SC/ST).
+test("EL08 matches the date-of-birth table an RRB notice prints for 18 to 33", () => {
+  const rrb: AgeLimit = { min: 18, max: 33, asOf: "2027-01-01", relaxation: [{ category: "SC & ST", years: 5 }, { category: "OBC (Non-Creamy Layer)", years: 3 }] };
+  assert.equal(checkAge(rrb, "2009-01-01", "GEN", false).verdict, "WITHIN");
+  assert.equal(checkAge(rrb, "2009-01-02", "GEN", false).verdict, "TOO_YOUNG");
+  assert.equal(checkAge(rrb, "1994-01-02", "GEN", false).verdict, "WITHIN");
+  assert.notEqual(checkAge(rrb, "1994-01-01", "GEN", false).verdict, "WITHIN");
+  assert.equal(checkAge(rrb, "1991-01-02", "OBC", false).verdict, "WITHIN_RELAXED");
+  assert.notEqual(checkAge(rrb, "1991-01-01", "OBC", false).verdict, "WITHIN_RELAXED");
+  assert.equal(checkAge(rrb, "1989-01-02", "SC", false).verdict, "WITHIN_RELAXED");
+  assert.notEqual(checkAge(rrb, "1989-01-01", "ST", false).verdict, "WITHIN_RELAXED");
+});
+
+test("EL03 already past the upper age but not the next birthday → flagged, never \"within\"", () => {
   assert.equal(checkAge(LIMIT, "1999-01-15", "GEN", false).verdict, "CHECK_NOTICE");
   assert.equal(checkAge(LIMIT, "1998-05-31", "GEN", false).verdict, "TOO_OLD");
   // With relaxation the same edge moves to the relaxed limit.

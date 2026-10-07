@@ -100,7 +100,7 @@ export function findRelaxation(
 export type AgeVerdict =
   | "WITHIN"            // inside the printed limits
   | "WITHIN_RELAXED"    // inside only because of a printed relaxation
-  | "CHECK_NOTICE"      // has completed the upper age but not the next birthday
+  | "CHECK_NOTICE"      // has already turned the upper age: over the limit under most notices
   | "TOO_YOUNG"
   | "TOO_OLD"
   | "UNKNOWN";          // the record cannot answer
@@ -161,8 +161,12 @@ export function checkAge(limit: AgeLimit | undefined, dobIso: string, category: 
   if (limit.min != null && age.years < limit.min) return { verdict: "TOO_YOUNG", age };
   if (limit.max == null) return { verdict: "WITHIN", age };
 
-  const exactly = (years: number) => age.years === years && age.months === 0 && age.days === 0;
-  const under = (max: number) => age.years < max || exactly(max);
+  // "18 to 27 as on 1 June" is printed by SSC, RRB, UPSC, IBPS and most others
+  // as a date-of-birth range that stops one day short of the 27th birthday: the
+  // candidate must not have turned 27 by that date. So only someone who has not
+  // yet completed the upper age is clearly inside; someone who turns it on the
+  // cut-off date itself is not.
+  const under = (max: number) => age.years < max;
 
   if (under(limit.max)) return { verdict: "WITHIN", age };
 

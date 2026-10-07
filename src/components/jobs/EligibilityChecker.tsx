@@ -20,7 +20,7 @@ const TONE: Record<AgeVerdict, { box: string; icon: React.ReactNode; title: stri
   CHECK_NOTICE: {
     box: "bg-amber-50 border-amber-200 text-amber-900",
     icon: <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />,
-    title: "You are right at the upper limit — check the notice",
+    title: "You are probably over the upper age limit",
   },
   TOO_YOUNG: {
     box: "bg-red-50 border-red-200 text-red-900",
@@ -152,8 +152,9 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
             )}
             {result.verdict === "CHECK_NOTICE" && (
               <p className="text-xs font-semibold">
-                You have completed {result.effectiveMax ?? limit?.max} years but not your next birthday. Some notices allow this and some do not;
-                look for the date-of-birth range in the official notification.
+                You will already have turned {result.effectiveMax ?? limit?.max} on that date. Most notices (SSC, RRB, UPSC, IBPS and others) mean you
+                must not have reached that age, which puts you over the limit. A few count the whole year; the date-of-birth range in the official
+                notification settles it.
               </p>
             )}
             {result.verdict === "TOO_OLD" && !result.relaxation && (
