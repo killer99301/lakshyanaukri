@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { AttentionPanel } from "./AttentionPanel";
 
 const S = {
   header: {
@@ -184,6 +185,8 @@ export default function CmsListPage() {
         </div>
         <Link href="/admin/cms/new" style={S.btn}>+ New job</Link>
       </div>
+
+      <AttentionPanel />
 
       {records.length === 0 ? (
         <div style={{ ...S.card, ...S.empty }}>

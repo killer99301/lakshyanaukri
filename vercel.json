@@ -1,6 +1,12 @@
 {
   "framework": "nextjs",
   "ignoreCommand": "git diff HEAD~1 HEAD --name-only | grep -qE '^(src/|scripts/validate\\.ts|next\\.config\\.|package(-lock)?\\.json|vercel\\.json|tsconfig\\.json|postcss\\.config\\.|public/)' || exit 0; exit 1",
+  "crons": [
+    {
+      "path": "/api/cron/attention",
+      "schedule": "30 2 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

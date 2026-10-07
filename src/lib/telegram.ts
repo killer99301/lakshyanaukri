@@ -46,6 +46,31 @@ export function telegramConfigured(env: Record<string, string | undefined> = pro
 
 type FetchLike = (url: string, init: RequestInit) => Promise<{ ok: boolean; status: number }>;
 
+async function send(chatId: string, text: string, token: string, fetchFn: FetchLike, what: string): Promise<AnnouncementResult> {
+  try {
+    const res = await fetchFn(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "HTML",
+        link_preview_options: { is_disabled: true },
+      }),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) {
+      // Status only: the URL holds the token and must not reach the logs.
+      console.error(`[Telegram] ${what} refused with HTTP ${res.status}`);
+      return "failed";
+    }
+    return "sent";
+  } catch (err) {
+    console.error(`[Telegram] ${what} failed:`, err instanceof Error ? err.name : "error");
+    return "failed";
+  }
+}
+
 /**
  * Post one message to the channel. Resolves to what happened; never throws.
  * `fetchFn` exists so tests can run without the network.
@@ -56,27 +81,23 @@ export async function sendToChannel(
   fetchFn: FetchLike = fetch,
 ): Promise<AnnouncementResult> {
   if (!telegramConfigured(env)) return "skipped";
-  const token = env.TELEGRAM_BOT_TOKEN!.trim();
-  try {
-    const res = await fetchFn(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: env.TELEGRAM_CHANNEL_ID!.trim(),
-        text,
-        parse_mode: "HTML",
-        link_preview_options: { is_disabled: true },
-      }),
-      signal: AbortSignal.timeout(6000),
-    });
-    if (!res.ok) {
-      // Status only: the URL holds the token and must not reach the logs.
-      console.error(`[Telegram] channel post refused with HTTP ${res.status}`);
-      return "failed";
-    }
-    return "sent";
-  } catch (err) {
-    console.error("[Telegram] channel post failed:", err instanceof Error ? err.name : "error");
-    return "failed";
-  }
+  return send(env.TELEGRAM_CHANNEL_ID!.trim(), text, env.TELEGRAM_BOT_TOKEN!.trim(), fetchFn, "channel post");
+}
+
+/** True when the bot can message the site's owner privately. */
+export function adminChatConfigured(env: Record<string, string | undefined> = process.env): boolean {
+  return Boolean(env.TELEGRAM_BOT_TOKEN?.trim() && env.TELEGRAM_ADMIN_CHAT_ID?.trim());
+}
+
+/**
+ * Send one private message to the owner's own chat (TELEGRAM_ADMIN_CHAT_ID).
+ * Never goes to the public channel. Resolves to what happened; never throws.
+ */
+export async function sendToAdmin(
+  text: string,
+  env: Record<string, string | undefined> = process.env,
+  fetchFn: FetchLike = fetch,
+): Promise<AnnouncementResult> {
+  if (!adminChatConfigured(env)) return "skipped";
+  return send(env.TELEGRAM_ADMIN_CHAT_ID!.trim(), text, env.TELEGRAM_BOT_TOKEN!.trim(), fetchFn, "admin message");
 }

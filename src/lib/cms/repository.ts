@@ -112,6 +112,17 @@ export async function getRecruitmentById(id: string): Promise<RecruitmentRecord 
   return rowToRecord(rows[0] as RecruitmentRow);
 }
 
+/** Every record the public can see: published at least once and not archived. */
+export async function listLiveRecruitments(): Promise<RecruitmentRecord[]> {
+  const rows = await sql`
+    SELECT * FROM recruitments
+    WHERE published_at IS NOT NULL AND draft_state <> 'ARCHIVED'
+    ORDER BY updated_at DESC
+    LIMIT 500
+  `;
+  return (rows as RecruitmentRow[]).map(rowToRecord);
+}
+
 export async function getRecruitmentBySlug(slug: string): Promise<RecruitmentRecord | null> {
   const rows = await sql`
     SELECT * FROM recruitments WHERE slug = ${slug} LIMIT 1
