@@ -845,8 +845,8 @@ export function cleanExamPattern(value: unknown): ExamPatternPaper[] {
   if (value.length > 8) throw new Error("examPattern invariant: at most 8 papers");
   return value.map((raw, i) => {
     const p = (raw ?? {}) as Record<string, unknown>;
-    const name = tidy(p.name, 80);
-    if (!name) throw new Error(`examPattern invariant: paper ${i + 1} needs a name`);
+    const name = tidy(p.name, 140);
+    if (!name) throw new Error(`examPattern invariant: paper ${i + 1} needs a name of at most 140 characters`);
     if (p.sections !== undefined && !Array.isArray(p.sections)) {
       throw new Error(`examPattern invariant: paper ${i + 1} sections must be a list`);
     }
@@ -854,18 +854,18 @@ export function cleanExamPattern(value: unknown): ExamPatternPaper[] {
     if (rawSections.length > 15) throw new Error(`examPattern invariant: paper ${i + 1} has more than 15 subjects`);
     const sections: ExamPatternSection[] = rawSections.map((rs, j) => {
       const s = (rs ?? {}) as Record<string, unknown>;
-      const subject = tidy(s.subject, 100);
-      if (!subject) throw new Error(`examPattern invariant: paper ${i + 1}, subject ${j + 1} needs a name`);
+      const subject = tidy(s.subject, 200);
+      if (!subject) throw new Error(`examPattern invariant: paper ${i + 1}, subject ${j + 1} needs a name of at most 200 characters`);
       const questions = wholeNumber(s.questions, 1000);
       const marks = marksNumber(s.marks, 2000);
       return { subject, ...(questions ? { questions } : {}), ...(marks ? { marks } : {}) };
     });
     const mode = tidy(p.mode, 80);
     const durationMinutes = wholeNumber(p.durationMinutes, 600);
-    const negativeMarking = tidy(p.negativeMarking, 160);
+    const negativeMarking = tidy(p.negativeMarking, 240);
     const totalQuestions = wholeNumber(p.totalQuestions, 2000);
     const totalMarks = marksNumber(p.totalMarks, 5000);
-    const note = tidy(p.note, 200);
+    const note = tidy(p.note, 600);
     return {
       name,
       ...(mode ? { mode } : {}),

@@ -29,6 +29,7 @@ import { aiAssistReason, buildAiField, describeAiValue } from "@/lib/cms/ai-assi
 import { ExamStagesEditor } from "./ExamStagesEditor";
 import { ExamPatternEditor, SyllabusEditor } from "./PatternSyllabusEditors";
 import { AgeEditor } from "./AgeEditor";
+import { ContentImportBox } from "./ContentImportBox";
 import { EligibilityEditor, SelectionEditor } from "./EligibilitySelectionEditors";
 import { InfoTip, HELP } from "../InfoTip";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
@@ -1187,6 +1188,23 @@ export default function CmsRecordEditorPage() {
     return null;
   }
 
+  // Several blocks saved one after another, each on the revision the last one
+  // returned. Stops at the first refusal; what was saved before it stays saved.
+  async function saveBlocks(blocks: Array<{ fieldPath: "examPattern" | "syllabus"; value: unknown; reason: string }>): Promise<string | null> {
+    if (!record) return "Record not loaded";
+    let current = record;
+    for (const block of blocks) {
+      const out = await saveListField(current.id, current.recordRevision, block.fieldPath, block.value, block.reason);
+      if (out.error || !out.record) {
+        if (current !== record) onFieldSaved(current);
+        return out.error ?? "Save failed";
+      }
+      current = out.record;
+    }
+    onFieldSaved(current);
+    return null;
+  }
+
   function onFieldSaved(updated: RecruitmentRecord) {
     setRecord(updated);
     void loadRevisions();
@@ -2076,6 +2094,7 @@ export default function CmsRecordEditorPage() {
         {/* ── Exam Pattern ── */}
         {activeSection === "Exam Pattern" && (
           <Section title="Exam Pattern">
+            <ContentImportBox record={record} onSaveMany={saveBlocks} />
             <ExamPatternEditor record={record} onSave={saveBlock} />
           </Section>
         )}
@@ -2083,6 +2102,7 @@ export default function CmsRecordEditorPage() {
         {/* ── Syllabus ── */}
         {activeSection === "Syllabus" && (
           <Section title="Syllabus">
+            <ContentImportBox record={record} onSaveMany={saveBlocks} />
             <SyllabusEditor record={record} onSave={saveBlock} />
           </Section>
         )}
