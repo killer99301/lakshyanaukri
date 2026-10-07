@@ -26,16 +26,20 @@ const label: React.CSSProperties = { display: "block", fontSize: 11, color: C.mu
 
 type SaveFn = (fieldPath: "age", value: unknown, reason: string) => Promise<string | null>;
 
-interface Draft { min: string; max: string; asOf: string; relaxations: string; postWise: string }
+interface Draft { min: string; max: string; asOf: string; bornFrom: string; bornTo: string; relaxations: string; postWise: string }
 
 const toDraft = (age: AgeCriteria | null | undefined): Draft => ({
   min: age?.min != null ? String(age.min) : "",
   max: age?.max != null ? String(age.max) : "",
   asOf: age?.asOf ?? "",
+  bornFrom: age?.bornFrom ?? "",
+  bornTo: age?.bornTo ?? "",
   relaxations: (age?.relaxations ?? [])
     .map((r) => [r.category, r.years != null ? String(r.years) : r.text ?? ""].join(" | "))
     .join("\n"),
-  postWise: (age?.postWise ?? []).map((p) => [p.post, p.min ?? "", p.max ?? ""].join(" | ")).join("\n"),
+  postWise: (age?.postWise ?? [])
+    .map((p) => (p.bornFrom || p.bornTo ? [p.post, showDate(p.bornFrom), showDate(p.bornTo)] : [p.post, p.min ?? "", p.max ?? ""]).join(" | "))
+    .join("\n"),
 });
 
 const lines = (text: string) => text.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -43,6 +47,18 @@ const whole = (text: string | undefined): number | undefined => {
   const t = (text ?? "").trim();
   return /^\d{1,2}$/.test(t) ? Number(t) : undefined;
 };
+
+// Dates are typed the way notices print them, day first: 01-11-2005 (or 01/11/2005).
+function showDate(iso: string | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? "");
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+}
+function readDate(text: string | undefined): string | undefined {
+  const t = (text ?? "").trim();
+  const dayFirst = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/.exec(t);
+  if (dayFirst) return `${dayFirst[3]}-${dayFirst[2].padStart(2, "0")}-${dayFirst[1].padStart(2, "0")}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : undefined;
+}
 
 /** Turns the typed form into an age limit, or says which line is wrong. */
 function fromDraft(d: Draft): { value?: AgeCriteria; error?: string } {
@@ -60,8 +76,15 @@ function fromDraft(d: Draft): { value?: AgeCriteria; error?: string } {
     const [post, min, max] = line.split("|").map((p) => p.trim());
     const lo = whole(min);
     const hi = whole(max);
+    const from = readDate(min);
+    const to = readDate(max);
+    if (post && (from || to)) {
+      // "Navik (GD) | 01-11-2005 | 01-05-2009": a date-of-birth window.
+      postWise.push({ post, ...(from ? { bornFrom: from } : {}), ...(to ? { bornTo: to } : {}) });
+      continue;
+    }
     if (!post || (lo === undefined && hi === undefined)) {
-      return { error: `Post-wise ages, line ${i + 1}: write it as “Post | minimum | maximum”, for example “Pharmacist | 20 | 35”.` };
+      return { error: `Post-wise, line ${i + 1}: write it as “Post | minimum | maximum” (for example “Pharmacist | 20 | 35”), or with dates of birth as “Post | 01-11-2005 | 01-05-2009”.` };
     }
     postWise.push({ post, ...(lo !== undefined ? { min: lo } : {}), ...(hi !== undefined ? { max: hi } : {}) });
   }
@@ -74,6 +97,8 @@ function fromDraft(d: Draft): { value?: AgeCriteria; error?: string } {
       ...(whole(d.min) !== undefined ? { min: whole(d.min) } : {}),
       ...(whole(d.max) !== undefined ? { max: whole(d.max) } : {}),
       ...(d.asOf ? { asOf: d.asOf } : {}),
+      ...(d.bornFrom ? { bornFrom: d.bornFrom } : {}),
+      ...(d.bornTo ? { bornTo: d.bornTo } : {}),
       relaxations,
       ...(postWise.length ? { postWise } : {}),
     },
@@ -136,7 +161,21 @@ export function AgeEditor({ record, onSave }: { record: RecruitmentRecord; onSav
         </div>
       </div>
       <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>
-        If the ages differ by post, put the widest range here and list each post below. Without the “counted on” date, the public age checker stays hidden.
+        If the ages differ by post, put the widest range here and list each post below. An age range needs the “counted on” date for the public age checker to work.
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
+        <div>
+          <label style={label} htmlFor="age-born-from">Born on or after (if the notice gives dates of birth)</label>
+          <input id="age-born-from" type="date" style={input} value={draft.bornFrom} onChange={(e) => set("bornFrom", e.target.value)} />
+        </div>
+        <div>
+          <label style={label} htmlFor="age-born-to">Born on or before</label>
+          <input id="age-born-to" type="date" style={input} value={draft.bornTo} onChange={(e) => set("bornTo", e.target.value)} />
+        </div>
+      </div>
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>
+        Use these only when the notice prints one date-of-birth range for everyone. Leave the ages above empty in that case; do not work ages out from the dates.
       </div>
 
       <div style={{ marginTop: 12 }}>
@@ -151,7 +190,7 @@ export function AgeEditor({ record, onSave }: { record: RecruitmentRecord; onSav
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <label style={label} htmlFor="age-post-wise">Post-wise ages, if the notice gives them — one per line: Post | minimum | maximum</label>
+        <label style={label} htmlFor="age-post-wise">Post-wise, if the notice gives them — one per line: Post | minimum | maximum, or Post | earliest date of birth | latest date of birth</label>
         <textarea
           id="age-post-wise"
           value={draft.postWise}

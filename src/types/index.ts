@@ -181,6 +181,9 @@ export interface PostAgeRange {
   post: string;
   min?: number;
   max?: number;
+  /** Some notices give a date-of-birth window instead of ages. ISO dates, both inclusive. */
+  bornFrom?: string;
+  bornTo?: string;
 }
 
 export interface AgeLimit {
@@ -189,6 +192,9 @@ export interface AgeLimit {
   asOf?: string;                  // ISO cutoff date; optional — not always stated
   relaxation?: AgeRelaxation[];
   postWise?: PostAgeRange[];
+  /** Date-of-birth window for the whole recruitment, where the notice gives one. ISO, inclusive. */
+  bornFrom?: string;
+  bornTo?: string;
 }
 
 export type Experience =

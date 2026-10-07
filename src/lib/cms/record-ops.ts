@@ -772,7 +772,20 @@ export function cleanAge(value: unknown): AgeCriteria {
     return { ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) };
   };
 
-  const overall = range(v, "the");
+  // A date-of-birth window, as some notices print it in place of ages.
+  const born = (raw: Record<string, unknown>, where: string): { bornFrom?: string; bornTo?: string } => {
+    const out: { bornFrom?: string; bornTo?: string } = {};
+    for (const key of ["bornFrom", "bornTo"] as const) {
+      const value = raw[key];
+      if (value === undefined || value === null || value === "") continue;
+      if (!isIsoDate(value)) throw new Error(`age invariant: ${where} date of birth must be a real date, written YYYY-MM-DD`);
+      out[key] = value;
+    }
+    if (out.bornFrom && out.bornTo && out.bornFrom > out.bornTo) throw new Error(`age invariant: ${where} earliest date of birth is after the latest`);
+    return out;
+  };
+
+  const overall = { ...range(v, "the"), ...born(v, "the") };
 
   let asOf: string | undefined;
   if (v.asOf !== undefined && v.asOf !== null && v.asOf !== "") {
@@ -800,13 +813,15 @@ export function cleanAge(value: unknown): AgeCriteria {
     const r = (raw ?? {}) as Record<string, unknown>;
     const post = tidy(r.post, 160);
     if (!post) throw new Error(`age invariant: post-wise row ${i + 1} needs a post name`);
-    const ages = range(r, `"${post}"`);
-    if (ages.min === undefined && ages.max === undefined) throw new Error(`age invariant: "${post}" needs a minimum or maximum age`);
+    const ages = { ...range(r, `"${post}"`), ...born(r, `"${post}"`) };
+    if (ages.min === undefined && ages.max === undefined && !ages.bornFrom && !ages.bornTo) {
+      throw new Error(`age invariant: "${post}" needs a minimum or maximum age, or a date-of-birth range`);
+    }
     return { post, ...ages };
   });
 
-  if (overall.min === undefined && overall.max === undefined && postWise.length === 0) {
-    throw new Error("age invariant: enter a minimum or maximum age, or the ages post by post");
+  if (overall.min === undefined && overall.max === undefined && !overall.bornFrom && !overall.bornTo && postWise.length === 0) {
+    throw new Error("age invariant: enter a minimum or maximum age, a date-of-birth range, or the ages post by post");
   }
 
   return { ...overall, ...(asOf ? { asOf } : {}), relaxations, ...(postWise.length ? { postWise } : {}) };

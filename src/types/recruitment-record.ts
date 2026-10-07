@@ -160,6 +160,9 @@ export interface AgeCriteria {
   relaxations: AgeRelaxation[];
   /** When the notice gives a different range for each post. min/max above are then the widest range. */
   postWise?: PostAgeRange[];
+  /** Date-of-birth window for the whole recruitment, where the notice gives one. ISO, inclusive. */
+  bornFrom?: string;
+  bornTo?: string;
 }
 
 // ─── RecruitmentPost — block element for eligibility ─────

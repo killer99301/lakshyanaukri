@@ -1974,18 +1974,21 @@ export default function CmsRecordEditorPage() {
               label="Age Block"
               field={record.age}
               renderContent={(val: unknown) => {
-                const age = val as { min?: number; max?: number; asOf?: string; relaxations?: Array<{ category: string; years?: number; text?: string }>; postWise?: Array<{ post: string; min?: number; max?: number }> };
+                const age = val as { min?: number; max?: number; asOf?: string; relaxations?: Array<{ category: string; years?: number; text?: string }>; postWise?: Array<{ post: string; min?: number; max?: number; bornFrom?: string; bornTo?: string }>; bornFrom?: string; bornTo?: string };
                 return (
                   <div>
                     {(age.min || age.max) && (
                       <Row label="Age Range" value={`${age.min ?? "—"} – ${age.max ?? "—"} years (as of ${age.asOf ?? "not specified"})`} />
+                    )}
+                    {(age.bornFrom || age.bornTo) && (
+                      <Row label="Date of birth" value={`${age.bornFrom ?? "any date"} to ${age.bornTo ?? "any date"}`} />
                     )}
                     {age.postWise?.length ? (
                       <div style={{ marginTop: 10 }}>
                         <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 6 }}>POST-WISE</div>
                         {age.postWise.map((p, i) => (
                           <div key={i} style={{ fontSize: 13, marginBottom: 4 }}>
-                            {p.post}: {p.min ?? "—"} – {p.max ?? "—"} years
+                            {p.post}: {p.bornFrom || p.bornTo ? `born ${p.bornFrom ?? "any date"} to ${p.bornTo ?? "any date"}` : `${p.min ?? "—"} – ${p.max ?? "—"} years`}
                           </div>
                         ))}
                       </div>

@@ -9,6 +9,8 @@
 //  AL03  bad ages, dates, relaxations and post rows are rejected with a plain reason
 //  AL04  an age limit needs an overall range or post-wise rows
 //  AL05  the age checker answers for the chosen post's own range
+//  AL06  date-of-birth windows are kept as printed and no ages are worked out
+//  AL07  the age checker compares the date of birth with the window, both ends included
 // ═══════════════════════════════════════════════════════════
 
 import { suite, test, assert } from "../intelligence/suite";
@@ -100,7 +102,7 @@ test("AL03 bad ages, dates, relaxations and post rows are rejected with a plain 
 });
 
 test("AL04 an age limit needs an overall range or post-wise rows", () => {
-  assert.throws(() => cleanAge({ asOf: "2026-06-01", relaxations: [{ category: "SC/ST", years: 5 }] }), /minimum or maximum age, or the ages post by post/);
+  assert.throws(() => cleanAge({ asOf: "2026-06-01", relaxations: [{ category: "SC/ST", years: 5 }] }), /minimum or maximum age, a date-of-birth range, or the ages post by post/);
 });
 
 test("AL05 the age checker answers for the chosen post's own range", () => {
@@ -113,4 +115,40 @@ test("AL05 the age checker answers for the chosen post's own range", () => {
   assert.equal(checkAge({ ...base, min: nursing.min, max: nursing.max }, "1990-01-01", "GEN", false).verdict, "WITHIN");
   assert.equal(checkAge({ ...base, min: pharmacist.min, max: pharmacist.max }, "1990-01-01", "GEN", false).verdict, "TOO_OLD");
   assert.equal(checkAge({ ...base, min: pharmacist.min, max: pharmacist.max }, "1990-01-01", "SC", false).verdict, "WITHIN_RELAXED");
+});
+
+// Indian Coast Guard CGEPT 01/2027: the notice prints date-of-birth windows, not ages.
+const COAST_GUARD = {
+  relaxations: [{ category: "OBC", years: 3 }, { category: "SC/ST", years: 5 }],
+  postWise: [
+    { post: "Navik (GD)", bornFrom: "2005-11-01", bornTo: "2009-05-01" },
+    { post: "Hygienist-I", bornFrom: "2002-11-01", bornTo: "2009-10-01" },
+  ],
+};
+
+test("AL06 date-of-birth windows are kept as printed and no ages are worked out", () => {
+  const cleaned = cleanAge(COAST_GUARD);
+  assert.deepEqual(cleaned.postWise, COAST_GUARD.postWise);
+  assert.equal(cleaned.min, undefined);
+  assert.equal(cleaned.max, undefined);
+  assert.equal(cleaned.asOf, undefined);
+  const whole = cleanAge({ bornFrom: "2000-01-02", bornTo: "2008-01-01", relaxations: [] });
+  assert.equal(whole.bornFrom, "2000-01-02");
+  assert.throws(() => cleanAge({ bornFrom: "2009-01-01", bornTo: "2005-01-01", relaxations: [] }), /earliest date of birth is after the latest/);
+  assert.throws(() => cleanAge({ relaxations: [], postWise: [{ post: "Navik", bornFrom: "01-11-2005" }] }), /real date/);
+});
+
+test("AL07 the age checker compares the date of birth with the window, both ends included", () => {
+  const navik = { ...COAST_GUARD.postWise[0], relaxation: COAST_GUARD.relaxations };
+  assert.equal(checkAge(navik, "2005-11-01", "GEN", false).verdict, "WITHIN");
+  assert.equal(checkAge(navik, "2009-05-01", "GEN", false).verdict, "WITHIN");
+  assert.equal(checkAge(navik, "2009-05-02", "GEN", false).verdict, "TOO_YOUNG");
+  assert.equal(checkAge(navik, "2005-10-31", "GEN", false).verdict, "TOO_OLD");
+  // A relaxation moves only the earliest date back: 3 years for OBC, 5 for SC/ST.
+  assert.equal(checkAge(navik, "2002-11-01", "OBC", false).verdict, "WITHIN_RELAXED");
+  assert.equal(checkAge(navik, "2002-10-31", "OBC", false).verdict, "TOO_OLD");
+  assert.equal(checkAge(navik, "2000-11-01", "SC", false).verdict, "WITHIN_RELAXED");
+  assert.equal(checkAge(navik, "2000-10-31", "ST", false).verdict, "TOO_OLD");
+  // No "counted on" date is needed, and no age is reported without one.
+  assert.equal(checkAge(navik, "2007-01-01", "GEN", false).age, undefined);
 });

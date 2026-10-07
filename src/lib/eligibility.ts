@@ -115,7 +115,38 @@ export interface AgeCheck {
   reason?: string;
 }
 
+/** "2005-11-01" moved N years earlier, keeping the day (29 Feb falls back to 28 Feb). */
+function yearsEarlier(iso: string, years: number): string {
+  const d = parseIsoDate(iso);
+  if (!d) return iso;
+  const y = d.y - years;
+  const day = Math.min(d.d, daysInMonth(y, d.m));
+  return `${String(y).padStart(4, "0")}-${String(d.m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * For notices that print a date-of-birth window ("born between 1 Nov 2005 and
+ * 1 May 2009, both dates inclusive"). The date of birth is compared with the
+ * window directly, so there is no rounding of ages and no borderline case.
+ * A relaxation moves only the earliest date back.
+ */
+function checkBornWindow(limit: AgeLimit, dobIso: string, category: CasteCategory, pwbd: boolean): AgeCheck {
+  if (!parseIsoDate(dobIso)) return { verdict: "UNKNOWN", reason: "Enter your date of birth." };
+  const age = limit.asOf ? ageOn(dobIso, limit.asOf) ?? undefined : undefined;
+  const withAge = age ? { age } : {};
+
+  if (limit.bornTo && dobIso > limit.bornTo) return { verdict: "TOO_YOUNG", ...withAge };
+  if (!limit.bornFrom || dobIso >= limit.bornFrom) return { verdict: "WITHIN", ...withAge };
+
+  const relaxation = findRelaxation(limit.relaxation, category, pwbd);
+  if (relaxation?.years && dobIso >= yearsEarlier(limit.bornFrom, relaxation.years)) {
+    return { verdict: "WITHIN_RELAXED", relaxation, ...withAge };
+  }
+  return { verdict: "TOO_OLD", ...(relaxation ? { relaxation } : {}), ...withAge };
+}
+
 export function checkAge(limit: AgeLimit | undefined, dobIso: string, category: CasteCategory, pwbd: boolean): AgeCheck {
+  if (limit && (limit.bornFrom || limit.bornTo)) return checkBornWindow(limit, dobIso, category, pwbd);
   if (!limit || (limit.min == null && limit.max == null)) {
     return { verdict: "UNKNOWN", reason: "The age limit for this recruitment is not on record yet." };
   }

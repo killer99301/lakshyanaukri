@@ -54,13 +54,26 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
   const [post, setPost] = useState("");
 
   const posts = ageLimit?.postWise ?? [];
-  if (!ageLimit?.asOf || (ageLimit.min == null && ageLimit.max == null && posts.length === 0)) return null;
+  if (!ageLimit) return null;
 
   // Where the notice sets ages post by post, the answer is for the chosen
   // post only — never for the widest range across all of them.
   const chosen = posts.find((p) => p.post === post);
-  const limit: AgeLimit | null = posts.length === 0 ? ageLimit : chosen ? { ...ageLimit, min: chosen.min, max: chosen.max } : null;
-  const result = dob && limit ? checkAge(limit, dob, category, pwbd) : null;
+  const limit: AgeLimit | null =
+    posts.length === 0
+      ? ageLimit
+      : chosen
+        ? { ...ageLimit, min: chosen.min, max: chosen.max, bornFrom: chosen.bornFrom, bornTo: chosen.bornTo }
+        : null;
+
+  // A date-of-birth window can be checked on its own; an age range needs the
+  // date the notice counts age on. With neither, there is nothing to check.
+  const answerable = (l: { min?: number; max?: number; bornFrom?: string; bornTo?: string }) =>
+    Boolean(l.bornFrom || l.bornTo) || (Boolean(ageLimit.asOf) && (l.min != null || l.max != null));
+  if (!(posts.length > 0 ? posts.some(answerable) : answerable(ageLimit))) return null;
+
+  const byBirthDate = Boolean(limit && (limit.bornFrom || limit.bornTo));
+  const result = dob && limit && answerable(limit) ? checkAge(limit, dob, category, pwbd) : null;
   const tone = result ? TONE[result.verdict] : null;
 
   return (
@@ -68,7 +81,10 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
       <div>
         <h3 className="text-sm font-black text-[#0F172A]">Check your age for this recruitment</h3>
         <p className="text-xs font-medium text-[#475569] mt-0.5">
-          Your age is counted on {formatDate(ageLimit.asOf)}, the date the notice uses. Nothing you enter is saved or sent.
+          {ageLimit.asOf
+            ? `Your age is counted on ${formatDate(ageLimit.asOf)}, the date the notice uses.`
+            : "Your date of birth is compared with the range printed in the notice."}{" "}
+          Nothing you enter is saved or sent.
         </p>
       </div>
 
@@ -86,7 +102,7 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
         )}
         <div>
           <label className={label} htmlFor="age-check-dob">Date of birth</label>
-          <input id="age-check-dob" type="date" value={dob} max={ageLimit.asOf} onChange={(e) => setDob(e.target.value)} className={field} />
+          <input id="age-check-dob" type="date" value={dob} onChange={(e) => setDob(e.target.value)} className={field} />
         </div>
         <div>
           <label className={label} htmlFor="age-check-category">Category</label>
@@ -111,9 +127,21 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
           {tone.icon}
           <div className="min-w-0 space-y-1">
             <p className="text-sm font-black">{tone.title}</p>
-            {result.age && (
+            {result.age && ageLimit.asOf && (
               <p className="text-xs font-semibold">
                 On {formatDate(ageLimit.asOf)} you will be {describeAge(result.age)} old.
+              </p>
+            )}
+            {byBirthDate && limit && (
+              <p className="text-xs font-semibold">
+                The notice allows dates of birth
+                {limit.bornFrom ? ` from ${formatDate(limit.bornFrom)}` : ""}
+                {limit.bornTo ? ` to ${formatDate(limit.bornTo)}` : ""}, both dates included.
+              </p>
+            )}
+            {byBirthDate && result.verdict === "WITHIN_RELAXED" && result.relaxation && (
+              <p className="text-xs font-semibold">
+                Relaxation used: {result.relaxation.category}, {result.relaxation.years} years on the earliest date.
               </p>
             )}
             {result.verdict === "UNKNOWN" && <p className="text-xs font-semibold">{result.reason}</p>}

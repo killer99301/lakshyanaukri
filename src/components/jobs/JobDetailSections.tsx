@@ -432,7 +432,11 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                         ? `Up to ${job.ageLimit.max} Years`
                         : job.ageLimit.min != null
                           ? `${job.ageLimit.min} Years and above`
-                          : "See official notification"}
+                          : job.ageLimit.bornFrom || job.ageLimit.bornTo
+                            ? `Born ${job.ageLimit.bornFrom ? formatDate(job.ageLimit.bornFrom) : "any date"} to ${job.ageLimit.bornTo ? formatDate(job.ageLimit.bornTo) : "any date"}`
+                            : job.ageLimit.postWise?.length
+                              ? "Differs by post"
+                              : "See official notification"}
                   </span>
                 </div>
                 {job.ageLimit.asOf && (
@@ -448,7 +452,9 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                         <li key={i} className="text-[11px] font-medium text-[#475569] flex items-baseline justify-between gap-3">
                           <span>{p.post}</span>
                           <span className="font-bold text-[#0F172A] whitespace-nowrap tabular-nums">
-                            {p.min != null && p.max != null ? `${p.min} to ${p.max}` : p.max != null ? `Up to ${p.max}` : `${p.min} and above`}
+                            {p.bornFrom || p.bornTo
+                              ? `Born ${p.bornFrom ? formatDate(p.bornFrom) : "any date"} to ${p.bornTo ? formatDate(p.bornTo) : "any date"}`
+                              : p.min != null && p.max != null ? `${p.min} to ${p.max}` : p.max != null ? `Up to ${p.max}` : `${p.min} and above`}
                           </span>
                         </li>
                       ))}
