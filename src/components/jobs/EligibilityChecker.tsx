@@ -51,10 +51,16 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
   const [dob, setDob] = useState("");
   const [category, setCategory] = useState<CasteCategory>("GEN");
   const [pwbd, setPwbd] = useState(false);
+  const [post, setPost] = useState("");
 
-  if (!ageLimit?.asOf || (ageLimit.min == null && ageLimit.max == null)) return null;
+  const posts = ageLimit?.postWise ?? [];
+  if (!ageLimit?.asOf || (ageLimit.min == null && ageLimit.max == null && posts.length === 0)) return null;
 
-  const result = dob ? checkAge(ageLimit, dob, category, pwbd) : null;
+  // Where the notice sets ages post by post, the answer is for the chosen
+  // post only — never for the widest range across all of them.
+  const chosen = posts.find((p) => p.post === post);
+  const limit: AgeLimit | null = posts.length === 0 ? ageLimit : chosen ? { ...ageLimit, min: chosen.min, max: chosen.max } : null;
+  const result = dob && limit ? checkAge(limit, dob, category, pwbd) : null;
   const tone = result ? TONE[result.verdict] : null;
 
   return (
@@ -66,7 +72,18 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className={cn("grid gap-3", posts.length > 0 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
+        {posts.length > 0 && (
+          <div>
+            <label className={label} htmlFor="age-check-post">Post</label>
+            <select id="age-check-post" value={post} onChange={(e) => setPost(e.target.value)} className={field}>
+              <option value="">Choose a post…</option>
+              {posts.map((p) => (
+                <option key={p.post} value={p.post}>{p.post}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className={label} htmlFor="age-check-dob">Date of birth</label>
           <input id="age-check-dob" type="date" value={dob} max={ageLimit.asOf} onChange={(e) => setDob(e.target.value)} className={field} />
@@ -84,6 +101,10 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
           Person with disability (PwBD)
         </label>
       </div>
+
+      {dob && posts.length > 0 && !chosen && (
+        <p role="status" className="text-xs font-semibold text-[#475569]">Choose the post you are applying for; the age limit is different for each.</p>
+      )}
 
       {result && tone && (
         <div role="status" className={cn("rounded-2xl border px-4 py-3 flex items-start gap-3", tone.box)}>
@@ -103,7 +124,7 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
             )}
             {result.verdict === "CHECK_NOTICE" && (
               <p className="text-xs font-semibold">
-                You have completed {result.effectiveMax ?? ageLimit.max} years but not your next birthday. Some notices allow this and some do not;
+                You have completed {result.effectiveMax ?? limit?.max} years but not your next birthday. Some notices allow this and some do not;
                 look for the date-of-birth range in the official notification.
               </p>
             )}

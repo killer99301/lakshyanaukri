@@ -176,11 +176,19 @@ export interface AgeRelaxation {
   text?: string;
 }
 
+// The age range for one post, where a notice sets them post by post.
+export interface PostAgeRange {
+  post: string;
+  min?: number;
+  max?: number;
+}
+
 export interface AgeLimit {
   min?: number;
   max?: number;
   asOf?: string;                  // ISO cutoff date; optional — not always stated
   relaxation?: AgeRelaxation[];
+  postWise?: PostAgeRange[];
 }
 
 export type Experience =

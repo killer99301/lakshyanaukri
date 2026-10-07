@@ -13,7 +13,7 @@
 //   I3: conflict === true ↔ status === "CONFLICTED"
 // ═══════════════════════════════════════════════════════════
 
-import type { AgeRelaxation, ExamStage, VacancyRow, Provenance, UpdateRecord, DateCertainty } from "@/types";
+import type { AgeRelaxation, ExamStage, PostAgeRange, VacancyRow, Provenance, UpdateRecord, DateCertainty } from "@/types";
 
 // ─── Core State ───────────────────────────────────────────
 
@@ -158,6 +158,8 @@ export interface AgeCriteria {
   max?: number;
   asOf?: string;              // ISO reference date for age calculation
   relaxations: AgeRelaxation[];
+  /** When the notice gives a different range for each post. min/max above are then the widest range. */
+  postWise?: PostAgeRange[];
 }
 
 // ─── RecruitmentPost — block element for eligibility ─────

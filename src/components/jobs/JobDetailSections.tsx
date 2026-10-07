@@ -440,6 +440,21 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                     Calculated as of: {formatDate(job.ageLimit.asOf)}
                   </p>
                 )}
+                {job.ageLimit.postWise && job.ageLimit.postWise.length > 0 && (
+                  <div className="pt-2 border-t border-slate-200">
+                    <span className="text-[11px] font-bold text-slate-600 block mb-1">Age by post:</span>
+                    <ul className="space-y-1">
+                      {job.ageLimit.postWise.map((p, i) => (
+                        <li key={i} className="text-[11px] font-medium text-[#475569] flex items-baseline justify-between gap-3">
+                          <span>{p.post}</span>
+                          <span className="font-bold text-[#0F172A] whitespace-nowrap tabular-nums">
+                            {p.min != null && p.max != null ? `${p.min} to ${p.max}` : p.max != null ? `Up to ${p.max}` : `${p.min} and above`}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {job.ageLimit.relaxation && job.ageLimit.relaxation.length > 0 && (
                   <div className="pt-2 border-t border-slate-200">
                     <span className="text-[11px] font-bold text-slate-600 block mb-1">Age Relaxation:</span>

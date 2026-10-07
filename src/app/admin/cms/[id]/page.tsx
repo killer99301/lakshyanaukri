@@ -28,6 +28,8 @@ import { savedFilePath, savedFileProblem, MAX_SAVED_FILE_LABEL, SAVED_FILE_CONTE
 import { aiAssistReason, buildAiField, describeAiValue } from "@/lib/cms/ai-assist-apply";
 import { ExamStagesEditor } from "./ExamStagesEditor";
 import { ExamPatternEditor, SyllabusEditor } from "./PatternSyllabusEditors";
+import { AgeEditor } from "./AgeEditor";
+import { EligibilityEditor, SelectionEditor } from "./EligibilitySelectionEditors";
 import { InfoTip, HELP } from "../InfoTip";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
@@ -377,7 +379,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 async function saveListField(
   recordId: string,
   recordRevision: string,
-  fieldPath: "links" | "howToApply" | "classification" | "examStages" | "examPattern" | "syllabus" | "vacancies.breakdown",
+  fieldPath: "links" | "howToApply" | "classification" | "examStages" | "examPattern" | "syllabus" | "vacancies.breakdown" | "age" | "eligibility" | "selection",
   value: unknown,
   reason: string,
 ): Promise<{ record?: RecruitmentRecord; error?: string }> {
@@ -1177,7 +1179,7 @@ export default function CmsRecordEditorPage() {
   }, [loadRecord, loadRevisions]);
 
   // Used by the exam pattern and syllabus editors. Resolves to an error message, or null.
-  async function saveBlock(fieldPath: "examPattern" | "syllabus", value: unknown, reason: string): Promise<string | null> {
+  async function saveBlock(fieldPath: "examPattern" | "syllabus" | "age" | "eligibility" | "selection", value: unknown, reason: string): Promise<string | null> {
     if (!record) return "Record not loaded";
     const out = await saveListField(record.id, record.recordRevision, fieldPath, value, reason);
     if (out.error || !out.record) return out.error ?? "Save failed";
@@ -1943,9 +1945,7 @@ export default function CmsRecordEditorPage() {
                 );
               }}
             />
-            <div style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
-              Full eligibility block editing (post table) is in the Phase E promotion form.
-            </div>
+            <EligibilityEditor record={record} onSave={saveBlock} />
           </Section>
         )}
 
@@ -1956,12 +1956,22 @@ export default function CmsRecordEditorPage() {
               label="Age Block"
               field={record.age}
               renderContent={(val: unknown) => {
-                const age = val as { min?: number; max?: number; asOf?: string; relaxations?: Array<{ category: string; years?: number; text?: string }> };
+                const age = val as { min?: number; max?: number; asOf?: string; relaxations?: Array<{ category: string; years?: number; text?: string }>; postWise?: Array<{ post: string; min?: number; max?: number }> };
                 return (
                   <div>
                     {(age.min || age.max) && (
                       <Row label="Age Range" value={`${age.min ?? "—"} – ${age.max ?? "—"} years (as of ${age.asOf ?? "not specified"})`} />
                     )}
+                    {age.postWise?.length ? (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 6 }}>POST-WISE</div>
+                        {age.postWise.map((p, i) => (
+                          <div key={i} style={{ fontSize: 13, marginBottom: 4 }}>
+                            {p.post}: {p.min ?? "—"} – {p.max ?? "—"} years
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                     {age.relaxations?.length ? (
                       <div style={{ marginTop: 10 }}>
                         <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 6 }}>RELAXATIONS</div>
@@ -1976,9 +1986,7 @@ export default function CmsRecordEditorPage() {
                 );
               }}
             />
-            <div style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
-              Age block editing is in the Phase E promotion form.
-            </div>
+            <AgeEditor record={record} onSave={saveBlock} />
           </Section>
         )}
 
@@ -2046,6 +2054,7 @@ export default function CmsRecordEditorPage() {
                 );
               }}
             />
+            <SelectionEditor record={record} onSave={saveBlock} />
           </Section>
         )}
 

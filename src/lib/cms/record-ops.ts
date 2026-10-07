@@ -39,7 +39,7 @@ import type {
   SyllabusSubject,
 } from "@/types/recruitment-record";
 
-import type { VacancyRow } from "@/types";
+import type { AgeRelaxation, PostAgeRange, VacancyRow } from "@/types";
 import { validateProvenanceField, validateRecord } from "@/lib/cms/validation";
 
 // ─── Type helpers ──────────────────────────────────────────
@@ -444,6 +444,7 @@ export function updateAge(
   if (errors.length > 0) {
     throw new Error(errors.map((e) => e.message).join("; "));
   }
+  if (newField.value !== null) newField = { ...newField, value: cleanAge(newField.value) };
 
   const updated = cloneRecord(record);
   updated.age = newField;
@@ -743,6 +744,73 @@ const wholeNumber = (v: unknown, max: number): number | undefined =>
 /** A marks figure: positive, at most `max`, whole or with a simple decimal part. */
 const marksNumber = (v: unknown, max: number): number | undefined =>
   typeof v === "number" && Number.isFinite(v) && v > 0 && v <= max ? Math.round(v * 100) / 100 : undefined;
+
+const MIN_AGE = 14;
+const MAX_AGE = 70;
+const ageNumber = (v: unknown): number | undefined =>
+  typeof v === "number" && Number.isInteger(v) && v >= MIN_AGE && v <= MAX_AGE ? v : undefined;
+
+/**
+ * An age limit as printed in a notice: an overall range, the date age is
+ * counted on, the relaxations, and — where the notice sets them post by post —
+ * a range for each post. Nothing is worked out: the overall range is whatever
+ * was entered, never derived from the post rows.
+ */
+export function cleanAge(value: unknown): AgeCriteria {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("age invariant: value must be an age limit");
+  const v = value as Record<string, unknown>;
+
+  const range = (raw: Record<string, unknown>, where: string): { min?: number; max?: number } => {
+    for (const key of ["min", "max"] as const) {
+      if (raw[key] !== undefined && raw[key] !== null && ageNumber(raw[key]) === undefined) {
+        throw new Error(`age invariant: ${where} ${key === "min" ? "minimum" : "maximum"} age must be a whole number between ${MIN_AGE} and ${MAX_AGE}`);
+      }
+    }
+    const min = ageNumber(raw.min);
+    const max = ageNumber(raw.max);
+    if (min !== undefined && max !== undefined && min > max) throw new Error(`age invariant: ${where} minimum age is above the maximum`);
+    return { ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) };
+  };
+
+  const overall = range(v, "the");
+
+  let asOf: string | undefined;
+  if (v.asOf !== undefined && v.asOf !== null && v.asOf !== "") {
+    if (!isIsoDate(v.asOf)) throw new Error("age invariant: the cut-off date must be a real date, written YYYY-MM-DD");
+    asOf = v.asOf;
+  }
+
+  const rawRelax = v.relaxations ?? [];
+  if (!Array.isArray(rawRelax)) throw new Error("age invariant: relaxations must be a list");
+  if (rawRelax.length > 30) throw new Error("age invariant: at most 30 relaxation rows");
+  const relaxations: AgeRelaxation[] = rawRelax.map((raw, i) => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const category = tidy(r.category, 120);
+    if (!category) throw new Error(`age invariant: relaxation ${i + 1} needs a category`);
+    const years = typeof r.years === "number" && Number.isInteger(r.years) && r.years > 0 && r.years <= 40 ? r.years : undefined;
+    const text = tidy(r.text, 160);
+    if (years === undefined && !text) throw new Error(`age invariant: relaxation "${category}" needs a number of years or a short note`);
+    return { category, ...(years !== undefined ? { years } : {}), ...(text ? { text } : {}) };
+  });
+
+  const rawPosts = v.postWise ?? [];
+  if (!Array.isArray(rawPosts)) throw new Error("age invariant: post-wise ages must be a list");
+  if (rawPosts.length > 60) throw new Error("age invariant: at most 60 post-wise rows");
+  const postWise: PostAgeRange[] = rawPosts.map((raw, i) => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const post = tidy(r.post, 160);
+    if (!post) throw new Error(`age invariant: post-wise row ${i + 1} needs a post name`);
+    const ages = range(r, `"${post}"`);
+    if (ages.min === undefined && ages.max === undefined) throw new Error(`age invariant: "${post}" needs a minimum or maximum age`);
+    return { post, ...ages };
+  });
+
+  if (overall.min === undefined && overall.max === undefined && postWise.length === 0) {
+    throw new Error("age invariant: enter a minimum or maximum age, or the ages post by post");
+  }
+
+  return { ...overall, ...(asOf ? { asOf } : {}), relaxations, ...(postWise.length ? { postWise } : {}) };
+}
 
 /** Post-wise vacancy rows: a post name and a whole number each. Nothing is summed or inferred. */
 export function cleanVacancyBreakdown(value: unknown): VacancyRow[] {
