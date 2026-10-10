@@ -12,6 +12,7 @@ import type { RecruitmentIdentity } from "@/types/recruitment-record";
 import { structureDocument, normalizeForMatching } from "@/intelligence/page-structurer";
 import { verifyEvidence } from "@/intelligence/structured-extractor";
 import { DEFAULT_GEMINI_MODEL } from "@/intelligence/gemini-extraction-provider";
+import { capReachedMessage, recordAiFailure, reserveAiRequest, type AiFeature } from "@/lib/ai-usage";
 import { buildAiField } from "@/lib/cms/ai-assist-apply";
 
 // ─── Field helpers ────────────────────────────────────────
@@ -678,8 +679,14 @@ export async function callAiJson(opts: {
   apiKey: string | undefined;
   fetchFn?: typeof fetch;
   maxOutputTokens?: number;
+  /** Which feature the request is counted under. */
+  feature?: AiFeature;
 }): Promise<AiJsonAnswer> {
   if (!opts.apiKey) return { ok: false, reason: "AI extraction not configured" };
+
+  const feature = opts.feature ?? "assist";
+  const reserved = await reserveAiRequest(feature);
+  if (!reserved.allowed) return { ok: false, reason: capReachedMessage(reserved.cap) };
 
   const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${opts.apiKey}`;
@@ -701,7 +708,10 @@ export async function callAiJson(opts: {
       signal: controller.signal,
     });
     status = response.status;
-    if (!response.ok) return { ok: false, reason: feeFailureMessage(status) };
+    if (!response.ok) {
+      await recordAiFailure(feature);
+      return { ok: false, reason: feeFailureMessage(status) };
+    }
 
     const body = (await response.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
     const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
@@ -710,6 +720,7 @@ export async function callAiJson(opts: {
     const data = (Array.isArray(parsed) ? parsed[0] : parsed) ?? {};
     return { ok: true, data: data as Record<string, unknown> };
   } catch {
+    await recordAiFailure(feature);
     return { ok: false, reason: feeFailureMessage(status) };
   } finally {
     clearTimeout(timer);

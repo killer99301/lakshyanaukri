@@ -30,6 +30,7 @@ import { ExamStagesEditor } from "./ExamStagesEditor";
 import { ExamPatternEditor, SyllabusEditor } from "./PatternSyllabusEditors";
 import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
+import { UpdateCheckPanel } from "./UpdateCheckPanel";
 import { EligibilityEditor, SelectionEditor } from "./EligibilitySelectionEditors";
 import { InfoTip, HELP } from "../InfoTip";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
@@ -1613,6 +1614,8 @@ export default function CmsRecordEditorPage() {
         {record.draftState !== "ARCHIVED" && (
           <PublishChecklist record={record} onJump={setActiveSection} />
         )}
+
+        <UpdateCheckPanel record={record} onRecordChange={onFieldSaved} />
 
         {/* ── AI Assist panel (DRAFT / APPROVED only) ── */}
         {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (

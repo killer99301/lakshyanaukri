@@ -23,16 +23,17 @@ const LEVEL: Record<AttentionLevel, { label: string; color: string }> = {
   CHECK: { label: "Check", color: C.muted },
 };
 
-interface Loaded { jobs: JobAttention[]; liveCount: number; telegramReady: boolean; problem: string | null }
+interface AiUsage { cap: number; today: { total: number; failed: number; refused: number; byFeature: Record<string, number> }; lastSevenDays: number; labels: Record<string, string> }
+interface Loaded { jobs: JobAttention[]; liveCount: number; telegramReady: boolean; ai: AiUsage | null; problem: string | null }
 
 async function fetchAttention(): Promise<Loaded> {
   try {
     const res = await fetch("/api/admin/cms/attention");
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-    return { jobs: data.jobs ?? [], liveCount: data.liveCount ?? 0, telegramReady: Boolean(data.telegramReady), problem: null };
+    return { jobs: data.jobs ?? [], liveCount: data.liveCount ?? 0, telegramReady: Boolean(data.telegramReady), ai: data.ai ?? null, problem: null };
   } catch (e) {
-    return { jobs: [], liveCount: 0, telegramReady: false, problem: e instanceof Error ? e.message : String(e) };
+    return { jobs: [], liveCount: 0, telegramReady: false, ai: null, problem: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -112,6 +113,16 @@ export function AttentionPanel() {
           ))}
         </div>
       ))}
+
+      {data.ai && (
+        <div style={{ borderTop: `1px solid ${C.border}`, marginTop: shown.length > 0 ? 0 : 12, paddingTop: 10, fontSize: 12, color: C.muted, lineHeight: 1.6 }}>
+          AI requests today: <b style={{ color: data.ai.today.total >= data.ai.cap ? C.red : C.text }}>{data.ai.today.total} of {data.ai.cap}</b>
+          {Object.entries(data.ai.today.byFeature).filter(([, n]) => n > 0).map(([f, n]) => ` · ${data.ai!.labels[f] ?? f} ${n}`).join("")}
+          {data.ai.today.failed > 0 ? ` · ${data.ai.today.failed} failed` : ""}
+          {data.ai.today.refused > 0 ? ` · ${data.ai.today.refused} stopped by the daily limit` : ""}
+          {` · last 7 days: ${data.ai.lastSevenDays}`}
+        </div>
+      )}
     </section>
   );
 }

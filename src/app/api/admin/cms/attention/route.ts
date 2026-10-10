@@ -17,6 +17,7 @@ import { listLiveRecruitments } from "@/lib/cms/repository";
 import { buildAttentionDigest, buildAttentionList, todayInIndia } from "@/lib/cms/attention";
 import { adminChatConfigured, sendToAdmin } from "@/lib/telegram";
 import { siteConfig } from "@/config/site";
+import { AI_FEATURE_LABELS, readAiUsage, resolveDailyCap, type AiFeature } from "@/lib/ai-usage";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await requireAdmin(request);
@@ -25,11 +26,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const records = await listLiveRecruitments();
     const today = todayInIndia();
+    const usage = await readAiUsage(7);
     return NextResponse.json({
       today,
       liveCount: records.length,
       jobs: buildAttentionList(records, today),
       telegramReady: adminChatConfigured(),
+      ai: {
+        cap: resolveDailyCap(),
+        today: usage[0],
+        lastSevenDays: usage.reduce((n, d) => n + d.total, 0),
+        labels: AI_FEATURE_LABELS satisfies Record<AiFeature, string>,
+      },
     });
   } catch (err) {
     console.error("[CMS] attention list error", err);
