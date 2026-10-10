@@ -487,16 +487,27 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
         {isGov && <EligibilityChecker ageLimit={job.ageLimit} />}
       </section>
 
-      {/* 6. Application Fee Section (Government only) */}
-      {isGov && job.fee && (
+      {/* 6. Application Fee and Pay Section (Government only). Shown when either
+          part is on record; a missing part never hides the other. */}
+      {isGov && (job.fee || job.payScale) && (
         <section id="application-fee" className="bg-white border border-[#E2E8F0] rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
               <CreditCard className="h-5 w-5" />
             </div>
-            <h2 className="text-lg font-black text-[#0F172A]">Application Fee & Payment Modes</h2>
+            <h2 className="text-lg font-black text-[#0F172A]">
+              {job.fee && job.payScale ? "Application Fee & Pay" : job.fee ? "Application Fee & Payment Modes" : "Pay Scale"}
+            </h2>
           </div>
 
+          {job.payScale && (
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+              <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider block">Pay Scale</span>
+              <span className="text-sm font-bold text-[#0F172A] mt-1 block leading-relaxed">{job.payScale}</span>
+            </div>
+          )}
+
+          {job.fee && (
           <div className="space-y-4">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
@@ -510,7 +521,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                   {job.fee.rows.map((fee, idx) => (
                     <tr key={idx} className="text-[#0F172A] font-semibold">
                       <td className="py-3 px-4 font-bold">{fee.category}</td>
-                      <td className="py-3 px-4 text-right font-black text-[#EA580C]">
+                      <td className={`py-3 px-4 text-right ${fee.note ? "font-semibold text-slate-500" : "font-black text-[#EA580C]"}`}>
                         {fee.note || (fee.amount ? `₹${fee.amount.toLocaleString("en-IN")}` : "Nil")}
                       </td>
                     </tr>
@@ -530,6 +541,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
               </div>
             )}
           </div>
+          )}
         </section>
       )}
 

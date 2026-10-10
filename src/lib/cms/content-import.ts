@@ -179,7 +179,11 @@ export function parseContentFile(text: string): ContentImport {
   const syllabus = readSyllabus(parts.SYLLABUS ?? [], warnings);
 
   if (!parts["EXAM PATTERN"] && !parts.SYLLABUS) {
-    warnings.push("No “EXAM PATTERN” or “SYLLABUS” heading was found. Paste the whole file, headings included.");
+    warnings.push("No “EXAM PATTERN” or “SYLLABUS” heading was found. Each must be on a line by itself, in capitals. Paste the whole file, headings included.");
+  } else if (!parts.SYLLABUS) {
+    warnings.push("No “SYLLABUS” heading was found, so only the exam pattern was read. The heading must be on a line by itself.");
+  } else if (!parts["EXAM PATTERN"]) {
+    warnings.push("No “EXAM PATTERN” heading was found, so only the syllabus was read. The heading must be on a line by itself.");
   }
   return { examPattern, syllabus, ...(basis ? { basis } : {}), warnings };
 }

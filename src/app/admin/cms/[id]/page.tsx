@@ -1031,20 +1031,25 @@ const STATE_INFO: Record<string, { label: string; note: string }> = {
 
 // ─── Publish checklist ────────────────────────────────────
 
-function countPending(record: RecruitmentRecord): number {
-  const fields: Array<{ value: unknown; status?: string } | null | undefined> = [
-    record.identity.notificationNumber,
-    ...Object.values(record.dates as unknown as Record<string, { value: unknown; status?: string } | undefined>),
-    record.vacancies.total,
-    record.vacancies.breakdown,
-    ...Object.values(record.financial as unknown as Record<string, { value: unknown; status?: string } | undefined>),
-    record.eligibility,
-    record.age,
-    record.selection,
-    record.examPattern,
-    record.syllabus,
+/** Every value still marked Pending, with the section that holds it. */
+function pendingValues(record: RecruitmentRecord): Array<{ label: string; section: string }> {
+  type Field = { value: unknown; status?: string } | null | undefined;
+  const dates = record.dates as unknown as Record<string, Field>;
+  const all: Array<{ label: string; section: string; field: Field }> = [
+    { label: "Notification number", section: "Identity", field: record.identity.notificationNumber },
+    ...DATE_FIELDS.map(({ key, label }) => ({ label, section: "Dates", field: dates[key] })),
+    { label: "Total vacancies", section: "Vacancies", field: record.vacancies.total },
+    { label: "Vacancies by post", section: "Vacancies", field: record.vacancies.breakdown },
+    { label: "Fee (General / OBC)", section: "Financial", field: record.financial.feeGeneral },
+    { label: "Fee (SC / ST / PwD)", section: "Financial", field: record.financial.feeSCST },
+    { label: "Pay scale", section: "Financial", field: record.financial.payScale },
+    { label: "Eligibility", section: "Eligibility", field: record.eligibility },
+    { label: "Age limit", section: "Age", field: record.age },
+    { label: "Selection process", section: "Selection", field: record.selection },
+    { label: "Exam pattern", section: "Exam Pattern", field: record.examPattern },
+    { label: "Syllabus", section: "Syllabus", field: record.syllabus },
   ];
-  return fields.filter((f) => f && typeof f === "object" && hasValue(f) && f.status === "PENDING").length;
+  return all.filter(({ field }) => field && typeof field === "object" && hasValue(field) && field.status === "PENDING").map(({ label, section }) => ({ label, section }));
 }
 
 // Shown on drafts and on live jobs. On a live job it is a reading of what the
@@ -1057,14 +1062,15 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
     { label: "Vacancies",        section: "Vacancies",    done: hasValue(record.vacancies.total) },
     { label: "Eligibility",      section: "Eligibility",  done: hasValue(record.eligibility) },
     { label: "Age limit",        section: "Age",          done: hasValue(record.age) },
-    { label: "Application fee",  section: "Financial",    done: hasValue(record.financial.feeGeneral) },
+    { label: "Application fee",  section: "Financial",    done: hasValue(record.financial.feeGeneral) || record.financial.feeGeneral?.status === "NOT_SPECIFIED" },
     { label: "Selection process", section: "Selection",   done: hasValue(record.selection) },
     { label: "How to apply",     section: "How to Apply", done: (record.howToApply ?? []).length > 0 },
     { label: "Listing details",  section: "Identity",     done: sectionFill(record, "Identity") === "filled" },
   ];
   const done = items.filter((i) => i.done).length;
   const blocked = !items[0].done;
-  const pending = countPending(record);
+  const pendingList = pendingValues(record);
+  const pending = pendingList.length;
   const pct = Math.round((done / items.length) * 100);
 
   return (
@@ -1108,6 +1114,18 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
       {pending > 0 && (
         <div style={{ fontSize: 12, color: C.amber, marginTop: 8, lineHeight: 1.5 }}>
           {pending} value{pending === 1 ? " is" : "s are"} marked Pending — check {pending === 1 ? "it" : "them"} against the official notification{live ? ". Click Edit Record to change anything." : " before publishing."}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+            {pendingList.map((p) => (
+              <button
+                key={p.label}
+                onClick={() => onJump(p.section)}
+                title="Pending: a value has been entered but not yet checked against the official notification."
+                style={{ background: "rgba(210,153,34,0.1)", border: "1px solid rgba(210,153,34,0.35)", color: C.amber, cursor: "pointer", fontSize: 11, padding: "2px 8px", borderRadius: 999 }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -2896,7 +2914,7 @@ function DraftPreviewOverlay({
             DRAFT PREVIEW
           </span>
           <span style={{ fontSize: 12, color: "#8c9bb8" }}>
-            Showing current editor state — not the published page
+            Everything saved on this record, including changes not published yet. Text still in an open form is not included until you save it.
           </span>
           <span style={{
             fontSize: 11,

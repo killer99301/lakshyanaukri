@@ -275,6 +275,8 @@ export interface GovernmentRecruitment extends BaseOpportunity {
 
   vacancyBreakdown?: VacancyRow[];
   fee?: { rows: FeeRow[]; modes: string[] };
+  /** Pay level or salary for the whole recruitment, as the notice states it. */
+  payScale?: string;
   ageLimit?: AgeLimit;
   eligibility?: string[];
   selectionProcess?: string[];

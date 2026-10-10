@@ -63,6 +63,9 @@ export interface PublishedRecruitmentSnapshot {
   financial: {
     feeGeneral: number | null;
     feeSCST: number | null;
+    /** The notice gives no fee for this group: a real answer, shown as "Not specified". Absent on older snapshots. */
+    feeGeneralNotSpecified?: boolean;
+    feeSCSTNotSpecified?: boolean;
     payScale: string | null;
     paymentModes: string[];
   };
@@ -132,6 +135,8 @@ function buildSnapshot(record: RecruitmentRecord): PublishedRecruitmentSnapshot 
     financial: {
       feeGeneral:   pv(record.financial.feeGeneral),
       feeSCST:      pv(record.financial.feeSCST),
+      feeGeneralNotSpecified: record.financial.feeGeneral?.status === "NOT_SPECIFIED",
+      feeSCSTNotSpecified:    record.financial.feeSCST?.status === "NOT_SPECIFIED",
       payScale:     pv(record.financial.payScale),
       paymentModes: record.financial.paymentModes ?? [],
     },

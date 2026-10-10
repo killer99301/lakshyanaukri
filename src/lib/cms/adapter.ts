@@ -24,6 +24,7 @@ import type {
   GovernmentRecruitment, VerificationStatus, SourceType,
   ExamStage, AgeLimit, AgeRelaxation, VacancyRow, UpdateRecord,
 } from "@/types";
+import type { FeeRow } from "@/types";
 import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, ExamPatternPaper, SyllabusSubject } from "@/types/recruitment-record";
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
@@ -72,13 +73,21 @@ export function snapshotToGovernmentRecruitment(
     return "Central Govt" as const;
   })();
 
-  const feeRows = [];
+  // Each fee row stands by itself: an amount, or "not specified" when the
+  // notice gives none. A group nobody has filled in is simply left out.
+  const NOT_SPECIFIED_FEE = "Not specified in the notice";
+  const feeRows: FeeRow[] = [];
   if (snapshot.financial.feeGeneral !== null) {
     feeRows.push({ category: "General / OBC", amount: snapshot.financial.feeGeneral });
+  } else if (snapshot.financial.feeGeneralNotSpecified) {
+    feeRows.push({ category: "General / OBC", amount: null, note: NOT_SPECIFIED_FEE });
   }
   if (snapshot.financial.feeSCST !== null) {
     feeRows.push({ category: "SC / ST / PwBD", amount: snapshot.financial.feeSCST });
+  } else if (snapshot.financial.feeSCSTNotSpecified) {
+    feeRows.push({ category: "SC / ST / PwBD", amount: null, note: NOT_SPECIFIED_FEE });
   }
+  const payScale = snapshot.financial.payScale?.trim() || undefined;
 
   // ─── Gap fields — now fully mapped ──────────────────────
 
@@ -149,6 +158,7 @@ export function snapshotToGovernmentRecruitment(
     fee: feeRows.length > 0
       ? { rows: feeRows, modes: snapshot.financial.paymentModes }
       : undefined,
+    payScale,
     ageLimit,
     eligibility:      eligibility && eligibility.length > 0 ? eligibility : undefined,
     selectionProcess: selectionProcess && selectionProcess.length > 0 ? selectionProcess : undefined,

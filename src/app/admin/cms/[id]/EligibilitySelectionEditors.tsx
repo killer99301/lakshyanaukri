@@ -9,12 +9,13 @@
 // a stage's type) stays with that row as long as its name is unchanged.
 // Saved through the normal field route as Pending, with a change-history entry.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { readEligibilityLines } from "@/lib/cms/eligibility-lines";
 import type { CmsRecruitmentPost, CmsSelectionInformation, CmsSelectionStage, RecruitmentRecord } from "@/types/recruitment-record";
 
 const C = {
   bg: "#070b16", border: "rgba(148,163,184,0.14)", text: "#e2e8f0", muted: "#8c9bb8",
-  accent: "#62b5ff", red: "#f85149",
+  accent: "#62b5ff", red: "#f85149", amber: "#d29922", green: "#3fb950",
 };
 
 const input: React.CSSProperties = {
@@ -32,7 +33,6 @@ const primary = (disabled: boolean): React.CSSProperties => ({
 type SaveFn = (fieldPath: "eligibility" | "selection", value: unknown, reason: string) => Promise<string | null>;
 
 const lines = (text: string) => text.split("\n").map((l) => l.trim()).filter(Boolean);
-const MAX_ROWS = 80;
 
 function NotEditable({ what }: { what: string }) {
   return (
@@ -58,28 +58,19 @@ function Actions({ saving, onSave, onCancel, saveLabel, err }: { saving: boolean
 
 export function EligibilityEditor({ record, onSave }: { record: RecruitmentRecord; onSave: SaveFn }) {
   const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
-  const posts: CmsRecruitmentPost[] = record.eligibility?.value ?? [];
+  const posts: CmsRecruitmentPost[] = useMemo(() => record.eligibility?.value ?? [], [record.eligibility]);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // Read on every keystroke, so a wrong line shows before Save is pressed.
+  const read = useMemo(() => readEligibilityLines(text, posts), [text, posts]);
+
   async function save() {
-    const rows = lines(text);
-    if (rows.length > MAX_ROWS) { setErr(`At most ${MAX_ROWS} posts.`); return; }
-    const next: CmsRecruitmentPost[] = [];
-    for (const [i, line] of rows.entries()) {
-      const cut = line.indexOf("|");
-      const post = (cut === -1 ? line : line.slice(0, cut)).trim();
-      const rest = cut === -1 ? "" : line.slice(cut + 1);
-      const qualification = rest.split(";").map((q) => q.trim()).filter(Boolean);
-      if (!post || qualification.length === 0) {
-        setErr(`Line ${i + 1}: write it as “Post | qualification”, for example “Clerk | Graduate in any discipline”.`);
-        return;
-      }
-      const before = posts.find((p) => p.post === post);
-      next.push({ ...(before ?? {}), post, qualification });
-    }
+    if (read.problems.length > 0) { setErr(read.problems[0].message); return; }
+    if (read.posts.length === 0) { setErr("Type at least one line as “Post | qualification”."); return; }
+    const next = read.posts;
     setSaving(true);
     setErr(null);
     const problem = await onSave("eligibility", next, "Edited post-wise eligibility");
@@ -105,10 +96,19 @@ export function EligibilityEditor({ record, onSave }: { record: RecruitmentRecor
       <textarea
         id="eligibility-rows"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => { setText(e.target.value); setErr(null); }}
         style={{ ...input, height: 180, resize: "vertical" }}
         placeholder={"Clerk | Graduate in any discipline; Knowledge of computers\nPeon | Matriculation or equivalent"}
       />
+      {text.trim() && (
+        <div role="status" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>
+          <div style={{ color: read.problems.length > 0 ? C.muted : C.green }}>
+            {read.posts.length} post{read.posts.length === 1 ? "" : "s"} read{read.problems.length > 0 ? `, ${read.problems.length} line${read.problems.length === 1 ? "" : "s"} to fix` : ""}.
+          </div>
+          {read.problems.map((p, i) => <div key={i} style={{ color: C.red }}>• {p.message}</div>)}
+          {read.warnings.map((w, i) => <div key={i} style={{ color: C.amber }}>• {w}</div>)}
+        </div>
+      )}
       <Actions saving={saving} onSave={() => { void save(); }} onCancel={() => setEditing(false)} saveLabel="Save eligibility" err={err} />
     </div>
   );
