@@ -152,3 +152,14 @@ test("AL07 the age checker compares the date of birth with the window, both ends
   // No "counted on" date is needed, and no age is reported without one.
   assert.equal(checkAge(navik, "2007-01-01", "GEN", false).age, undefined);
 });
+
+test("AL-KA Karnataka's backward classes (Category-1, 2A, 2B, 3A, 3B) get the relaxation as OBC", () => {
+  const prisons = { min: 20, max: 31, asOf: "2026-10-15", relaxation: [{ category: "SC/ST", years: 2 }, { category: "Category-1, 2A, 2B, 3A and 3B", years: 2 }] };
+  // 32 on the cut-off date: over the general limit, inside with the 2 years.
+  assert.equal(checkAge(prisons, "1994-06-01", "GEN", false).verdict, "TOO_OLD");
+  assert.equal(checkAge(prisons, "1994-06-01", "OBC", false).verdict, "WITHIN_RELAXED");
+  assert.equal(checkAge(prisons, "1994-06-01", "SC", false).verdict, "WITHIN_RELAXED");
+  assert.equal(checkAge(prisons, "1994-06-01", "EWS", false).verdict, "TOO_OLD");
+  // 34: outside even with the relaxation.
+  assert.equal(checkAge(prisons, "1992-06-01", "OBC", false).verdict, "TOO_OLD");
+});

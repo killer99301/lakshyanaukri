@@ -65,7 +65,8 @@ const OTHER_GROUNDS = /ex-?\s?service|widow|divorc|women|female|department|in-?s
 const CATEGORY_PATTERNS: Record<CasteCategory, RegExp> = {
   GEN: /\bur\b|unreserved|un-reserved|general/i,
   EWS: /\bews\b|economically weaker/i,
-  OBC: /\bobc\b|\bbc\b|\bmbc\b|\bebc\b|backward/i,
+  // Karnataka names its backward classes "Category-1, 2A, 2B, 3A and 3B".
+  OBC: /\bobc\b|\bbc\b|\bmbc\b|\bebc\b|backward|\bcategory[\s-]*(?:1|i)\b|\b[23][ab]\b/i,
   SC: /\bsc\b|scheduled castes?/i,
   ST: /\bst\b|scheduled tribes?/i,
 };
