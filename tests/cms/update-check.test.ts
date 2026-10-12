@@ -25,6 +25,7 @@
 //  UC18  "result declared" never moves the day a stage was held
 //  UC19  the prompt says what resultDate and a stage date mean, and to leave portal links out
 //  UC20  a new stage date replaces its "date source" line: named when official, removed otherwise
+//  UC21  postponed with no new date takes the old date off the stage and keeps it as a note
 //  AU01  requests are counted per feature and per day (Indian time)
 //  AU02  the cap refuses further requests and a refused request is not counted
 //  AU03  the cap setting falls back to the default on nonsense
@@ -309,6 +310,27 @@ test("UC20 a new stage date replaces its “date source” line: named when offi
   const held = savesFor(r, readProposals(change({ type: "stage", stage: "Mains Examination", status: "CONDUCTED", source: "bankersclub.in" }), r).proposals)[0].value as ExamStage[];
   assert.equal(held[1].dateProvenance, "IBPS calendar, 16 Jan 2026");
   assert.equal(portal[0].dateProvenance, "IBPS Official Notification");
+});
+
+// The BPSC 72nd case: prelims set for 25 Oct 2026, then postponed with no new date.
+test("UC21 postponed with no new date takes the old date off the stage and keeps it as a note", () => {
+  const r = ibps();
+  r.examStages![1] = { name: "Mains Examination", order: 2, status: "SCHEDULED", dateIso: "2026-10-25", certainty: "TENTATIVE", dateProvenance: "Examination Calendar (14 Aug 2026)" };
+  const read = readProposals(change({ type: "stage", stage: "Mains Examination", status: "POSTPONED", date: "", evidence: "postponed; fresh date awaited", source: "educationpost.in" }), r);
+  assert.equal(read.proposals[0].oldText, "scheduled, 25 Oct 2026, tentative");
+  assert.equal(read.proposals[0].newText, "postponed, new date awaited");
+  assert.equal(read.proposals[0].stage?.clearDate, true);
+  const stage = (savesFor(r, read.proposals)[0].value as ExamStage[])[1];
+  assert.deepEqual(stage, { name: "Mains Examination", order: 2, status: "POSTPONED", certainty: "POSTPONED", notes: "Earlier scheduled for 25 Oct 2026. New date awaited." });
+  // A note already on the stage is left as it is.
+  r.examStages![1].notes = "City slip from 20 Oct";
+  assert.equal((savesFor(r, read.proposals)[0].value as ExamStage[])[1].notes, "City slip from 20 Oct");
+  // Postponed TO a new date: the date moves, nothing is cleared.
+  const moved = readProposals(change({ type: "stage", stage: "Mains Examination", status: "POSTPONED", date: "2026-11-22", source: "educationpost.in" }), r);
+  assert.equal(moved.proposals[0].stage?.clearDate, undefined);
+  assert.equal((savesFor(r, moved.proposals)[0].value as ExamStage[])[1].dateIso, "2026-11-22");
+  // A stage with no date on record has nothing to clear.
+  assert.equal(readProposals(change({ type: "stage", stage: "Interview", status: "POSTPONED", source: "x.example" }), ibps({ examStages: [{ name: "Interview", order: 1, status: "NOT_DECLARED" }] as ExamStage[] })).proposals[0].stage?.clearDate, undefined);
 });
 
 suite("Check for updates: the question and the answer text");

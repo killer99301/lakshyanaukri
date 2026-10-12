@@ -62,7 +62,11 @@ export interface UpdateProposal {
   /** The admin handed over the text or PDF themselves, so they have already chosen the source. */
   supplied: boolean;
   date?: { field: UpdateDateField; value: string };
-  stage?: { name: string; isNew: boolean; status?: ExamStageStatus; dateIso?: string; certainty?: DateCertainty };
+  stage?: {
+    name: string; isNew: boolean; status?: ExamStageStatus; dateIso?: string; certainty?: DateCertainty;
+    /** Postponed with no new date: the old date comes off the stage and is kept as a note. */
+    clearDate?: boolean;
+  };
   link?: { type: UpdateLinkType; url: string; label: string };
 }
 
@@ -274,12 +278,16 @@ export function readProposals(raw: unknown, record: RecruitmentRecord, ctx: Chec
       if (name && changed && !undatedSchedule) {
         const describe = (s: { status?: ExamStageStatus; dateIso?: string; dateDisplay?: string; certainty?: DateCertainty }) =>
           [s.status ? STATUS_TEXT[s.status] : "", s.dateIso ? formatDate(s.dateIso) : s.dateDisplay ?? "", s.certainty === "TENTATIVE" ? "tentative" : ""].filter(Boolean).join(", ") || "no details";
+        // Postponed with no new date given: the date on record is no longer the date.
+        const clearDate = status === "POSTPONED" && !dateIso && Boolean(existing?.dateIso || existing?.dateDisplay);
         proposal = {
           ...base, id: `stage:${squash(name)}`, kind: "STAGE", label: existing ? existing.name : `${name} (new stage)`,
           oldText: existing ? describe(existing) : "not on record",
-          newText: describe({ status: status ?? existing?.status, dateIso: dateIso ?? existing?.dateIso, dateDisplay: dateIso ? undefined : existing?.dateDisplay, certainty: dateIso ? certainty : existing?.certainty }),
+          newText: clearDate
+            ? "postponed, new date awaited"
+            : describe({ status: status ?? existing?.status, dateIso: dateIso ?? existing?.dateIso, dateDisplay: dateIso ? undefined : existing?.dateDisplay, certainty: dateIso ? certainty : existing?.certainty }),
           confirmed: supported(evidence, sourceHost, ctx),
-          stage: { name: existing?.name ?? name, isNew: !existing, ...(status ? { status } : {}), ...(dateIso ? { dateIso } : {}), ...(dateIso && certainty ? { certainty } : {}) },
+          stage: { name: existing?.name ?? name, isNew: !existing, ...(status ? { status } : {}), ...(dateIso ? { dateIso } : {}), ...(dateIso && certainty ? { certainty } : {}), ...(clearDate ? { clearDate } : {}) },
         };
       }
     } else if (type === "link") {
@@ -346,6 +354,15 @@ export function savesFor(record: RecruitmentRecord, accepted: UpdateProposal[]):
         stages.push(stage);
       }
       if (change.status) stage.status = change.status;
+      if (change.clearDate) {
+        const was = stage.dateIso ? formatDate(stage.dateIso) : stage.dateDisplay;
+        delete stage.dateIso;
+        delete stage.dateDisplay;
+        delete stage.dateProvenance;
+        stage.certainty = "POSTPONED";
+        // The earlier date is worth keeping for readers, as a note, unless a note is already there.
+        if (was && !stage.notes) stage.notes = `Earlier scheduled for ${was}. New date awaited.`;
+      }
       if (change.dateIso) {
         stage.dateIso = change.dateIso;
         // A range or month typed earlier no longer describes the stage.
