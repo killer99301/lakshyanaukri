@@ -40,6 +40,7 @@ import {
   type SourceKind,
 } from "@/lib/cms/ai-assist";
 import { aiAssistReason } from "@/lib/cms/ai-assist-apply";
+import { MIN_SCAN_TEXT_CHARS } from "@/lib/cms/scan-reader";
 import { buildSyllabusSections, extractPatternAndSyllabus, SYLLABUS_FIELDS } from "@/lib/cms/ai-assist-syllabus";
 import {
   buildDetailSections,
@@ -56,6 +57,7 @@ interface AiAssistRequest {
 
 // Vercel refuses request bodies over 4.5 MB before they reach this route.
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+const MAX_SCAN_TEXT_CHARS = 120_000;
 
 export interface AiAssistFilledEntry {
   fieldPath: string;
@@ -86,6 +88,8 @@ export interface AiAssistResponse {
   identityCheck: IdentityCheck;
   sourceUrl: string;
   sourceKind: SourceKind;
+  // The source was a scanned PDF read by the AI: nothing could be checked against the scan itself.
+  fromScan?: boolean;
 }
 
 export async function POST(
@@ -106,6 +110,8 @@ export async function POST(
   // several official sites refuse requests from the server.
   let url: unknown;
   let upload: Buffer | null = null;
+  // The text of a scanned PDF, as read by the AI in the read-scan step.
+  let scanText = "";
   if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
     let form: FormData;
     try {
@@ -115,15 +121,23 @@ export async function POST(
     }
     url = form.get("url");
     const file = form.get("file");
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: "Choose a PDF file to upload" }, { status: 400 });
-    }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      return NextResponse.json({ error: "This PDF is larger than 4 MB, which is the most that can be uploaded here" }, { status: 413 });
-    }
-    upload = Buffer.from(await file.arrayBuffer());
-    if (upload.subarray(0, 5).toString("latin1") !== "%PDF-") {
-      return NextResponse.json({ error: "That file is not a PDF" }, { status: 400 });
+    const given = form.get("scanText");
+    if (typeof given === "string" && given.trim()) {
+      scanText = given.trim().slice(0, MAX_SCAN_TEXT_CHARS);
+      if (scanText.length < MIN_SCAN_TEXT_CHARS) {
+        return NextResponse.json({ error: "Too little could be read from the scanned PDF to fill the record" }, { status: 400 });
+      }
+    } else {
+      if (!(file instanceof File)) {
+        return NextResponse.json({ error: "Choose a PDF file to upload" }, { status: 400 });
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return NextResponse.json({ error: "This PDF is larger than 4 MB, which is the most that can be uploaded here" }, { status: 413 });
+      }
+      upload = Buffer.from(await file.arrayBuffer());
+      if (upload.subarray(0, 5).toString("latin1") !== "%PDF-") {
+        return NextResponse.json({ error: "That file is not a PDF" }, { status: 400 });
+      }
     }
   } else {
     let body: AiAssistRequest;
@@ -137,7 +151,7 @@ export async function POST(
 
   if (!url || typeof url !== "string") {
     return NextResponse.json(
-      { error: upload ? "Paste the address this PDF was downloaded from, then upload it" : "url is required" },
+      { error: upload || scanText ? "Paste the address this PDF was downloaded from, then upload it" : "url is required" },
       { status: 400 },
     );
   }
@@ -153,7 +167,7 @@ export async function POST(
   }
 
   // Shown in the change history, so a later reader knows the file was supplied by hand.
-  const sourceLabel = upload ? `${url} (PDF uploaded by admin)` : url;
+  const sourceLabel = scanText ? `${url} (scanned PDF uploaded by admin, read by AI)` : upload ? `${url} (PDF uploaded by admin)` : url;
 
   let record = await getRecruitmentById(id);
   if (!record) {
@@ -169,7 +183,9 @@ export async function POST(
   // Read the uploaded PDF, or fetch the source and resolve it to HTML or PDF text
   let source;
   try {
-    if (upload) {
+    if (scanText) {
+      source = { ok: true as const, kind: "pdf" as const, content: scanText };
+    } else if (upload) {
       const { extractPdfFromBuffer } = await import("@/intelligence/pdf-extractor");
       const buf = upload;
       source = await resolveSourceContent(
@@ -194,7 +210,10 @@ export async function POST(
     return NextResponse.json({ error: `Fetch failed: ${String(err)}` }, { status: 422 });
   }
   if (!source.ok) {
-    return NextResponse.json({ error: source.error }, { status: 422 });
+    // An uploaded PDF with no text to take out is a scan (or close enough):
+    // the page has the AI read it and comes back with what it wrote out.
+    const scanned = Boolean(upload) && source.error.startsWith("PDF ");
+    return NextResponse.json({ error: source.error, ...(scanned ? { scanned: true } : {}) }, { status: 422 });
   }
 
   const base = buildAssistCandidates(source.content, source.kind, url);
@@ -361,5 +380,6 @@ export async function POST(
     identityCheck,
     sourceUrl: url,
     sourceKind: source.kind,
+    ...(scanText ? { fromScan: true } : {}),
   } satisfies AiAssistResponse);
 }

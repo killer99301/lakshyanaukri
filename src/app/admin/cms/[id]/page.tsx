@@ -1169,8 +1169,11 @@ export default function CmsRecordEditorPage() {
     };
     sourceUrl: string;
     sourceKind?: "html" | "pdf";
+    fromScan?: boolean;
   } | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  // What is happening during a long AI Assist run (a scanned PDF takes two steps).
+  const [aiStage, setAiStage] = useState<string | null>(null);
   const [aiApplying, setAiApplying] = useState<string | null>(null);
 
   const loadRecord = useCallback(async () => {
@@ -1293,6 +1296,7 @@ export default function CmsRecordEditorPage() {
     setAiLoading(true);
     setAiError(null);
     setAiResult(null);
+    setAiStage(null);
     try {
       let res: Response;
       if (file) {
@@ -1311,7 +1315,26 @@ export default function CmsRecordEditorPage() {
         setAiError("This PDF is larger than 4 MB, which is the most that can be uploaded here.");
         return;
       }
-      const data = await res.json();
+      let data = await res.json();
+      // A scanned PDF has no text in it. The AI reads the scan first (one more
+      // request), and what it wrote out goes through AI Assist as usual.
+      if (!res.ok && data.scanned && file) {
+        setAiStage("This PDF is a scan. The AI is reading it, which can take a minute…");
+        const scanForm = new FormData();
+        scanForm.set("file", file);
+        const scan = await fetch(`/api/admin/cms/records/${id}/read-scan`, { method: "POST", body: scanForm });
+        const read = await scan.json().catch(() => ({}));
+        if (!scan.ok || !read.text) {
+          setAiError(read.error ?? "The scanned PDF could not be read.");
+          return;
+        }
+        setAiStage("Scan read. Filling the record…");
+        const textForm = new FormData();
+        textForm.set("url", aiUrl.trim());
+        textForm.set("scanText", read.text);
+        res = await fetch(`/api/admin/cms/records/${id}/ai-assist`, { method: "POST", body: textForm });
+        data = await res.json();
+      }
       if (!res.ok) {
         setAiError(data.error ?? `HTTP ${res.status}`);
         return;
@@ -1328,6 +1351,7 @@ export default function CmsRecordEditorPage() {
         identityCheck: data.identityCheck,
         sourceUrl: data.sourceUrl,
         sourceKind: data.sourceKind,
+        fromScan: Boolean(data.fromScan),
       });
     } catch (e) {
       setAiError(String(e));
@@ -1705,6 +1729,10 @@ export default function CmsRecordEditorPage() {
                 {" "}(up to 4 MB).
               </div>
 
+              {aiLoading && aiStage && (
+                <div role="status" style={{ color: C.amber, fontSize: 12, marginBottom: 12 }}>{aiStage}</div>
+              )}
+
               {aiError && (
                 <div style={{ color: C.red, fontSize: 12, padding: "8px 12px", background: C.red + "11", borderRadius: 5, border: `1px solid ${C.red}33`, marginBottom: 12 }}>
                   {aiError}
@@ -1713,6 +1741,12 @@ export default function CmsRecordEditorPage() {
 
               {aiResult && (
                 <div style={{ fontSize: 12 }}>
+                  {aiResult.fromScan && (
+                    <div role="note" style={{ color: C.amber, padding: "8px 12px", background: C.amber + "11", borderRadius: 5, border: `1px solid ${C.amber}33`, marginBottom: 10, lineHeight: 1.5 }}>
+                      This notice was a scanned PDF. The AI read the scan and translated it, and nothing could be checked
+                      against the pages themselves. Compare every value below with the PDF before you publish.
+                    </div>
+                  )}
                   {aiResult.sourceKind === "pdf" && (
                     <div style={{ color: C.muted, marginBottom: 10 }}>Source read as PDF document</div>
                   )}
