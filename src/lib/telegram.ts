@@ -10,6 +10,10 @@
 //     and reported as "failed".
 //   - The message carries only facts that are on the published snapshot.
 //   - The bot token is never logged or returned.
+//
+// The private morning digest goes to TELEGRAM_ADMIN_CHAT_ID instead, never to
+// the channel. A change to any of these variables in Vercel only takes effect
+// on the next deployment.
 
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import { formatDate } from "@/lib/utils";
