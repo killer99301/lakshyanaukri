@@ -110,7 +110,7 @@ export const JobsRightSidebar: React.FC<JobsRightSidebarProps> = ({
             rel="noopener noreferrer"
             className="block bg-emerald-600 hover:bg-emerald-700 text-white p-2.5 rounded-xl text-center text-xs font-bold transition-colors"
           >
-            Join our WhatsApp group
+            Follow our WhatsApp channel
           </a>
         )}
       </Card>

@@ -100,7 +100,7 @@ export const MobileNav: React.FC = () => {
               {siteConfig.links.whatsapp && (
                 <a href={siteConfig.links.whatsapp} target="_blank" rel="noopener noreferrer" onClick={() => setIsOpen(false)} className="block w-full">
                   <Button variant="outline" className="w-full justify-center text-xs font-bold py-2.5 border-slate-300">
-                    Join our WhatsApp group
+                    Follow our WhatsApp channel
                   </Button>
                 </a>
               )}

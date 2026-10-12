@@ -23,9 +23,9 @@ export const siteConfig = {
     youtube: "https://youtube.com/lakshyanaukri",
     // The public channel every published job is posted to.
     telegram: "https://t.me/LakshyaNaukri",
-    // The WhatsApp group's invite link. Leave empty until there is one: every
-    // WhatsApp button stays hidden while it is.
-    whatsapp: "",
+    // The WhatsApp channel's link. If it is ever emptied, every
+    // WhatsApp button hides itself.
+    whatsapp: "https://whatsapp.com/channel/0029Vb9kPt60rGiNlTiZrg3M",
   },
   // Ecosystem partner tools — these deliberately keep their original domains
   // as they are separate products in the Career Campus ecosystem

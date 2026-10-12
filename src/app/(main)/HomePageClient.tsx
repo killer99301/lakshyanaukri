@@ -398,7 +398,7 @@ export default function HomePageClient({ opportunities, lifecycleLinks }: HomePa
               <Badge variant="orange" className="text-xs">Stay Updated</Badge>
               <h2 className="text-xl sm:text-2xl font-black tracking-tight">Never Miss a Notification</h2>
               <p className="text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
-                Join our Telegram channel for alerts on new job notifications, exam date changes, admit cards, and results.
+                Join our Telegram or WhatsApp channel for alerts on new job notifications, exam date changes, admit cards, and results.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
                 <a
@@ -417,7 +417,7 @@ export default function HomePageClient({ opportunities, lifecycleLinks }: HomePa
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-colors"
                   >
-                    <span>Join on WhatsApp</span>
+                    <span>Follow on WhatsApp</span>
                   </a>
                 )}
               </div>
