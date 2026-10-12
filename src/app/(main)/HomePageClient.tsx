@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { JobCard } from "@/components/jobs/JobCard";
+import { EligibilityPromo } from "@/components/jobs/EligibilityPromo";
 import { LocationPopover } from "@/components/jobs/LocationPopover";
 import { EcosystemCard } from "@/components/ecosystem/EcosystemCard";
 import { Ticker } from "@/components/common/Ticker";
@@ -222,6 +223,15 @@ export default function HomePageClient({ opportunities, lifecycleLinks }: HomePa
               </Button>
             </Link>
           </div>
+        </Container>
+      </RevealSection>
+
+      {/* ================================================== */}
+      {/* ELIGIBILITY FINDER: THE WAY IN */}
+      {/* ================================================== */}
+      <RevealSection>
+        <Container>
+          <EligibilityPromo />
         </Container>
       </RevealSection>
 

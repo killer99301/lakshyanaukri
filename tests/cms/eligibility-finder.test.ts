@@ -13,6 +13,7 @@
 //  EF07  results are grouped eligible → check → not eligible, soonest closing first
 //  EF08  category and disability change the answer only through relaxations on record
 //  EF09  date of birth is checked before anything is worked out
+//  EF10  private jobs and internships have no age rule, so only the qualification decides
 // ═══════════════════════════════════════════════════════════
 
 import { suite, test, assert } from "../intelligence/suite";
@@ -24,7 +25,7 @@ import {
 
 const me = (over: Partial<FinderInput> = {}): FinderInput => ({ dobIso: "2000-06-15", category: "GEN", pwbd: false, qualification: "Graduate", ...over });
 const job = (over: Partial<FinderJob> = {}): FinderJob => ({
-  slug: "job", title: "Job", organizationName: "Org", qualification: "Graduate", closeDate: "2026-11-30", openDate: "2026-10-01",
+  kind: "government", slug: "job", title: "Job", organizationName: "Org", qualification: "Graduate", closeDate: "2026-11-30", openDate: "2026-10-01",
   ageLimit: { min: 18, max: 27, asOf: "2026-08-01", relaxation: [{ category: "SC/ST", years: 5 }, { category: "OBC", years: 3 }, { category: "PwBD", years: 10 }] },
   ...over,
 });
@@ -141,6 +142,17 @@ test("EF08 category and disability change the answer only through relaxations on
   assert.equal(assessJob(job(), me({ ...older, pwbd: true })).verdict, "ELIGIBLE");
   // EWS has no row on this record, so it gets nothing.
   assert.equal(assessJob(job(), me({ ...older, category: "EWS" })).verdict, "NOT_ELIGIBLE");
+});
+
+test("EF10 private jobs and internships have no age rule, so only the qualification decides", () => {
+  const privateJob = job({ kind: "private", ageLimit: undefined, qualification: "Graduate" });
+  const fit = assessJob(privateJob, me({ dobIso: "1975-01-01" }));
+  assert.equal(fit.verdict, "ELIGIBLE");
+  assert.equal(fit.age.note, "No age limit is stated for this job.");
+  assert.equal(assessJob(privateJob, me({ qualification: "12th Pass" })).verdict, "NOT_ELIGIBLE");
+  assert.equal(assessJob(job({ kind: "internship", ageLimit: undefined }), me()).age.note, "No age limit is stated for this internship.");
+  // The same missing limit on a government recruitment is unfinished data, not "no rule".
+  assert.equal(assessJob(job({ ageLimit: undefined }), me()).verdict, "CHECK");
 });
 
 test("EF09 date of birth is checked before anything is worked out", () => {

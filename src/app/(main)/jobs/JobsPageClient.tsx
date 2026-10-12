@@ -11,6 +11,7 @@ import { JobsToolbar } from "@/components/jobs/JobsToolbar";
 import { MarketplaceJobCard } from "@/components/jobs/MarketplaceJobCard";
 import { JobsRightSidebar, SIDEBAR_ORGANIZATIONS, type QuickLinkKind } from "@/components/jobs/JobsRightSidebar";
 import { JobsPagination } from "@/components/jobs/JobsPagination";
+import { EligibilityPromo } from "@/components/jobs/EligibilityPromo";
 import { searchOpportunities, closestMatches, textSearch, getDefaultFilterState, jobsUrlState, inGovScope, GOV_SCOPE_LABELS, SortOption, type GovScope } from "@/lib/filters";
 import type { Opportunity, FilterState } from "@/types";
 import { PageReveal } from "@/components/common/motion/PageReveal";
@@ -204,6 +205,11 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
           handlePopularChipClick={handlePopularChipClick}
           popularTerms={popularTerms}
         />
+
+        {/* The way in to the eligibility finder, above the results. */}
+        <Container>
+          <EligibilityPromo />
+        </Container>
 
         {/* 2. THREE-COLUMN MARKETPLACE RESULTS AREA */}
         <Container>

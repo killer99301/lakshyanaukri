@@ -118,7 +118,7 @@ export default function EligibilityFinderClient({ jobs }: { jobs: FinderJob[] })
           <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed mt-2 max-w-2xl">
             Tell us your date of birth, category and qualification. We check your age on each notice’s own cut-off date, across all{" "}
             {/* Counted on the visitor's own date, which can differ from the server's by a day. */}
-            <span suppressHydrationWarning>{openJobs.length}</span> government jobs open or opening soon.
+            <span suppressHydrationWarning>{openJobs.length}</span> jobs open or opening soon.
           </p>
         </div>
 
@@ -166,7 +166,7 @@ export default function EligibilityFinderClient({ jobs }: { jobs: FinderJob[] })
           <div className="space-y-6" aria-live="polite">
             {results.length === 0 && (
               <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 text-sm text-[#475569] font-medium">
-                No government jobs are open right now. Check back soon.
+                No jobs are open right now. Check back soon.
               </div>
             )}
 

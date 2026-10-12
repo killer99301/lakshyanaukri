@@ -5,6 +5,9 @@
 // Pure functions, run in the visitor's browser. Nothing they type is stored
 // or sent anywhere.
 //
+// It covers every kind of job on the site: government recruitments, private
+// jobs and internships.
+//
 // For each job still open (or not yet open) it answers two questions from
 // what is on the record: is the visitor's age inside the limit on the
 // notice's cut-off date, and do they hold the lowest qualification any post
@@ -16,7 +19,7 @@
 //     asked) → "check the notice"
 // and it only ever says a job is ruled out when the record plainly says so.
 
-import type { AgeLimit, GovernmentRecruitment, Qualification } from "@/types";
+import type { AgeLimit, Opportunity, Qualification } from "@/types";
 import { checkAge, type AgeCheck, type CasteCategory } from "@/lib/eligibility";
 
 export interface FinderInput {
@@ -44,6 +47,8 @@ export interface FinderResult {
 
 /** The few fields of a job the finder needs; everything else stays on the server. */
 export interface FinderJob {
+  /** Government recruitments set an age limit; private jobs and internships usually set none. */
+  kind: Opportunity["type"];
   slug: string;
   title: string;
   organizationName: string;
@@ -56,13 +61,14 @@ export interface FinderJob {
 
 export const QUALIFICATION_OPTIONS: Qualification[] = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"];
 
-export function toFinderJob(job: GovernmentRecruitment, vacancies?: number): FinderJob {
+export function toFinderJob(job: Opportunity, vacancies?: number): FinderJob {
   return {
+    kind: job.type,
     slug: job.slug,
     title: job.title,
     organizationName: job.organizationName,
     qualification: job.qualification,
-    ...(job.ageLimit ? { ageLimit: job.ageLimit } : {}),
+    ...(job.type === "government" && job.ageLimit ? { ageLimit: job.ageLimit } : {}),
     closeDate: job.application.closeDate,
     openDate: job.application.openDate,
     ...(vacancies ? { vacancies } : {}),
@@ -157,7 +163,11 @@ export function qualificationFor(needed: Qualification, held: Qualification): Fi
 // ─── Together ─────────────────────────────────────────────
 
 export function assessJob(job: FinderJob, input: FinderInput): FinderResult {
-  const age = ageFor(job.ageLimit, input);
+  // A government recruitment with no age limit on record is unfinished data.
+  // A private job or internship with none simply has no age rule.
+  const age: FinderPart = job.kind === "government"
+    ? ageFor(job.ageLimit, input)
+    : { verdict: "OK", note: `No age limit is stated for this ${job.kind === "internship" ? "internship" : "job"}.` };
   const qualification = qualificationFor(job.qualification, input.qualification);
   const verdict: FinderVerdict =
     age.verdict === "NO" || qualification.verdict === "NO" ? "NOT_ELIGIBLE"
