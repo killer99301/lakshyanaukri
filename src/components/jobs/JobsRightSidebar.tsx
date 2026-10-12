@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronRight, Bell, ArrowRight } from "lucide-react";
 import { Card } from "../ui/Card";
 import { cn } from "@/lib/utils";
+import { siteConfig } from "@/config/site";
 
 export type QuickLinkKind = "category" | "state" | "qualification";
 
@@ -90,13 +91,28 @@ export const JobsRightSidebar: React.FC<JobsRightSidebarProps> = ({
             Never Miss an Opportunity!
           </h4>
           <p className="text-[11px] text-[#475569]">
-            Get job alerts on WhatsApp & Email
+            Get new jobs, admit cards and results on {siteConfig.links.whatsapp ? "Telegram or WhatsApp" : "Telegram"}
           </p>
         </div>
 
-        <div className="bg-slate-50 border border-slate-200 text-slate-500 p-2.5 rounded-xl text-center text-xs font-semibold">
-          Job alerts coming soon
-        </div>
+        <a
+          href={siteConfig.links.telegram}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block bg-[#EA580C] hover:bg-[#C2410C] text-white p-2.5 rounded-xl text-center text-xs font-bold transition-colors"
+        >
+          Join our Telegram channel
+        </a>
+        {siteConfig.links.whatsapp && (
+          <a
+            href={siteConfig.links.whatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-emerald-600 hover:bg-emerald-700 text-white p-2.5 rounded-xl text-center text-xs font-bold transition-colors"
+          >
+            Join our WhatsApp group
+          </a>
+        )}
       </Card>
 
       {/* 3. TOP HIRING ORGANIZATIONS POD */}

@@ -7,6 +7,7 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAIN_NAV_ITEMS } from "@/lib/constants";
 import { Button } from "../ui/Button";
+import { siteConfig } from "@/config/site";
 
 export const MobileNav: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -91,11 +92,18 @@ export const MobileNav: React.FC = () => {
                   Browse All Jobs & Recruitments
                 </Button>
               </Link>
-              <div className="block w-full cursor-not-allowed" title="Telegram channel launching soon">
-                <Button variant="outline" disabled className="w-full justify-center text-xs font-bold py-2.5 border-slate-300 opacity-50 pointer-events-none">
-                  Telegram — Coming Soon
+              <a href={siteConfig.links.telegram} target="_blank" rel="noopener noreferrer" onClick={() => setIsOpen(false)} className="block w-full">
+                <Button variant="outline" className="w-full justify-center text-xs font-bold py-2.5 border-slate-300">
+                  Join our Telegram channel
                 </Button>
-              </div>
+              </a>
+              {siteConfig.links.whatsapp && (
+                <a href={siteConfig.links.whatsapp} target="_blank" rel="noopener noreferrer" onClick={() => setIsOpen(false)} className="block w-full">
+                  <Button variant="outline" className="w-full justify-center text-xs font-bold py-2.5 border-slate-300">
+                    Join our WhatsApp group
+                  </Button>
+                </a>
+              )}
             </div>
           </div>
         </div>

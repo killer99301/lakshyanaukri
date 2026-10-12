@@ -40,6 +40,13 @@ html {
   color-scheme: light;
 }
 
+/* One long unbroken word on a job page must never make the whole site slide
+   sideways on a phone. "clip" (not "hidden") keeps sticky headers working. */
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);

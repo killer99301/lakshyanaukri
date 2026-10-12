@@ -405,13 +405,13 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                 job.eligibility.map((q, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-xs sm:text-sm text-[#0F172A] font-semibold">
                     <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span>{q}</span>
+                    <span className="min-w-0 [overflow-wrap:anywhere]">{q}</span>
                   </li>
                 ))
               ) : job.qualification ? (
                 <li className="flex items-start gap-2 text-xs sm:text-sm text-[#0F172A] font-semibold">
                   <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>{job.qualification} degree from a recognized Board or University in India.</span>
+                  <span className="min-w-0 [overflow-wrap:anywhere]">{job.qualification} degree from a recognized Board or University in India.</span>
                 </li>
               ) : (
                 // Never state a requirement nobody entered.
@@ -454,7 +454,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                     <ul className="space-y-1">
                       {job.ageLimit.postWise.map((p, i) => (
                         <li key={i} className="text-[11px] font-medium text-[#475569] flex items-baseline justify-between gap-3">
-                          <span>{p.post}</span>
+                          <span className="min-w-0 [overflow-wrap:anywhere]">{p.post}</span>
                           <span className="font-bold text-[#0F172A] whitespace-nowrap tabular-nums">
                             {p.bornFrom || p.bornTo
                               ? `Born ${p.bornFrom ? formatDate(p.bornFrom) : "any date"} to ${p.bornTo ? formatDate(p.bornTo) : "any date"}`

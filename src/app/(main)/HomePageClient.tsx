@@ -398,11 +398,28 @@ export default function HomePageClient({ opportunities, lifecycleLinks }: HomePa
               <Badge variant="orange" className="text-xs">Stay Updated</Badge>
               <h2 className="text-xl sm:text-2xl font-black tracking-tight">Never Miss a Notification</h2>
               <p className="text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
-                Join our Telegram channel for instant alerts on new job notifications, exam date changes, admit cards, and results — directly from official sources.
+                Join our Telegram channel for alerts on new job notifications, exam date changes, admit cards, and results.
               </p>
-              <div className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-600 text-slate-300 font-bold text-sm shadow-md mt-2 cursor-not-allowed select-none">
-                <Send className="h-4 w-4" />
-                <span>Telegram — Launching Soon</span>
+              <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+                <a
+                  href={siteConfig.links.telegram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-sm shadow-md transition-colors"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>Join on Telegram</span>
+                </a>
+                {siteConfig.links.whatsapp && (
+                  <a
+                    href={siteConfig.links.whatsapp}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-colors"
+                  >
+                    <span>Join on WhatsApp</span>
+                  </a>
+                )}
               </div>
               <p className="text-[11px] text-slate-400 mt-1">Free. No spam. Verified government updates only.</p>
             </div>
