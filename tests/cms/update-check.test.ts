@@ -38,6 +38,7 @@ import type { ExamStage } from "@/types";
 import {
   buildUpdatePrompt, hostOf, isOfficialHost, jsonFromAnswer, pageTextForCheck, readProposals, savesFor, tickedByDefault,
 } from "@/lib/cms/update-check";
+import { updateExamStages } from "@/lib/cms/record-ops";
 import { readAiUsage, recordAiFailure, reserveAiRequest, resolveDailyCap, usageDay, type UsageStore } from "@/lib/ai-usage";
 
 const pending = <T,>(value: T): ProvenanceField<T> => ({ value, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true });
@@ -322,6 +323,10 @@ test("UC21 postponed with no new date takes the old date off the stage and keeps
   assert.equal(read.proposals[0].stage?.clearDate, true);
   const stage = (savesFor(r, read.proposals)[0].value as ExamStage[])[1];
   assert.deepEqual(stage, { name: "Mains Examination", order: 2, status: "POSTPONED", certainty: "POSTPONED", notes: "Earlier scheduled for 25 Oct 2026. New date awaited." });
+  // The site's own save rules accept the stage exactly as it will be sent.
+  const toSend = (savesFor(r, read.proposals)[0].value as ExamStage[]).map((s, i) => (i === 1 ? s : { ...s, certainty: "TENTATIVE" as const }));
+  const saved = updateExamStages(r, toSend, "00000000-0000-4000-8000-000000000000", "test").record.examStages!;
+  assert.deepEqual(saved[1], stage);
   // A note already on the stage is left as it is.
   r.examStages![1].notes = "City slip from 20 Oct";
   assert.equal((savesFor(r, read.proposals)[0].value as ExamStage[])[1].notes, "City slip from 20 Oct");
