@@ -111,6 +111,47 @@ export function suggestFromLibrary<T extends Pick<LibraryEntrySummary, "exam" | 
   return scored.sort((a, b) => b.score - a.score || a.entry.exam.localeCompare(b.entry.exam)).map((s) => s.entry);
 }
 
+// Words that say nothing about which exam a job is for.
+const COMMON_WORDS = new Set([
+  "recruitment", "notification", "examination", "exam", "test", "posts", "post", "vacancy", "vacancies", "apply", "online",
+  "form", "advt", "advertisement", "notice", "level", "grade", "group", "combined", "competitive", "common", "various",
+  "service", "services", "selection", "commission", "board", "public", "state", "national", "india", "indian", "government",
+  "govt", "department", "and", "the", "for", "under", "with", "other", "others",
+]);
+
+/** The words of a text that could name an exam or a kind of post: "driver", "constable", "ssc". */
+function meaningfulWords(text: string): Set<string> {
+  return new Set(tokens(text).filter((w) => w.length >= 3 && !/^\d+$/.test(w) && !COMMON_WORDS.has(w)));
+}
+
+/**
+ * Library entries that share a word with the job without matching it outright:
+ * a "Constable Driver" job is shown every entry with "driver" or "constable"
+ * in its name. Closest first (most words shared). Entries that already match
+ * outright are left to suggestFromLibrary.
+ *
+ * Whole titles rarely repeat word for word from one body to another, and an
+ * exam for the same kind of post is often the best starting point there is.
+ */
+export function relatedFromLibrary<T extends Pick<LibraryEntrySummary, "exam" | "match">>(
+  entries: T[],
+  jobNames: Array<string | null | undefined>,
+  limit = 8,
+): Array<{ entry: T; shared: string[] }> {
+  const job = meaningfulWords(jobNames.filter(Boolean).join(" "));
+  const exact = new Set(suggestFromLibrary(entries, jobNames));
+  const found: Array<{ entry: T; shared: string[] }> = [];
+  for (const entry of entries) {
+    if (exact.has(entry)) continue;
+    const own = meaningfulWords(`${entry.exam} ${entry.match.join(" ")}`);
+    const shared = [...own].filter((w) => job.has(w));
+    if (shared.length > 0) found.push({ entry, shared });
+  }
+  return found
+    .sort((a, b) => b.shared.length - a.shared.length || a.entry.exam.localeCompare(b.entry.exam))
+    .slice(0, limit);
+}
+
 /** The content file without its LIBRARY block, as it goes into the paste box. */
 export function stripLibraryBlock(text: string): string {
   const lines = text.replace(/\r/g, "").split("\n");

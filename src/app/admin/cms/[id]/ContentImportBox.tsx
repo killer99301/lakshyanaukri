@@ -17,7 +17,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
 import { parseContentFile } from "@/lib/cms/content-import";
-import { stripLibraryBlock, suggestFromLibrary, type LibraryEntrySummary } from "@/lib/cms/syllabus-library";
+import { relatedFromLibrary, stripLibraryBlock, suggestFromLibrary, type LibraryEntrySummary } from "@/lib/cms/syllabus-library";
 
 const C = {
   bg: "#070b16", border: "rgba(148,163,184,0.14)", text: "#e2e8f0", muted: "#8c9bb8",
@@ -53,7 +53,12 @@ export function ContentImportBox({ record, onSaveMany }: { record: RecruitmentRe
     () => suggestFromLibrary(library, [record.identity.title?.value, record.identity.shortTitle?.value, record.identity.organizationName]),
     [library, record.identity.title?.value, record.identity.shortTitle?.value, record.identity.organizationName],
   );
-  const others = library.filter((e) => !suggested.includes(e));
+  // Entries for the same kind of post or the same body, when the whole title does not match.
+  const related = useMemo(
+    () => relatedFromLibrary(library, [record.identity.title?.value, record.identity.shortTitle?.value, record.identity.organizationName]),
+    [library, record.identity.title?.value, record.identity.shortTitle?.value, record.identity.organizationName],
+  );
+  const others = library.filter((e) => !suggested.includes(e) && !related.some((r) => r.entry === e));
 
   async function loadEntry(id: string) {
     setLoadingEntry(true);
@@ -112,7 +117,9 @@ export function ContentImportBox({ record, onSaveMany }: { record: RecruitmentRe
         {done && <span role="status" style={{ color: C.green, fontSize: 12, marginLeft: 10 }}>{done}</span>}
         {library.length > 0 && (
           <div style={{ marginTop: 10, fontSize: 12, color: C.muted, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-            {suggested.length > 0 ? <span style={{ color: C.text }}>The syllabus library has a file that looks like this exam:</span> : <span>Nothing in the syllabus library matches this job’s title.</span>}
+            {suggested.length > 0
+              ? <span style={{ color: C.text }}>The syllabus library has a file that looks like this exam:</span>
+              : <span>{related.length > 0 ? "No library file is for exactly this exam." : "Nothing in the syllabus library matches this job’s title."}</span>}
             {suggested.map((e) => (
               <button
                 key={e.id}
@@ -123,6 +130,22 @@ export function ContentImportBox({ record, onSaveMany }: { record: RecruitmentRe
                 Look at “{e.exam}”
               </button>
             ))}
+            {related.length > 0 && (
+              <span style={{ color: C.text, flexBasis: "100%" }}>
+                {suggested.length > 0 ? "Also related" : "Related"}, by a word in the title. They are for other exams, so read before you use one:
+              </span>
+            )}
+            {related.map(({ entry, shared }) => (
+              <button
+                key={entry.id}
+                onClick={() => { void loadEntry(entry.id); }}
+                disabled={loadingEntry}
+                title={`Shares “${shared.join("”, “")}” with this job’s title`}
+                style={{ background: "none", border: `1px solid ${C.border}`, color: C.accent, cursor: loadingEntry ? "wait" : "pointer", fontSize: 12, padding: "4px 10px", borderRadius: 6 }}
+              >
+                {entry.exam} <span style={{ color: C.muted }}>· {shared.join(", ")}</span>
+              </button>
+            ))}
             {others.length > 0 && (
               <select
                 aria-label="Choose another library file"
@@ -131,7 +154,7 @@ export function ContentImportBox({ record, onSaveMany }: { record: RecruitmentRe
                 onChange={(e) => { if (e.target.value) void loadEntry(e.target.value); }}
                 style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12, padding: "4px 8px", borderRadius: 6 }}
               >
-                <option value="">{suggested.length > 0 ? "or choose another…" : "Choose from the library…"}</option>
+                <option value="">{suggested.length > 0 || related.length > 0 ? "or choose another…" : "Choose from the library…"}</option>
                 {others.map((e) => <option key={e.id} value={e.id}>{e.exam}</option>)}
               </select>
             )}

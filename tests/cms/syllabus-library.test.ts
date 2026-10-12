@@ -15,7 +15,7 @@
 
 import { suite, test, assert } from "../intelligence/suite";
 import { parseContentFile } from "@/lib/cms/content-import";
-import { examKey, readLibraryFile, stripLibraryBlock, suggestFromLibrary, LibraryFileError } from "@/lib/cms/syllabus-library";
+import { examKey, readLibraryFile, stripLibraryBlock, suggestFromLibrary, relatedFromLibrary, LibraryFileError } from "@/lib/cms/syllabus-library";
 
 const BODY = `SOURCE
 Basis: OFFICIAL NOTICE (2026)
@@ -109,4 +109,29 @@ test("SY07 the LIBRARY block is removed before the file goes into the paste box"
   assert.ok(!/LIBRARY|Match:/.test(stripped));
   assert.deepEqual(parseContentFile(stripped), parseContentFile(BODY));
   assert.equal(stripLibraryBlock(BODY), BODY);
+});
+
+test("SL-REL a job is shown library files that share a word with its title, closest first", () => {
+  const lib = [
+    { exam: "MP Police Constable Driver", match: ["mpesb mp police constable driver"] },
+    { exam: "UP Police Constable", match: ["up police constable"] },
+    { exam: "Delhi Police Driver", match: ["delhi police driver"] },
+    { exam: "DSSSB Driver", match: ["dsssb driver"] },
+    { exam: "SSC CHSL", match: ["ssc chsl"] },
+    { exam: "RRB NTPC Graduate Level", match: ["rrb ntpc graduate"] },
+  ];
+  const job = ["Rajasthan Police Constable Driver Recruitment 2027", null, "Rajasthan Police"];
+  // Nothing is for exactly this exam…
+  assert.equal(suggestFromLibrary(lib, job).length, 0);
+  // …but every file about police, constables or drivers is offered, the closest first.
+  const related = relatedFromLibrary(lib, job);
+  assert.deepEqual(related.map((r) => r.entry.exam), ["MP Police Constable Driver", "Delhi Police Driver", "UP Police Constable", "DSSSB Driver"]);
+  assert.deepEqual(related[0].shared.sort(), ["constable", "driver", "police"]);
+  assert.deepEqual(related[3].shared, ["driver"]);
+  // Words every title has ("recruitment", "level", a year) relate nothing.
+  assert.equal(relatedFromLibrary(lib, ["Graduate Level Recruitment Examination 2027 Group B Posts"]).map((r) => r.entry.exam).join(), "RRB NTPC Graduate Level");
+  assert.equal(relatedFromLibrary(lib, ["Recruitment Examination 2027 Level 4 Posts"]).length, 0);
+  // A file that already matches outright is not repeated as "related".
+  assert.deepEqual(relatedFromLibrary(lib, ["SSC CHSL 2027"]).map((r) => r.entry.exam), []);
+  assert.equal(relatedFromLibrary(lib, ["SSC Driver 2027"]).map((r) => r.entry.exam).sort().join("|"), "DSSSB Driver|Delhi Police Driver|MP Police Constable Driver|SSC CHSL");
 });
