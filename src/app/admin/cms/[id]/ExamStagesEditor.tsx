@@ -87,7 +87,7 @@ export function ExamStagesEditor({
 }: {
   record: RecruitmentRecord;
   /** Saves the whole list. Resolves to an error message, or null on success. */
-  onSave: (stages: Array<Record<string, unknown>>, reason: string) => Promise<string | null>;
+  onSave: (stages: Array<Record<string, unknown>>, reason: string, quiet: boolean) => Promise<string | null>;
 }) {
   const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
   const stages = record.examStages ?? [];
@@ -96,6 +96,10 @@ export function ExamStagesEditor({
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // A job that has been public announces every stage change as an update.
+  // Ticked, the save is a correction of a mistake and announces nothing.
+  const [quiet, setQuiet] = useState(false);
+  const wasPublic = Boolean(record.publishedAt);
 
   const selectionStages = record.selection?.value?.stages ?? [];
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
@@ -104,7 +108,8 @@ export function ExamStagesEditor({
   async function save(next: Array<Record<string, unknown>>, reason: string): Promise<boolean> {
     setSaving(true);
     setErr(null);
-    const problem = await onSave(next, reason);
+    const silent = wasPublic && quiet;
+    const problem = await onSave(next, silent ? `${reason} (correction, not announced)` : reason, silent);
     setSaving(false);
     if (problem) { setErr(problem); return false; }
     return true;
@@ -277,6 +282,16 @@ export function ExamStagesEditor({
             <button onClick={() => { setEditing(null); setDraft(EMPTY); setErr(null); }} style={{ ...ghost, color: C.muted }}>Cancel</button>
           </div>
         </div>
+      )}
+
+      {editable && wasPublic && (
+        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 12, fontSize: 12, color: quiet ? C.amber : C.muted, lineHeight: 1.5, cursor: "pointer" }}>
+          <input type="checkbox" checked={quiet} onChange={(e) => setQuiet(e.target.checked)} style={{ marginTop: 2 }} />
+          <span>
+            I am correcting a mistake, not reporting news. While this is ticked, stage changes are saved without an
+            update note, so visitors are not told something “changed” when it was only entered wrongly.
+          </span>
+        </label>
       )}
 
       {err && <div role="alert" style={{ color: C.red, fontSize: 12, marginTop: 10 }}>{err.replace(/^.*examStages invariant:\s*/, "")}</div>}

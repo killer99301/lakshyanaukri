@@ -384,6 +384,7 @@ async function saveListField(
   fieldPath: "links" | "howToApply" | "classification" | "examStages" | "examPattern" | "syllabus" | "vacancies.breakdown" | "age" | "eligibility" | "selection",
   value: unknown,
   reason: string,
+  quiet = false,
 ): Promise<{ record?: RecruitmentRecord; error?: string }> {
   try {
     const res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
@@ -394,6 +395,7 @@ async function saveListField(
         field: { value, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true },
         clientRevision: recordRevision,
         reason,
+        ...(quiet ? { quiet: true } : {}),
       }),
     });
     const data = await res.json();
@@ -2105,8 +2107,8 @@ export default function CmsRecordEditorPage() {
           <Section title="Exam Stages">
             <ExamStagesEditor
               record={record}
-              onSave={async (stages, reason) => {
-                const out = await saveListField(record.id, record.recordRevision, "examStages", stages, reason);
+              onSave={async (stages, reason, quiet) => {
+                const out = await saveListField(record.id, record.recordRevision, "examStages", stages, reason, quiet);
                 if (out.error || !out.record) return out.error ?? "Save failed";
                 onFieldSaved(out.record);
                 return null;

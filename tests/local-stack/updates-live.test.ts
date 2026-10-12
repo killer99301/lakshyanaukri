@@ -98,5 +98,24 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
   check("after publishing, all four entries are public", r.status === 200 && (await titles(slug))?.join("|") === "Draft note|Exam postponed|Second notice|Held back", await titles(slug));
 
+  section("Stage changes on a job that has been public");
+  r = await revert.POST(req(`/api/admin/cms/records/${id}/revert`, "POST"), ctx(id));
+  d = await r.json();
+  rev = d.record.recordRevision;
+  const stagePatch = async (value: unknown, quiet?: boolean) => {
+    const res = await fields.PATCH(req(`/api/admin/cms/records/${id}/fields`, "PATCH", {
+      fieldPath: "examStages", field: { value, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true }, clientRevision: rev, reason: "test", ...(quiet ? { quiet: true } : {}),
+    }), ctx(id));
+    const body = await res.json();
+    if (res.status === 200) rev = body.record.recordRevision;
+    return { status: res.status, updates: (body.record?.updates ?? []) as Array<{ title: string }> };
+  };
+  let s = await stagePatch([{ name: "Online Test", status: "SCHEDULED", dateDisplay: "Nov 2026", certainty: "TENTATIVE" }]);
+  check("a new dated stage is announced", s.status === 200 && s.updates.length === 5 && s.updates[4].title === "Online Test date announced", s.updates.map((u) => u.title));
+  s = await stagePatch([{ name: "Online Test", status: "SCHEDULED", dateDisplay: "Dec 2026", certainty: "TENTATIVE" }], true);
+  check("a correction is saved but announces nothing", s.status === 200 && s.updates.length === 5, s.updates.map((u) => u.title));
+  s = await stagePatch([{ name: "Online Test", status: "POSTPONED" }]);
+  check("the next real change is announced again", s.status === 200 && s.updates.length === 6 && s.updates[5].title === "Online Test postponed", s.updates.map((u) => u.title));
+
   summary();
 })().catch((e) => { console.error("HARNESS ERROR:", e); process.exit(1); });

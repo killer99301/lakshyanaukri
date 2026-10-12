@@ -28,6 +28,8 @@ interface PatchBody {
   field: ProvenanceField<unknown>;
   clientRevision: string;
   reason?: string;
+  /** A correction of a mistake in the stages: saved, but not announced as an update. */
+  quiet?: boolean;
   updateEntry?: {
     type: UpdateType;
     date: string;
@@ -60,7 +62,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { fieldPath, field, clientRevision, reason, updateEntry } = body;
+  const { fieldPath, field, clientRevision, reason, updateEntry, quiet } = body;
   if (!fieldPath || field === undefined) {
     return NextResponse.json(
       { error: "fieldPath and field are required" },
@@ -113,7 +115,7 @@ export async function PATCH(
         ...(updateEntry.newValue !== undefined ? { newValue: updateEntry.newValue } : {}),
       };
       result.record.updates = [...(result.record.updates ?? []), entry];
-    } else if (fieldPath === "examStages" && record.publishedAt) {
+    } else if (fieldPath === "examStages" && record.publishedAt && quiet !== true) {
       // A job that has been public: a change to a stage's status or date is
       // written into its updates, so the banner and history never lag behind
       // the stages. A draft that was never published is still being put
