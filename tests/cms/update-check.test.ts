@@ -21,6 +21,9 @@
 //  UC14  the prompt states what is on record and, in page mode, forbids outside knowledge
 //  UC15  JSON is dug out of an answer with prose or a code fence around it
 //  UC16  a page becomes reading text that keeps each link's address
+//  UC17  a portal's own links are never offered, whatever they are called
+//  UC18  "result declared" never moves the day a stage was held
+//  UC19  the prompt says what resultDate and a stage date mean, and to leave portal links out
 //  AU01  requests are counted per feature and per day (Indian time)
 //  AU02  the cap refuses further requests and a refused request is not counted
 //  AU03  the cap setting falls back to the default on nonsense
@@ -141,6 +144,38 @@ test("UC06 unknown fields, statuses, link types and shapeless input are dropped,
     assert.deepEqual(readProposals(raw, ibps()).proposals, []);
   }
   assert.equal(readProposals({ changes: [null, "x"] }, ibps()).dropped, 2);
+});
+
+// The first live check (a coaching page about IBPS PO) produced each of these.
+test("UC17 a portal's own links are never offered, whatever they are called", () => {
+  for (const url of [
+    "https://www.careerpower.in/ibps-po-admit-card.html",
+    "https://www.careerpower.in/blog/wp-content/uploads/2026/06/Detailed-Notification_CRP-PO-XVI.pdf",
+    "https://ibps.in.example.com/call-letter",
+  ]) {
+    assert.deepEqual(one({ type: "link", linkType: "ADMIT_CARD", url, source: "ibps.in" }), [], url);
+  }
+  assert.equal(one({ type: "link", linkType: "ADMIT_CARD", url: "https://ibpsonline.ibps.in/crppo16/cloea_sep26", source: "careerpower.in" }).length, 1);
+  assert.equal(one({ type: "link", linkType: "EXAM_NOTICE", url: "https://ssc.gov.in/notice.pdf", source: "careerpower.in" })[0].official, true);
+});
+
+test("UC18 \"result declared\" never moves the day a stage was held", () => {
+  const r = ibps();
+  const read = readProposals(change({ type: "stage", stage: "Mains Examination", status: "RESULT_DECLARED", date: "2026-11-15", evidence: "Mains result declared on 15 November", source: "ibps.in" }), r);
+  assert.deepEqual(read.proposals[0].stage, { name: "Mains Examination", isNew: false, status: "RESULT_DECLARED" });
+  assert.equal(read.proposals[0].newText, "result declared, 4 Oct 2026");
+  const stages = savesFor(r, read.proposals)[0].value as ExamStage[];
+  assert.equal(stages[1].dateIso, "2026-10-04");
+  assert.equal(stages[1].status, "RESULT_DECLARED");
+  // Already "result declared" on record: a different date alone is not a change.
+  assert.deepEqual(one({ type: "stage", stage: "Preliminary Examination", status: "RESULT_DECLARED", date: "2026-09-23", source: "ibps.in" }), []);
+});
+
+test("UC19 the prompt says what resultDate and a stage date mean, and to leave portal links out", () => {
+  const prompt = buildUpdatePrompt(ibps(), "2026-10-10", null);
+  assert.match(prompt, /resultDate means the FINAL result of the whole recruitment/);
+  assert.match(prompt, /A stage's date is the day the stage is held/);
+  assert.match(prompt, /Never report a link to a news, coaching or job-portal page/);
 });
 
 suite("Check for updates: where a proposal came from");

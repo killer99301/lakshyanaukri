@@ -137,6 +137,9 @@ export function buildUpdatePrompt(record: RecruitmentRecord, todayIso: string, s
     "",
     "Report only what is NEW or DIFFERENT from the record above: a date announced, changed or extended; an exam stage scheduled, postponed, held, or its admit card or result released; a new official link (admit card, result, answer key, cut-off, exam notice, corrigendum).",
     "Do not repeat anything the record already says. Do not guess: if a date is not stated, leave it out. If nothing is new, return an empty list.",
+    "resultDate means the FINAL result of the whole recruitment. The result of one stage (for example a preliminary exam) is reported as that stage with status RESULT_DECLARED, not as resultDate.",
+    "A stage's date is the day the stage is held, never the day its admit card or result was released.",
+    "Report a link only if it points to the recruiting body's own website or a government website. Never report a link to a news, coaching or job-portal page.",
     "",
     "Answer with JSON only, in exactly this shape:",
     '{"summary": "one sentence", "changes": [',
@@ -257,7 +260,9 @@ export function readProposals(raw: unknown, record: RecruitmentRecord, ctx: Chec
     } else if (type === "stage") {
       const name = text(c.stage, 80);
       const status = oneOf(c.status, STAGE_STATUSES);
-      const dateIso = realDate(c.date, year) ?? undefined;
+      // A stage's date is the day it is held. With "result declared" the AI
+      // tends to send the day the result came out, which must not replace it.
+      const dateIso = status === "RESULT_DECLARED" ? undefined : realDate(c.date, year) ?? undefined;
       // A dated stage is either confirmed or tentative; anything else the AI says is ignored.
       const certainty = oneOf(c.certainty, DATED_CERTAINTIES);
       const existing = (record.examStages ?? []).find((s) => squash(s.name) === squash(name));
@@ -283,13 +288,15 @@ export function readProposals(raw: unknown, record: RecruitmentRecord, ctx: Chec
       const linkHost = hostOf(url);
       const valid = /^https?:\/\//i.test(url) && Boolean(linkHost);
       const already = record.links.some((l) => l.url.replace(/\/$/, "") === url.replace(/\/$/, ""));
-      if (linkType && valid && !already) {
+      // Only links to the recruiting body's own site or a government domain are
+      // offered. A portal's own page, or its copy of a notice, never goes on a job.
+      if (linkType && valid && !already && isOfficialHost(linkHost, record)) {
         proposal = {
           ...base, id: `link:${url}`, kind: "LINK", label: `${UPDATE_LINK_TYPES[linkType]} link`,
           oldText: record.links.some((l) => l.type === linkType) ? "another link of this kind is on record" : "none",
           newText: url,
           // What matters for a link is where it points, not who mentioned it.
-          sourceHost: linkHost, official: isOfficialHost(linkHost, record),
+          sourceHost: linkHost, official: true,
           // An address the AI wrote out is only trusted when it is on the page that was read.
           confirmed: ctx.source ? supported(evidence, linkHost, ctx, url) : false,
           link: { type: linkType, url, label: text(c.label, 120) || UPDATE_LINK_TYPES[linkType] },
