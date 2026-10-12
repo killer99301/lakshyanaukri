@@ -27,20 +27,22 @@ const escapeHtml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "
 /** The channel message for a published record. HTML, as Telegram's "HTML" parse mode expects. */
 export function buildJobAnnouncement(snapshot: PublishedRecruitmentSnapshot, kind: AnnouncementKind): string {
   const lines: string[] = [];
-  lines.push(kind === "NEW" ? "🆕 <b>New job</b>" : "🔄 <b>Updated</b>");
+  // The heading is in capitals as well as bold: Telegram has no larger type,
+  // and it is what a subscriber scans the channel for. Every value is bold.
+  lines.push(kind === "NEW" ? "🆕 <b>NEW JOB</b>" : "🔄 <b>UPDATED</b>");
   lines.push(`<b>${escapeHtml(snapshot.title ?? snapshot.shortTitle ?? "Recruitment")}</b>`);
-  lines.push(escapeHtml(snapshot.organizationName));
+  lines.push(`<b>${escapeHtml(snapshot.organizationName)}</b>`);
   lines.push("");
   if (typeof snapshot.vacancies.total === "number" && snapshot.vacancies.total > 0) {
-    lines.push(`Posts: ${snapshot.vacancies.total.toLocaleString("en-IN")}`);
+    lines.push(`Posts: <b>${snapshot.vacancies.total.toLocaleString("en-IN")}</b>`);
   }
   if (snapshot.classification.qualification) {
-    lines.push(`Qualification: ${escapeHtml(snapshot.classification.qualification)}`);
+    lines.push(`Qualification: <b>${escapeHtml(snapshot.classification.qualification)}</b>`);
   }
-  if (snapshot.dates.applicationOpenDate) lines.push(`Apply from: ${formatDate(snapshot.dates.applicationOpenDate)}`);
-  if (snapshot.dates.applicationCloseDate) lines.push(`Last date: ${formatDate(snapshot.dates.applicationCloseDate)}`);
+  if (snapshot.dates.applicationOpenDate) lines.push(`Apply from: <b>${formatDate(snapshot.dates.applicationOpenDate)}</b>`);
+  if (snapshot.dates.applicationCloseDate) lines.push(`<b>Last date: ${formatDate(snapshot.dates.applicationCloseDate)}</b>`);
   if (lines[lines.length - 1] !== "") lines.push("");
-  lines.push(`Details and official links: ${siteConfig.url}/jobs/${snapshot.slug}`);
+  lines.push(`<b>Details and official links:</b> ${siteConfig.url}/jobs/${snapshot.slug}`);
   return lines.join("\n");
 }
 

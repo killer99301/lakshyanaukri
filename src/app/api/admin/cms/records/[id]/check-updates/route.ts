@@ -1,11 +1,13 @@
 // ═══════════════════════════════════════════════════════════
 // POST /api/admin/cms/records/[id]/check-updates
 //
-// Body: { url?: string, text?: string }, or a form with a PDF `file` (+ `url`)
+// Body: { url?: string, text?: string }, or a form with a `file` (+ `url`)
 //   nothing          → the AI searches the web
 //   a url            → the server fetches that page or PDF and the AI reads only it
 //   text or a PDF    → the AI reads only what the admin supplied; `url` then
 //                      just records where it came from
+//   a photo, or a    → the AI reads the picture itself: a newspaper cutting,
+//   scanned PDF        an e-paper page, a printed notice
 //
 // Returns proposed changes for the admin to tick. Read-only: this route never
 // changes a record. Accepted proposals are saved afterwards through the
@@ -31,6 +33,15 @@ const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const MIN_PASTED_CHARS = 40;
 const MAX_PASTED_CHARS = 200_000;
 
+/** The kind of file an upload really is, told from its first bytes, never from its name. */
+function uploadKind(bytes: Buffer): "application/pdf" | "image/jpeg" | "image/png" | "image/webp" | null {
+  if (bytes.subarray(0, 5).toString("latin1") === "%PDF-") return "application/pdf";
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes[0] === 0x89 && bytes.subarray(1, 4).toString("latin1") === "PNG") return "image/png";
+  if (bytes.subarray(0, 4).toString("latin1") === "RIFF" && bytes.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
+  return null;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -48,6 +59,7 @@ export async function POST(
   let url = "";
   let pasted = "";
   let upload: Buffer | null = null;
+  let kind: ReturnType<typeof uploadKind> = null;
   if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
     let form: FormData;
     try {
@@ -56,12 +68,13 @@ export async function POST(
       return NextResponse.json({ error: "Could not read the uploaded file" }, { status: 400 });
     }
     const file = form.get("file");
-    if (!(file instanceof File)) return NextResponse.json({ error: "Choose a PDF file to upload" }, { status: 400 });
+    if (!(file instanceof File)) return NextResponse.json({ error: "Choose a PDF or a photo to upload" }, { status: 400 });
     if (file.size > MAX_UPLOAD_BYTES) {
-      return NextResponse.json({ error: "This PDF is larger than 4 MB, which is the most that can be uploaded here" }, { status: 413 });
+      return NextResponse.json({ error: "This file is larger than 4 MB, which is the most that can be uploaded here" }, { status: 413 });
     }
     upload = Buffer.from(await file.arrayBuffer());
-    if (upload.subarray(0, 5).toString("latin1") !== "%PDF-") return NextResponse.json({ error: "That file is not a PDF" }, { status: 400 });
+    kind = uploadKind(upload);
+    if (!kind) return NextResponse.json({ error: "That file is not a PDF or a photo (JPG, PNG or WebP)" }, { status: 400 });
     const given = form.get("url");
     url = typeof given === "string" ? given.trim() : "";
   } else {
@@ -100,14 +113,23 @@ export async function POST(
     return NextResponse.json({ error: "An archived record cannot be checked for updates" }, { status: 409 });
   }
 
-  let source: { url: string; text: string; supplied?: boolean } | null = null;
-  if (upload) {
-    const { extractPdfFromBuffer } = await import("@/intelligence/pdf-extractor");
-    const pdf = await extractPdfFromBuffer(upload);
-    if (!pdf.ok || !pdf.text || pdf.text.trim().length < MIN_PASTED_CHARS) {
-      return NextResponse.json({ error: "This PDF has no readable text (it may be a scanned image). Paste the relevant text instead." }, { status: 422 });
+  let source: { url: string; text: string; supplied?: boolean; attached?: boolean } | null = null;
+  let attachment: { mimeType: string; data: string } | undefined;
+  if (upload && kind) {
+    let pdfText = "";
+    if (kind === "application/pdf") {
+      const { extractPdfFromBuffer } = await import("@/intelligence/pdf-extractor");
+      const pdf = await extractPdfFromBuffer(upload);
+      if (pdf.ok && pdf.text && pdf.text.trim().length >= MIN_PASTED_CHARS) pdfText = pdf.text;
     }
-    source = { url, text: pdf.text.slice(0, PAGE_TEXT_LIMIT), supplied: true };
+    if (pdfText) {
+      source = { url, text: pdfText.slice(0, PAGE_TEXT_LIMIT), supplied: true };
+    } else {
+      // A photo, or a PDF that is only scanned pages: there is no text to hand
+      // over, so the AI is given the file and reads it itself.
+      attachment = { mimeType: kind, data: upload.toString("base64") };
+      source = { url, text: "", supplied: true, attached: true };
+    }
   } else if (pasted) {
     source = { url, text: pasted.slice(0, PAGE_TEXT_LIMIT), supplied: true };
   } else if (url) {
@@ -132,12 +154,13 @@ export async function POST(
     prompt: buildUpdatePrompt(record, todayInIndia(), source),
     apiKey: process.env.GEMINI_API_KEY,
     search: !source,
+    attachment,
   });
   if (!answer.ok) return NextResponse.json({ error: answer.reason }, { status: 502 });
 
   const read = readProposals(answer.data, record, source ? { source } : { groundedHosts: answer.groundedHosts });
   return NextResponse.json({
-    mode: !source ? "search" : upload ? "pdf" : pasted ? "text" : "page",
+    mode: !source ? "search" : attachment ? (kind === "application/pdf" ? "scan" : "photo") : upload ? "pdf" : pasted ? "text" : "page",
     sourceUrl: source?.url || null,
     searchedSites: answer.groundedHosts,
     summary: read.summary,

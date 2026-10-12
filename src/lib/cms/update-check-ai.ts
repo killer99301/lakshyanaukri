@@ -18,7 +18,8 @@ export type UpdateAnswer =
   | { ok: true; data: unknown; groundedHosts: string[] }
   | { ok: false; reason: string };
 
-function failure(status: number, search: boolean): string {
+function failure(status: number, search: boolean, attached = false): string {
+  if (status === 400 && attached) return "The AI could not read this file. Try a clearer photo, or crop it to the item about this recruitment.";
   if (status === 429 && search) return "The AI refused the web search (rate limit). On a free plan, web search may not be included for the site’s model. Paste the notice text or upload the PDF instead.";
   if (status === 429) return "AI rate limit reached. Wait a minute and try again.";
   if (status === 404) return "The configured AI model is not available.";
@@ -40,6 +41,8 @@ export async function askForUpdates(opts: {
   apiKey: string | undefined;
   /** True: let the model search the web. False: it answers from the page text in the prompt. */
   search: boolean;
+  /** A photo or scan for the model to read itself (a newspaper cutting, a scanned notice). Base64. */
+  attachment?: { mimeType: string; data: string };
   fetchFn?: typeof fetch;
 }): Promise<UpdateAnswer> {
   if (!opts.apiKey) return { ok: false, reason: "AI is not configured on this site." };
@@ -60,7 +63,13 @@ export async function askForUpdates(opts: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+        contents: [{
+          role: "user",
+          parts: [
+            { text: opts.prompt },
+            ...(opts.attachment ? [{ inline_data: { mime_type: opts.attachment.mimeType, data: opts.attachment.data } }] : []),
+          ],
+        }],
         // A JSON-only response type cannot be combined with the search tool,
         // so with search the JSON is asked for in the prompt and dug out below.
         ...(opts.search
@@ -72,7 +81,7 @@ export async function askForUpdates(opts: {
     status = response.status;
     if (!response.ok) {
       await recordAiFailure("update-check");
-      return { ok: false, reason: failure(status, opts.search) };
+      return { ok: false, reason: failure(status, opts.search, Boolean(opts.attachment)) };
     }
 
     const body = (await response.json()) as GeminiBody;
@@ -81,7 +90,7 @@ export async function askForUpdates(opts: {
     const data = jsonFromAnswer(answer);
     if (data === null) {
       await recordAiFailure("update-check");
-      return { ok: false, reason: failure(status, opts.search) };
+      return { ok: false, reason: failure(status, opts.search, Boolean(opts.attachment)) };
     }
     // The search tool reports each page it opened; its title is the site's domain.
     const groundedHosts = [...new Set(
@@ -92,7 +101,7 @@ export async function askForUpdates(opts: {
     return { ok: true, data, groundedHosts };
   } catch {
     await recordAiFailure("update-check");
-    return { ok: false, reason: failure(status, opts.search) };
+    return { ok: false, reason: failure(status, opts.search, Boolean(opts.attachment)) };
   } finally {
     clearTimeout(timer);
   }

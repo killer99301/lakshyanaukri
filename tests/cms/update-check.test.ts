@@ -245,6 +245,18 @@ test("UC10 only official, confirmed proposals are ticked by default", () => {
   assert.match(buildUpdatePrompt(ibps(), "2026-10-10", supplied.source), /Use ONLY the page text given below \(supplied by the editor\)/);
 });
 
+test("UC10b a photo or scan: the AI reads the file, and nothing from it is ticked", () => {
+  const photo = { source: { url: "", text: "", supplied: true, attached: true } };
+  const prompt = buildUpdatePrompt(ibps(), "2026-10-10", photo.source);
+  assert.match(prompt, /Use ONLY the attached file/);
+  assert.match(prompt, /newspaper cutting/);
+  assert.doesNotMatch(prompt, /PAGE TEXT:/);
+  // No text to check the words against, so it is never confirmed: the admin compares it with the cutting.
+  const read = readProposals({ changes: [{ type: "date", field: "resultDate", value: "2026-11-15", evidence: "Result of Main Examination will be declared on 15.11.2026" }] }, ibps(), photo).proposals[0];
+  assert.deepEqual([read.supplied, read.confirmed, read.official], [true, false, false]);
+  assert.equal(tickedByDefault(read), false);
+});
+
 test("UC11 at most 12 proposals; a repeated proposal is kept once", () => {
   const many = Array.from({ length: 30 }, (_, i) => ({ type: "link", linkType: "EXAM_NOTICE", url: `https://www.ibps.in/notice-${i}` }));
   assert.equal(readProposals({ changes: many }, ibps()).proposals.length, 12);

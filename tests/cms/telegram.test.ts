@@ -34,10 +34,10 @@ suite("Telegram channel post");
 
 test("TG01 message carries only facts on the snapshot; missing ones leave no line", () => {
   const full = buildJobAnnouncement(snapshot(), "NEW");
-  assert.match(full, /Posts: 3,500/);
-  assert.match(full, /Qualification: Graduate/);
-  assert.match(full, /Apply from: 1 Oct 2026/);
-  assert.match(full, /Last date: 17 Oct 2026/);
+  assert.match(full, /Posts: <b>3,500<\/b>/);
+  assert.match(full, /Qualification: <b>Graduate<\/b>/);
+  assert.match(full, /Apply from: <b>1 Oct 2026<\/b>/);
+  assert.match(full, /<b>Last date: 17 Oct 2026<\/b>/);
   assert.match(full, /\/jobs\/canara-bank-apprentice-2026$/);
 
   const bare = buildJobAnnouncement(
@@ -53,8 +53,8 @@ test("TG01 message carries only facts on the snapshot; missing ones leave no lin
 });
 
 test("TG02 \"New job\" and \"Updated\" headings; title text is escaped", () => {
-  assert.match(buildJobAnnouncement(snapshot(), "NEW"), /^🆕 <b>New job<\/b>/);
-  assert.match(buildJobAnnouncement(snapshot(), "UPDATED"), /^🔄 <b>Updated<\/b>/);
+  assert.match(buildJobAnnouncement(snapshot(), "NEW"), /^🆕 <b>NEW JOB<\/b>/);
+  assert.match(buildJobAnnouncement(snapshot(), "UPDATED"), /^🔄 <b>UPDATED<\/b>/);
   const odd = buildJobAnnouncement(snapshot({ title: "Clerk <Grade A> & Typist" }), "NEW");
   assert.match(odd, /Clerk &lt;Grade A&gt; &amp; Typist/);
 });

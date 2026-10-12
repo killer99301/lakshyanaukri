@@ -127,8 +127,18 @@ export function describeForCheck(record: RecruitmentRecord): string {
   return lines.join("\n");
 }
 
-export function buildUpdatePrompt(record: RecruitmentRecord, todayIso: string, source: { url: string; text: string } | null): string {
-  const where = source
+export function buildUpdatePrompt(record: RecruitmentRecord, todayIso: string, source: { url: string; text: string; attached?: boolean } | null): string {
+  // An attached file is a photo or scan the editor supplied: a newspaper
+  // cutting, an e-paper page, a notice board. There is no text to hand over,
+  // so the model reads the picture itself.
+  const where = source?.attached
+    ? [
+        "Use ONLY the attached file. It is a photo or scan supplied by the editor: a newspaper cutting, an e-paper page or a printed notice. It may be in Hindi or another Indian language. Do not use anything you remember.",
+        "A newspaper page carries many items. Use only the item about THIS recruitment; if none is about it, return an empty list.",
+        "In \"evidence\", give the words as printed, followed by an English translation in brackets when they are not in English. Leave \"source\" empty unless the file itself names the recruiting body's website.",
+        "If a date is too blurred or cut off to read with certainty, leave it out.",
+      ].join("\n")
+    : source
     ? `Use ONLY the page text given below (${source.url ? `from ${source.url}` : "supplied by the editor"}). Do not use anything you remember.`
     : `Search the web. Prefer the recruiting body's own website (${officialHosts(record).join(", ") || "its official site"}) and government domains over news, coaching and job-portal sites.`;
   return [
@@ -151,7 +161,7 @@ export function buildUpdatePrompt(record: RecruitmentRecord, todayIso: string, s
     '  {"type": "stage", "stage": "stage name as on the record, or the new stage’s name", "status": "<one of: ' + STAGE_STATUSES.join(", ") + '>", "date": "YYYY-MM-DD or empty", "certainty": "<CONFIRMED if the date is stated as final, TENTATIVE if it may change, or empty>", "evidence": "…", "source": "…"},',
     '  {"type": "link", "linkType": "<one of: ' + Object.keys(UPDATE_LINK_TYPES).join(", ") + '>", "url": "https://…", "label": "short label", "evidence": "…", "source": "…"}',
     "]}",
-    ...(source ? ["", "PAGE TEXT:", source.text] : []),
+    ...(source && !source.attached ? ["", "PAGE TEXT:", source.text] : []),
   ].join("\n");
 }
 
@@ -234,7 +244,7 @@ export interface CheckContext {
   /** Hosts of pages the web search actually opened. */
   groundedHosts?: string[];
   /** The page the admin pointed at, or the text or PDF they supplied (url may then be empty). */
-  source?: { url: string; text: string; supplied?: boolean };
+  source?: { url: string; text: string; supplied?: boolean; attached?: boolean };
 }
 
 function supported(evidence: string, sourceHost: string | null, ctx: CheckContext, mustContain?: string): boolean {

@@ -24,7 +24,7 @@ const C = {
 };
 
 interface CheckResult {
-  mode: "page" | "search" | "text" | "pdf";
+  mode: "page" | "search" | "text" | "pdf" | "photo" | "scan";
   sourceUrl: string | null;
   searchedSites: string[];
   summary: string;
@@ -86,7 +86,7 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
           body: JSON.stringify({ ...(url.trim() ? { url: url.trim() } : {}), ...(pasted.trim() ? { text: pasted.trim() } : {}) }),
         });
       }
-      if (res.status === 413) { setErr("This PDF is larger than 4 MB, which is the most that can be uploaded here."); return; }
+      if (res.status === 413) { setErr("This file is larger than 4 MB, which is the most that can be uploaded here."); return; }
       const data = await res.json();
       if (!res.ok) { setErr(data.error ?? `HTTP ${res.status}`); return; }
       const proposals: UpdateProposal[] = data.proposals ?? [];
@@ -184,7 +184,7 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
         <button onClick={() => { setOpen(false); setResult(null); setErr(null); }} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>Close</button>
       </div>
       <div style={{ fontSize: 12, color: C.muted, margin: "6px 0 10px", lineHeight: 1.5 }}>
-        Three ways to check: leave everything empty to let the AI search the web; give the address of an official page or PDF for the site to fetch; or, when the official site blocks that, paste the notice text or upload the PDF yourself. It only proposes; nothing changes until you accept. Each check uses one AI request.
+        Four ways to check: leave everything empty to let the AI search the web; give the address of an official page or PDF for the site to fetch; when the official site blocks that, paste the notice text or upload the PDF yourself; or upload a photo of a newspaper cutting. It only proposes; nothing changes until you accept. Each check uses one AI request.
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <input
@@ -211,10 +211,10 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
         style={{ width: "100%", height: pasted ? 140 : 44, marginTop: 8, padding: "7px 10px", background: C.bg, border: "1px solid #2b3a5c", borderRadius: 6, color: C.text, fontSize: 12, boxSizing: "border-box", fontFamily: "inherit", resize: "vertical" }}
       />
       <label style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: checking || applying ? C.muted : C.accent, cursor: checking || applying ? "wait" : "pointer" }}>
-        or upload the notice PDF (up to 4 MB)
+        or upload the notice PDF, or a photo of a newspaper cutting (up to 4 MB)
         <input
           type="file"
-          accept="application/pdf,.pdf"
+          accept="application/pdf,.pdf,image/jpeg,image/png,image/webp"
           disabled={checking || applying}
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void check(f); }}
           style={{ display: "none" }}
@@ -227,7 +227,9 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
       {result && (
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
-            {result.mode === "text" || result.mode === "pdf"
+            {result.mode === "photo" || result.mode === "scan"
+              ? <>Read by the AI from the {result.mode === "photo" ? "photo" : "scanned PDF"} you uploaded. A picture cannot be checked word for word, so nothing below is ticked for you: compare each one with the cutting before you accept it.</>
+              : result.mode === "text" || result.mode === "pdf"
               ? <>Read from the {result.mode === "pdf" ? "PDF you uploaded" : "text you pasted"}{result.sourceUrl ? <> (<span style={{ color: C.text }}>{result.sourceUrl}</span>)</> : null}.</>
               : result.mode === "page"
               ? <>Read from <span style={{ color: C.text }}>{result.sourceUrl}</span>.</>
@@ -261,7 +263,7 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.label}</span>
                       <span style={badge(p.official ? C.green : p.supplied && !p.sourceHost ? C.muted : C.amber)}>{p.official ? "Official source" : p.supplied && !p.sourceHost ? "From what you supplied" : "Not an official source"}</span>
-                      {!p.confirmed && <span style={badge(C.amber)}>{p.kind === "LINK" ? "Open the link before accepting" : "Source not confirmed"}</span>}
+                      {!p.confirmed && <span style={badge(C.amber)}>{p.kind === "LINK" ? "Open the link before accepting" : result.mode === "photo" || result.mode === "scan" ? "Compare with the picture" : "Source not confirmed"}</span>}
                     </div>
                     <div style={{ fontSize: 13, color: C.text, marginTop: 4, overflowWrap: "anywhere" }}>
                       <span style={{ color: C.muted }}>{p.oldText}</span> → <b>{p.kind === "LINK" ? <a href={p.newText} target="_blank" rel="noreferrer" style={{ color: C.accent }}>{p.newText}</a> : p.newText}</b>

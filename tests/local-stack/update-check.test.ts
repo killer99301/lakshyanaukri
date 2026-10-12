@@ -172,6 +172,31 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   const rowAfterText = JSON.stringify((await pg.query("SELECT record_revision, draft_state, dates, exam_stages, links FROM recruitments WHERE id = $1", [id])).rows[0]);
   check("still nothing changed on the record", rowAfterText === rowBefore);
 
+  section("A photo of a newspaper cutting: the AI reads the picture itself");
+  const upload = (bytes: Uint8Array, name: string) => {
+    const form = new FormData();
+    form.set("file", new File([bytes as BlobPart], name));
+    return new NextRequest(`${ORIGIN}${PATH}`, { method: "POST", headers: { origin: ORIGIN, cookie: `admin_sid=${token}` }, body: form });
+  };
+  const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1, 2, 3, 4, 5]);
+  const beforePhoto = aiCalls;
+  aiAnswer = { status: 200, body: { candidates: [{ content: { parts: [{ text: JSON.stringify({ summary: "Result date printed.", changes: [
+    { type: "date", field: "resultDate", value: "2026-11-12", evidence: "ऑनलाइन परीक्षा का परिणाम 12 नवंबर को (Result of the online test on 12 November)", source: "" },
+    { type: "link", linkType: "RESULT", url: "https://newspaper.example/story", label: "Story" },
+  ] }) }] } }] } };
+  r = await checkUpdates.POST(upload(JPEG, "cutting.jpg"), ctx(id));
+  d = await r.json();
+  const sentParts = (lastAiRequest.contents?.[0]?.parts ?? []) as Array<{ text?: string; inline_data?: { mime_type: string; data: string } }>;
+  check("→ 200 in photo mode, one AI request, without the search tool", r.status === 200 && d.mode === "photo" && aiCalls === beforePhoto + 1 && lastAiRequest.tools === undefined, { status: r.status, mode: d.mode, error: d.error });
+  check("the picture itself went to the AI, as a JPEG", sentParts[1]?.inline_data?.mime_type === "image/jpeg" && sentParts[1]?.inline_data?.data === Buffer.from(JPEG).toString("base64"), sentParts[1]?.inline_data?.mime_type);
+  check("the AI was told to use only the attached file, with no page text", /Use ONLY the attached file/.test(sentParts[0]?.text ?? "") && !/PAGE TEXT:/.test(sentParts[0]?.text ?? ""));
+  check("a date read from a picture is proposed but never ticked for the admin", d.proposals.length === 1 && pick("date:resultDate").confirmed === false && pick("date:resultDate").supplied === true && pick("date:resultDate").official === false, d.proposals);
+  check("a newspaper's own link is never proposed", !d.proposals.some((p: Proposal) => p.kind === "LINK"), d.proposals);
+  r = await checkUpdates.POST(upload(new TextEncoder().encode("just some words, not a picture at all"), "notes.jpg"), ctx(id));
+  check("a file that is not a PDF or a photo → 400, no AI request", r.status === 400 && aiCalls === beforePhoto + 1, r.status);
+  const rowAfterPhoto = JSON.stringify((await pg.query("SELECT record_revision, draft_state, dates, exam_stages, links FROM recruitments WHERE id = $1", [id])).rows[0]);
+  check("still nothing changed on the record", rowAfterPhoto === rowBefore);
+
   section("Apply and publish: the chain the panel runs");
   const accepted = proposals.filter((p) => p.official);
   check("accepting the three official proposals", accepted.length === 3, accepted.map((p) => p.id));
