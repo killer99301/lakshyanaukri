@@ -143,6 +143,7 @@ export async function POST(
     summary: read.summary,
     proposals: read.proposals,
     dropped: read.dropped,
+    droppedNotes: read.droppedNotes,
     recordRevision: record.recordRevision,
   });
 }

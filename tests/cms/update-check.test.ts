@@ -26,6 +26,8 @@
 //  UC19  the prompt says what resultDate and a stage date mean, and to leave portal links out
 //  UC20  a new stage date replaces its "date source" line: named when official, removed otherwise
 //  UC21  postponed with no new date takes the old date off the stage and keeps it as a note
+//  UC22  a stage is matched by a longer or shorter name only when exactly one stage fits
+//  UC23  what was left out is reported in plain words
 //  AU01  requests are counted per feature and per day (Indian time)
 //  AU02  the cap refuses further requests and a refused request is not counted
 //  AU03  the cap setting falls back to the default on nonsense
@@ -36,7 +38,7 @@ import { suite, test, assert } from "../intelligence/suite";
 import type { RecruitmentRecord, ProvenanceField } from "@/types/recruitment-record";
 import type { ExamStage } from "@/types";
 import {
-  buildUpdatePrompt, hostOf, isOfficialHost, jsonFromAnswer, pageTextForCheck, readProposals, savesFor, tickedByDefault,
+  buildUpdatePrompt, hostOf, isOfficialHost, jsonFromAnswer, matchStage, pageTextForCheck, readProposals, savesFor, tickedByDefault,
 } from "@/lib/cms/update-check";
 import { updateExamStages } from "@/lib/cms/record-ops";
 import { readAiUsage, recordAiFailure, reserveAiRequest, resolveDailyCap, usageDay, type UsageStore } from "@/lib/ai-usage";
@@ -336,6 +338,31 @@ test("UC21 postponed with no new date takes the old date off the stage and keeps
   assert.equal((savesFor(r, moved.proposals)[0].value as ExamStage[])[1].dateIso, "2026-11-22");
   // A stage with no date on record has nothing to clear.
   assert.equal(readProposals(change({ type: "stage", stage: "Interview", status: "POSTPONED", source: "x.example" }), ibps({ examStages: [{ name: "Interview", order: 1, status: "NOT_DECLARED" }] as ExamStage[] })).proposals[0].stage?.clearDate, undefined);
+});
+
+test("UC22 a stage is matched by a longer or shorter name only when exactly one stage fits", () => {
+  const stages = ibps().examStages!;
+  assert.equal(matchStage(stages, "Combined Preliminary Examination")?.name, "Preliminary Examination");
+  assert.equal(matchStage(stages, "IBPS PO Mains Examination 2026")?.name, "Mains Examination");
+  assert.equal(matchStage(stages, "interview")?.name, "Interview");
+  // "Examination" fits two stages: no guess.
+  assert.equal(matchStage(stages, "Examination"), undefined);
+  assert.equal(matchStage(stages, "Document Verification"), undefined);
+  assert.equal(matchStage(stages, ""), undefined);
+  const [p] = one({ type: "stage", stage: "Combined Preliminary Examination", status: "POSTPONED", source: "x.example" });
+  assert.equal(p.label, "Preliminary Examination");
+  assert.equal(p.stage?.isNew, false);
+});
+
+test("UC23 what was left out is reported in plain words", () => {
+  const read = readProposals({ changes: [
+    { type: "date", field: "examDate", value: "2026-11-15" },
+    { type: "stage", stage: "Mains Examination", status: "SCHEDULED", date: "2026-10-04" },
+    { type: "vacancy", value: 9999 },
+  ] }, ibps());
+  assert.equal(read.dropped, 3);
+  assert.deepEqual(read.droppedNotes, ["date · examDate · 2026-11-15", "stage · Mains Examination · SCHEDULED · 2026-10-04", "vacancy"]);
+  assert.deepEqual(readProposals({ changes: [] }, ibps()).droppedNotes, []);
 });
 
 suite("Check for updates: the question and the answer text");

@@ -212,6 +212,24 @@ const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[]): T | undefined =>
   typeof v === "string" && (allowed as readonly string[]).includes(v.trim().toUpperCase()) ? (v.trim().toUpperCase() as T) : undefined;
 
+/**
+ * The stage on record that a name refers to. An exact name wins. Otherwise a
+ * name that contains, or is contained in, exactly one stage's name is taken
+ * to mean that stage ("Combined Preliminary Examination" → "Preliminary
+ * Examination"). Two candidates means no match: never guess between stages.
+ */
+export function matchStage(stages: ExamStage[], name: string): ExamStage | undefined {
+  const wanted = squash(name);
+  if (!wanted) return undefined;
+  const exact = stages.find((s) => squash(s.name) === wanted);
+  if (exact) return exact;
+  const loose = stages.filter((s) => {
+    const have = squash(s.name);
+    return have.length >= 5 && (` ${wanted} `.includes(` ${have} `) || ` ${have} `.includes(` ${wanted} `));
+  });
+  return loose.length === 1 ? loose[0] : undefined;
+}
+
 export interface CheckContext {
   /** Hosts of pages the web search actually opened. */
   groundedHosts?: string[];
@@ -229,7 +247,7 @@ function supported(evidence: string, sourceHost: string | null, ctx: CheckContex
   return Boolean(sourceHost) && (ctx.groundedHosts ?? []).some((h) => sameSite(sourceHost!, h) || sameSite(h, sourceHost!));
 }
 
-export function readProposals(raw: unknown, record: RecruitmentRecord, ctx: CheckContext = {}): { proposals: UpdateProposal[]; summary: string; dropped: number } {
+export function readProposals(raw: unknown, record: RecruitmentRecord, ctx: CheckContext = {}): { proposals: UpdateProposal[]; summary: string; dropped: number; droppedNotes: string[] } {
   const body = (raw && typeof raw === "object" ? raw : {}) as { summary?: unknown; changes?: unknown };
   const changes = Array.isArray(body.changes) ? body.changes : [];
   const year = record.identity.recruitmentYear;
@@ -237,6 +255,7 @@ export function readProposals(raw: unknown, record: RecruitmentRecord, ctx: Chec
   const proposals: UpdateProposal[] = [];
   const seen = new Set<string>();
   let dropped = 0;
+  const droppedNotes: string[] = [];
 
   for (const item of changes) {
     if (proposals.length >= MAX_PROPOSALS) break;
@@ -269,7 +288,7 @@ export function readProposals(raw: unknown, record: RecruitmentRecord, ctx: Chec
       const dateIso = status === "RESULT_DECLARED" ? undefined : realDate(c.date, year) ?? undefined;
       // A dated stage is either confirmed or tentative; anything else the AI says is ignored.
       const certainty = oneOf(c.certainty, DATED_CERTAINTIES);
-      const existing = (record.examStages ?? []).find((s) => squash(s.name) === squash(name));
+      const existing = matchStage(record.examStages ?? [], name);
       // The site does not accept a stage that is "scheduled" with no date at all.
       const undatedSchedule = (status ?? existing?.status) === "SCHEDULED" && !dateIso && !existing?.dateIso && !existing?.dateDisplay;
       const changed = existing
@@ -312,11 +331,17 @@ export function readProposals(raw: unknown, record: RecruitmentRecord, ctx: Chec
       }
     }
 
-    if (!proposal || seen.has(proposal.id)) { dropped++; continue; }
+    if (!proposal || seen.has(proposal.id)) {
+      dropped++;
+      // Shown to the admin as plain words, so a dropped suggestion is not a mystery.
+      const said = [type || "unknown", text(c.field ?? c.stage ?? c.linkType, 60), text(c.status, 20), text(c.value ?? c.date ?? c.url, 80)].filter(Boolean).join(" · ");
+      if (droppedNotes.length < 6) droppedNotes.push(said.slice(0, 160));
+      continue;
+    }
     seen.add(proposal.id);
     proposals.push(proposal);
   }
-  return { proposals, summary: text(body.summary, 300), dropped };
+  return { proposals, summary: text(body.summary, 300), dropped, droppedNotes };
 }
 
 /**

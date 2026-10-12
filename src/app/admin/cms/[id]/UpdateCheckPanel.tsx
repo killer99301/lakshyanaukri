@@ -30,6 +30,7 @@ interface CheckResult {
   summary: string;
   proposals: UpdateProposal[];
   dropped: number;
+  droppedNotes: string[];
 }
 
 type Outcome = { record: RecruitmentRecord } | { error: string };
@@ -89,7 +90,7 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
       const data = await res.json();
       if (!res.ok) { setErr(data.error ?? `HTTP ${res.status}`); return; }
       const proposals: UpdateProposal[] = data.proposals ?? [];
-      setResult({ mode: data.mode, sourceUrl: data.sourceUrl, searchedSites: data.searchedSites ?? [], summary: data.summary ?? "", proposals, dropped: data.dropped ?? 0 });
+      setResult({ mode: data.mode, sourceUrl: data.sourceUrl, searchedSites: data.searchedSites ?? [], summary: data.summary ?? "", proposals, dropped: data.dropped ?? 0, droppedNotes: data.droppedNotes ?? [] });
       setTicked(new Set(proposals.filter(tickedByDefault).map((p) => p.id)));
       setPasted("");
     } catch {
@@ -235,6 +236,12 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
                 : <>Searched the web, but the search did not report which pages it opened, so no source below could be confirmed.</>}
             {result.summary ? <> {result.summary}</> : null}
           </div>
+
+          {result.droppedNotes.length > 0 && (
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>
+              Left out, because it was already on the record or not in a form the site can use: {result.droppedNotes.map((n) => `“${n}”`).join("; ")}
+            </div>
+          )}
 
           {result.proposals.length === 0 ? (
             <div role="status" style={{ fontSize: 13, color: C.text, marginTop: 10 }}>
