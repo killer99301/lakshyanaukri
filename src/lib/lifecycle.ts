@@ -356,6 +356,26 @@ export function getLatestUpdate(opp: Opportunity): UpdateRecord | null {
   );
 }
 
+/** How long an update is marked "NEW" for visitors. */
+export const UPDATE_FRESH_DAYS = 3;
+
+/**
+ * True when an update's date is today or within the last few days. A date in
+ * the future, or one that cannot be read, is never fresh.
+ */
+export function isFreshUpdate(update: Pick<UpdateRecord, "date">, now: Date): boolean {
+  const then = new Date(update.date);
+  if (Number.isNaN(then.getTime())) return false;
+  const age = diffCalendarDays(stripTime(then), stripTime(now));
+  return age >= 0 && age <= UPDATE_FRESH_DAYS;
+}
+
+/** The newest update, if it is recent enough to be marked "NEW"; otherwise null. */
+export function getFreshUpdate(opp: Opportunity, now: Date): UpdateRecord | null {
+  const latest = getLatestUpdate(opp);
+  return latest && isFreshUpdate(latest, now) ? latest : null;
+}
+
 /**
  * Get all updates sorted descending by date (newest first).
  */

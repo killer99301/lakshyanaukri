@@ -27,10 +27,12 @@ import {
   getVacancyDisplay,
   getProvenanceSummary,
   getLatestUpdate,
+  isFreshUpdate,
   getCategoryBadgeClass,
   getCategoryLabel,
   getCurrentExamSummary,
 } from "@/lib/lifecycle";
+import { NewBadge } from "@/components/common/NewBadge";
 import { getDeadlineUrgency, formatDeadlineDate } from "@/lib/urgency";
 
 interface JobDetailHeaderProps {
@@ -118,6 +120,7 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
                     </span>
+                    {isFreshUpdate(latestUpdate, now) && <NewBadge />}
                     {/* "Official" only when the entry carries the official notice it came from. */}
                     <span>{latestUpdate.sourceUrl ? "Official Update" : "Update"} • {latestUpdate.type.replace(/_/g, " ")}</span>
                   </span>

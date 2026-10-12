@@ -12,7 +12,9 @@ import {
   deriveStatusBadge,
   getVacancyDisplay,
   getProvenanceSummary,
+  getFreshUpdate,
 } from "@/lib/lifecycle";
+import { NewBadge } from "@/components/common/NewBadge";
 import { getDeadlineUrgency, formatDeadlineDate } from "@/lib/urgency";
 
 export interface JobCardProps {
@@ -33,6 +35,7 @@ export const JobCard: React.FC<JobCardProps> = ({
   const daysRemaining = isDeadlineKnown ? getDaysRemaining(closeDate, now) : 0;
   const urgency = getDeadlineUrgency(daysRemaining, isDeadlineKnown);
   const derivedStatus = deriveStatusBadge(job, now);
+  const freshUpdate = getFreshUpdate(job, now);
   const formattedVacancies = getVacancyDisplay(job);
   const provenance = getProvenanceSummary(job);
 
@@ -72,6 +75,12 @@ export const JobCard: React.FC<JobCardProps> = ({
                   <h3 className="text-sm font-extrabold text-[#0F172A] line-clamp-1 group-hover:text-[#EA580C] transition-colors leading-snug">
                     {job.title}
                   </h3>
+                  {freshUpdate && (
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <NewBadge />
+                      <span className="text-xs font-bold text-red-700 truncate">{freshUpdate.title}</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-1.5 text-xs text-[#475569] font-medium truncate">
                     <span className="font-semibold text-[#0F172A] truncate max-w-[180px]">{job.organizationName}</span>

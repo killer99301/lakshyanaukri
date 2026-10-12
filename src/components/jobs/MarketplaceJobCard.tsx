@@ -23,10 +23,12 @@ import {
   getVacancyDisplay,
   getProvenanceSummary,
   getCurrentExamSummary,
+  getFreshUpdate,
 } from "@/lib/lifecycle";
 import { getDeadlineUrgency, formatDeadlineDate } from "@/lib/urgency";
 import { cn } from "@/lib/utils";
 import { isNewlyAdded } from "@/lib/filters";
+import { NewBadge } from "@/components/common/NewBadge";
 
 interface MarketplaceJobCardProps {
   job: Opportunity;
@@ -51,6 +53,7 @@ export const MarketplaceJobCard: React.FC<MarketplaceJobCardProps> = ({
   const urgency = getDeadlineUrgency(daysRemaining, isDeadlineKnown);
   const derivedStatus = deriveStatusBadge(job, now);
   const isNew = isNewlyAdded(job, now);
+  const freshUpdate = getFreshUpdate(job, now);
   const vacancyText = getVacancyDisplay(job);
   const provenance = getProvenanceSummary(job);
 
@@ -107,6 +110,12 @@ export const MarketplaceJobCard: React.FC<MarketplaceJobCardProps> = ({
                   <h3 className="text-sm sm:text-base font-extrabold text-[#0F172A] group-hover:text-[#EA580C] transition-colors leading-snug line-clamp-2">
                     {job.title}
                   </h3>
+                  {freshUpdate && (
+                    <span className="mt-1 flex items-center gap-1.5 min-w-0">
+                      <NewBadge />
+                      <span className="text-xs font-bold text-red-700 truncate">{freshUpdate.title}</span>
+                    </span>
+                  )}
                 </Link>
                 <div className="shrink-0 flex items-center justify-end">
                   <span

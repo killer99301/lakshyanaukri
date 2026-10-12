@@ -15,7 +15,8 @@ import {
   History,
 } from "lucide-react";
 import type { Opportunity } from "@/types";
-import { getVacancyDisplay, getStageCertainty, getCategoryLabel } from "@/lib/lifecycle";
+import { getVacancyDisplay, getStageCertainty, getCategoryLabel, isFreshUpdate, getUpdatesSortedByDate } from "@/lib/lifecycle";
+import { NewBadge } from "@/components/common/NewBadge";
 import { resolveDocumentAccess } from "@/lib/documents";
 import { formatDate } from "@/lib/utils";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
@@ -137,7 +138,8 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
           </div>
 
           <div className="space-y-3.5">
-            {job.updates.map((item) => {
+            {/* Newest first, so the latest change is the first one read. */}
+            {getUpdatesSortedByDate(job).map((item) => {
               const docAccess = resolveDocumentAccess({
                 officialPdfUrl: item.sourceUrl,
                 organization: job.organizationName,
@@ -150,6 +152,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                 <div key={item.id} className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/80 space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
+                      {isFreshUpdate(item, new Date()) && <NewBadge />}
                       <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded">
                         {item.type}
                       </span>

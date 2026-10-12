@@ -14,6 +14,8 @@
 //  LS01  a stage marked "result declared" or "admit card released" is listed on those pages
 //  LS02  not when a real link of that kind exists, and not without an official website
 //  LS03  the job page's own document list never shows a stage-derived entry
+//  NW01  an update is marked new on its day and for three days after, never before or beyond
+//  NW02  a job is marked by its newest update only, and only while that one is recent
 //  SR01  search finds a job by where it stands: postponed, admit card, result
 // ═══════════════════════════════════════════════════════════
 
@@ -25,6 +27,7 @@ import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
 import { projectForPreview } from "@/lib/cms/projector";
 import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
 import { textSearch } from "@/lib/filters";
+import { getFreshUpdate, isFreshUpdate } from "@/lib/lifecycle";
 
 const TODAY = "2026-10-12";
 const stage = (over: Partial<ExamStage>): ExamStage => ({ name: "Preliminary Examination", order: 1, status: "SCHEDULED", ...over });
@@ -146,6 +149,30 @@ test("LS02 not when a real link of that kind exists, and not without an official
 test("LS03 the job page's own document list never shows a stage-derived entry", () => {
   const job = snapshotToGovernmentRecruitment(projectForPreview(record(STAGES, [SITE, { type: "RESULT", label: "Prelims result", url: "https://www.ibps.in/result", official: true }])));
   assert.deepEqual((job.downloads ?? []).map((d) => d.label), ["Prelims result"]);
+});
+
+suite("The red NEW marker");
+
+test("NW01 an update is marked new on its day and for three days after, never before or beyond", () => {
+  const now = new Date("2026-10-12T09:00:00+05:30");
+  const fresh = (date: string) => isFreshUpdate({ date }, now);
+  assert.equal(fresh("2026-10-12"), true);
+  assert.equal(fresh("2026-10-09"), true);
+  assert.equal(fresh("2026-10-08"), false);
+  assert.equal(fresh("2026-10-13"), false);
+  assert.equal(fresh("not a date"), false);
+  assert.equal(fresh(""), false);
+});
+
+test("NW02 a job is marked by its newest update only, and only while that one is recent", () => {
+  const now = new Date("2026-10-12T09:00:00+05:30");
+  const job = (updates: Array<{ date: string; title: string }>) =>
+    ({ ...snapshotToGovernmentRecruitment(projectForPreview(record([], [SITE]))), updates: updates.map((u, i) => ({ id: String(i), type: "EXAM_NOTICE" as const, description: "", ...u })) }) as GovernmentRecruitment;
+  assert.equal(getFreshUpdate(job([{ date: "2026-08-14", title: "Tentative date" }, { date: "2026-10-12", title: "Prelims postponed" }]), now)?.title, "Prelims postponed");
+  // Stored order does not matter; the newest by date is the one that counts.
+  assert.equal(getFreshUpdate(job([{ date: "2026-10-11", title: "Admit card released" }, { date: "2026-06-01", title: "Corrigendum" }]), now)?.title, "Admit card released");
+  assert.equal(getFreshUpdate(job([{ date: "2026-08-14", title: "Tentative date" }]), now), null);
+  assert.equal(getFreshUpdate(job([]), now), null);
 });
 
 suite("Search follows the stages");
