@@ -46,6 +46,22 @@ export interface FinderResult {
 }
 
 /** The few fields of a job the finder needs; everything else stays on the server. */
+// Words that mark a named professional, technical or trade qualification.
+const SPECIFIC_QUALIFICATION = /diploma|degree|\bb\.?\s?sc\b|\bm\.?\s?sc\b|\bb\.?\s?tech\b|nursing|\bgnm\b|pharm|certificate|\biti\b|graduat|\bllb\b|\bmbbs\b|\bb\.?\s?ed\b|registration|licen[cs]e/i;
+
+/**
+ * True when every post of a job asks for a named qualification although the
+ * job is listed at school level. Paramedical posts are the usual case: listed
+ * as "12th Pass" because that is the lowest any post starts from, while each
+ * post needs its own diploma or degree. Holding 12th or a general degree then
+ * settles nothing.
+ */
+export function everyPostIsSpecific(listed: Qualification, postQualifications: string[][]): boolean {
+  if (listed !== "10th Pass" && listed !== "12th Pass") return false;
+  const posts = postQualifications.filter((q) => q.length > 0);
+  return posts.length >= 2 && posts.every((q) => SPECIFIC_QUALIFICATION.test(q.join(" ")));
+}
+
 export interface FinderJob {
   /** Government recruitments set an age limit; private jobs and internships usually set none. */
   kind: Opportunity["type"];
@@ -53,6 +69,8 @@ export interface FinderJob {
   title: string;
   organizationName: string;
   qualification: Qualification;
+  /** Every post asks for its own named qualification; the listed level alone settles nothing. */
+  specific?: boolean;
   ageLimit?: AgeLimit;
   closeDate: string;
   openDate: string;
@@ -61,13 +79,14 @@ export interface FinderJob {
 
 export const QUALIFICATION_OPTIONS: Qualification[] = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"];
 
-export function toFinderJob(job: Opportunity, vacancies?: number): FinderJob {
+export function toFinderJob(job: Opportunity, vacancies?: number, postQualifications: string[][] = []): FinderJob {
   return {
     kind: job.type,
     slug: job.slug,
     title: job.title,
     organizationName: job.organizationName,
     qualification: job.qualification,
+    ...(everyPostIsSpecific(job.qualification, postQualifications) ? { specific: true } : {}),
     ...(job.type === "government" && job.ageLimit ? { ageLimit: job.ageLimit } : {}),
     closeDate: job.application.closeDate,
     openDate: job.application.openDate,
@@ -141,6 +160,10 @@ export function qualificationFor(needed: Qualification, held: Qualification): Fi
   const check = (note: string): FinderPart => ({ verdict: "CHECK", note });
   const no = (note: string): FinderPart => ({ verdict: "NO", note });
 
+  // A job whose qualification has not been entered must never be read as
+  // asking for the highest one, nor as asking for none.
+  if (!QUALIFICATION_OPTIONS.includes(needed)) return check("The qualification for this job is not on record yet.");
+
   if (needed === held) return ok(`You hold the qualification asked for (${needed}).`);
 
   if (needed === "ITI" || needed === "Diploma") {
@@ -168,7 +191,10 @@ export function assessJob(job: FinderJob, input: FinderInput): FinderResult {
   const age: FinderPart = job.kind === "government"
     ? ageFor(job.ageLimit, input)
     : { verdict: "OK", note: `No age limit is stated for this ${job.kind === "internship" ? "internship" : "job"}.` };
-  const qualification = qualificationFor(job.qualification, input.qualification);
+  const general = qualificationFor(job.qualification, input.qualification);
+  const qualification: FinderPart = job.specific && general.verdict === "OK"
+    ? { verdict: "CHECK", note: "Each post in this job asks for its own diploma, degree or certificate. Open the job to see which." }
+    : general;
   const verdict: FinderVerdict =
     age.verdict === "NO" || qualification.verdict === "NO" ? "NOT_ELIGIBLE"
     : age.verdict === "OK" && qualification.verdict === "OK" ? "ELIGIBLE"

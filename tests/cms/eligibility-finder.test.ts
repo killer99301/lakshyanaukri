@@ -13,13 +13,15 @@
 //  EF07  results are grouped eligible → check → not eligible, soonest closing first
 //  EF08  category and disability change the answer only through relaxations on record
 //  EF09  date of birth is checked before anything is worked out
+//  EF11  a job with no qualification on record is "check", never read as the highest or the lowest
+//  EF12  a school-level listing where every post asks for a named qualification is "check"
 //  EF10  private jobs and internships have no age rule, so only the qualification decides
 // ═══════════════════════════════════════════════════════════
 
 import { suite, test, assert } from "../intelligence/suite";
 import type { AgeLimit, Qualification } from "@/types";
 import {
-  ageFor, assessJob, dobProblem, findEligibleJobs, qualificationFor,
+  ageFor, assessJob, dobProblem, everyPostIsSpecific, findEligibleJobs, qualificationFor,
   type FinderInput, type FinderJob,
 } from "@/lib/eligibility-finder";
 
@@ -153,6 +155,39 @@ test("EF10 private jobs and internships have no age rule, so only the qualificat
   assert.equal(assessJob(job({ kind: "internship", ageLimit: undefined }), me()).age.note, "No age limit is stated for this internship.");
   // The same missing limit on a government recruitment is unfinished data, not "no rule".
   assert.equal(assessJob(job({ ageLimit: undefined }), me()).verdict, "CHECK");
+});
+
+test("EF11 a job with no qualification on record is \"check\", never read as the highest or the lowest", () => {
+  const blank = "" as Qualification;
+  for (const held of ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"] as Qualification[]) {
+    const part = qualificationFor(blank, held);
+    assert.equal(part.verdict, "CHECK", held);
+    assert.equal(part.note, "The qualification for this job is not on record yet.");
+  }
+  assert.equal(assessJob(job({ qualification: blank }), me({ qualification: "12th Pass" })).verdict, "CHECK");
+  assert.equal(qualificationFor("Engineering Degree" as Qualification, "Graduate").verdict, "CHECK");
+});
+
+test("EF12 a school-level listing where every post asks for a named qualification is \"check\"", () => {
+  // RRB Paramedical: listed as 12th Pass, each post with its own diploma or degree.
+  const paramedical = [["B.Sc. Nursing or GNM certificate"], ["Diploma in Pharmacy", "Registration with the Pharmacy Council"], ["B.Sc. with DMLT"]];
+  assert.equal(everyPostIsSpecific("12th Pass", paramedical), true);
+  // A clerical recruitment: some posts need only the school level.
+  assert.equal(everyPostIsSpecific("12th Pass", [["10+2 / Class 12 or equivalent"], ["10+2 with typing proficiency"]]), false);
+  assert.equal(everyPostIsSpecific("10th Pass", [["Matriculation"], ["Graduate in any discipline"]]), false);
+  // Not applied above school level, to a single post, or with nothing on record.
+  assert.equal(everyPostIsSpecific("Graduate", paramedical), false);
+  assert.equal(everyPostIsSpecific("12th Pass", [["Diploma in Pharmacy"]]), false);
+  assert.equal(everyPostIsSpecific("12th Pass", []), false);
+  assert.equal(everyPostIsSpecific("12th Pass", [[], []]), false);
+
+  const flagged = job({ qualification: "12th Pass", specific: true });
+  const out = assessJob(flagged, me());
+  assert.equal(out.verdict, "CHECK");
+  assert.match(out.qualification.note, /Each post in this job asks for its own diploma, degree or certificate/);
+  // Someone below even the listed level is still ruled out.
+  assert.equal(assessJob(flagged, me({ qualification: "10th Pass" })).verdict, "NOT_ELIGIBLE");
+  assert.equal(assessJob(job({ qualification: "12th Pass" }), me()).verdict, "ELIGIBLE");
 });
 
 test("EF09 date of birth is checked before anything is worked out", () => {
