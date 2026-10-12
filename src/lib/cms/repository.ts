@@ -549,7 +549,7 @@ export async function persistUpdateAppend(
   recordId: string,
   entry: UpdateRecord,
   adminId: string,
-): Promise<{ record: RecruitmentRecord; revision: FieldRevision }> {
+): Promise<{ record: RecruitmentRecord; revision: FieldRevision; wentLive: boolean }> {
   const revision = buildFieldRevision(
     recordId,
     "updates",
@@ -567,7 +567,27 @@ export async function persistUpdateAppend(
         updated_by = ${adminId}
       WHERE id          = ${recordId}
         AND draft_state != 'ARCHIVED'
-      RETURNING id
+      RETURNING id, draft_state
+    ),
+    -- A published job has nothing waiting to be published, so the entry goes
+    -- straight onto what the public sees: a new snapshot that is the current
+    -- one plus this entry. A job that is open for editing is left alone; the
+    -- entry goes live with its next publish, along with everything else.
+    snap AS (
+      INSERT INTO published_recruitments
+        (recruitment_id, source_record_revision, projection_version, snapshot, published_by)
+      SELECT
+        pr.recruitment_id,
+        pr.source_record_revision,
+        pr.projection_version,
+        jsonb_set(pr.snapshot, '{updates}', COALESCE(pr.snapshot->'updates', '[]'::jsonb) || ${JSON.stringify(entry)}::jsonb),
+        ${adminId}
+      FROM published_recruitments pr
+      JOIN updated u ON u.id = pr.recruitment_id
+      WHERE u.draft_state = 'PUBLISHED'
+      ORDER BY pr.published_at DESC
+      LIMIT 1
+      RETURNING recruitment_id
     )
     INSERT INTO field_revisions
       (id, recruitment_id, field_path, revised_by, revised_at, old_value, new_value, reason)
@@ -581,7 +601,7 @@ export async function persistUpdateAppend(
       ${JSON.stringify(entry)},
       ${revision.reason ?? null}
     FROM updated
-    RETURNING recruitment_id
+    RETURNING recruitment_id, (SELECT count(*)::int FROM snap) AS snapshots_written
   `;
 
   if (rows.length === 0) {
@@ -590,7 +610,7 @@ export async function persistUpdateAppend(
 
   const saved = await getRecruitmentById(recordId);
   if (!saved) throw new Error(`Record ${recordId} not found after update append`);
-  return { record: saved, revision };
+  return { record: saved, revision, wentLive: Number(rows[0].snapshots_written) > 0 };
 }
 
 // Re-export buildFieldRevision so callers can build revisions without

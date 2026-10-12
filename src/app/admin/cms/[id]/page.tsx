@@ -2843,6 +2843,11 @@ function AddUpdateModal({
             {submitting ? "Saving…" : "Add Update"}
           </button>
         </div>
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>
+          {draftState === "PUBLISHED"
+            ? "This job is published, so the update shows on the public page as soon as you add it."
+            : "This job is open for editing, so the update shows on the public page the next time you publish."}
+        </div>
       </form>
     </div>
   );

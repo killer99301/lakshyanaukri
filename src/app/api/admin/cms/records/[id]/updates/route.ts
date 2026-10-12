@@ -3,6 +3,8 @@
 //
 // Appends an announcement-only UpdateRecord to the record's updates[].
 // Does NOT modify structural fields or record_revision.
+// On a PUBLISHED record the entry also goes onto the public snapshot at once;
+// on a record open for editing it goes live with the next publish.
 // Concurrent appends from different sessions both succeed.
 //
 // Guard: record must not be ARCHIVED.
@@ -15,6 +17,7 @@ import type { NextRequest } from "next/server";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { getRecruitmentById, persistUpdateAppend } from "@/lib/cms/repository";
 import { randomUUID } from "node:crypto";
+import { revalidatePath } from "next/cache";
 import type { UpdateRecord, UpdateType } from "@/types";
 
 const VALID_UPDATE_TYPES: UpdateType[] = [
@@ -105,8 +108,21 @@ export async function POST(
       ...(update.newValue !== undefined ? { newValue: update.newValue } : {}),
     };
 
-    const { record: saved, revision } = await persistUpdateAppend(id, entry, auth.adminId);
-    return NextResponse.json({ record: saved, revision, update: entry });
+    const { record: saved, revision, wentLive } = await persistUpdateAppend(id, entry, auth.adminId);
+
+    // On a published job the entry is already on the public snapshot; the
+    // cached pages have to be told, exactly as after a publish.
+    let revalidated = true;
+    if (wentLive) {
+      try {
+        revalidatePath("/", "layout");
+        revalidatePath("/sitemap.xml");
+      } catch (err) {
+        revalidated = false;
+        console.error("[CMS] update is live, but public cache revalidation failed", err);
+      }
+    }
+    return NextResponse.json({ record: saved, revision, update: entry, live: wentLive, revalidated });
   } catch (err) {
     const msg = String(err);
     if (msg.includes("not found or is ARCHIVED")) {
