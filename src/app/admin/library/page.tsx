@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { readLibraryFile, examKey, type LibraryEntrySummary } from "@/lib/cms/syllabus-library";
+import { approvedBasis, isUnapproved, withBasis } from "@/lib/cms/library-from-job";
 
 const C = {
   bg: "#070b16", card: "rgba(14,21,38,0.72)", border: "rgba(148,163,184,0.14)", text: "#e2e8f0", muted: "#8c9bb8",
@@ -107,6 +108,35 @@ export default function SyllabusLibraryPage() {
 
   const canSave = Boolean(file) && !saving && !notSetUp;
 
+  // An entry saved automatically from a job stays "not checked" until it is
+  // approved here. Approving only rewrites its source line; the content is as it was.
+  const [approving, setApproving] = useState<string | null>(null);
+  async function approve(entry: LibraryEntrySummary) {
+    setApproving(entry.id);
+    setErr(null);
+    setDone(null);
+    try {
+      const got = await fetch(`/api/admin/cms/syllabus-library?id=${encodeURIComponent(entry.id)}`);
+      const one = await got.json();
+      if (!got.ok || !one.entry?.content) throw new Error(one.error ?? "That entry could not be loaded.");
+      const today = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+      const res = await fetch("/api/admin/cms/syllabus-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: withBasis(one.entry.content, approvedBasis(today, entry.basis)) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setDone(`Approved “${entry.exam}”.`);
+      apply(await fetchLibrary());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setApproving(null);
+    }
+  }
+  const waiting = entries.filter((e) => isUnapproved(e.basis)).length;
+
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.01em", color: "#f1f5ff", margin: "0 0 6px" }}>Syllabus library</h1>
@@ -165,12 +195,19 @@ export default function SyllabusLibraryPage() {
         </div>
       </div>
 
+      {waiting > 0 && (
+        <div role="status" style={{ color: C.amber, fontSize: 13, marginBottom: 12, lineHeight: 1.5 }}>
+          {waiting} {waiting === 1 ? "entry was" : "entries were"} saved automatically from a job and {waiting === 1 ? "has" : "have"} not been checked.
+          Open the job, compare its exam pattern and syllabus with the notice, then press Approve here.
+        </div>
+      )}
+
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
-                {["Exam", "Offered when the job title contains", "Source stated", "Kept since"].map((h) => (
+                {["Exam", "Offered when the job title contains", "Source stated", "Kept since", ""].map((h) => (
                   <th key={h} style={{ textAlign: "left", padding: "10px 16px", color: C.muted, background: "rgba(7,11,22,0.55)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
@@ -180,13 +217,25 @@ export default function SyllabusLibraryPage() {
                 <tr key={e.id} style={{ borderTop: `1px solid ${C.border}` }}>
                   <td style={{ padding: "10px 16px", color: C.text, fontWeight: 600 }}>{e.exam}</td>
                   <td style={{ padding: "10px 16px", color: C.muted }}>{e.match.join(" · ")}</td>
-                  <td style={{ padding: "10px 16px", color: e.basis && /not from an official notice/i.test(e.basis) ? C.amber : C.muted }}>{e.basis ?? "—"}</td>
+                  <td style={{ padding: "10px 16px", color: (e.basis && /not from an official notice/i.test(e.basis)) || isUnapproved(e.basis) ? C.amber : C.muted }}>{e.basis ?? "—"}</td>
                   <td style={{ padding: "10px 16px", color: C.muted, whiteSpace: "nowrap" }}>{new Date(e.updatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
+                  <td style={{ padding: "10px 16px", whiteSpace: "nowrap" }}>
+                    {isUnapproved(e.basis) && (
+                      <button
+                        onClick={() => { void approve(e); }}
+                        disabled={approving !== null}
+                        title="Marks this entry as checked by you. Its content is not changed."
+                        style={{ padding: "4px 12px", background: "none", border: `1px solid ${C.green}66`, color: C.green, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: approving !== null ? "wait" : "pointer" }}
+                      >
+                        {approving === e.id ? "Approving…" : "Approve"}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ padding: "24px 16px", color: C.muted, textAlign: "center" }}>
+                  <td colSpan={5} style={{ padding: "24px 16px", color: C.muted, textAlign: "center" }}>
                     {loading ? "Loading…" : "The library is empty. Paste the first file above."}
                   </td>
                 </tr>

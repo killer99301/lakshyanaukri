@@ -19,6 +19,7 @@ import { getRecruitmentById, persistFieldUpdate, OccConflictError } from "@/lib/
 import { routeFieldUpdate } from "@/lib/cms/field-update-router";
 import { stageChangeEntries } from "@/lib/cms/stage-updates";
 import { todayInIndia } from "@/lib/cms/attention";
+import { rememberSyllabusInLibrary } from "@/lib/cms/library-autosave";
 import { randomUUID } from "node:crypto";
 import type { ProvenanceField } from "@/types/recruitment-record";
 import type { UpdateRecord, UpdateType } from "@/types";
@@ -128,9 +129,16 @@ export async function PATCH(
 
     const { record: saved, revision } = await persistFieldUpdate(result, clientRevision);
 
+    // A syllabus for an exam the library does not have yet is kept there too,
+    // so the next job for that exam is offered it. Never fails the save.
+    const library = fieldPath === "syllabus" || fieldPath === "examPattern"
+      ? await rememberSyllabusInLibrary(saved, auth.adminId, todayInIndia())
+      : null;
+
     return NextResponse.json({
       record: saved,
       revision,
+      ...(library ? { library } : {}),
     });
   } catch (err) {
     if (err instanceof OccConflictError) {

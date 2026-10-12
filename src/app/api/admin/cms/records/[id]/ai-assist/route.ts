@@ -41,6 +41,8 @@ import {
 } from "@/lib/cms/ai-assist";
 import { aiAssistReason } from "@/lib/cms/ai-assist-apply";
 import { MIN_SCAN_TEXT_CHARS } from "@/lib/cms/scan-reader";
+import { rememberSyllabusInLibrary, type LibraryAutosave } from "@/lib/cms/library-autosave";
+import { todayInIndia } from "@/lib/cms/attention";
 import { buildSyllabusSections, extractPatternAndSyllabus, SYLLABUS_FIELDS } from "@/lib/cms/ai-assist-syllabus";
 import {
   buildDetailSections,
@@ -90,6 +92,8 @@ export interface AiAssistResponse {
   sourceKind: SourceKind;
   // The source was a scanned PDF read by the AI: nothing could be checked against the scan itself.
   fromScan?: boolean;
+  // Set when the syllabus filled here was also kept in the syllabus library.
+  library?: LibraryAutosave;
 }
 
 export async function POST(
@@ -369,6 +373,10 @@ export async function POST(
     }
   }
 
+  const library = filled.some((f) => f.fieldPath === "syllabus" || f.fieldPath === "examPattern")
+    ? await rememberSyllabusInLibrary(record, auth.adminId, todayInIndia())
+    : null;
+
   return NextResponse.json({
     record,
     filled,
@@ -381,5 +389,6 @@ export async function POST(
     sourceUrl: url,
     sourceKind: source.kind,
     ...(scanText ? { fromScan: true } : {}),
+    ...(library ? { library } : {}),
   } satisfies AiAssistResponse);
 }

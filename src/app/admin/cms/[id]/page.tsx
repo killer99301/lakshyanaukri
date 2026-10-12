@@ -30,6 +30,7 @@ import { ExamStagesEditor } from "./ExamStagesEditor";
 import { ExamPatternEditor, SyllabusEditor } from "./PatternSyllabusEditors";
 import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
+import { LibraryCompare } from "./LibraryCompare";
 import { UpdateCheckPanel } from "./UpdateCheckPanel";
 import { EligibilityEditor, SelectionEditor } from "./EligibilitySelectionEditors";
 import { InfoTip, HELP } from "../InfoTip";
@@ -378,6 +379,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // Both save through the same /fields endpoint as every other edit, so each
 // change is validated server-side and recorded in revision history.
 
+const libraryNoteText = (l: { exam: string; refreshed: boolean }) =>
+  l.refreshed
+    ? `The syllabus library entry “${l.exam}” was brought up to date with this job.`
+    : `Also kept in the syllabus library as “${l.exam}”, so the next job for this exam is offered it. It is marked as not checked.`;
+
 async function saveListField(
   recordId: string,
   recordRevision: string,
@@ -385,7 +391,7 @@ async function saveListField(
   value: unknown,
   reason: string,
   quiet = false,
-): Promise<{ record?: RecruitmentRecord; error?: string }> {
+): Promise<{ record?: RecruitmentRecord; error?: string; library?: { exam: string; refreshed: boolean } }> {
   try {
     const res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
       method: "PATCH",
@@ -405,7 +411,7 @@ async function saveListField(
       }
       return { error: data.error ?? `HTTP ${res.status}` };
     }
-    return { record: data.record as RecruitmentRecord };
+    return { record: data.record as RecruitmentRecord, ...(data.library ? { library: data.library } : {}) };
   } catch (e) {
     return { error: String(e) };
   }
@@ -1190,6 +1196,8 @@ export default function CmsRecordEditorPage() {
     fromScan?: boolean;
   } | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  // Said after a save that also put the syllabus in the library.
+  const [libraryNote, setLibraryNote] = useState<string | null>(null);
   // What is happening during a long AI Assist run (a scanned PDF takes two steps).
   const [aiStage, setAiStage] = useState<string | null>(null);
   const [aiApplying, setAiApplying] = useState<string | null>(null);
@@ -1227,6 +1235,7 @@ export default function CmsRecordEditorPage() {
     const out = await saveListField(record.id, record.recordRevision, fieldPath, value, reason);
     if (out.error || !out.record) return out.error ?? "Save failed";
     onFieldSaved(out.record);
+    setLibraryNote(out.library ? libraryNoteText(out.library) : null);
     return null;
   }
 
@@ -1235,6 +1244,7 @@ export default function CmsRecordEditorPage() {
   async function saveBlocks(blocks: Array<{ fieldPath: "examPattern" | "syllabus"; value: unknown; reason: string }>): Promise<string | null> {
     if (!record) return "Record not loaded";
     let current = record;
+    setLibraryNote(null);
     for (const block of blocks) {
       const out = await saveListField(current.id, current.recordRevision, block.fieldPath, block.value, block.reason);
       if (out.error || !out.record) {
@@ -1242,6 +1252,7 @@ export default function CmsRecordEditorPage() {
         return out.error ?? "Save failed";
       }
       current = out.record;
+      if (out.library) setLibraryNote(libraryNoteText(out.library));
     }
     onFieldSaved(current);
     return null;
@@ -1371,6 +1382,7 @@ export default function CmsRecordEditorPage() {
         sourceKind: data.sourceKind,
         fromScan: Boolean(data.fromScan),
       });
+      setLibraryNote(data.library ? libraryNoteText(data.library) : null);
     } catch (e) {
       setAiError(String(e));
     } finally {
@@ -2173,6 +2185,8 @@ export default function CmsRecordEditorPage() {
         {activeSection === "Exam Pattern" && (
           <Section title="Exam Pattern">
             <ContentImportBox record={record} onSaveMany={saveBlocks} />
+            {libraryNote && <div role="status" style={{ color: C.green, fontSize: 12, margin: "0 0 12px" }}>{libraryNote}</div>}
+            <LibraryCompare record={record} />
             <ExamPatternEditor record={record} onSave={saveBlock} />
           </Section>
         )}
@@ -2181,6 +2195,8 @@ export default function CmsRecordEditorPage() {
         {activeSection === "Syllabus" && (
           <Section title="Syllabus">
             <ContentImportBox record={record} onSaveMany={saveBlocks} />
+            {libraryNote && <div role="status" style={{ color: C.green, fontSize: 12, margin: "0 0 12px" }}>{libraryNote}</div>}
+            <LibraryCompare record={record} />
             <SyllabusEditor record={record} onSave={saveBlock} />
           </Section>
         )}
