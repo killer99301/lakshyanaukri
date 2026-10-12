@@ -136,6 +136,10 @@ export async function POST(
     try {
       const { fetchHtmlContent } = await import("@/intelligence/fetcher");
       const { fetchResult, htmlContent } = await fetchHtmlContent(url, { maxRetries: 1 });
+      // Many news and official sites turn away anything that is not a person's browser.
+      if (fetchResult.status === "BLOCKED") {
+        return NextResponse.json({ error: "This site does not let our server read it. Open the page yourself, copy the article or notice text, and paste it in the box below. Leave the address here so the source is recorded." }, { status: 422 });
+      }
       const resolved = await resolveSourceContent(
         { ok: fetchResult.status === "OK", contentType: fetchResult.contentType, error: fetchResult.error, htmlContent },
         url,
