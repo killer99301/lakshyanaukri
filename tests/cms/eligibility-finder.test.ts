@@ -21,7 +21,7 @@
 import { suite, test, assert } from "../intelligence/suite";
 import type { AgeLimit, Qualification } from "@/types";
 import {
-  ageFor, assessJob, dobProblem, everyPostIsSpecific, findEligibleJobs, qualificationFor,
+  ageFor, assessJob, dobProblem, maximumQualification, everyPostIsSpecific, findEligibleJobs, qualificationFor,
   type FinderInput, type FinderJob,
 } from "@/lib/eligibility-finder";
 
@@ -200,4 +200,28 @@ test("EF09 date of birth is checked before anything is worked out", () => {
   assert.equal(dobProblem("2027-01-01", today), "Your date of birth must be in the past.");
   assert.equal(dobProblem("2020-01-01", today), "Check the year of your date of birth.");
   assert.equal(dobProblem("1930-01-01", today), "Check the year of your date of birth.");
+});
+
+test("EF-MAX a job with a highest qualification does not call a graduate eligible", () => {
+  // JKSSB Class-IV: "Minimum Matric and Maximum 10+2" on every post.
+  const posts = [["Minimum Matric and Maximum 10+2"], ["Minimum 8th Pass and Maximum 10+2"], ["Minimum Matric and Maximum 10+2"]];
+  assert.equal(maximumQualification(posts), "12th Pass");
+  assert.equal(maximumQualification([["Matric only. Maximum qualification: Matriculation"]]), "10th Pass");
+  // Only some posts capped, or none: no upper limit for the job as a whole.
+  assert.equal(maximumQualification([["Minimum Matric and Maximum 10+2"], ["Graduate in any discipline"]]), undefined);
+  assert.equal(maximumQualification([["10th Class pass (10+2 system) or Higher Secondary"]]), undefined);
+  assert.equal(maximumQualification([]), undefined);
+
+  const capped = job({ qualification: "10th Pass", maxQualification: "12th Pass" });
+  assert.equal(assessJob(capped, me({ qualification: "10th Pass" })).qualification.verdict, "OK");
+  assert.equal(assessJob(capped, me({ qualification: "12th Pass" })).qualification.verdict, "OK");
+  const graduate = assessJob(capped, me({ qualification: "Graduate" }));
+  assert.equal(graduate.qualification.verdict, "CHECK");
+  assert.match(graduate.qualification.note, /highest qualification too \(10\+2\)/);
+  assert.notEqual(graduate.verdict, "ELIGIBLE");
+  assert.equal(assessJob(capped, me({ qualification: "Post Graduate" })).qualification.verdict, "CHECK");
+  // ITI and Diploma are off the school ladder: the notice decides.
+  assert.equal(assessJob(capped, me({ qualification: "Diploma" })).qualification.verdict, "CHECK");
+  // A job with no upper limit is unchanged.
+  assert.equal(assessJob(job({ qualification: "10th Pass" }), me({ qualification: "Graduate" })).qualification.verdict, "OK");
 });

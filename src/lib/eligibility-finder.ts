@@ -62,6 +62,27 @@ export function everyPostIsSpecific(listed: Qualification, postQualifications: s
   return posts.length >= 2 && posts.every((q) => SPECIFIC_QUALIFICATION.test(q.join(" ")));
 }
 
+// "Minimum Matric and Maximum 10+2": some Class-IV recruitments turn away
+// anyone who has studied further than the level named.
+const MAXIMUM_STATED = /\bmax(?:imum)?\b[^.;]{0,40}?(10\s*\+\s*2|12th|higher secondary|intermediate|\bhsc\b|matric|10th|\bsslc\b|\bssc\b)/i;
+
+/**
+ * The highest qualification a job accepts, when every one of its posts states
+ * one. A job where only some posts have an upper limit has none here: a
+ * candidate above it may still apply for the other posts.
+ */
+export function maximumQualification(postQualifications: string[][]): Qualification | undefined {
+  const posts = postQualifications.filter((q) => q.length > 0);
+  if (posts.length === 0) return undefined;
+  let highest: Qualification = "10th Pass";
+  for (const post of posts) {
+    const stated = MAXIMUM_STATED.exec(post.join(" "));
+    if (!stated) return undefined;
+    if (!/matric|10th|sslc|ssc/i.test(stated[1])) highest = "12th Pass";
+  }
+  return highest;
+}
+
 export interface FinderJob {
   /** Government recruitments set an age limit; private jobs and internships usually set none. */
   kind: Opportunity["type"];
@@ -71,6 +92,8 @@ export interface FinderJob {
   qualification: Qualification;
   /** Every post asks for its own named qualification; the listed level alone settles nothing. */
   specific?: boolean;
+  /** Every post turns away candidates who have studied beyond this level. */
+  maxQualification?: Qualification;
   ageLimit?: AgeLimit;
   closeDate: string;
   openDate: string;
@@ -87,6 +110,7 @@ export function toFinderJob(job: Opportunity, vacancies?: number, postQualificat
     organizationName: job.organizationName,
     qualification: job.qualification,
     ...(everyPostIsSpecific(job.qualification, postQualifications) ? { specific: true } : {}),
+    ...(maximumQualification(postQualifications) ? { maxQualification: maximumQualification(postQualifications) } : {}),
     ...(job.type === "government" && job.ageLimit ? { ageLimit: job.ageLimit } : {}),
     closeDate: job.application.closeDate,
     openDate: job.application.openDate,
@@ -192,7 +216,15 @@ export function assessJob(job: FinderJob, input: FinderInput): FinderResult {
     ? ageFor(job.ageLimit, input)
     : { verdict: "OK", note: `No age limit is stated for this ${job.kind === "internship" ? "internship" : "job"}.` };
   const general = qualificationFor(job.qualification, input.qualification);
-  const qualification: FinderPart = job.specific && general.verdict === "OK"
+  // Above the highest level the job accepts: holding more is not in the
+  // visitor's favour here. ITI and Diploma sit off the school ladder, so
+  // whether they count as "more" is for the notice to say.
+  const cap = job.maxQualification;
+  const overCap = Boolean(cap) && general.verdict === "OK" && input.qualification !== cap
+    && (LADDER[input.qualification] === undefined || (LADDER[input.qualification] ?? 0) > (LADDER[cap!] ?? 99));
+  const qualification: FinderPart = overCap
+    ? { verdict: "CHECK", note: `This job sets a highest qualification too (${cap === "12th Pass" ? "10+2" : "10th"}). Candidates who have studied further may not be eligible; check the notice.` }
+    : job.specific && general.verdict === "OK"
     ? { verdict: "CHECK", note: "Each post in this job asks for its own diploma, degree or certificate. Open the job to see which." }
     : general;
   const verdict: FinderVerdict =
