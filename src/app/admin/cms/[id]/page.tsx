@@ -514,6 +514,24 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
                   {l.official ? "✓" : l.savedFrom ? (
                     <span title={`Saved from ${l.savedFrom}${l.savedOn ? ` on ${l.savedOn}` : ""}`}>Saved copy</span>
                   ) : "—"}
+                  {/* A link added without the tick can be marked afterwards; a saved copy is never official. */}
+                  {editable && !l.savedFrom && (
+                    <button
+                      onClick={() => {
+                        void save(
+                          record.links.map((x, j) => (j === i ? { ...x, official: !x.official } : x)),
+                          `${l.official ? "Unmarked" : "Marked"} link as official: ${l.label}`,
+                        );
+                      }}
+                      disabled={saving}
+                      title={l.official
+                        ? "Removes the official mark from this link."
+                        : "Tick only if you have checked this address is on the recruiting organisation's own website."}
+                      style={{ background: "none", border: "none", color: C.accent, cursor: "pointer", fontSize: 12, marginLeft: 8, padding: 0 }}
+                    >
+                      {l.official ? "Unmark" : "Mark official"}
+                    </button>
+                  )}
                 </td>
                 <td style={cell}>
                   {editable && (
