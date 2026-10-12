@@ -153,7 +153,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                       <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded">
                         {item.type}
                       </span>
-                      <span className="text-xs font-bold text-amber-950">Published Date: {formatDate(item.date)}</span>
+                      <span className="text-xs font-bold text-amber-950">{item.sourceUrl ? "Published Date" : "Updated"}: {formatDate(item.date)}</span>
                     </div>
 
                     {docAccess.isAvailable && docAccess.url && (

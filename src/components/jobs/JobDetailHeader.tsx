@@ -118,10 +118,11 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
                     </span>
-                    <span>Official Update • {latestUpdate.type.replace(/_/g, " ")}</span>
+                    {/* "Official" only when the entry carries the official notice it came from. */}
+                    <span>{latestUpdate.sourceUrl ? "Official Update" : "Update"} • {latestUpdate.type.replace(/_/g, " ")}</span>
                   </span>
                   <span className="text-xs text-amber-950 font-extrabold">
-                    Published: {formatDate(latestUpdate.date)}
+                    {latestUpdate.sourceUrl ? "Published" : "Updated"}: {formatDate(latestUpdate.date)}
                   </span>
                 </div>
                 <h4 className="text-sm sm:text-base font-black text-[#0F172A] leading-snug">{latestUpdate.title}</h4>

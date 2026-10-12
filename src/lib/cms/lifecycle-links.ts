@@ -27,6 +27,12 @@ export interface LifecycleLink {
   updatedAtIso: string;
   /** Present when the link is our saved copy rather than the official page. */
   savedCopy?: { from: string; host: string; on?: string };
+  /**
+   * True when the entry comes from a stage's status ("result declared",
+   * "admit card released") and no link of that kind has been added yet. It
+   * then points to the recruiting body's official website.
+   */
+  fromStage?: boolean;
 }
 
 export interface LifecycleLinks {
@@ -76,6 +82,33 @@ export function lifecycleLinksOf(snap: PublishedRecruitmentSnapshot): LifecycleL
       ...(savedCopy ? { savedCopy } : {}),
     });
   });
+
+  // A stage marked "result declared" or "admit card released" belongs on those
+  // pages even before its own link is added. It is listed once per kind, only
+  // when the record has no link of that kind, and only when there is an
+  // official website to send the visitor to.
+  const website = (snap.links ?? []).find((l) => l.type === "OFFICIAL_WEBSITE" && l.official && isHttp(l.url) && !l.savedFrom)?.url;
+  if (website) {
+    const stages = [...(snap.examStages ?? [])].sort((a, b) => b.order - a.order);
+    const fromStage = (kind: LifecycleKind, status: string, words: string) => {
+      if (out.some((l) => l.kind === kind)) return;
+      const stage = stages.find((s) => s.status === status);
+      if (!stage) return;
+      out.push({
+        id: `${snap.id}-stage-${kind}`,
+        kind,
+        label: `${stage.name}: ${words}`,
+        url: website,
+        jobTitle: snap.title ?? snap.slug,
+        jobSlug: snap.slug,
+        organization: snap.organizationName,
+        updatedAtIso: snap.projectedAt,
+        fromStage: true,
+      });
+    };
+    fromStage("result", "RESULT_DECLARED", "result declared");
+    fromStage("admitCard", "ADMIT_CARD_OUT", "admit card released");
+  }
   return out;
 }
 

@@ -136,7 +136,8 @@ export function snapshotToGovernmentRecruitment(
     qualification:    (snapshot.classification.qualification ?? "") as GovernmentRecruitment["qualification"],
 
     addedAt:          snapshot.firstPublishedAt,
-    downloads:        lifecycleLinksOf(snapshot),
+    // The job page lists real documents; a stage's status is already shown in its timeline.
+    downloads:        lifecycleLinksOf(snapshot).filter((l) => !l.fromStage),
 
     govType,
     notificationNumber: snapshot.notificationNumber ?? "",

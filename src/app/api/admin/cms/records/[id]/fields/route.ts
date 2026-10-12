@@ -17,6 +17,8 @@ import type { NextRequest } from "next/server";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { getRecruitmentById, persistFieldUpdate, OccConflictError } from "@/lib/cms/repository";
 import { routeFieldUpdate } from "@/lib/cms/field-update-router";
+import { stageChangeEntries } from "@/lib/cms/stage-updates";
+import { todayInIndia } from "@/lib/cms/attention";
 import { randomUUID } from "node:crypto";
 import type { ProvenanceField } from "@/types/recruitment-record";
 import type { UpdateRecord, UpdateType } from "@/types";
@@ -111,6 +113,15 @@ export async function PATCH(
         ...(updateEntry.newValue !== undefined ? { newValue: updateEntry.newValue } : {}),
       };
       result.record.updates = [...(result.record.updates ?? []), entry];
+    } else if (fieldPath === "examStages" && record.publishedAt) {
+      // A job that has been public: a change to a stage's status or date is
+      // written into its updates, so the banner and history never lag behind
+      // the stages. A draft that was never published is still being put
+      // together, and gets none.
+      const auto = stageChangeEntries(record.examStages, result.record.examStages, todayInIndia());
+      if (auto.length > 0) {
+        result.record.updates = [...(result.record.updates ?? []), ...auto.map((e) => ({ id: randomUUID(), ...e }))];
+      }
     }
 
     const { record: saved, revision } = await persistFieldUpdate(result, clientRevision);

@@ -84,7 +84,7 @@ export function LifecycleLinkCard({ item }: { item: LifecycleLink }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 font-bold text-[#EA580C] hover:underline"
         >
-          <span>{item.savedCopy ? "Open saved copy" : meta.action}</span>
+          <span>{item.savedCopy ? "Open saved copy" : item.fromStage ? "Go to the official website" : meta.action}</span>
           <ExternalLink className="h-3 w-3" />
         </a>
       </div>

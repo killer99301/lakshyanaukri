@@ -81,6 +81,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
   d = await r.json();
   check("setup: published", r.status === 200 && d.record.draftState === "PUBLISHED", d);
+  check("stages entered before the first publish wrote no update entries", (d.record.updates ?? []).length === 0, d.record.updates);
   const rowBefore = JSON.stringify((await pg.query("SELECT record_revision, draft_state, dates, exam_stages, links FROM recruitments WHERE id = $1", [id])).rows[0]);
 
   const PATH = `/api/admin/cms/records/${id}/check-updates`;
@@ -205,6 +206,11 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   check("publish → 200, published", r.status === 200 && d.record.draftState === "PUBLISHED", d);
   const after = await publicRepo.getBySlug(slug) as { examStages?: Array<{ status: string }>; links?: { result?: string } } | undefined;
   check("the public page now shows the stage as held", after?.examStages?.[0]?.status === "CONDUCTED", after?.examStages);
+  const updates = d.record.updates as Array<{ title: string; description: string; type: string; sourceUrl?: string; previousValue?: string; newValue?: string }>;
+  check("the stage change wrote one update entry by itself", updates.length === 1 && updates[0].title === "Online Test held" && updates[0].type === "EXAM_NOTICE", updates);
+  check("the entry says what changed and names no source", updates[0].description === "Online Test has been held on 4 Oct 2026." && updates[0].previousValue === "Scheduled, 4 Oct 2026" && updates[0].newValue === "Held, 4 Oct 2026" && updates[0].sourceUrl === undefined, updates[0]);
+  const shown = (await publicRepo.getBySlug(slug)) as { updates?: Array<{ title: string }> } | undefined;
+  check("the entry is on the public page, so the banner follows the stage", shown?.updates?.some((u) => u.title === "Online Test held") === true, shown?.updates);
   const history = (await pg.query("SELECT reason FROM field_revisions WHERE recruitment_id = $1 AND reason LIKE 'Check for updates:%'", [id])).rows as Array<{ reason: string }>;
   check("each change is in the history with where it came from", history.length === 3 && history.some((h) => /source: canarabank\.bank\.in/.test(h.reason)), history);
 

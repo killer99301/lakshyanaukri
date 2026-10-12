@@ -126,6 +126,14 @@ function oneTypoApart(a: string, b: string): boolean {
   return restA.length > restB.length ? restA.slice(1) === restB : restB.slice(1) === restA;
 }
 
+const STAGE_SEARCH_WORDS: Record<string, string> = {
+  SCHEDULED: "exam date scheduled",
+  ADMIT_CARD_OUT: "admit card released hall ticket call letter",
+  POSTPONED: "postponed deferred",
+  CONDUCTED: "exam held conducted",
+  RESULT_DECLARED: "result declared",
+};
+
 function jobSearchText(opp: Opportunity): string {
   const gov = opp.type === "government" ? (opp as GovernmentRecruitment) : null;
   return searchText(
@@ -141,6 +149,8 @@ function jobSearchText(opp: Opportunity): string {
       gov?.notificationNumber,
       gov?.govType,
       ...(gov?.eligibility ?? []),
+      // Where the recruitment stands, so "admit card", "result" or "postponed" finds it.
+      ...(gov?.examStages ?? []).map((stage) => `${stage.name} ${STAGE_SEARCH_WORDS[stage.status] ?? ""}`),
     ].join(" "),
   );
 }
