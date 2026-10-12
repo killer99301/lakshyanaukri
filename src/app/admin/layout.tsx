@@ -7,13 +7,13 @@ import { BrandMark } from "@/components/common/BrandMark";
 const NAV = [
   { href: "/admin/cms",          label: "Jobs",         hint: "Create, edit and publish job records" },
   { href: "/admin/library",      label: "Syllabus",     hint: "Prepared syllabus files, one per recurring exam" },
-  { href: "/admin/history",      label: "History",      hint: "What was done and when" },
 ];
-// Intake, Review and Intelligence belong to the first, automatic way of
-// finding jobs. Jobs are now made with "New job" and AI Assist, so those three
-// are out of the menu (owner's decision, 2026-10-12). The pages and their data
-// are untouched and still open at /admin/intake, /admin/review and
-// /admin/intelligence.
+// Intake, Review, History and Intelligence belong to the first, automatic way
+// of finding jobs (History is the log of Intake runs, not of edits to jobs;
+// each job has its own change history). Jobs are now made with "New job" and
+// AI Assist, so those four are out of the menu (owner's decision, 2026-10-12).
+// The pages and their data are untouched and still open at /admin/intake,
+// /admin/review, /admin/history and /admin/intelligence.
 
 // Look and feel shared by every admin page. Pages style themselves inline;
 // this adds what inline styles cannot: focus rings, hover lift, scrollbars.
