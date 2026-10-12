@@ -48,9 +48,34 @@ export function telegramConfigured(env: Record<string, string | undefined> = pro
   return Boolean(env.TELEGRAM_BOT_TOKEN?.trim() && env.TELEGRAM_CHANNEL_ID?.trim());
 }
 
-type FetchLike = (url: string, init: RequestInit) => Promise<{ ok: boolean; status: number }>;
+type FetchLike = (url: string, init: RequestInit) => Promise<{ ok: boolean; status: number; json?: () => Promise<unknown> }>;
 
-async function send(chatId: string, text: string, token: string, fetchFn: FetchLike, what: string): Promise<AnnouncementResult> {
+/**
+ * The chat a message goes to, in the form Telegram accepts. A channel is
+ * easily entered as its link or its bare name; Telegram answers both with
+ * "chat not found". Numeric IDs and @names pass through unchanged.
+ */
+export function normalizeChatId(raw: string): string {
+  const value = raw.trim().replace(/^["']|["']$/g, "").trim();
+  if (/^-?\d+$/.test(value)) return value;
+  const fromLink = value.match(/^(?:https?:\/\/)?(?:t|telegram)\.me\/(?:s\/)?([A-Za-z][A-Za-z0-9_]{3,})\/?$/i);
+  if (fromLink) return `@${fromLink[1]}`;
+  if (/^[A-Za-z][A-Za-z0-9_]{3,}$/.test(value)) return `@${value}`;
+  return value;
+}
+
+/** Telegram's own reason for a refusal ("chat not found"). It never holds the token. */
+async function refusalReason(res: { json?: () => Promise<unknown> }): Promise<string> {
+  try {
+    const body = (await res.json?.()) as { description?: unknown } | undefined;
+    return typeof body?.description === "string" ? `: ${body.description.slice(0, 120)}` : "";
+  } catch {
+    return "";
+  }
+}
+
+async function send(rawChatId: string, text: string, token: string, fetchFn: FetchLike, what: string): Promise<AnnouncementResult> {
+  const chatId = normalizeChatId(rawChatId);
   try {
     const res = await fetchFn(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
@@ -64,8 +89,8 @@ async function send(chatId: string, text: string, token: string, fetchFn: FetchL
       signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) {
-      // Status only: the URL holds the token and must not reach the logs.
-      console.error(`[Telegram] ${what} refused with HTTP ${res.status}`);
+      // Status and Telegram's reason only: the URL holds the token and must not reach the logs.
+      console.error(`[Telegram] ${what} refused with HTTP ${res.status}${await refusalReason(res)}`);
       return "failed";
     }
     return "sent";

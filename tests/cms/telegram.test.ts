@@ -13,7 +13,7 @@
 
 import { suite, test, assert } from "../intelligence/suite";
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
-import { buildJobAnnouncement, sendToChannel, telegramConfigured } from "@/lib/telegram";
+import { buildJobAnnouncement, normalizeChatId, sendToChannel, telegramConfigured } from "@/lib/telegram";
 
 function snapshot(over: Partial<PublishedRecruitmentSnapshot> = {}): PublishedRecruitmentSnapshot {
   return {
@@ -98,5 +98,34 @@ test("TG05 a refusal or a network error is \"failed\", never an exception", asyn
     console.error = quiet;
   }
   // The token must never reach the logs, even through an error message.
+  assert.equal(logged.some((line) => line.includes("secret-token")), false);
+});
+
+test("TG06 a channel entered as a link or a bare name is sent as @name; IDs are untouched", async () => {
+  assert.equal(normalizeChatId("@LakshyaNaukri"), "@LakshyaNaukri");
+  assert.equal(normalizeChatId(" LakshyaNaukri "), "@LakshyaNaukri");
+  assert.equal(normalizeChatId("https://t.me/LakshyaNaukri"), "@LakshyaNaukri");
+  assert.equal(normalizeChatId("t.me/LakshyaNaukri/"), "@LakshyaNaukri");
+  assert.equal(normalizeChatId('"@LakshyaNaukri"'), "@LakshyaNaukri");
+  assert.equal(normalizeChatId("-1001234567890"), "-1001234567890");
+  assert.equal(normalizeChatId("267000000"), "267000000");
+
+  let seenBody = "";
+  const fetchFn = async (_url: string, init: RequestInit) => { seenBody = String(init.body); return { ok: true, status: 200 }; };
+  assert.equal(await sendToChannel("hi", { ...ENV, TELEGRAM_CHANNEL_ID: "t.me/LakshyaNaukri" }, fetchFn), "sent");
+  assert.equal(JSON.parse(seenBody).chat_id, "@LakshyaNaukri");
+});
+
+test("TG07 a refusal logs Telegram's reason, without the token", async () => {
+  const quiet = console.error;
+  const logged: string[] = [];
+  console.error = (...args: unknown[]) => { logged.push(args.map(String).join(" ")); };
+  try {
+    const refused = async () => ({ ok: false, status: 400, json: async () => ({ ok: false, description: "Bad Request: chat not found" }) });
+    assert.equal(await sendToChannel("hi", ENV, refused), "failed");
+  } finally {
+    console.error = quiet;
+  }
+  assert.equal(logged.some((line) => line.includes("HTTP 400: Bad Request: chat not found")), true);
   assert.equal(logged.some((line) => line.includes("secret-token")), false);
 });
