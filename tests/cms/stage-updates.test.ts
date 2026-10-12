@@ -64,6 +64,14 @@ test("SU03 a date announced, a date moved, a date withdrawn", () => {
   assert.deepEqual([announced.type, announced.title, announced.description], ["EXAM_NOTICE", "Preliminary Examination date announced", "Preliminary Examination is set for 6 Dec 2026."]);
   const [moved] = one(stage({ dateIso: "2026-12-06", certainty: "CONFIRMED" }), stage({ dateIso: "2026-12-13", certainty: "TENTATIVE" }));
   assert.deepEqual([moved.type, moved.title, moved.description], ["RESCHEDULE", "Preliminary Examination rescheduled", "Preliminary Examination has moved from 6 Dec 2026 to 13 Dec 2026 (tentative)."]);
+  // An exam held over several days: the window is announced, never its first day alone.
+  const windowed = stage({ status: "ADMIT_CARD_OUT", dateIso: "2026-09-30", dateDisplay: "30 Sep – 30 Oct 2026", certainty: "CONFIRMED" });
+  const [inWindow] = one(stage({ status: "SCHEDULED", dateDisplay: "Sep–Oct 2026", certainty: "TENTATIVE" }), windowed);
+  assert.match(inWindow.description, /has been released\. Exam dates: 30 Sep – 30 Oct 2026\.$/);
+  assert.equal(inWindow.newValue, "Admit card released, 30 Sep – 30 Oct 2026");
+  // Adding the exact first day to a stage that already shows its window is not news.
+  assert.equal(stageChangeEntries([stage({ status: "SCHEDULED", dateDisplay: "30 Nov – 31 Dec 2026", certainty: "TENTATIVE" })], [stage({ status: "SCHEDULED", dateIso: "2026-11-30", dateDisplay: "30 Nov – 31 Dec 2026", certainty: "TENTATIVE" })], "2026-10-12").length, 0);
+
   const [typed] = one(undated, stage({ status: "NOT_DECLARED", dateDisplay: "Nov–Dec 2026", certainty: "TENTATIVE" }));
   assert.equal(typed.description, "Preliminary Examination is set for Nov–Dec 2026 (tentative).");
   const [withdrawn] = one(stage({ status: "NOT_DECLARED", dateDisplay: "Nov–Dec 2026", certainty: "TENTATIVE" }), undated);

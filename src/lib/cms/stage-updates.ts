@@ -27,7 +27,10 @@ const STATUS_WORDS: Record<ExamStageStatus, string> = {
 };
 
 const key = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-const dateOf = (s: ExamStage | undefined): string => (s?.dateIso ? formatDate(s.dateIso) : s?.dateDisplay?.trim() ?? "");
+// The written form wins when there is one: an exam held over several days has
+// "30 Sep – 30 Oct 2026" there and only its first day as the exact date, and
+// announcing the first day alone would be wrong.
+const dateOf = (s: ExamStage | undefined): string => s?.dateDisplay?.trim() || (s?.dateIso ? formatDate(s.dateIso) : "");
 const tentative = (s: ExamStage) => (s.certainty === "TENTATIVE" ? " (tentative)" : "");
 const state = (s: ExamStage | undefined): string =>
   s ? [STATUS_WORDS[s.status], dateOf(s)].filter(Boolean).join(", ") : "Not on record";
@@ -56,7 +59,7 @@ function entryFor(before: ExamStage | undefined, after: ExamStage, todayIso: str
       : `${name}${was ? `, earlier set for ${was},` : ""} has been postponed. A new date has not been announced.`;
   } else if (after.status === "ADMIT_CARD_OUT" && statusChanged) {
     title = `${name}: admit card released`;
-    description = `The admit card for ${name} has been released.${now ? ` The exam is on ${now}${tentative(after)}.` : ""}`;
+    description = `The admit card for ${name} has been released.${now ? (after.dateDisplay?.trim() ? ` Exam dates: ${now}${tentative(after)}.` : ` The exam is on ${now}${tentative(after)}.`) : ""}`;
   } else if (after.status === "CONDUCTED" && statusChanged) {
     title = `${name} held`;
     description = `${name} has been held${now ? ` on ${now}` : ""}.`;
