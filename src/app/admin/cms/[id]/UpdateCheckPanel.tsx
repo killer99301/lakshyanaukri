@@ -24,7 +24,7 @@ const C = {
 };
 
 interface CheckResult {
-  mode: "page" | "search";
+  mode: "page" | "search" | "text" | "pdf";
   sourceUrl: string | null;
   searchedSites: string[];
   summary: string;
@@ -53,6 +53,7 @@ const badge = (color: string): React.CSSProperties => ({
 export function UpdateCheckPanel({ record, onRecordChange }: { record: RecruitmentRecord; onRecordChange: (record: RecruitmentRecord) => void }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
+  const [pasted, setPasted] = useState("");
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<CheckResult | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
@@ -63,22 +64,34 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
   if (record.draftState === "ARCHIVED") return null;
   const live = record.draftState === "PUBLISHED";
 
-  async function check() {
+  // With a file, the PDF itself is sent; with pasted text, that text. Either
+  // way the address, if given, only records where it came from.
+  async function check(file?: File) {
     setChecking(true);
     setErr(null);
     setDone(null);
     setResult(null);
     try {
-      const res = await fetch(`/api/admin/cms/records/${record.id}/check-updates`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(url.trim() ? { url: url.trim() } : {}),
-      });
+      let res: Response;
+      if (file) {
+        const form = new FormData();
+        form.set("file", file);
+        if (url.trim()) form.set("url", url.trim());
+        res = await fetch(`/api/admin/cms/records/${record.id}/check-updates`, { method: "POST", body: form });
+      } else {
+        res = await fetch(`/api/admin/cms/records/${record.id}/check-updates`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...(url.trim() ? { url: url.trim() } : {}), ...(pasted.trim() ? { text: pasted.trim() } : {}) }),
+        });
+      }
+      if (res.status === 413) { setErr("This PDF is larger than 4 MB, which is the most that can be uploaded here."); return; }
       const data = await res.json();
       if (!res.ok) { setErr(data.error ?? `HTTP ${res.status}`); return; }
       const proposals: UpdateProposal[] = data.proposals ?? [];
       setResult({ mode: data.mode, sourceUrl: data.sourceUrl, searchedSites: data.searchedSites ?? [], summary: data.summary ?? "", proposals, dropped: data.dropped ?? 0 });
       setTicked(new Set(proposals.filter(tickedByDefault).map((p) => p.id)));
+      setPasted("");
     } catch {
       setErr("Could not reach the server.");
     } finally {
@@ -170,7 +183,7 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
         <button onClick={() => { setOpen(false); setResult(null); setErr(null); }} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>Close</button>
       </div>
       <div style={{ fontSize: 12, color: C.muted, margin: "6px 0 10px", lineHeight: 1.5 }}>
-        Leave the box empty to let the AI search the web, or paste the address of an official page or PDF for it to read. It only proposes; nothing changes until you accept. Each check uses one AI request.
+        Three ways to check: leave everything empty to let the AI search the web; give the address of an official page or PDF for the site to fetch; or, when the official site blocks that, paste the notice text or upload the PDF yourself. It only proposes; nothing changes until you accept. Each check uses one AI request.
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <input
@@ -186,9 +199,26 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
           disabled={checking || applying}
           style={{ padding: "7px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: checking || applying ? "wait" : "pointer", opacity: checking || applying ? 0.6 : 1 }}
         >
-          {checking ? "Checking…" : url.trim() ? "Read this page" : "Search the web"}
+          {checking ? "Checking…" : pasted.trim() ? "Read the pasted text" : url.trim() ? "Read this page" : "Search the web"}
         </button>
       </div>
+      <textarea
+        aria-label="Notice text (optional)"
+        value={pasted}
+        onChange={(e) => setPasted(e.target.value)}
+        placeholder="Or paste the text of the notice here (copy it from the official page or PDF)"
+        style={{ width: "100%", height: pasted ? 140 : 44, marginTop: 8, padding: "7px 10px", background: C.bg, border: "1px solid #2b3a5c", borderRadius: 6, color: C.text, fontSize: 12, boxSizing: "border-box", fontFamily: "inherit", resize: "vertical" }}
+      />
+      <label style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: checking || applying ? C.muted : C.accent, cursor: checking || applying ? "wait" : "pointer" }}>
+        or upload the notice PDF (up to 4 MB)
+        <input
+          type="file"
+          accept="application/pdf,.pdf"
+          disabled={checking || applying}
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void check(f); }}
+          style={{ display: "none" }}
+        />
+      </label>
 
       {err && <div role="alert" style={{ color: C.red, fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>{err}</div>}
       {done && <div role="status" style={{ color: C.green, fontSize: 12, marginTop: 10 }}>{done}</div>}
@@ -196,7 +226,9 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
       {result && (
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
-            {result.mode === "page"
+            {result.mode === "text" || result.mode === "pdf"
+              ? <>Read from the {result.mode === "pdf" ? "PDF you uploaded" : "text you pasted"}{result.sourceUrl ? <> (<span style={{ color: C.text }}>{result.sourceUrl}</span>)</> : null}.</>
+              : result.mode === "page"
               ? <>Read from <span style={{ color: C.text }}>{result.sourceUrl}</span>.</>
               : result.searchedSites.length > 0
                 ? <>Searched the web. Pages opened: <span style={{ color: C.text }}>{result.searchedSites.slice(0, 8).join(", ")}</span>.</>
@@ -221,7 +253,7 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.label}</span>
-                      <span style={badge(p.official ? C.green : C.amber)}>{p.official ? "Official source" : "Not an official source"}</span>
+                      <span style={badge(p.official ? C.green : p.supplied && !p.sourceHost ? C.muted : C.amber)}>{p.official ? "Official source" : p.supplied && !p.sourceHost ? "From what you supplied" : "Not an official source"}</span>
                       {!p.confirmed && <span style={badge(C.amber)}>{p.kind === "LINK" ? "Open the link before accepting" : "Source not confirmed"}</span>}
                     </div>
                     <div style={{ fontSize: 13, color: C.text, marginTop: 4, overflowWrap: "anywhere" }}>

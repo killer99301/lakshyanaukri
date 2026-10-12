@@ -196,6 +196,13 @@ test("UC10 only official, confirmed proposals are ticked by default", () => {
   assert.equal(tickedByDefault(one({ ...date, source: "coaching.example" }, ctx)[0]), false);
   assert.equal(tickedByDefault(one({ ...date, source: "ssc.gov.in" }, ctx)[0]), false);
   assert.equal(tickedByDefault(one({ type: "link", linkType: "RESULT", url: "https://www.ibps.in/r", source: "ibps.in" }, ctx)[0]), false);
+  // Text the admin pasted with no address: they chose the source, so a confirmed proposal is ticked.
+  const supplied = { source: { url: "", text: PAGE.text, supplied: true } };
+  const fromPaste = one({ ...date, evidence: "Result of Main Examination will be declared on 15.11.2026" }, supplied)[0];
+  assert.deepEqual([fromPaste.supplied, fromPaste.sourceHost, fromPaste.official, fromPaste.confirmed], [true, null, false, true]);
+  assert.equal(tickedByDefault(fromPaste), true);
+  assert.equal(tickedByDefault(one({ ...date, evidence: "Result will be out on 20 November" }, supplied)[0]), false);
+  assert.match(buildUpdatePrompt(ibps(), "2026-10-10", supplied.source), /Use ONLY the page text given below \(supplied by the editor\)/);
 });
 
 test("UC11 at most 12 proposals; a repeated proposal is kept once", () => {

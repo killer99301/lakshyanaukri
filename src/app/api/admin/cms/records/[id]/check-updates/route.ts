@@ -1,9 +1,11 @@
 // ═══════════════════════════════════════════════════════════
 // POST /api/admin/cms/records/[id]/check-updates
 //
-// Body: { url?: string }
-//   with a url  → the AI reads that page (or PDF) and nothing else
-//   without one → the AI searches the web
+// Body: { url?: string, text?: string }, or a form with a PDF `file` (+ `url`)
+//   nothing          → the AI searches the web
+//   a url            → the server fetches that page or PDF and the AI reads only it
+//   text or a PDF    → the AI reads only what the admin supplied; `url` then
+//                      just records where it came from
 //
 // Returns proposed changes for the admin to tick. Read-only: this route never
 // changes a record. Accepted proposals are saved afterwards through the
@@ -25,6 +27,9 @@ import { todayInIndia } from "@/lib/cms/attention";
 
 // Enough of a page to hold its notices; the rest is menus and footers.
 const PAGE_TEXT_LIMIT = 24_000;
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+const MIN_PASTED_CHARS = 40;
+const MAX_PASTED_CHARS = 200_000;
 
 export async function POST(
   request: NextRequest,
@@ -35,15 +40,47 @@ export async function POST(
   if (!validateOrigin(request)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+
+  // Three ways in: nothing (search the web), an address to fetch, or the
+  // content itself (pasted text, or an uploaded PDF) with an optional address
+  // saying where it came from. The last exists because many official sites
+  // refuse requests from the server.
   let url = "";
-  try {
-    const body = (await request.json()) as { url?: unknown };
-    if (body.url !== undefined && typeof body.url !== "string") {
-      return NextResponse.json({ error: "url must be text" }, { status: 400 });
+  let pasted = "";
+  let upload: Buffer | null = null;
+  if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return NextResponse.json({ error: "Could not read the uploaded file" }, { status: 400 });
     }
-    url = (body.url ?? "").trim();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    const file = form.get("file");
+    if (!(file instanceof File)) return NextResponse.json({ error: "Choose a PDF file to upload" }, { status: 400 });
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json({ error: "This PDF is larger than 4 MB, which is the most that can be uploaded here" }, { status: 413 });
+    }
+    upload = Buffer.from(await file.arrayBuffer());
+    if (upload.subarray(0, 5).toString("latin1") !== "%PDF-") return NextResponse.json({ error: "That file is not a PDF" }, { status: 400 });
+    const given = form.get("url");
+    url = typeof given === "string" ? given.trim() : "";
+  } else {
+    try {
+      const body = (await request.json()) as { url?: unknown; text?: unknown };
+      if ((body.url !== undefined && typeof body.url !== "string") || (body.text !== undefined && typeof body.text !== "string")) {
+        return NextResponse.json({ error: "url and text must be text" }, { status: 400 });
+      }
+      url = (body.url ?? "").trim();
+      pasted = (body.text ?? "").trim();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    if (pasted && pasted.length < MIN_PASTED_CHARS) {
+      return NextResponse.json({ error: "That is too little text to check. Paste the whole notice or the section about this recruitment." }, { status: 400 });
+    }
+    if (pasted.length > MAX_PASTED_CHARS) {
+      return NextResponse.json({ error: "That is too much text. Paste only the notice or the section about this recruitment." }, { status: 400 });
+    }
   }
   if (url) {
     let parsed: URL;
@@ -63,8 +100,17 @@ export async function POST(
     return NextResponse.json({ error: "An archived record cannot be checked for updates" }, { status: 409 });
   }
 
-  let source: { url: string; text: string } | null = null;
-  if (url) {
+  let source: { url: string; text: string; supplied?: boolean } | null = null;
+  if (upload) {
+    const { extractPdfFromBuffer } = await import("@/intelligence/pdf-extractor");
+    const pdf = await extractPdfFromBuffer(upload);
+    if (!pdf.ok || !pdf.text || pdf.text.trim().length < MIN_PASTED_CHARS) {
+      return NextResponse.json({ error: "This PDF has no readable text (it may be a scanned image). Paste the relevant text instead." }, { status: 422 });
+    }
+    source = { url, text: pdf.text.slice(0, PAGE_TEXT_LIMIT), supplied: true };
+  } else if (pasted) {
+    source = { url, text: pasted.slice(0, PAGE_TEXT_LIMIT), supplied: true };
+  } else if (url) {
     try {
       const { fetchHtmlContent } = await import("@/intelligence/fetcher");
       const { fetchResult, htmlContent } = await fetchHtmlContent(url, { maxRetries: 1 });
@@ -91,8 +137,8 @@ export async function POST(
 
   const read = readProposals(answer.data, record, source ? { source } : { groundedHosts: answer.groundedHosts });
   return NextResponse.json({
-    mode: source ? "page" : "search",
-    sourceUrl: source?.url ?? null,
+    mode: !source ? "search" : upload ? "pdf" : pasted ? "text" : "page",
+    sourceUrl: source?.url || null,
     searchedSites: answer.groundedHosts,
     summary: read.summary,
     proposals: read.proposals,

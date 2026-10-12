@@ -59,6 +59,8 @@ export interface UpdateProposal {
   official: boolean;
   /** The source was actually read: the page given, or a page the search opened. */
   confirmed: boolean;
+  /** The admin handed over the text or PDF themselves, so they have already chosen the source. */
+  supplied: boolean;
   date?: { field: UpdateDateField; value: string };
   stage?: { name: string; isNew: boolean; status?: ExamStageStatus; dateIso?: string; certainty?: DateCertainty };
   link?: { type: UpdateLinkType; url: string; label: string };
@@ -123,7 +125,7 @@ export function describeForCheck(record: RecruitmentRecord): string {
 
 export function buildUpdatePrompt(record: RecruitmentRecord, todayIso: string, source: { url: string; text: string } | null): string {
   const where = source
-    ? `Use ONLY the page text given below (from ${source.url}). Do not use anything you remember.`
+    ? `Use ONLY the page text given below (${source.url ? `from ${source.url}` : "supplied by the editor"}). Do not use anything you remember.`
     : `Search the web. Prefer the recruiting body's own website (${officialHosts(record).join(", ") || "its official site"}) and government domains over news, coaching and job-portal sites.`;
   return [
     "You are checking one Indian government recruitment for changes since it was last recorded.",
@@ -206,8 +208,8 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[]): T | undefin
 export interface CheckContext {
   /** Hosts of pages the web search actually opened. */
   groundedHosts?: string[];
-  /** The page the admin pointed at, when there was one. */
-  source?: { url: string; text: string };
+  /** The page the admin pointed at, or the text or PDF they supplied (url may then be empty). */
+  source?: { url: string; text: string; supplied?: boolean };
 }
 
 function supported(evidence: string, sourceHost: string | null, ctx: CheckContext, mustContain?: string): boolean {
@@ -233,10 +235,11 @@ export function readProposals(raw: unknown, record: RecruitmentRecord, ctx: Chec
     if (proposals.length >= MAX_PROPOSALS) break;
     const c = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
     const evidence = text(c.evidence, 300);
-    // With a page given, that page is the source whatever the AI says.
-    const sourceHost = pageHost ?? hostOf(text(c.source, 300));
+    // With a page or text given, that is the source whatever the AI says
+    // (pasted text with no address has no site at all).
+    const sourceHost = ctx.source ? pageHost : hostOf(text(c.source, 300));
     const official = isOfficialHost(sourceHost, record);
-    const base = { evidence, sourceHost, official };
+    const base = { evidence, sourceHost, official, supplied: Boolean(ctx.source?.supplied) };
     const type = text(c.type, 20).toLowerCase();
     let proposal: UpdateProposal | null = null;
 
@@ -301,8 +304,11 @@ export function readProposals(raw: unknown, record: RecruitmentRecord, ctx: Chec
   return { proposals, summary: text(body.summary, 300), dropped };
 }
 
-/** Ticked by default only when the source is official and was actually read. */
-export const tickedByDefault = (p: UpdateProposal) => p.official && p.confirmed;
+/**
+ * Ticked by default only when the source was actually read and is either
+ * official or something the admin supplied themselves.
+ */
+export const tickedByDefault = (p: UpdateProposal) => p.confirmed && (p.official || p.supplied);
 
 // ─── Turning accepted proposals into saves ────────────────
 

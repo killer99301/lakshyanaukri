@@ -19,10 +19,11 @@ export type UpdateAnswer =
   | { ok: false; reason: string };
 
 function failure(status: number, search: boolean): string {
+  if (status === 429 && search) return "The AI refused the web search (rate limit). On a free plan, web search may not be included for the site’s model. Paste the notice text or upload the PDF instead.";
   if (status === 429) return "AI rate limit reached. Wait a minute and try again.";
   if (status === 404) return "The configured AI model is not available.";
   if (status === 401 || status === 403) return "The AI key was rejected.";
-  if (status === 400 && search) return "Web search is not available with the site’s AI model or plan. Paste the official page address instead.";
+  if (status === 400 && search) return "Web search is not available with the site’s AI model or plan. Paste the notice text or upload the PDF instead.";
   if (status >= 200 && status < 300) return "The AI answer could not be read. Try again, or paste the official page address.";
   return "The AI service is unavailable right now.";
 }
@@ -46,7 +47,9 @@ export async function askForUpdates(opts: {
   const reserved = await reserveAiRequest("update-check");
   if (!reserved.allowed) return { ok: false, reason: capReachedMessage(reserved.cap) };
 
-  const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+  // Web search can be allowed on a different model than the one used for reading,
+  // so it may be pointed at its own (GEMINI_SEARCH_MODEL).
+  const model = (opts.search && process.env.GEMINI_SEARCH_MODEL) || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${opts.apiKey}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

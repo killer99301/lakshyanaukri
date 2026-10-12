@@ -135,7 +135,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   aiAnswer = { status: 400, body: {} };
   r = await checkUpdates.POST(req(PATH, "POST", {}), ctx(id));
   d = await r.json();
-  check("search refused by the provider → says to paste the page address", r.status === 502 && /Paste the official page address/.test(d.error), d);
+  check("search refused by the provider → says to paste the text or upload the PDF", r.status === 502 && /Paste the notice text or upload the PDF/.test(d.error), d);
   aiAnswer = { status: 200, body: { candidates: [{ content: { parts: [{ text: "I could not find anything." }] } }] } };
   r = await checkUpdates.POST(req(PATH, "POST", {}), ctx(id));
   check("an answer with no JSON → 502, not an empty success", r.status === 502, r.status);
@@ -143,6 +143,33 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   r = await checkUpdates.POST(req(PATH, "POST", {}), ctx(id));
   d = await r.json();
   check("nothing new → 200 with no proposals", r.status === 200 && d.proposals.length === 0, d);
+
+  section("Pasted text: the AI reads only what was supplied");
+  const NOTICE = "CANARA BANK - RECRUITMENT OF OFFICERS 2026. The online test was held on 04.10.2026. Result of the online test will be declared on 12.11.2026. Call letters: https://www.canarabank.bank.in/call-letter-2026";
+  const before = aiCalls;
+  aiAnswer = { status: 200, body: { candidates: [{ content: { parts: [{ text: JSON.stringify({ summary: "Result date announced.", changes: [
+    { type: "date", field: "resultDate", value: "2026-11-12", evidence: "Result of the online test will be declared on 12.11.2026", source: "made-up.example" },
+    { type: "date", field: "admitCardDate", value: "2026-09-20", evidence: "Call letters were issued on 20 September", source: "canarabank.bank.in" },
+    { type: "link", linkType: "ADMIT_CARD", url: "https://www.canarabank.bank.in/call-letter-2026", label: "Call letter" },
+    { type: "link", linkType: "RESULT", url: "https://www.canarabank.bank.in/invented", label: "Result" },
+  ] }) }] } }] } };
+  r = await checkUpdates.POST(req(PATH, "POST", { text: NOTICE }), ctx(id));
+  d = await r.json();
+  check("→ 200 in text mode, one AI request, without the search tool", r.status === 200 && d.mode === "text" && aiCalls === before + 1 && lastAiRequest.tools === undefined, { status: r.status, mode: d.mode });
+  check("the AI was given the pasted text and told to use only it", /Use ONLY the page text given below \(supplied by the editor\)/.test(lastAiRequest.contents?.[0]?.parts?.[0]?.text ?? "") && (lastAiRequest.contents?.[0]?.parts?.[0]?.text ?? "").endsWith(NOTICE));
+  const pick = (idPart: string) => (d.proposals as Proposal[]).find((p) => p.id.startsWith(idPart))!;
+  check("a date whose words are in the text: confirmed, marked as supplied", pick("date:resultDate").confirmed && pick("date:resultDate").supplied && pick("date:resultDate").sourceHost === null, pick("date:resultDate"));
+  check("a date whose words are not in the text: not confirmed", pick("date:admitCardDate").confirmed === false, pick("date:admitCardDate"));
+  check("a link that is in the text: confirmed; an invented one: not", pick("link:https://www.canarabank.bank.in/call-letter-2026").confirmed && !pick("link:https://www.canarabank.bank.in/invented").confirmed);
+  r = await checkUpdates.POST(req(PATH, "POST", { text: "too short" }), ctx(id));
+  check("too little text → 400, no AI request", r.status === 400 && aiCalls === before + 1, r.status);
+  r = await checkUpdates.POST(req(PATH, "POST", { text: 42 }), ctx(id));
+  check("text that is not text → 400", r.status === 400, r.status);
+  r = await checkUpdates.POST(req(PATH, "POST", { text: NOTICE, url: "https://www.canarabank.bank.in/pages/recruitment" }), ctx(id));
+  d = await r.json();
+  check("with the address it came from, the source is that site and counts as official", r.status === 200 && pick("date:resultDate").sourceHost === "canarabank.bank.in" && pick("date:resultDate").official, d.proposals?.[0]);
+  const rowAfterText = JSON.stringify((await pg.query("SELECT record_revision, draft_state, dates, exam_stages, links FROM recruitments WHERE id = $1", [id])).rows[0]);
+  check("still nothing changed on the record", rowAfterText === rowBefore);
 
   section("Apply and publish: the chain the panel runs");
   const accepted = proposals.filter((p) => p.official);
