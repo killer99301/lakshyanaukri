@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, Suspense } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { X, SlidersHorizontal, AlertCircle, RefreshCw } from "lucide-react";
 import { Container } from "@/components/ui/Container";
@@ -18,6 +18,13 @@ import { AmbientBackground } from "@/components/common/motion/AmbientBackground"
 
 const ITEMS_PER_PAGE = 10;
 
+/** ?page=3 → 3. Anything that is not a whole number from 1 up is page 1. */
+function pageFromParams(params: { get(name: string): string | null }): number {
+  const raw = params.get("page") ?? "";
+  const n = Number(raw);
+  return /^\d{1,4}$/.test(raw) && n >= 1 ? n : 1;
+}
+
 
 interface JobsPageClientProps {
   opportunities: Opportunity[];
@@ -32,7 +39,36 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
   const [selectedLocation, setSelectedLocation] = useState(initialLocation);
   const [sortBy, setSortBy] = useState<SortOption>("latest");
   const [viewMode, setViewMode] = useState<"compact-list" | "card-grid">("compact-list");
-  const [currentPage, setCurrentPage] = useState(1);
+  // The page number lives in the address (?page=2), not in memory, so the
+  // browser's Back button returns to the page the visitor was on, including
+  // after opening a job and coming back.
+  const resultsTopRef = useRef<HTMLDivElement>(null);
+  const requestedPage = pageFromParams(searchParams);
+  const setCurrentPage = useCallback((page: number, how: "push" | "replace" = "replace") => {
+    const params = new URLSearchParams(window.location.search);
+    if (page <= 1) params.delete("page");
+    else params.set("page", String(page));
+    const query = params.toString();
+    const url = `${window.location.pathname}${query ? `?${query}` : ""}`;
+    if (url === `${window.location.pathname}${window.location.search}`) return;
+    // The native history calls keep Next's router in step without asking the server again.
+    if (how === "push") window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+  }, []);
+  // A click on the page numbers: a new history entry, and back to the top of the results.
+  // The scroll waits until the new page of results is on screen: scrolling
+  // first is undone when the list changes height underneath it.
+  const scrollAfterRender = useRef(false);
+  const goToPage = (page: number) => {
+    scrollAfterRender.current = true;
+    setCurrentPage(page, "push");
+  };
+  useEffect(() => {
+    if (!scrollAfterRender.current) return;
+    scrollAfterRender.current = false;
+    const top = resultsTopRef.current;
+    if (top) window.scrollTo({ top: Math.max(0, top.getBoundingClientRect().top + window.scrollY - 88) });
+  }, [requestedPage]);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -140,6 +176,8 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
 
   // Dynamic Pagination Calculation
   const totalPages = Math.ceil(shownJobs.length / ITEMS_PER_PAGE);
+  // An address asking for a page past the end shows the last page there is.
+  const currentPage = Math.min(requestedPage, Math.max(totalPages, 1));
 
   const paginatedJobs = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -184,7 +222,7 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
             </div>
 
             {/* CENTER: RESULTS & TOOLBAR (lg:col-span-6 on desktop) */}
-            <div className="lg:col-span-6 space-y-4">
+            <div ref={resultsTopRef} className="lg:col-span-6 space-y-4">
               {/* Toolbar: Results Count, Sort & View Switcher */}
               <JobsToolbar
                 totalCount={shownJobs.length}
@@ -269,7 +307,7 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
                 <JobsPagination
                   currentPage={currentPage}
                   totalPages={totalPages}
-                  onPageChange={(page) => setCurrentPage(page)}
+                  onPageChange={goToPage}
                 />
               )}
             </div>
@@ -329,9 +367,13 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
 
 // The search box and filters start from the URL. Keying on it means a link to
 // /jobs?q=… or /jobs?category=… clicked while already on this page applies too.
+// The page number is left out of the key: turning the page must not reset the
+// search box, filters, sort order or view the visitor has chosen.
 function JobsPageForUrl({ opportunities }: JobsPageClientProps) {
   const searchParams = useSearchParams();
-  return <JobsPageContent key={searchParams.toString()} opportunities={opportunities} />;
+  const withoutPage = new URLSearchParams(searchParams.toString());
+  withoutPage.delete("page");
+  return <JobsPageContent key={withoutPage.toString()} opportunities={opportunities} />;
 }
 
 export default function JobsPageClient({ opportunities }: JobsPageClientProps) {
