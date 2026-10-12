@@ -292,7 +292,8 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                           </div>
                           {stage.dateProvenance && (
                             <p className="text-[11px] text-amber-900/80 font-bold">
-                              Source: {stage.dateProvenance}
+                              {/* This text says where the date came from, not the stage's status. */}
+                              Date source: {stage.dateProvenance}
                             </p>
                           )}
                           {stage.notes && (

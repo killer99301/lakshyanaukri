@@ -352,6 +352,10 @@ export function savesFor(record: RecruitmentRecord, accepted: UpdateProposal[]):
         delete stage.dateDisplay;
         // Unless the source says the date is confirmed, it goes in as tentative.
         stage.certainty = change.certainty ?? "TENTATIVE";
+        // The old "date source" line described the old date. An official
+        // site is named; any other source is not, so the line is dropped.
+        if (p.official && p.sourceHost) stage.dateProvenance = `Official website (${p.sourceHost})`;
+        else delete stage.dateProvenance;
       }
     }
     saves.push({ fieldPath: "examStages", value: stages, reason: `Check for updates: ${stageChanges.map((p) => `${p.label} → ${p.newText}`).join("; ")}`.slice(0, 480) });

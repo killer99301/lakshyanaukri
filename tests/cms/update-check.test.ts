@@ -24,6 +24,7 @@
 //  UC17  a portal's own links are never offered, whatever they are called
 //  UC18  "result declared" never moves the day a stage was held
 //  UC19  the prompt says what resultDate and a stage date mean, and to leave portal links out
+//  UC20  a new stage date replaces its "date source" line: named when official, removed otherwise
 //  AU01  requests are counted per feature and per day (Indian time)
 //  AU02  the cap refuses further requests and a refused request is not counted
 //  AU03  the cap setting falls back to the default on nonsense
@@ -284,7 +285,7 @@ test("UC13 saving a stage date replaces a typed range and never touches other st
   const r = ibps();
   const { proposals } = readProposals(change({ type: "stage", stage: "Interview", status: "SCHEDULED", date: "2026-12-02", source: "ibps.in" }), r);
   const stages = savesFor(r, proposals)[0].value as ExamStage[];
-  assert.deepEqual(stages[2], { name: "Interview", order: 3, status: "SCHEDULED", dateIso: "2026-12-02", certainty: "TENTATIVE" });
+  assert.deepEqual(stages[2], { name: "Interview", order: 3, status: "SCHEDULED", dateIso: "2026-12-02", certainty: "TENTATIVE", dateProvenance: "Official website (ibps.in)" });
   // Only an explicit "confirmed" from the source makes a date confirmed.
   const sure = readProposals(change({ type: "stage", stage: "Interview", status: "SCHEDULED", date: "2026-12-02", certainty: "confirmed", source: "ibps.in" }), r);
   assert.equal((savesFor(r, sure.proposals)[0].value as ExamStage[])[2].certainty, "CONFIRMED");
@@ -292,6 +293,22 @@ test("UC13 saving a stage date replaces a typed range and never touches other st
   assert.equal((savesFor(r, odd.proposals)[0].value as ExamStage[])[2].certainty, "TENTATIVE");
   assert.deepEqual(stages[0], r.examStages?.[0]);
   assert.deepEqual(stages[1], r.examStages?.[1]);
+});
+
+test("UC20 a new stage date replaces its “date source” line: named when official, removed otherwise", () => {
+  const r = ibps();
+  r.examStages![1].dateProvenance = "IBPS calendar, 16 Jan 2026";
+  r.examStages![0].dateProvenance = "IBPS Official Notification";
+  const moved = { type: "stage", stage: "Mains Examination", status: "POSTPONED", date: "2026-10-18" };
+  const official = savesFor(r, readProposals(change({ ...moved, source: "https://www.ibps.in/notices" }), r, { groundedHosts: ["ibps.in"] }).proposals)[0].value as ExamStage[];
+  assert.equal(official[1].dateProvenance, "Official website (ibps.in)");
+  const portal = savesFor(r, readProposals(change({ ...moved, source: "bankersclub.in" }), r, { groundedHosts: ["bankersclub.in"] }).proposals)[0].value as ExamStage[];
+  assert.equal(portal[1].dateProvenance, undefined);
+  assert.ok(!JSON.stringify(portal).includes("bankersclub"));
+  // A status-only change leaves the date, so its source line stays; other stages are never touched.
+  const held = savesFor(r, readProposals(change({ type: "stage", stage: "Mains Examination", status: "CONDUCTED", source: "bankersclub.in" }), r).proposals)[0].value as ExamStage[];
+  assert.equal(held[1].dateProvenance, "IBPS calendar, 16 Jan 2026");
+  assert.equal(portal[0].dateProvenance, "IBPS Official Notification");
 });
 
 suite("Check for updates: the question and the answer text");
