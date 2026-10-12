@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "ignoreCommand": "BASE=${VERCEL_GIT_PREVIOUS_SHA:-HEAD~1}; git cat-file -e \"$BASE^{commit}\" 2>/dev/null || exit 1; git diff \"$BASE\" HEAD --name-only | grep -qE '^(src/|scripts/validate\\.ts|next\\.config\\.|package(-lock)?\\.json|vercel\\.json|tsconfig\\.json|postcss\\.config\\.|public/)' && exit 1; exit 0",
+  "ignoreCommand": "sh scripts/vercel-ignore.sh",
   "crons": [
     {
       "path": "/api/cron/attention",
