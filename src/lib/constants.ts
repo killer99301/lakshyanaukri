@@ -11,6 +11,7 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     href: "/jobs",
     items: [
       { title: "All Jobs", href: "/jobs", description: "Browse all active career opportunities" },
+      { title: "Jobs I Can Apply For", href: "/eligibility", description: "Check your age and qualification against every open job" },
       { title: "Government Jobs", href: "/jobs?category=government", description: "Central & State government recruitments" },
       { title: "State PSC Jobs", href: "/jobs?category=state-psc", description: "State public service commission exams" },
       { title: "Banking Jobs", href: "/jobs?category=banking", description: "IBPS, SBI, RBI recruitment notices" },
