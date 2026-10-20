@@ -108,6 +108,7 @@ export function snapshotToGovernmentRecruitment(
   const selectionProcess = snapshot.selection
     ? selectionInfoToProcessStrings(snapshot.selection as CmsSelectionInformation)
     : undefined;
+  const noWrittenExam = (snapshot.selection as CmsSelectionInformation | null)?.noWrittenExam === true;
 
   // Snapshots published before these fields existed simply have none.
   const examPattern = Array.isArray(snapshot.examPattern) ? (snapshot.examPattern as ExamPatternPaper[]) : [];
@@ -163,6 +164,7 @@ export function snapshotToGovernmentRecruitment(
     ageLimit,
     eligibility:      eligibility && eligibility.length > 0 ? eligibility : undefined,
     selectionProcess: selectionProcess && selectionProcess.length > 0 ? selectionProcess : undefined,
+    ...(noWrittenExam ? { noWrittenExam: true } : {}),
     examPattern:      examPattern.length > 0 ? examPattern : undefined,
     syllabus:         syllabus.length > 0 ? syllabus : undefined,
     howToApply:       snapshot.howToApply.length > 0 ? snapshot.howToApply : undefined,

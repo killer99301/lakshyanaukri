@@ -691,6 +691,38 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
   );
 }
 
+// Interview-only, merit-based and walk-in recruitments have no exam pattern or
+// syllabus. Ticked, both sections count as done and the public page says
+// "No written exam" instead of showing nothing. Kept on the selection block.
+function NoWrittenExamToggle({ record, onSave }: { record: RecruitmentRecord; onSave: (fieldPath: "selection", value: unknown, reason: string) => Promise<string | null> }) {
+  const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
+  const on = record.selection?.value?.noWrittenExam === true;
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function toggle(next: boolean) {
+    setSaving(true);
+    setErr(null);
+    const current = record.selection?.value ?? { stages: [] };
+    const { noWrittenExam: _dropped, ...rest } = current;
+    void _dropped;
+    const problem = await onSave("selection", next ? { ...rest, noWrittenExam: true } : rest, next ? "No written exam: selection by shortlisting, interview, merit or walk-in" : "Has a written exam after all");
+    setSaving(false);
+    if (problem) setErr(problem);
+  }
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: on ? C.green : C.text, cursor: editable && !saving ? "pointer" : "default", lineHeight: 1.5 }}>
+        <input type="checkbox" checked={on} disabled={!editable || saving} onChange={(e) => { void toggle(e.target.checked); }} style={{ marginTop: 3 }} />
+        <span>
+          <b>No written exam</b> — selection by shortlisting, interview, merit or walk-in only.
+          <span style={{ color: C.muted }}> Exam pattern and syllabus then count as done, and the job page says “No written exam”.</span>
+        </span>
+      </label>
+      {err && <div role="alert" style={{ color: C.red, fontSize: 12, marginTop: 4 }}>{err}</div>}
+    </div>
+  );
+}
+
 const QUALIFICATION_OPTIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"];
 const CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "government", label: "Government (general)" },
@@ -1080,8 +1112,9 @@ function sectionFill(record: RecruitmentRecord, key: string): Fill | null {
     case "Financial":    return one(hasValue(record.financial.feeGeneral));
     case "Selection":    return one(hasValue(record.selection));
     case "Exam Stages":  return one((record.examStages ?? []).length > 0);
-    case "Exam Pattern": return one(hasValue(record.examPattern));
-    case "Syllabus":     return one(hasValue(record.syllabus));
+    // A recruitment with no written exam has nothing to fill here.
+    case "Exam Pattern": return record.selection?.value?.noWrittenExam ? "filled" : one(hasValue(record.examPattern));
+    case "Syllabus":     return record.selection?.value?.noWrittenExam ? "filled" : one(hasValue(record.syllabus));
     case "How to Apply": return one((record.howToApply ?? []).length > 0);
     case "Links":
       if (record.links.some((l) => l.official)) return "filled";
@@ -2350,6 +2383,7 @@ export default function CmsRecordEditorPage() {
         {/* ── Exam Pattern ── */}
         {activeSection === "Exam Pattern" && (
           <Section title="Exam Pattern">
+            <NoWrittenExamToggle record={record} onSave={saveBlock} />
             <ContentImportBox record={record} onSaveMany={saveBlocks} />
             {libraryNote && <div role="status" style={{ color: C.green, fontSize: 12, margin: "0 0 12px" }}>{libraryNote}</div>}
             <LibraryCompare record={record} />

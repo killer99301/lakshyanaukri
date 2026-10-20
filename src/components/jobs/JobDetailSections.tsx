@@ -575,7 +575,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
       )}
 
       {/* Exam pattern and syllabus, when the record has them */}
-      {isGov && <ExamPatternSection papers={job.examPattern} />}
+      {isGov && <ExamPatternSection papers={job.examPattern} noWrittenExam={job.noWrittenExam} />}
       {isGov && <SyllabusSection subjects={job.syllabus} />}
 
       {/* 8. How to Apply Section */}

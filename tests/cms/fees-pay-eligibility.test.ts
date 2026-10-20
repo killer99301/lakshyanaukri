@@ -160,3 +160,16 @@ test("CI09 a pasted file missing one heading says which one", () => {
   assert.deepEqual(parseContentFile(`${pattern}\n${syllabus}`).warnings, []);
   assert.ok(parseContentFile("Tier-I has 100 questions").warnings.some((w) => /No “EXAM PATTERN” or “SYLLABUS” heading/.test(w)));
 });
+
+suite("No written exam");
+
+test("NW01 the flag on the selection reaches the public job; without it nothing changes", () => {
+  const withFlag = { ...record({}), selection: pending({ stages: [{ name: "Shortlisting", type: "OTHER", order: 1 }, { name: "Interview", type: "INTERVIEW", order: 2 }], noWrittenExam: true }) } as unknown as RecruitmentRecord;
+  const job = snapshotToGovernmentRecruitment(projectForPreview(withFlag));
+  assert.equal(job.noWrittenExam, true);
+  assert.deepEqual(job.selectionProcess, ["Shortlisting", "Interview"]);
+  assert.equal(job.examPattern, undefined);
+  const without = { ...record({}), selection: pending({ stages: [{ name: "Written Exam", type: "CBT", order: 1 }] }) } as unknown as RecruitmentRecord;
+  assert.equal(snapshotToGovernmentRecruitment(projectForPreview(without)).noWrittenExam, undefined);
+  assert.equal(publicJob({}).noWrittenExam, undefined);
+});

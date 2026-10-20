@@ -201,6 +201,8 @@ export interface CmsSelectionInformation {
   examPattern?: string;
   negativeMarking?: string;
   finalMeritFormula?: string;
+  /** Selection by shortlisting, interview, merit or walk-in only: there is no written exam, so no pattern or syllabus. */
+  noWrittenExam?: boolean;
 }
 
 // ─── Exam pattern and syllabus ────────────────────────────

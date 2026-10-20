@@ -20,7 +20,25 @@ function formatDuration(minutes: number): string {
   return rest === 0 ? `${hours} hour${hours === 1 ? "" : "s"}` : `${hours} hr ${rest} min`;
 }
 
-export function ExamPatternSection({ papers }: { papers?: ExamPatternPaper[] }) {
+export function ExamPatternSection({ papers, noWrittenExam }: { papers?: ExamPatternPaper[]; noWrittenExam?: boolean }) {
+  // Interview-only, merit-based and walk-in recruitments: said plainly, so an
+  // empty exam pattern is not read as missing information.
+  if ((!papers || papers.length === 0) && noWrittenExam) {
+    return (
+      <section id="exam-pattern" className={card}>
+        <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+          <div className="p-2 rounded-xl bg-sky-50 text-sky-600">
+            <ClipboardList className="h-5 w-5" />
+          </div>
+          <h2 className="text-lg font-black text-[#0F172A]">Exam Pattern</h2>
+        </div>
+        <p className="text-sm font-semibold text-[#0F172A]">No written exam.</p>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Candidates are selected by shortlisting, interview, merit or walk-in, as set out under Selection Process above. Check the official notification for the details.
+        </p>
+      </section>
+    );
+  }
   if (!papers || papers.length === 0) return null;
   return (
     <section id="exam-pattern" className={card}>
