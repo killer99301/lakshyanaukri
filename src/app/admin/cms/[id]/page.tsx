@@ -88,6 +88,26 @@ function Badge({ status }: { status: FieldStatus }) {
   );
 }
 
+// ─── Saving a field without losing the edit to a conflict ─
+//
+// Every save names the record revision it was made on. When two saves cross
+// (an editor open while another one saved, or AI Assist finishing), the
+// second is refused as a conflict and the typed text used to be lost to a
+// reload. A field save changes that one field only, so it is sent once more
+// on the newest revision. A second refusal is reported as before.
+
+async function fetchFields(url: string, init: RequestInit): Promise<Response> {
+  const first = await fetch(url, init);
+  if (first.status !== 409 || typeof init.body !== "string") return first;
+  const refused = await first.clone().json().catch(() => null);
+  if (refused?.error !== "CONFLICT") return first;
+  const latest = await fetch(url.replace(/\/fields$/, "")).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const revision: unknown = latest?.record?.recordRevision;
+  const body = JSON.parse(init.body) as { clientRevision?: string };
+  if (typeof revision !== "string" || revision === body.clientRevision) return first;
+  return fetch(url, { ...init, body: JSON.stringify({ ...body, clientRevision: revision }) });
+}
+
 // ─── Inline editable ProvenanceField ─────────────────────
 
 interface EditableFieldProps<T> {
@@ -150,7 +170,7 @@ function EditableField<T>({
             manuallyEdited: true,
           };
 
-      const res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
+      const res = await fetchFields(`/api/admin/cms/records/${recordId}/fields`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fieldPath, field: newField, clientRevision: recordRevision, reason: reason || undefined }),
@@ -295,7 +315,7 @@ async function setValNotSpecified(
       conflict: false,
       manuallyEdited: true,
     };
-    const res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
+    const res = await fetchFields(`/api/admin/cms/records/${recordId}/fields`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fieldPath, field: notSpecField, clientRevision: recordRevision }),
@@ -394,7 +414,7 @@ async function saveListField(
   quiet = false,
 ): Promise<{ record?: RecruitmentRecord; error?: string; library?: { exam: string; refreshed: boolean } }> {
   try {
-    const res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
+    const res = await fetchFields(`/api/admin/cms/records/${recordId}/fields`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1101,7 +1121,8 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
   const pending = pendingList.length;
   const pct = Math.round((done / items.length) * 100);
   // Values that contradict each other. Today in India, the site's working day.
-  const checks = prepublishChecks(record, new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10));
+  const [today] = useState(() => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10));
+  const checks = prepublishChecks(record, today);
 
   return (
     <div style={{ ...PANEL, padding: "16px 18px", marginBottom: 16 }}>
@@ -1201,6 +1222,28 @@ export default function CmsRecordEditorPage() {
   const [showAddUpdate, setShowAddUpdate] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const previewScrollRef = useRef<HTMLDivElement>(null);
+
+  // Typed but not saved. Switching section or leaving the page closes the
+  // open editors, and what was typed in them was lost without a word.
+  const unsaved = useRef(false);
+  const confirmLeave = () => !unsaved.current || window.confirm("Something you typed has not been saved and will be lost. Leave anyway?");
+  const openSection = (key: string) => {
+    if (!confirmLeave()) return;
+    unsaved.current = false;
+    setActiveSection(key);
+  };
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (!unsaved.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, []);
+  // A save that went through starts afresh.
+  const savedRevision = record?.recordRevision;
+  useEffect(() => { unsaved.current = false; }, [savedRevision]);
 
   // AI Assist
   const [aiUrl, setAiUrl] = useState("");
@@ -1440,7 +1483,7 @@ export default function CmsRecordEditorPage() {
     setAiApplying(fieldPath);
     try {
       const field = buildAiField(aiValue, existingEvidenceIds);
-      const res = await fetch(`/api/admin/cms/records/${id}/fields`, {
+      const res = await fetchFields(`/api/admin/cms/records/${id}/fields`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1529,7 +1572,7 @@ export default function CmsRecordEditorPage() {
                     <button
                       key={key}
                       title={SECTION_HELP[key]}
-                      onClick={() => setActiveSection(key)}
+                      onClick={() => openSection(key)}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -1664,7 +1707,7 @@ export default function CmsRecordEditorPage() {
             Preview public page
           </button>
           <button
-            onClick={() => router.push("/admin/cms")}
+            onClick={() => { if (confirmLeave()) { unsaved.current = false; router.push("/admin/cms"); } }}
             style={{ background: "none", border: "none", color: C.muted, fontSize: 12, cursor: "pointer", padding: 0 }}
           >
             ← All records
@@ -1693,7 +1736,7 @@ export default function CmsRecordEditorPage() {
       )}
 
       {/* ── Right: section content ── */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0 }} onInput={() => { unsaved.current = true; }}>
 
         {/* ── Record header ── */}
         <div style={{ marginBottom: 16 }}>
@@ -1744,7 +1787,7 @@ export default function CmsRecordEditorPage() {
         )}
 
         {record.draftState !== "ARCHIVED" && (
-          <PublishChecklist record={record} onJump={setActiveSection} />
+          <PublishChecklist record={record} onJump={openSection} />
         )}
 
         <UpdateCheckPanel record={record} onRecordChange={onFieldSaved} />
@@ -2588,7 +2631,7 @@ function LifecycleStatusSelect({
         conflict: false,
         manuallyEdited: true,
       };
-      const res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
+      const res = await fetchFields(`/api/admin/cms/records/${recordId}/fields`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2804,7 +2847,7 @@ function AddUpdateModal({
         // Structural path: PATCH /fields with the updateEntry appended atomically.
         // The field value itself must be provided as the new plain-string value.
         const fieldValue = newValue.trim();
-        res = await fetch(`/api/admin/cms/records/${recordId}/fields`, {
+        res = await fetchFields(`/api/admin/cms/records/${recordId}/fields`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

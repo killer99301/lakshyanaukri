@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandMark } from "@/components/common/BrandMark";
+import { SessionKeeper } from "./SessionKeeper";
 
 const NAV = [
   { href: "/admin/cms",          label: "Jobs",         hint: "Create, edit and publish job records" },
@@ -118,6 +119,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </header>
       <main style={{ maxWidth: 1320, margin: "0 auto", padding: "24px" }}>{children}</main>
+      <SessionKeeper />
     </div>
   );
 }
