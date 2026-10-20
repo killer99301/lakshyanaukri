@@ -118,6 +118,26 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   const history = (await pg.query("SELECT reason FROM field_revisions WHERE recruitment_id = $1", [id])).rows as Array<{ reason: string }>;
   check("the history says the source was a scan read by AI", history.length === 0 || history.every((h) => /scanned PDF uploaded by admin, read by AI/.test(h.reason)), history.map((h) => h.reason));
 
+  section("AI Assist: notice text pasted by the admin");
+  const pasteJob = await records.POST(json("/api/admin/cms/records", {
+    organizationId: "upsssc", organizationName: "Uttar Pradesh Subordinate Services Selection Commission", govType: "State Govt", title: "TEST RECORD UPSSSC Junior Assistant 2026", recruitmentYear: 2026,
+  }));
+  const pasteId: string = (await pasteJob.json()).record.id;
+  const PASTE = `/api/admin/cms/records/${pasteId}/ai-assist`;
+  aiAnswer = { status: 200, text: "{}" };
+  const callsBefore = aiCalls;
+  r = await aiAssist.POST(form(PASTE, (f) => { f.set("url", "https://upsssc.gov.in/notice"); f.set("pastedText", "Last date 25-11-2026"); }), ctx(pasteId));
+  d = await r.json();
+  check("too little pasted text → 400 with a plain reason, no AI request", r.status === 400 && /too little text/i.test(d.error) && aiCalls === callsBefore, d);
+  r = await aiAssist.POST(form(PASTE, (f) => { f.set("pastedText", READING); }), ctx(pasteId));
+  d = await r.json();
+  check("no address → 400 asking where the text came from", r.status === 400 && /address the text was copied from/.test(d.error), d);
+  r = await aiAssist.POST(form(PASTE, (f) => { f.set("url", "https://upsssc.gov.in/notice"); f.set("pastedText", READING); }), ctx(pasteId));
+  d = await r.json();
+  check("→ 200, and not marked as read from a scan", r.status === 200 && d.fromScan === undefined, { status: r.status, error: d.error, fromScan: d.fromScan });
+  const pasteHistory = (await pg.query("SELECT reason FROM field_revisions WHERE recruitment_id = $1", [pasteId])).rows as Array<{ reason: string }>;
+  check("the history says the text was pasted by the admin", pasteHistory.length === 0 || pasteHistory.every((h) => /text pasted by admin/.test(h.reason)), pasteHistory.map((h) => h.reason));
+
   globalThis.fetch = realFetch;
   summary();
 })().catch((e) => { console.error("HARNESS ERROR:", e); process.exit(1); });

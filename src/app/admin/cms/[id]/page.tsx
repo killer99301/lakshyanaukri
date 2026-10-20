@@ -1183,6 +1183,8 @@ export default function CmsRecordEditorPage() {
 
   // AI Assist
   const [aiUrl, setAiUrl] = useState("");
+  // Notice text pasted by hand, for sites that refuse our server.
+  const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<{
     filled: { fieldPath: string; label: string; value: unknown }[];
@@ -1337,7 +1339,7 @@ export default function CmsRecordEditorPage() {
   }
 
   // With a file, the PDF itself is sent along with the address it came from.
-  async function handleAiAssist(file?: File) {
+  async function handleAiAssist(file?: File, pastedText?: string) {
     if (!aiUrl.trim() || !record) return;
     setAiLoading(true);
     setAiError(null);
@@ -1345,7 +1347,12 @@ export default function CmsRecordEditorPage() {
     setAiStage(null);
     try {
       let res: Response;
-      if (file) {
+      if (pastedText) {
+        const form = new FormData();
+        form.set("url", aiUrl.trim());
+        form.set("pastedText", pastedText);
+        res = await fetch(`/api/admin/cms/records/${id}/ai-assist`, { method: "POST", body: form });
+      } else if (file) {
         const form = new FormData();
         form.set("url", aiUrl.trim());
         form.set("file", file);
@@ -1699,6 +1706,22 @@ export default function CmsRecordEditorPage() {
           </div>
         </div>
 
+        {/* A live job is locked. Said here, where the editing happens, not only on the side button. */}
+        {record.draftState === "PUBLISHED" && (
+          <div role="note" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 14, padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.amber}55`, background: `${C.amber}12`, fontSize: 12, color: C.text, lineHeight: 1.5 }}>
+            <span style={{ flex: "1 1 320px" }}>
+              This job is live, so its fields, AI Assist and the editors are locked. Open it for editing to change anything: visitors keep seeing the live version until you publish again.
+            </span>
+            <button
+              onClick={() => { void handleRevert(); }}
+              disabled={reverting}
+              style={{ padding: "6px 14px", background: C.amber, color: "#070b16", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: reverting ? "wait" : "pointer", whiteSpace: "nowrap" }}
+            >
+              {reverting ? "Opening…" : "Open for editing"}
+            </button>
+          </div>
+        )}
+
         {record.draftState !== "ARCHIVED" && (
           <PublishChecklist record={record} onJump={setActiveSection} />
         )}
@@ -1790,6 +1813,27 @@ export default function CmsRecordEditorPage() {
                 </label>
                 {" "}(up to 4 MB).
               </div>
+              <details style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+                <summary style={{ cursor: "pointer", color: C.accent, fontWeight: 600 }}>No PDF either? Paste the notice text instead</summary>
+                <div style={{ marginTop: 8, lineHeight: 1.5 }}>
+                  Copy the text from the official page, or from any page that carries the notice, and paste it here. Keep the address it came from in the box above.
+                </div>
+                <textarea
+                  aria-label="Notice text"
+                  value={aiText}
+                  onChange={(e) => setAiText(e.target.value)}
+                  placeholder="Paste the notice: dates, posts and vacancies, eligibility, age limit, fee, selection process…"
+                  style={{ width: "100%", height: 140, marginTop: 8, padding: "8px 10px", background: "#070b16", border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12, boxSizing: "border-box", fontFamily: "inherit", resize: "vertical" }}
+                />
+                <button
+                  onClick={() => { void handleAiAssist(undefined, aiText.trim()); }}
+                  disabled={aiLoading || !aiUrl.trim() || aiText.trim().length < 300}
+                  title={!aiUrl.trim() ? "Put the address the text came from in the box above first." : aiText.trim().length < 300 ? "Paste more of the notice first." : undefined}
+                  style={{ marginTop: 8, padding: "6px 16px", background: "#1a3a6b", color: C.accent, border: `1px solid ${C.accent}44`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: aiLoading || !aiUrl.trim() || aiText.trim().length < 300 ? "not-allowed" : "pointer", opacity: aiLoading || !aiUrl.trim() || aiText.trim().length < 300 ? 0.6 : 1, fontFamily: "inherit" }}
+                >
+                  {aiLoading ? "Extracting…" : "Fill from the pasted text"}
+                </button>
+              </details>
 
               {aiLoading && aiStage && (
                 <div role="status" style={{ color: C.amber, fontSize: 12, marginBottom: 12 }}>{aiStage}</div>

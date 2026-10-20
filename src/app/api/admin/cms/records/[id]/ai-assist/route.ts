@@ -114,8 +114,10 @@ export async function POST(
   // several official sites refuse requests from the server.
   let url: unknown;
   let upload: Buffer | null = null;
-  // The text of a scanned PDF, as read by the AI in the read-scan step.
+  // The text of a scanned PDF, as read by the AI in the read-scan step, or
+  // notice text the admin pasted because the site refused us.
   let scanText = "";
+  let pasted = false;
   if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
     let form: FormData;
     try {
@@ -125,11 +127,16 @@ export async function POST(
     }
     url = form.get("url");
     const file = form.get("file");
-    const given = form.get("scanText");
-    if (typeof given === "string" && given.trim()) {
+    const scanned = form.get("scanText");
+    const typed = form.get("pastedText");
+    const given = typeof scanned === "string" && scanned.trim() ? scanned : typeof typed === "string" && typed.trim() ? typed : null;
+    if (given !== null) {
+      pasted = given === typed;
       scanText = given.trim().slice(0, MAX_SCAN_TEXT_CHARS);
       if (scanText.length < MIN_SCAN_TEXT_CHARS) {
-        return NextResponse.json({ error: "Too little could be read from the scanned PDF to fill the record" }, { status: 400 });
+        return NextResponse.json({
+          error: pasted ? "That is too little text to fill a record. Paste the whole notice, or at least its dates, posts, eligibility and fee." : "Too little could be read from the scanned PDF to fill the record",
+        }, { status: 400 });
       }
     } else {
       if (!(file instanceof File)) {
@@ -155,7 +162,7 @@ export async function POST(
 
   if (!url || typeof url !== "string") {
     return NextResponse.json(
-      { error: upload || scanText ? "Paste the address this PDF was downloaded from, then upload it" : "url is required" },
+      { error: pasted ? "Paste the address the text was copied from in the box above, then try again" : upload || scanText ? "Paste the address this PDF was downloaded from, then upload it" : "url is required" },
       { status: 400 },
     );
   }
@@ -171,7 +178,7 @@ export async function POST(
   }
 
   // Shown in the change history, so a later reader knows the file was supplied by hand.
-  const sourceLabel = scanText ? `${url} (scanned PDF uploaded by admin, read by AI)` : upload ? `${url} (PDF uploaded by admin)` : url;
+  const sourceLabel = pasted ? `${url} (text pasted by admin)` : scanText ? `${url} (scanned PDF uploaded by admin, read by AI)` : upload ? `${url} (PDF uploaded by admin)` : url;
 
   let record = await getRecruitmentById(id);
   if (!record) {
@@ -388,7 +395,7 @@ export async function POST(
     identityCheck,
     sourceUrl: url,
     sourceKind: source.kind,
-    ...(scanText ? { fromScan: true } : {}),
+    ...(scanText && !pasted ? { fromScan: true } : {}),
     ...(library ? { library } : {}),
   } satisfies AiAssistResponse);
 }
