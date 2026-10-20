@@ -61,6 +61,10 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
     { label: "Railway Recruitment", value: "railway", count: counts.byCategory["railway"] || 0 },
     { label: "Teaching & KVS", value: "teaching", count: counts.byCategory["teaching"] || 0 },
     { label: "Defence & Police", value: "defence", count: counts.byCategory["defence"] || 0 },
+    { label: "Courts & Judiciary", value: "judiciary", count: counts.byCategory["judiciary"] || 0 },
+    { label: "PSU & Public Sector", value: "psu", count: counts.byCategory["psu"] || 0 },
+    { label: "Universities & Colleges", value: "university", count: counts.byCategory["university"] || 0 },
+    { label: "Research & Science", value: "research", count: counts.byCategory["research"] || 0 },
     { label: "Government", value: "government", count: counts.byCategory["government"] || 0 },
     { label: "Private & Corporate", value: "private", count: counts.byCategory["private"] || 0 },
   ];

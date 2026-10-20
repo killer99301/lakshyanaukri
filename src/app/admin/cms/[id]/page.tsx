@@ -695,11 +695,15 @@ const QUALIFICATION_OPTIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Grad
 const CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "government", label: "Government (general)" },
   { value: "ssc", label: "SSC" },
-  { value: "banking", label: "Banking" },
+  { value: "banking", label: "Banking & Financial" },
   { value: "railway", label: "Railway" },
-  { value: "defence", label: "Defence" },
+  { value: "defence", label: "Defence & Police" },
   { value: "teaching", label: "Teaching" },
   { value: "state-psc", label: "State PSC" },
+  { value: "judiciary", label: "Courts & Judiciary" },
+  { value: "psu", label: "PSU & Public Sector" },
+  { value: "university", label: "Universities & Colleges" },
+  { value: "research", label: "Research & Science (ISRO, DRDO…)" },
 ];
 
 // Qualification, location, category and short description: they fill the

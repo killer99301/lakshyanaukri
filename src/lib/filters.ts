@@ -428,7 +428,7 @@ export function getDefaultFilterState(): FilterState {
 // parameters, shared by the jobs page and by anything that shows how many jobs
 // a link leads to.
 
-const URL_CATEGORIES = ["state-psc", "ssc", "banking", "railway", "teaching", "defence", "government", "private", "internship"];
+const URL_CATEGORIES = ["state-psc", "ssc", "banking", "railway", "teaching", "defence", "judiciary", "psu", "university", "research", "government", "private", "internship"];
 const URL_QUALIFICATIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"];
 
 /** Who is recruiting: links such as /jobs?govType=central narrow the list to that kind of body. */

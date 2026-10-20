@@ -220,6 +220,10 @@ export type Category =
   | "railway"
   | "defence"
   | "teaching"
+  | "judiciary"
+  | "psu"
+  | "university"
+  | "research"
   | "government"
   | "private"
   | "internship";

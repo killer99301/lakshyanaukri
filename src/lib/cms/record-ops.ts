@@ -1070,7 +1070,7 @@ export function updateHowToApply(
 //
 // Plain metadata that drives the public header boxes and listing filters.
 
-export const CLASSIFICATION_CATEGORIES = ["government", "ssc", "banking", "railway", "defence", "teaching", "state-psc"] as const;
+export const CLASSIFICATION_CATEGORIES = ["government", "ssc", "banking", "railway", "defence", "teaching", "state-psc", "judiciary", "psu", "university", "research"] as const;
 export const CLASSIFICATION_QUALIFICATIONS = ["10th Pass", "12th Pass", "ITI", "Diploma", "Graduate", "Post Graduate"] as const;
 
 export function updateClassification(

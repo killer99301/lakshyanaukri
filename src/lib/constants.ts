@@ -59,6 +59,10 @@ export const JOB_CATEGORIES = [
   { id: "defence", label: "Defence & Police", shortLabel: "Defence" },
   { id: "ssc", label: "SSC Staff Selection", shortLabel: "SSC" },
   { id: "teaching", label: "Teaching & Education", shortLabel: "Teaching" },
+  { id: "judiciary", label: "Courts & Judiciary", shortLabel: "Courts" },
+  { id: "psu", label: "PSU & Public Sector", shortLabel: "PSU" },
+  { id: "university", label: "Universities & Colleges", shortLabel: "University" },
+  { id: "research", label: "Research & Science", shortLabel: "Research" },
 ] as const;
 
 export const JOB_STATUSES = [
