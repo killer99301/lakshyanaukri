@@ -31,6 +31,7 @@ import { ExamPatternEditor, SyllabusEditor } from "./PatternSyllabusEditors";
 import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
+import { LiveChangesPanel } from "./LiveChangesPanel";
 import { prepublishChecks } from "@/lib/cms/prepublish-checks";
 import { guessLinkType, onGovernmentDomain } from "@/lib/cms/link-guess";
 import { UpdateCheckPanel } from "./UpdateCheckPanel";
@@ -1844,6 +1845,8 @@ export default function CmsRecordEditorPage() {
             </button>
           </div>
         )}
+
+        <LiveChangesPanel record={record} onJump={openSection} />
 
         {record.draftState !== "ARCHIVED" && (
           <PublishChecklist record={record} onJump={openSection} />
