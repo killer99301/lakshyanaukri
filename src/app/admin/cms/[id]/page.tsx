@@ -31,6 +31,7 @@ import { ExamPatternEditor, SyllabusEditor } from "./PatternSyllabusEditors";
 import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
+import { prepublishChecks } from "@/lib/cms/prepublish-checks";
 import { UpdateCheckPanel } from "./UpdateCheckPanel";
 import { EligibilityEditor, SelectionEditor } from "./EligibilitySelectionEditors";
 import { InfoTip, HELP } from "../InfoTip";
@@ -1099,6 +1100,8 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
   const pendingList = pendingValues(record);
   const pending = pendingList.length;
   const pct = Math.round((done / items.length) * 100);
+  // Values that contradict each other. Today in India, the site's working day.
+  const checks = prepublishChecks(record, new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10));
 
   return (
     <div style={{ ...PANEL, padding: "16px 18px", marginBottom: 16 }}>
@@ -1153,6 +1156,24 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
               </button>
             ))}
           </div>
+        </div>
+      )}
+      {checks.length > 0 && (
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: checks.some((c) => c.level === "contradiction") ? C.red : C.amber }}>
+            {checks.length} thing{checks.length === 1 ? "" : "s"} to look at{live ? "" : " before publishing"}
+            <span style={{ fontWeight: 400, color: C.muted }}> — advice only, publishing is not blocked</span>
+          </div>
+          {checks.map((c, i) => (
+            <button
+              key={i}
+              onClick={() => onJump(c.section)}
+              title="Opens the section where this can be fixed"
+              style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "3px 0", cursor: "pointer", fontSize: 12, lineHeight: 1.5, color: c.level === "contradiction" ? C.red : C.text }}
+            >
+              {c.level === "contradiction" ? "✕ " : "• "}{c.text}
+            </button>
+          ))}
         </div>
       )}
     </div>
