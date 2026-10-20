@@ -1231,6 +1231,8 @@ export default function CmsRecordEditorPage() {
     if (!confirmLeave()) return;
     unsaved.current = false;
     setActiveSection(key);
+    // A long section left the page scrolled deep; the next one opens at its top.
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
