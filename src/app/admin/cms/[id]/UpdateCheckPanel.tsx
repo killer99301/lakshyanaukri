@@ -147,7 +147,12 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
       const approved = await call(`/api/admin/cms/records/${record.id}/approve`, { method: "POST" });
       if ("error" in approved) return stop("Could not approve the record", approved.error);
       current = approved.record;
-      const published = await call(`/api/admin/cms/records/${record.id}/publish`, { method: "POST" });
+      // Found by "Check for updates" and accepted: real news, so it is posted to the channel.
+      const published = await call(`/api/admin/cms/records/${record.id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ announce: true }),
+      });
       if ("error" in published) return stop("Could not publish", published.error);
       current = published.record;
     }

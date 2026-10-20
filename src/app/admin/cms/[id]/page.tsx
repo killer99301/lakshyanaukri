@@ -1171,6 +1171,10 @@ export default function CmsRecordEditorPage() {
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [publishingSeq, setPublishingSeq] = useState(false);
   const [publishSeqErr, setPublishSeqErr] = useState<string | null>(null);
+  const [publishNote, setPublishNote] = useState<string | null>(null);
+  // Post to the Telegram channel on this publish? null = the default: yes for a
+  // job going live the first time, no for a republish.
+  const [announceChoice, setAnnounceChoice] = useState<boolean | null>(null);
   const [reverting, setReverting] = useState(false);
   const [revertErr, setRevertErr] = useState<string | null>(null);
   const [showAddUpdate, setShowAddUpdate] = useState(false);
@@ -1297,7 +1301,13 @@ export default function CmsRecordEditorPage() {
         }
         setRecord(approveData.record);
       }
-      const publishRes = await fetch(`/api/admin/cms/records/${id}/publish`, { method: "POST" });
+      const announce = announceChoice ?? !record.publishedAt;
+      setPublishNote(null);
+      const publishRes = await fetch(`/api/admin/cms/records/${id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ announce }),
+      });
       const publishData = await publishRes.json();
       if (!publishRes.ok) {
         setPublishSeqErr(publishData.error ?? `Publish failed: HTTP ${publishRes.status}`);
@@ -1311,7 +1321,14 @@ export default function CmsRecordEditorPage() {
       }
       if (publishData.announced === "failed") {
         setPublishSeqErr("Published. The Telegram channel post did not go through — post it by hand if you want it there.");
+      } else if (publishData.announced === "sent") {
+        setPublishNote("Published and posted to the Telegram channel.");
+      } else if (publishData.announced === "duplicate") {
+        setPublishNote("Published. Not posted to Telegram: the same message went out in the last 24 hours.");
+      } else {
+        setPublishNote("Published. Nothing was posted to Telegram.");
       }
+      setAnnounceChoice(null);
     } catch (e) {
       setPublishSeqErr(String(e));
     } finally {
@@ -1550,10 +1567,25 @@ export default function CmsRecordEditorPage() {
                 ? (record.draftState === "DRAFT" ? "Approving…" : "Publishing…")
                 : (record.draftState === "DRAFT" ? "Approve & Publish" : "Publish Record")}
             </button>
+            <label
+              title="A first publish posts “New job” to the channel. A republish posts “Updated” only when this is ticked, so small corrections do not reach every subscriber."
+              style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 8, fontSize: 11, color: C.muted, cursor: "pointer", lineHeight: 1.4 }}
+            >
+              <input
+                type="checkbox"
+                checked={announceChoice ?? !record.publishedAt}
+                onChange={(e) => setAnnounceChoice(e.target.checked)}
+                style={{ marginTop: 1 }}
+              />
+              <span>{record.publishedAt ? "Post “Updated” to the Telegram channel" : "Post “New job” to the Telegram channel"}</span>
+            </label>
             {publishSeqErr && (
               <div style={{ color: C.red, fontSize: 11, marginTop: 8 }}>{publishSeqErr}</div>
             )}
           </div>
+        )}
+        {record.draftState === "PUBLISHED" && publishNote && (
+          <div role="status" style={{ color: C.green, fontSize: 11, marginBottom: 8 }}>{publishNote}</div>
         )}
 
         {record.draftState === "PUBLISHED" && (

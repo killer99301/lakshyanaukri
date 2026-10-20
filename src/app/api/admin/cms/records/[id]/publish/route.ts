@@ -26,6 +26,8 @@ import { getRecruitmentById, persistPublication } from "@/lib/cms/repository";
 import { projectToPublished, PROJECTION_VERSION } from "@/lib/cms/projector";
 import { sql } from "@/lib/db";
 import { buildJobAnnouncement, sendToChannel, type AnnouncementResult } from "@/lib/telegram";
+import { CHANNEL_POST_EVENT, REPEAT_WINDOW_HOURS, decideChannelPost, messageHash, newsLine } from "@/lib/cms/channel-post";
+import { todayInIndia } from "@/lib/cms/attention";
 
 export async function POST(
   request: NextRequest,
@@ -39,6 +41,14 @@ export async function POST(
   }
 
   const { id } = await params;
+
+  // { announce: true | false } says whether to post to the Telegram channel.
+  // Without it, a first publish posts and a republish does not.
+  let requested: boolean | undefined;
+  try {
+    const body = (await request.json()) as { announce?: unknown };
+    if (typeof body?.announce === "boolean") requested = body.announce;
+  } catch { /* no body: the defaults apply */ }
 
   const record = await getRecruitmentById(id);
   if (!record) {
@@ -111,9 +121,34 @@ export async function POST(
     }
 
     // The job is live at this point; a failed channel post never undoes that.
-    const announced: AnnouncementResult = await sendToChannel(
-      buildJobAnnouncement(snapshot, earlier.length > 0 ? "UPDATED" : "NEW"),
-    );
+    const isNew = earlier.length === 0;
+    const message = buildJobAnnouncement(snapshot, isNew ? "NEW" : "UPDATED", newsLine(snapshot.updates, todayInIndia()));
+    const hash = messageHash(message);
+    let announced: AnnouncementResult | "not-asked" | "duplicate";
+    try {
+      const recent = await sql`
+        SELECT 1 FROM recruitment_audit_events
+        WHERE recruitment_id = ${id} AND event_type = ${CHANNEL_POST_EVENT}
+          AND metadata->>'hash' = ${hash}
+          AND created_at > now() - make_interval(hours => ${REPEAT_WINDOW_HOURS})
+        LIMIT 1
+      `;
+      const decision = decideChannelPost({ requested, isNew, sameMessageRecently: recent.length > 0 });
+      if (decision.post) {
+        announced = await sendToChannel(message);
+        if (announced === "sent") {
+          await sql`
+            INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+            VALUES (${id}, ${auth.adminId}, ${CHANNEL_POST_EVENT}, ${JSON.stringify({ hash, kind: isNew ? "NEW" : "UPDATED" })})
+          `;
+        }
+      } else {
+        announced = decision.reason;
+      }
+    } catch (err) {
+      console.error("[CMS] channel post step failed", err instanceof Error ? err.message : "error");
+      announced = "failed";
+    }
 
     return NextResponse.json({ record: published, revalidated, announced });
   } catch (err) {

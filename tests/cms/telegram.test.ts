@@ -129,3 +129,11 @@ test("TG07 a refusal logs Telegram's reason, without the token", async () => {
   assert.equal(logged.some((line) => line.includes("HTTP 400: Bad Request: chat not found")), true);
   assert.equal(logged.some((line) => line.includes("secret-token")), false);
 });
+
+test("TG08 an update post says what's new first; a new-job post never does", () => {
+  const updated = buildJobAnnouncement(snapshot(), "UPDATED", "Tier 1 date announced");
+  assert.match(updated, /^🔄 <b>UPDATED<\/b>\n<b>[^\n]+<\/b>\n<b>[^\n]+<\/b>\nWhat's new: <b>Tier 1 date announced<\/b>\n/);
+  assert.doesNotMatch(buildJobAnnouncement(snapshot(), "NEW", "Tier 1 date announced"), /What's new/);
+  assert.doesNotMatch(buildJobAnnouncement(snapshot(), "UPDATED"), /What's new/);
+  assert.match(buildJobAnnouncement(snapshot(), "UPDATED", "Clerk <A> & B"), /What's new: <b>Clerk &lt;A&gt; &amp; B<\/b>/);
+});

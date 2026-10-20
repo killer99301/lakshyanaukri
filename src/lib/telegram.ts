@@ -25,13 +25,15 @@ export type AnnouncementResult = "sent" | "skipped" | "failed";
 const escapeHtml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** The channel message for a published record. HTML, as Telegram's "HTML" parse mode expects. */
-export function buildJobAnnouncement(snapshot: PublishedRecruitmentSnapshot, kind: AnnouncementKind): string {
+export function buildJobAnnouncement(snapshot: PublishedRecruitmentSnapshot, kind: AnnouncementKind, news?: string): string {
   const lines: string[] = [];
   // The heading is in capitals as well as bold: Telegram has no larger type,
   // and it is what a subscriber scans the channel for. Every value is bold.
   lines.push(kind === "NEW" ? "🆕 <b>NEW JOB</b>" : "🔄 <b>UPDATED</b>");
   lines.push(`<b>${escapeHtml(snapshot.title ?? snapshot.shortTitle ?? "Recruitment")}</b>`);
   lines.push(`<b>${escapeHtml(snapshot.organizationName)}</b>`);
+  // On an update, what changed comes first: it is why the post was sent.
+  if (kind === "UPDATED" && news) lines.push(`What's new: <b>${escapeHtml(news)}</b>`);
   lines.push("");
   if (typeof snapshot.vacancies.total === "number" && snapshot.vacancies.total > 0) {
     lines.push(`Posts: <b>${snapshot.vacancies.total.toLocaleString("en-IN")}</b>`);
