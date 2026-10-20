@@ -32,6 +32,7 @@ import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { prepublishChecks } from "@/lib/cms/prepublish-checks";
+import { guessLinkType, onGovernmentDomain } from "@/lib/cms/link-guess";
 import { UpdateCheckPanel } from "./UpdateCheckPanel";
 import { EligibilityEditor, SelectionEditor } from "./EligibilitySelectionEditors";
 import { InfoTip, HELP } from "../InfoTip";
@@ -454,6 +455,8 @@ const LINK_TYPE_OPTIONS: Array<{ type: RecruitmentLinkType; label: string }> = [
 function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: (r: RecruitmentRecord) => void }) {
   const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
   const [type, setType] = useState<RecruitmentLinkType>("OFFICIAL_NOTIFICATION");
+  // Until the admin picks a type themselves, it follows the pasted address.
+  const [typeChosen, setTypeChosen] = useState(false);
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [official, setOfficial] = useState(false);
@@ -508,7 +511,7 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
       ? { type, label: label.trim() || defaultLabel, url: url.trim(), official: false, savedFrom: savedFrom.trim() }
       : { type, label: label.trim() || defaultLabel, url: url.trim(), official };
     if (await save([...record.links, link], `Added ${isCopy ? "saved copy" : "link"}: ${link.label}`)) {
-      setLabel(""); setUrl(""); setOfficial(false); setIsCopy(false); setSavedFrom(""); setUploadedName(null);
+      setLabel(""); setUrl(""); setOfficial(false); setTypeChosen(false); setIsCopy(false); setSavedFrom(""); setUploadedName(null);
     }
   }
 
@@ -583,7 +586,7 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <div style={{ minWidth: 190 }}>
               <label style={labelStyle} htmlFor="link-type">Type<InfoTip id="Link type" /></label>
-              <select id="link-type" value={type} onChange={(e) => setType(e.target.value as RecruitmentLinkType)} style={inputStyle}>
+              <select id="link-type" value={type} onChange={(e) => { setType(e.target.value as RecruitmentLinkType); setTypeChosen(true); }} style={inputStyle}>
                 {LINK_TYPE_OPTIONS.map((o) => <option key={o.type} value={o.type}>{o.label}</option>)}
               </select>
             </div>
@@ -594,7 +597,24 @@ function LinksEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: 
           </div>
           <div style={{ marginTop: 8 }}>
             <label style={labelStyle} htmlFor="link-url">URL</label>
-            <input id="link-url" type="url" value={url} onChange={(e) => { setUrl(e.target.value); setUploadedName(null); }} style={inputStyle} placeholder="https://…" />
+            <input
+              id="link-url"
+              type="url"
+              value={url}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                setUploadedName(null);
+                const guess = typeChosen ? null : guessLinkType(e.target.value);
+                if (guess) setType(guess);
+              }}
+              style={inputStyle}
+              placeholder="https://…"
+            />
+            {!isCopy && !official && onGovernmentDomain(url) && (
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                This is a government address. If it is the recruiting body’s own website, tick “Official source” below.
+              </div>
+            )}
           </div>
           <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <label
