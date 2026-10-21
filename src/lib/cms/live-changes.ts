@@ -23,6 +23,8 @@ import { compareWithLibrary } from "@/lib/cms/library-compare";
 export interface LiveChange {
   /** The editor section where the value lives. */
   section: string;
+  /** The field's own editor, when it has one: the link scrolls straight to it. */
+  fieldPath?: string;
   label: string;
   before: string;
   after: string;
@@ -78,24 +80,24 @@ function postLines(posts: unknown): Map<string, { name: string; line: string }> 
 
 export function liveChanges(live: PublishedRecruitmentSnapshot, next: PublishedRecruitmentSnapshot): LiveChange[] {
   const out: LiveChange[] = [];
-  const add = (section: string, label: string, before: string, after: string) => {
-    if (before !== after) out.push({ section, label, before, after });
+  const add = (section: string, label: string, before: string, after: string, fieldPath?: string) => {
+    if (before !== after) out.push({ section, label, before, after, ...(fieldPath ? { fieldPath } : {}) });
   };
 
   // ── Basic info ──
-  add("Identity", "Title", text(live.title), text(next.title));
-  add("Identity", "Short title", text(live.shortTitle), text(next.shortTitle));
-  add("Identity", "Notification number", text(live.notificationNumber), text(next.notificationNumber));
-  add("Identity", "Advertisement number", text(live.advertisementNumber), text(next.advertisementNumber));
+  add("Identity", "Title", text(live.title), text(next.title), "identity.title");
+  add("Identity", "Short title", text(live.shortTitle), text(next.shortTitle), "identity.shortTitle");
+  add("Identity", "Notification number", text(live.notificationNumber), text(next.notificationNumber), "identity.notificationNumber");
+  add("Identity", "Advertisement number", text(live.advertisementNumber), text(next.advertisementNumber), "identity.advertisementNumber");
   for (const [k, label] of [["qualification", "Listed qualification"], ["category", "Category"], ["state", "State"], ["shortDescription", "Short description"]] as const) {
     add("Identity", label, text(live.classification?.[k]), text(next.classification?.[k]));
   }
 
   // ── Dates ──
-  for (const [k, label] of DATE_LABELS) add("Dates", label, date(live.dates?.[k]), date(next.dates?.[k]));
+  for (const [k, label] of DATE_LABELS) add("Dates", label, date(live.dates?.[k]), date(next.dates?.[k]), `dates.${k}`);
 
   // ── Vacancies ──
-  add("Vacancies", "Vacancies", text(live.vacancies?.total?.toLocaleString("en-IN")), text(next.vacancies?.total?.toLocaleString("en-IN")));
+  add("Vacancies", "Vacancies", text(live.vacancies?.total?.toLocaleString("en-IN")), text(next.vacancies?.total?.toLocaleString("en-IN")), "vacancies.total");
   const rows = (b: unknown[] | null | undefined) => new Map((Array.isArray(b) ? b : []).map((r) => {
     const row = r as { post?: string; count?: number };
     return [key(row.post), { name: row.post ?? "", count: `${row.count ?? "?"}` }] as const;
@@ -106,9 +108,9 @@ export function liveChanges(live: PublishedRecruitmentSnapshot, next: PublishedR
   for (const [k, row] of beforeRows) if (!afterRows.has(k)) add("Vacancies", `Posts — ${row.name}`, row.count, "Removed");
 
   // ── Fees and pay ──
-  add("Financial", "Fee (General / OBC)", money(live.financial?.feeGeneral ?? null, live.financial?.feeGeneralNotSpecified), money(next.financial?.feeGeneral ?? null, next.financial?.feeGeneralNotSpecified));
-  add("Financial", "Fee (SC / ST / PwBD)", money(live.financial?.feeSCST ?? null, live.financial?.feeSCSTNotSpecified), money(next.financial?.feeSCST ?? null, next.financial?.feeSCSTNotSpecified));
-  add("Financial", "Pay scale", text(live.financial?.payScale), text(next.financial?.payScale));
+  add("Financial", "Fee (General / OBC)", money(live.financial?.feeGeneral ?? null, live.financial?.feeGeneralNotSpecified), money(next.financial?.feeGeneral ?? null, next.financial?.feeGeneralNotSpecified), "financial.feeGeneral");
+  add("Financial", "Fee (SC / ST / PwBD)", money(live.financial?.feeSCST ?? null, live.financial?.feeSCSTNotSpecified), money(next.financial?.feeSCST ?? null, next.financial?.feeSCSTNotSpecified), "financial.feeSCST");
+  add("Financial", "Pay scale", text(live.financial?.payScale), text(next.financial?.payScale), "financial.payScale");
 
   // ── Age and eligibility ──
   add("Age", "Age limit", ageText(live.age as AgeCriteria | null), ageText(next.age as AgeCriteria | null));

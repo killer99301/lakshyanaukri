@@ -216,7 +216,7 @@ function EditableField<T>({
       : <span style={{ color: C.muted }}>— not set —</span>;
 
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div data-field-path={fieldPath} style={{ marginBottom: 18, scrollMarginTop: 90 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
         <span style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           {label}
@@ -391,7 +391,7 @@ const PANEL: React.CSSProperties = {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ ...PANEL, marginBottom: 16 }}>
+    <div data-cms-section style={{ ...PANEL, marginBottom: 16, scrollMarginTop: 24 }}>
       <div style={{
         padding: "11px 18px",
         borderBottom: `1px solid ${C.border}`,
@@ -1309,6 +1309,21 @@ export default function CmsRecordEditorPage() {
     // A long section left the page scrolled deep; the next one opens at its top.
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  // From a link in the checks or the live-page comparison: open the section and
+  // bring its editor into view (the field itself when it has one), instead of
+  // leaving the reader at the top, above the panels.
+  const jumpTo = (key: string, fieldPath?: string) => {
+    if (!confirmLeave()) return;
+    unsaved.current = false;
+    setActiveSection(key);
+    setTimeout(() => {
+      const field = fieldPath ? document.querySelector<HTMLElement>(`[data-field-path="${CSS.escape(fieldPath)}"]`) : null;
+      const target = field ?? document.querySelector<HTMLElement>("[data-cms-section]");
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: field ? "center" : "start" });
+      if (field) field.animate([{ boxShadow: "0 0 0 2px #62b5ff", borderRadius: "6px" }, { boxShadow: "0 0 0 2px transparent", borderRadius: "6px" }], { duration: 2200, easing: "ease-out" });
+    }, 60);
+  };
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (!unsaved.current) return;
@@ -1866,10 +1881,10 @@ export default function CmsRecordEditorPage() {
           </div>
         )}
 
-        <LiveChangesPanel record={record} onJump={openSection} />
+        <LiveChangesPanel record={record} onJump={jumpTo} />
 
         {record.draftState !== "ARCHIVED" && (
-          <PublishChecklist record={record} onJump={openSection} />
+          <PublishChecklist record={record} onJump={jumpTo} />
         )}
 
         <UpdateCheckPanel record={record} onRecordChange={onFieldSaved} />

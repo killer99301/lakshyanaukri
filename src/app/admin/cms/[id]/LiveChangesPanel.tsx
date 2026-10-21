@@ -15,7 +15,7 @@ import { liveChanges } from "@/lib/cms/live-changes";
 
 const C = { card: "rgba(14,21,38,0.72)", border: "rgba(148,163,184,0.14)", text: "#e2e8f0", muted: "#8c9bb8", accent: "#62b5ff", amber: "#d29922", red: "#f85149", green: "#3fb950" };
 
-export function LiveChangesPanel({ record, onJump }: { record: RecruitmentRecord; onJump: (section: string) => void }) {
+export function LiveChangesPanel({ record, onJump }: { record: RecruitmentRecord; onJump: (section: string, fieldPath?: string) => void }) {
   const editingLive = Boolean(record.publishedAt) && (record.draftState === "DRAFT" || record.draftState === "APPROVED");
   const [live, setLive] = useState<PublishedRecruitmentSnapshot | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export function LiveChangesPanel({ record, onJump }: { record: RecruitmentRecord
               {changes.map((c, i) => (
                 <tr key={i} style={{ verticalAlign: "top" }}>
                   <td style={{ padding: "5px 10px 5px 0", whiteSpace: "nowrap" }}>
-                    <button onClick={() => onJump(c.section)} title="Open this section" style={{ background: "none", border: "none", padding: 0, color: C.accent, cursor: "pointer", fontSize: 12, textAlign: "left" }}>{c.label}</button>
+                    <button onClick={() => onJump(c.section, c.fieldPath)} title="Go to this field" style={{ background: "none", border: "none", padding: 0, color: C.accent, cursor: "pointer", fontSize: 12, textAlign: "left" }}>{c.label}</button>
                   </td>
                   {c.before === "" ? (
                     <td colSpan={2} style={{ padding: "5px 0", color: C.text }}>{c.after}</td>

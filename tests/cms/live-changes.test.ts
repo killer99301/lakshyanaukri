@@ -23,3 +23,11 @@ test("LV02 dates, vacancies and a stage are spelled out", () => {
   assert.ok(c.includes("Exam stage “Tier 1”: Not declared → Scheduled, 15 Dec 2026"));
   assert.equal(c.length, 3);
 });
+test("LV02b a change in a field with its own editor names that field, so the link can go straight to it", () => {
+  const next = { ...base, dates: { applicationCloseDate: "2026-10-26" }, financial: { ...base.financial, feeGeneral: 600 },
+    examStages: [{ name: "Tier 1", order: 1, status: "SCHEDULED" }] } as unknown as PublishedRecruitmentSnapshot;
+  const at = Object.fromEntries(liveChanges(base, next).map((x) => [x.label, x.fieldPath]));
+  assert.equal(at["Last date"], "dates.applicationCloseDate");
+  assert.equal(at["Fee (General / OBC)"], "financial.feeGeneral");
+  assert.equal(at["Exam stage “Tier 1”"], undefined);
+});
