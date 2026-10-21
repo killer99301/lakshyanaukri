@@ -2,8 +2,12 @@ import { MetadataRoute } from "next";
 import { getAllVerifiedOpportunitiesWithCMS } from "@/lib/repository";
 import { siteConfig } from "@/config/site";
 
-// Refreshed on publish; this hourly limit is the fallback if that is ever missed.
-export const revalidate = 3600;
+// Built on every request, from the same public query as the job list. As a
+// cached file it was refreshed on publish locally, but on Vercel it stayed as
+// the deploy built it: a job published at 06:28 on 21 Oct 2026 was still
+// missing two hours later, and a job taken off the site would have stayed
+// listed. One query, fetched mostly by search engines.
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
