@@ -209,7 +209,7 @@ CREATE TABLE recruitment_field_claims (
   -- Not stated: the admin records which document and which part of it was read
   CHECK (kind <> 'ADMIN_NOT_STATED' OR (retrieval_id IS NOT NULL AND field_revision_id IS NOT NULL
                                         AND review_scope IS NOT NULL
-                                        AND (coalesce(review_scope->>'whole_document', '') = 'true'
+                                        AND (coalesce(review_scope->'whole_document' = 'true'::jsonb, false)  -- JSON boolean true only, not the string "true"
                                              OR coalesce(jsonb_typeof(review_scope->'pages') = 'array'
                                                          AND jsonb_array_length(review_scope->'pages') > 0, false)
                                              OR coalesce(jsonb_typeof(review_scope->'sections') = 'array'
@@ -270,6 +270,13 @@ retrieval row with its own method, origin and authenticity: an admin's upload
 official site (CONFIRMED) are two rows pointing at the one `recruitment_sources`
 row, in the same import or in different ones. The upload may then be recorded
 as CONFIRMED by hash match, pointing at the fetch row (trigger-checked).
+
+Retrievals are never updated. A preview processes all of its inputs before
+writing anything, so when an import contains both a fetch and an upload of the
+same file, the fetch row is written first and the upload row is written once,
+already as "CONFIRMED by hash match". When the fetch only happens in a later
+import, the earlier upload row stays UNCONFIRMED forever (that is what it was);
+the new fetch row is CONFIRMED, and claims that need it cite the fetch row.
 
 When the preview extracts from a document that has several retrievals, each
 EXTRACTED claim records the retrieval it relies on: the strongest one in the
@@ -557,10 +564,20 @@ stated".
 **On the public page**, a Tier B field recorded NOT_STATED shows "Not stated in
 the official notification", followed by the admin's public wording when given
 (for vacancies: "Vacancies will be notified later"). It is never shown as a
-number, a blank or "not applicable". To do this, publishing an imported job
-adds a `notStated` map (field → public wording) to the published snapshot, and
-the job page reads it. This is the only addition to public page data; jobs
-that were never imported publish the same snapshot as today.
+number, a blank or "not applicable".
+
+The public page keeps three cases apart:
+
+| Recorded as | Public page shows |
+|---|---|
+| NOT_APPLICABLE (e.g. fee) | What the notice says, e.g. "No application fee" — from the decision's quote, with "as per the official notification" |
+| NOT_STATED | "Not stated in the official notification", plus the public wording when given |
+| No value, no decision (only possible for non-critical fields, or jobs never imported) | As today (the section is left out or shows "To be announced") |
+
+To do this, publishing an imported job adds two maps to the published
+snapshot, `notApplicable` and `notStated` (field → public wording), and the job
+page reads them. These are the only additions to public page data; jobs that
+were never imported publish the same snapshot as today.
 
 The existing official-link gate still applies. Republishing re-checks the gate.
 No automatic verification, approval or publishing anywhere. The kill switch does
@@ -692,7 +709,15 @@ Private PDF storage is a possible later enhancement, separately decided.
   UNCONFIRMED; an upload recorded as FETCHED_BY_SERVER.
 - Each of the five valid combinations accepted.
 - NOT_STATED with `review_scope` = `{}`, `{"pages": []}`, `{"pages": "1"}`,
-  `{"whole_document": false}` → refused.
+  `{"whole_document": false}`, `{"whole_document": "true"}` (a string) → refused;
+  `{"whole_document": true}` → accepted.
+- Retrieval with `authenticity` NULL → refused (NOT NULL), and with each
+  authenticity column NULL in turn → refused.
+- Public page: fee recorded NOT_APPLICABLE shows "No application fee …";
+  vacancies NOT_STATED shows "Not stated in the official notification …";
+  neither appears as a blank.
+- Upload then fetch of the same file in a later import → the upload row is
+  unchanged (still UNCONFIRMED), the fetch row is CONFIRMED.
 - NEW import with NULL or empty `org_year_key` → refused.
 
 **Claim consistency (§2)**
