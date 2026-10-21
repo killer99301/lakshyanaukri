@@ -2,7 +2,7 @@
 //   npx tsx --tsconfig tsconfig.json tests/cms/state-filter.test.ts
 import { suite, test, assert } from "../intelligence/suite";
 import type { Opportunity } from "@/types";
-import { applyLocationFilter, isNationwide, stateCounts, stateKey } from "@/lib/filters";
+import { applyLocationFilter, isNationwide, stateChoiceLine, stateCounts, stateKey } from "@/lib/filters";
 
 const job = (slug: string, state: string) => ({ slug, state }) as unknown as Opportunity;
 const JOBS = [job("jkssb", "Jammu and Kashmir"), job("dsssb", "Delhi"), job("bpsc", "Bihar"), job("btsc", "Bihar"), job("rrb", "All India"), job("ssc", "Pan India")];
@@ -34,4 +34,11 @@ test("SF03 counts per state, nationwide jobs counted apart", () => {
   assert.equal(isNationwide("All India"), true);
   assert.equal(isNationwide("pan-india"), true);
   assert.equal(isNationwide("Bihar"), false);
+});
+
+test("SF04 a picked state explains its results: its own jobs plus the all-India ones", () => {
+  assert.equal(stateChoiceLine("Bihar", 3, 21), "3 Bihar jobs + 21 open to all of India = 24 jobs");
+  assert.equal(stateChoiceLine("Goa", 1, 1), "1 Goa job + 1 open to all of India = 2 jobs");
+  assert.equal(stateChoiceLine("Goa", 0, 21), "No Goa jobs right now, so you see the 21 jobs open to all of India");
+  assert.equal(stateChoiceLine("Bihar", 3, 0), "3 jobs in Bihar");
 });

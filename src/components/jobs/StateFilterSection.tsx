@@ -14,7 +14,7 @@
 import React, { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isNationwide, stateCounts, stateKey } from "@/lib/filters";
+import { isNationwide, stateChoiceLine, stateCounts, stateKey } from "@/lib/filters";
 import { INDIAN_STATES, REGIONS_AND_UTS } from "@/components/jobs/LocationPopover";
 import type { Opportunity } from "@/types";
 
@@ -113,7 +113,11 @@ export function StateFilterSection({
               {showAll ? "Show only states with jobs" : `Show all ${ALL_PLACES.length} states & UTs`}
             </button>
           )}
-          {nationwide > 0 && (
+          {chosen ? (
+            <p data-state-breakdown className="text-[11px] font-semibold text-[#9A3412] bg-[#FFF7ED] border border-[#FED7AA] rounded-md leading-relaxed px-2 py-1">
+              {stateChoiceLine(ALL_PLACES.find((p) => stateKey(p) === chosen) ?? location, count(location), nationwide)}
+            </p>
+          ) : nationwide > 0 && (
             <p className="text-[10.5px] text-slate-400 leading-relaxed px-1">
               {nationwide} job{nationwide === 1 ? " is" : "s are"} open to all of India and {nationwide === 1 ? "shows" : "show"} whichever state you choose.
             </p>

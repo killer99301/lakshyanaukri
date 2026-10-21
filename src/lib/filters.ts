@@ -244,6 +244,17 @@ export function stateCounts(opportunities: Opportunity[]): { byState: Map<string
   return { byState, nationwide };
 }
 
+/**
+ * What picking a state shows, in words: its own jobs plus the ones open to all
+ * of India. A visitor who clicks "Bihar 3" and gets 24 results sees why.
+ */
+export function stateChoiceLine(place: string, own: number, nationwide: number): string {
+  const jobs = (n: number) => `${n} job${n === 1 ? "" : "s"}`;
+  if (nationwide === 0) return `${jobs(own)} in ${place}`;
+  if (own === 0) return `No ${place} jobs right now, so you see the ${jobs(nationwide)} open to all of India`;
+  return `${own} ${place} job${own === 1 ? "" : "s"} + ${nationwide} open to all of India = ${jobs(own + nationwide)}`;
+}
+
 // ─── Filter Application ─────────────────────────────────
 
 /**
