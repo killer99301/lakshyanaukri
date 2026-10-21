@@ -11,6 +11,7 @@
 // in the change history.
 
 import { useState } from "react";
+import { SmartDateInput } from "../../SmartDateInput";
 import type { AgeCriteria, RecruitmentRecord } from "@/types/recruitment-record";
 
 const C = {
@@ -157,7 +158,7 @@ export function AgeEditor({ record, onSave }: { record: RecruitmentRecord; onSav
         </div>
         <div>
           <label style={label} htmlFor="age-as-of">Age is counted on</label>
-          <input id="age-as-of" type="date" style={input} value={draft.asOf} onChange={(e) => set("asOf", e.target.value)} />
+          <SmartDateInput id="age-as-of" style={input} value={draft.asOf} onChange={(v) => set("asOf", v)} />
         </div>
       </div>
       <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>
@@ -167,11 +168,11 @@ export function AgeEditor({ record, onSave }: { record: RecruitmentRecord; onSav
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
         <div>
           <label style={label} htmlFor="age-born-from">Born on or after (if the notice gives dates of birth)</label>
-          <input id="age-born-from" type="date" style={input} value={draft.bornFrom} onChange={(e) => set("bornFrom", e.target.value)} />
+          <SmartDateInput id="age-born-from" style={input} value={draft.bornFrom} onChange={(v) => set("bornFrom", v)} />
         </div>
         <div>
           <label style={label} htmlFor="age-born-to">Born on or before</label>
-          <input id="age-born-to" type="date" style={input} value={draft.bornTo} onChange={(e) => set("bornTo", e.target.value)} />
+          <SmartDateInput id="age-born-to" style={input} value={draft.bornTo} onChange={(v) => set("bornTo", v)} />
         </div>
       </div>
       <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>

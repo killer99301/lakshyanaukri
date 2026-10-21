@@ -13,6 +13,7 @@
 // with no date.
 
 import { useState } from "react";
+import { SmartDateInput } from "../../SmartDateInput";
 import type { ExamStage, ExamStageStatus, DateCertainty } from "@/types";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
 import { InfoTip } from "../InfoTip";
@@ -236,7 +237,7 @@ export function ExamStagesEditor({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
             <div style={{ flex: 1, minWidth: 160 }}>
               <label style={label} htmlFor="stage-date">Exact date (if announced)</label>
-              <input id="stage-date" type="date" style={input} value={draft.dateIso} onChange={(e) => set("dateIso", e.target.value)} />
+              <SmartDateInput id="stage-date" style={input} value={draft.dateIso} onChange={(v) => set("dateIso", v)} />
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
               <label style={label} htmlFor="stage-date-text">Or as written (range or month)<InfoTip id="Or as written" /></label>

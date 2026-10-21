@@ -32,6 +32,7 @@ import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { LiveChangesPanel } from "./LiveChangesPanel";
+import { SmartDateInput } from "../../SmartDateInput";
 import { EvidenceList, EvidenceProvider, FieldQuotes } from "./EvidenceQuotes";
 
 // Readable names for the fields evidence is kept for.
@@ -251,6 +252,8 @@ function EditableField<T>({
               style={{ ...inputStyle, height: 80, resize: "vertical" }}
               placeholder={placeholder}
             />
+          ) : inputType === "date" ? (
+            <SmartDateInput value={val} onChange={setVal} style={inputStyle} ariaLabel={label} />
           ) : (
             <input
               type={inputType}
@@ -3023,7 +3026,7 @@ function AddUpdateModal({
           </div>
           <div>
             <label style={labelStyle}>Notice Date</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} required />
+            <SmartDateInput value={date} onChange={setDate} style={inputStyle} ariaLabel="Date of the update" />
           </div>
         </div>
 
