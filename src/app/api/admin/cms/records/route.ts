@@ -11,7 +11,7 @@ import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { sql } from "@/lib/db";
 import { makePendingField } from "@/lib/cms/validation";
 import {
-  createRecruitment,
+  createRecruitmentChecked,
   type CreateRecruitmentParams,
 } from "@/lib/cms/repository";
 import { buildSlug } from "@/lib/cms/slug";
@@ -100,35 +100,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Unknown government type" }, { status: 400 });
   }
 
-  // Warn before creating another record for the same organisation and year.
-  // Nothing is created until the admin confirms with forceCreate.
-  if (!body.forceCreate) {
-    try {
-      const existing = await sql`
-        SELECT id, slug, draft_state, title_text
-        FROM recruitments
-        WHERE draft_state != 'ARCHIVED'
-          AND organization_id = ${organizationId}
-          AND identity->>'recruitmentYear' = ${String(recruitmentYear)}
-        ORDER BY updated_at DESC
-        LIMIT 5
-      `;
-      if (existing.length > 0) {
-        return NextResponse.json({
-          duplicates: existing.map((r) => ({
-            id: String(r.id),
-            slug: String(r.slug),
-            draftState: String(r.draft_state),
-            title: r.title_text ? String(r.title_text) : "",
-          })),
-        });
-      }
-    } catch (err) {
-      console.error("[CMS] duplicate check error", err);
-      return NextResponse.json({ error: "Could not check for existing records" }, { status: 500 });
-    }
-  }
-
   const slug = buildSlug(organizationId, title, recruitmentYear);
 
   const params: CreateRecruitmentParams = {
@@ -148,9 +119,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     adminId: auth.adminId,
   };
 
+  // Warn before creating another record for the same organisation and year;
+  // nothing is created until the admin confirms with forceCreate. The check
+  // and the insert happen in one locked database call, so two people creating
+  // the same job at once cannot both get past the warning.
   try {
-    const record = await createRecruitment(params);
-    return NextResponse.json({ record }, { status: 201 });
+    const created = await createRecruitmentChecked(params, Boolean(body.forceCreate));
+    if ("duplicates" in created) {
+      return NextResponse.json({
+        duplicates: created.duplicates.slice(0, 5).map((d) => ({
+          id: d.id,
+          slug: d.slug,
+          draftState: d.draftState,
+          title: d.title,
+        })),
+      });
+    }
+    return NextResponse.json({ record: created.record }, { status: 201 });
   } catch (err) {
     console.error("[CMS] create error", err);
     if (String(err).includes("unique")) {

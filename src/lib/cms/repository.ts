@@ -287,6 +287,60 @@ export async function createRecruitment(
   void now;
 }
 
+/** A job found by the duplicate check: same organisation and year (or notification number). */
+export interface JobDuplicate {
+  id: string;
+  slug: string;
+  draftState: string;
+  title: string;
+  reason: "notification_number" | "org_year";
+}
+
+/**
+ * The manual "New job" path: lock the organisation + year, check for
+ * duplicates and insert, all in one database call (cms_create_job_checked),
+ * so two people creating the same job at the same moment cannot both pass
+ * the check. With matches and no `force`, nothing is inserted and the
+ * matches are returned. Same columns and defaults as createRecruitment.
+ */
+export async function createRecruitmentChecked(
+  params: CreateRecruitmentParams,
+  force: boolean,
+): Promise<{ record: RecruitmentRecord } | { duplicates: JobDuplicate[] }> {
+  const { slug, identity, provenance, adminId } = params;
+  const job = {
+    slug,
+    identity,
+    dates: params.dates ?? {},
+    vacancies: params.vacancies ?? {},
+    financial: params.financial ?? {},
+    eligibility: params.eligibility ?? null,
+    age: params.age ?? null,
+    selection: params.selection ?? null,
+    exam_stages: params.examStages ?? null,
+    how_to_apply: params.howToApply ?? null,
+    lifecycle: { status: "DRAFT", conflicts: [], events: [] },
+    provenance,
+    links: params.links ?? [],
+    documents: params.documents ?? [],
+    updates: params.updates ?? [],
+    classification: params.classification ?? null,
+    organization_name: identity.organizationName ?? null,
+    title_text: identity.title.value ?? null,
+    gov_type: identity.govType ?? null,
+  };
+  const rows = await sql`
+    SELECT public.cms_create_job_checked(
+      ${JSON.stringify(job)}::jsonb, ${identity.organizationId}, ${identity.recruitmentYear}::int, ${force}, ${adminId}::uuid
+    ) AS result
+  `;
+  const result = (typeof rows[0].result === "string" ? JSON.parse(rows[0].result) : rows[0].result) as { id?: string; duplicates?: JobDuplicate[] };
+  if (result.duplicates) return { duplicates: result.duplicates };
+  const record = await getRecruitmentById(String(result.id));
+  if (!record) throw new Error(`Record ${result.id} not found after creation`);
+  return { record };
+}
+
 /**
  * Persist a field update (new record state + FieldRevision) atomically.
  *
