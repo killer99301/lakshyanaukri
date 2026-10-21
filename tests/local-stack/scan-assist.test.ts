@@ -135,6 +135,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   r = await aiAssist.POST(form(PASTE, (f) => { f.set("url", "https://upsssc.gov.in/notice"); f.set("pastedText", READING); }), ctx(pasteId));
   d = await r.json();
   check("→ 200, and not marked as read from a scan", r.status === 200 && d.fromScan === undefined, { status: r.status, error: d.error, fromScan: d.fromScan });
+  check("marked as read from pasted text, so the page does not call it a PDF", d.fromPaste === true, { fromPaste: d.fromPaste });
   const pasteHistory = (await pg.query("SELECT reason FROM field_revisions WHERE recruitment_id = $1", [pasteId])).rows as Array<{ reason: string }>;
   check("the history says the text was pasted by the admin", pasteHistory.length === 0 || pasteHistory.every((h) => /text pasted by admin/.test(h.reason)), pasteHistory.map((h) => h.reason));
 

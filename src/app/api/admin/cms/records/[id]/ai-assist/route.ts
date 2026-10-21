@@ -93,6 +93,8 @@ export interface AiAssistResponse {
   sourceKind: SourceKind;
   // The source was a scanned PDF read by the AI: nothing could be checked against the scan itself.
   fromScan?: boolean;
+  // The source was notice text the admin pasted, not a page or a PDF.
+  fromPaste?: boolean;
   // Set when the syllabus filled here was also kept in the syllabus library.
   library?: LibraryAutosave;
 }
@@ -421,6 +423,7 @@ export async function POST(
     sourceUrl: url,
     sourceKind: source.kind,
     ...(scanText && !pasted ? { fromScan: true } : {}),
+    ...(pasted ? { fromPaste: true } : {}),
     ...(library ? { library } : {}),
   } satisfies AiAssistResponse);
 }

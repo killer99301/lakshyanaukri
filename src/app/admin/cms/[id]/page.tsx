@@ -1341,6 +1341,7 @@ export default function CmsRecordEditorPage() {
     sourceUrl: string;
     sourceKind?: "html" | "pdf";
     fromScan?: boolean;
+    fromPaste?: boolean;
   } | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   // Said after a save that also put the syllabus in the library.
@@ -1546,6 +1547,7 @@ export default function CmsRecordEditorPage() {
         sourceUrl: data.sourceUrl,
         sourceKind: data.sourceKind,
         fromScan: Boolean(data.fromScan),
+        fromPaste: Boolean(data.fromPaste),
       });
       setLibraryNote(data.library ? libraryNoteText(data.library) : null);
     } catch (e) {
@@ -1997,7 +1999,9 @@ export default function CmsRecordEditorPage() {
                       against the pages themselves. Compare every value below with the PDF before you publish.
                     </div>
                   )}
-                  {aiResult.sourceKind === "pdf" && (
+                  {aiResult.fromPaste ? (
+                    <div style={{ color: C.muted, marginBottom: 10 }}>Read from the notice text you pasted</div>
+                  ) : aiResult.sourceKind === "pdf" && (
                     <div style={{ color: C.muted, marginBottom: 10 }}>Source read as PDF document</div>
                   )}
                   {/* Filled */}
