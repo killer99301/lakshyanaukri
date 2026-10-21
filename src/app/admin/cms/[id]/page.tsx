@@ -32,6 +32,7 @@ import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { LiveChangesPanel } from "./LiveChangesPanel";
+import { currentValue, restorable, sameAsNow } from "@/lib/cms/restore-value";
 import { SmartDateInput } from "../../SmartDateInput";
 import { EvidenceList, EvidenceProvider, FieldQuotes } from "./EvidenceQuotes";
 
@@ -2603,6 +2604,7 @@ export default function CmsRecordEditorPage() {
                         <pre style={{ margin: 0, color: C.muted, fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "#070b16", padding: "6px 8px", borderRadius: 4, maxHeight: 80, overflow: "auto" }}>
                           {JSON.stringify(rev.oldValue, null, 2)}
                         </pre>
+                        <RestoreButton record={record} rev={rev} onSaved={onFieldSaved} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ color: C.green, fontSize: 10, marginBottom: 2 }}>AFTER</div>
@@ -2620,6 +2622,63 @@ export default function CmsRecordEditorPage() {
       </div>
     </div>
     </EvidenceProvider>
+  );
+}
+
+// ─── Restoring the value from before a change ─────────────
+//
+// Saves the "before" value of a revision again through the ordinary field
+// route: validated like any save, recorded as a new revision, and Pending
+// until checked again. The history itself is never changed.
+
+function RestoreButton({ record, rev, onSaved }: { record: RecruitmentRecord; rev: FieldRevision; onSaved: (r: RecruitmentRecord) => void }) {
+  const [state, setState] = useState<"idle" | "saving" | "done">("idle");
+  const [err, setErr] = useState<string | null>(null);
+  const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
+  const now = currentValue(record, rev.fieldPath);
+  const back = restorable(rev.oldValue);
+  if (rev.oldValue === null || rev.oldValue === undefined || sameAsNow(rev.oldValue, now)) return null;
+  if (!editable) {
+    return <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Open the job for editing to put this value back.</div>;
+  }
+  async function restore() {
+    if (!back.ok) return;
+    if (!window.confirm(`Put back the ${rev.fieldPath} value from before the change of ${new Date(rev.revisedAt).toLocaleString("en-IN")}? It will be saved as Pending.`)) return;
+    setState("saving");
+    setErr(null);
+    const res = await fetchFields(`/api/admin/cms/records/${record.id}/fields`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fieldPath: rev.fieldPath,
+        field: back.field,
+        clientRevision: record.recordRevision,
+        reason: `Restored the value from before the change of ${new Date(rev.revisedAt).toLocaleString("en-IN")}`,
+        // Putting back a stage is undoing a mistake, not news for visitors.
+        ...(rev.fieldPath === "examStages" ? { quiet: true } : {}),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.record) {
+      setState("idle");
+      setErr(data.error ?? `HTTP ${res.status}`);
+      return;
+    }
+    setState("done");
+    onSaved(data.record as RecruitmentRecord);
+  }
+  return (
+    <div style={{ marginTop: 4 }}>
+      <button
+        onClick={() => { void restore(); }}
+        disabled={state === "saving" || !back.ok}
+        title={back.ok ? "Saves this earlier value again, as Pending. The history keeps both changes." : back.reason}
+        style={{ background: "none", border: "none", padding: 0, color: C.accent, cursor: state === "saving" ? "wait" : "pointer", fontSize: 11, fontWeight: 600 }}
+      >
+        {state === "saving" ? "Restoring…" : state === "done" ? "Restored" : "↶ Restore this earlier value"}
+      </button>
+      {err && <div role="alert" style={{ color: C.red, fontSize: 11 }}>{err}</div>}
+    </div>
   );
 }
 
