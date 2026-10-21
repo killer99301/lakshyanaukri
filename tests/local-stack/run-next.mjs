@@ -3,7 +3,9 @@
 //   node tests/local-stack/run-next.mjs dev | build | start | cache-test | auth-test   [--no-gemini]
 //
 // Requires `npm run test:stack:db` to be running. Process environment wins over
-// .env.local, so the real DATABASE_URL, Redis and email settings are never used.
+// .env.local, so the real DATABASE_URL, Redis, email and Telegram settings are
+// never used. Telegram matters most: a first publish posts to the public
+// channel, and the cache test publishes jobs.
 // The Gemini key from .env.local is kept (for live AI Assist tests) unless
 // --no-gemini is passed.
 
@@ -27,6 +29,10 @@ const env = {
   UPSTASH_REDIS_REST_TOKEN: "",
   RESEND_API_KEY: "",
   GITHUB_TOKEN: "",
+  TELEGRAM_BOT_TOKEN: "",
+  TELEGRAM_CHANNEL_ID: "",
+  TELEGRAM_ADMIN_CHAT_ID: "",
+  CRON_SECRET: "",
   ADMIN_ALLOWED_ORIGINS: "http://localhost:3000",
   ADMIN_OTP_HMAC_KEY: "local-test-hmac-key-not-a-secret",
 };

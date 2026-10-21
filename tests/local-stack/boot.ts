@@ -17,6 +17,22 @@ process.env.ADMIN_OTP_HMAC_KEY ??= "local-test-hmac-key-not-a-secret";
 delete process.env.UPSTASH_REDIS_REST_URL;
 delete process.env.UPSTASH_REDIS_REST_TOKEN;
 delete process.env.RESEND_API_KEY;
+// Never the real Telegram bot: a first publish posts to the public channel.
+delete process.env.TELEGRAM_BOT_TOKEN;
+delete process.env.TELEGRAM_CHANNEL_ID;
+delete process.env.TELEGRAM_ADMIN_CHAT_ID;
+delete process.env.CRON_SECRET;
+
+// And if a test sets fake Telegram settings, nothing it sends may leave the
+// machine: Telegram is refused here unless the test answers for it with its
+// own stub, which it installs over this one.
+const outsideFetch = globalThis.fetch;
+globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  if (String(input instanceof Request ? input.url : input).includes("api.telegram.org")) {
+    throw new Error("Blocked by the test stack: a test tried to reach the real Telegram API");
+  }
+  return outsideFetch(input, init);
+}) as typeof fetch;
 
 export async function boot() {
   const pg = await createDb();
