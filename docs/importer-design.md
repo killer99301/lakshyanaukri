@@ -1,4 +1,4 @@
-# Recruitment importer — Phase 1 design, revision 2 (for approval)
+# Recruitment importer — Phase 1 design, revision 3 (for approval)
 
 Status: DESIGN ONLY. Nothing here is implemented, migrated or deployed.
 Branch: `feature/importer` (worktree `D:\LakshyaNaukri-importer`, from production `715e4e4`).
@@ -25,6 +25,18 @@ Two rules this design exists to protect:
 | 8 | Existing jobs' old values under the gate | "Legacy" class, acknowledged at preview, one-click review list (§9) |
 | 9 | Function security | INVOKER, fixed search_path, schema-qualified, admin checked, values taken from the stored preview only (§10) |
 | 10 | Original PDF | Text, hash, size, pages and URL archived; private copy of the bytes is a separate decision (§11) |
+
+## Changes from revision 2
+
+Decisions taken (§12): Tier A + Tier B gate; the advisory lock also added to the
+existing manual "New job" route; text + hash only for PDFs; five tables.
+
+| # | Review point | Resolution (section) |
+|---|---|---|
+| A | NOT_APPLICABLE / NOT_STATED evidence was not enforced in SQL | NOT_APPLICABLE needs page + quote or table cell; NOT_STATED needs a recorded review scope of an authoritative, authentic document; both checked by constraint and trigger; never written automatically (§2, §5) |
+| B | Keys that drive the safety checks could change | `identity_key`, `org_year_key`, `base_revision` (and `import_id`, `mode`) immutable by trigger (§2) |
+| C | A hash match could point at any retrieval | Trigger: the matched retrieval must be a server fetch of the same source from the same host (§2) |
+| D | Owner-role limitation overstated | §10 rewritten: the site connects as the owner, so INVOKER gives no privilege isolation; triggers and checks guard against our own bugs only |
 
 ---
 
@@ -132,18 +144,36 @@ CREATE TABLE recruitment_field_claims (
   page                INTEGER      CHECK (page > 0),
   quote               TEXT,                        -- exact words, when a sentence matches
   table_cell          JSONB,                       -- {page, table, row, column, text} when only a table cell matches
+  review_scope        JSONB,                       -- NOT_STATED: what was checked, e.g. {"pages": [1,2,3], "whole_document": true, "sections": ["Vacancies"]}
   field_revision_id   UUID         REFERENCES field_revisions(id), -- ADMIN_*: the exact revision this decision is about
   revokes_claim_id    UUID         REFERENCES recruitment_field_claims(id),
-  justification       TEXT,                        -- required for NOT_APPLICABLE and NOT_STATED
+  justification       TEXT,                        -- admin-facing reason; required for NOT_APPLICABLE and NOT_STATED
+  public_note         TEXT,                        -- NOT_STATED: optional words for the public page, e.g. "Vacancies will be notified later"
   import_id           UUID         REFERENCES recruitment_imports(import_id),
   claimed_by          UUID         REFERENCES admins(id),
   claimed_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  CHECK (kind <> 'EXTRACTED' OR (retrieval_id IS NOT NULL AND import_id IS NOT NULL AND value IS NOT NULL)),
+  -- EXTRACTED claims come only from an import; ADMIN_* claims never do (they are not written by the importer)
+  CHECK ((kind = 'EXTRACTED') = (import_id IS NOT NULL)),
+  CHECK (kind <> 'EXTRACTED' OR (retrieval_id IS NOT NULL AND value IS NOT NULL)),
   CHECK (kind = 'EXTRACTED' OR claimed_by IS NOT NULL),
+  -- (page is required for PDF sources by trigger; web pages have no pages, so the quote carries it)
   CHECK (kind <> 'ADMIN_VERIFIED' OR (retrieval_id IS NOT NULL AND field_revision_id IS NOT NULL
-                                      AND value IS NOT NULL AND (quote IS NOT NULL OR table_cell IS NOT NULL))),
-  CHECK (kind NOT IN ('ADMIN_NOT_APPLICABLE', 'ADMIN_NOT_STATED')
-         OR (retrieval_id IS NOT NULL AND field_revision_id IS NOT NULL AND length(trim(justification)) >= 10)),
+                                      AND value IS NOT NULL
+                                      AND (quote IS NOT NULL OR table_cell IS NOT NULL))),
+  -- Not applicable: the document must say so, in words or a table cell
+  CHECK (kind <> 'ADMIN_NOT_APPLICABLE' OR (retrieval_id IS NOT NULL AND field_revision_id IS NOT NULL
+                                            AND (quote IS NOT NULL OR table_cell IS NOT NULL)
+                                            AND length(trim(coalesce(justification, ''))) >= 10)),
+  -- Not stated: the admin records which document and which part of it was read
+  CHECK (kind <> 'ADMIN_NOT_STATED' OR (retrieval_id IS NOT NULL AND field_revision_id IS NOT NULL
+                                        AND review_scope IS NOT NULL
+                                        AND ((review_scope->>'whole_document') = 'true'
+                                             OR (jsonb_typeof(review_scope->'pages') = 'array'
+                                                 AND jsonb_array_length(review_scope->'pages') > 0)
+                                             OR (jsonb_typeof(review_scope->'sections') = 'array'
+                                                 AND jsonb_array_length(review_scope->'sections') > 0))
+                                        AND length(trim(coalesce(justification, ''))) >= 10)),
+  CHECK (public_note IS NULL OR (kind = 'ADMIN_NOT_STATED' AND length(public_note) <= 160)),
   CHECK ((kind = 'ADMIN_REVOKED') = (revokes_claim_id IS NOT NULL))
 );
 CREATE INDEX idx_field_claims_lookup ON recruitment_field_claims(recruitment_id, field_path, claimed_at DESC);
@@ -165,12 +195,14 @@ CREATE TABLE recruitment_claim_supersessions (
 |---|---|
 | `recruitment_field_claims`, `recruitment_claim_supersessions`, `recruitment_sources`, `recruitment_source_retrievals` | `BEFORE UPDATE OR DELETE` → raise. Corrections are new rows. |
 | `recruitment_claim_supersessions` | `BEFORE INSERT`: both claims must be EXTRACTED, same `recruitment_id`, same `field_path`. |
-| `recruitment_field_claims` | `BEFORE INSERT` for ADMIN_REVOKED: the revoked claim is an ADMIN_* claim (not EXTRACTED, not another revocation), same job, same field, not already revoked. For ADMIN_*: `field_revision_id` belongs to the same job and field. |
-| `recruitment_imports` | `BEFORE UPDATE`: `proposal`, `mode`, `created_*` never change; status only PREVIEWED→APPLIED, PREVIEWED→DISCARDED, PREVIEWED→EXPIRED; `recruitment_id` only NULL→value; `selected_items`, `duplicate_override`, `result`, `applied_*` set only together with →APPLIED. `BEFORE DELETE` → raise. |
+| `recruitment_field_claims` | `BEFORE INSERT` for ADMIN_REVOKED: the revoked claim is an ADMIN_* claim (not EXTRACTED, not another revocation), same job, same field, not already revoked. For ADMIN_*: `field_revision_id` belongs to the same job and field. For ADMIN_VERIFIED, ADMIN_NOT_APPLICABLE and ADMIN_NOT_STATED: the retrieval's `authenticity` is CONFIRMED or ATTESTED and its `origin_role` is AUTHORITY or PARTNER; for ADMIN_NOT_STATED the role must be AUTHORITY (a partner page being silent proves nothing about the notice). When the retrieval's source is a PDF, ADMIN_VERIFIED and ADMIN_NOT_APPLICABLE must give `page`; for a scanned PDF the admin reads the page number off the document. The field-to-purpose check is done in the verify route (§4). |
+| `recruitment_source_retrievals` | `BEFORE INSERT` when `authenticity_method = 'HASH_MATCHES_SERVER_FETCH'`: the `matched_retrieval_id` row has the **same `source_id`**, `method = 'FETCHED'`, `authenticity_method = 'FETCHED_BY_SERVER'`, and the **same `origin_host`** as the new row. Anything else → raise. |
+| `recruitment_imports` | `BEFORE UPDATE`: `import_id`, `proposal`, `mode`, `identity_key`, `org_year_key`, `base_revision`, `created_by`, `created_at` never change; `recruitment_id` only NULL→value, and only for `mode = 'NEW'`; status only PREVIEWED→APPLIED, PREVIEWED→DISCARDED, PREVIEWED→EXPIRED; `selected_items`, `duplicate_override`, `result`, `applied_*` set only together with →APPLIED. `BEFORE DELETE` → raise. |
 
-The site connects as the database owner, which could switch a trigger off; the
-application never does. The triggers protect against mistakes and bugs in our
-code, not against someone holding the owner password (§10).
+The site connects as the database owner, which can switch a trigger off or
+bypass a check; the application never does. The triggers and constraints
+protect against mistakes and bugs in our code, not against anyone using the
+owner account directly (§10).
 
 **Relationships:**
 
@@ -229,10 +261,12 @@ Inside the function, in order:
    `IMPORT_APPLIED` audit event, and mark the import `APPLIED` with `result`.
 6. Any error → everything rolls back.
 
-**Known residual risk:** the existing manual "New job" form does not take the
-advisory locks. A manual create racing an import of the same job at the same
-second could still produce two records. Option: add the same two locks to the
-existing create route (a small change to existing code; needs your approval).
+**Manual "New job" route (approved):** the existing create route takes the
+same two advisory locks, through one shared helper, and re-runs its existing
+duplicate check inside the same transaction as the insert. Nothing else in the
+route or the form changes: the same fields, the same duplicate warning, the
+same "create anyway". Its existing tests stay as they are, and new ones cover
+two simultaneous manual creates and a manual create racing an import.
 
 ---
 
@@ -293,8 +327,8 @@ link claim. Strict on purpose.
 | Class | Meaning |
 |---|---|
 | VERIFIED | Admin verified this revision against an eligible retrieval, page, quote or table cell |
-| NOT_APPLICABLE | Admin recorded, with a cited source and justification, that the field does not exist for this job ("No application fee is charged", p.3) |
-| NOT_STATED | Admin recorded, citing the document checked, that the notice does not give it ("Vacancies will be notified later", p.1) |
+| NOT_APPLICABLE | Admin recorded that the field does not exist for this job, citing the page and the words or table cell that say so ("No application fee is charged", p.3), with a justification |
+| NOT_STATED | Admin recorded that the authoritative notice does not give it, naming the document and the pages or sections read, with a justification; may quote what the notice does say ("Vacancies will be notified later", p.1) |
 | SUPPORTED | An eligible source states the current value; no person has verified it |
 | RESEARCH_ONLY | Only research supports the current value |
 | UNSUPPORTED | No claim backs the current revision (typed, restored, or differs from the sources) |
@@ -304,6 +338,15 @@ link claim. Strict on purpose.
 
 Revocation: an ADMIN_REVOKED claim points at the exact decision it withdraws.
 Nothing is ever edited or deleted.
+
+**NOT_STATED and NOT_APPLICABLE are only ever deliberate admin decisions.**
+The importer and the apply function never write them (constraint: ADMIN_*
+claims cannot carry an `import_id`). A field the extraction did not find is
+MISSING, never NOT_STATED. The admin records NOT_STATED from the field's
+"Check before publishing" row: pick the authoritative document (only
+CONFIRMED or ATTESTED retrievals from an AUTHORITY host are offered), tick
+"I read the whole document" or list the pages and sections read, write the
+reason, and optionally the public wording.
 
 ---
 
@@ -349,13 +392,18 @@ the same list with links.
 | Tier | Fields | Passes when | Blocks when |
 |---|---|---|---|
 | A — must be known | Last date to apply, eligibility, age limit, Apply Online link, official notification link | VERIFIED; NOT_APPLICABLE (cited, justified) | NOT_STATED, SUPPORTED, RESEARCH_ONLY, UNSUPPORTED, CONFLICTING, LEGACY, MISSING |
-| B — may be honestly absent | Application opening date, fee-payment deadline, fees, total vacancies | VERIFIED; NOT_APPLICABLE; NOT_STATED (cited, justified, and shown publicly as "Not stated in the official notification") | SUPPORTED, RESEARCH_ONLY, UNSUPPORTED, CONFLICTING, LEGACY, MISSING |
+| B — may be honestly absent | Application opening date, fee-payment deadline, fees, total vacancies | VERIFIED; NOT_APPLICABLE; NOT_STATED (deliberate, scoped, justified — §5) | SUPPORTED, RESEARCH_ONLY, UNSUPPORTED, CONFLICTING, LEGACY, MISSING |
 
-Why two tiers: SSC CGL notices regularly say vacancies "will be notified
-later". If NOT_STATED blocked every critical field, such jobs could never be
-published, or an admin would be tempted to mark them "not applicable". Tier B
-lets the honest answer through and tells candidates exactly that; Tier A never
-accepts "not stated". (Decision requested — see §12.)
+Why two tiers (approved): SSC CGL notices regularly say vacancies "will be
+notified later". If NOT_STATED blocked every critical field, such jobs could
+never be published, or an admin would be tempted to mark them "not
+applicable". Tier B lets the honest answer through; Tier A never accepts "not
+stated".
+
+**On the public page**, a Tier B field recorded NOT_STATED shows "Not stated in
+the official notification", followed by the admin's public wording when given
+(for vacancies: "Vacancies will be notified later"). It is never shown as a
+number, a blank or "not applicable".
 
 The existing official-link gate still applies. Republishing re-checks the gate.
 No automatic verification, approval or publishing anywhere. The kill switch does
@@ -381,12 +429,25 @@ not affect the gate: switching the importer off never releases an imported job.
 
 ## 10. Function and route security
 
+**What the database can and cannot guarantee here.** The site connects to
+Neon as `neondb_owner`, the owner of every table. So:
+- `SECURITY INVOKER` means the function runs with the caller's rights, and the
+  caller is the owner. It gives **no** least-privilege isolation.
+- `REVOKE EXECUTE ... FROM PUBLIC` is kept as hygiene only; it does not
+  restrict the owner.
+- The owner can disable triggers and bypass constraints. They protect against
+  bugs and mistakes in our own code, not against misuse of the owner account.
+- The real access control is the application: admin sign-in, origin check and
+  kill switch on every route, before the function is ever called.
+- A separate least-privilege application role would change this; it is outside
+  this project unless separately proposed and approved.
+
 **Function `cms_apply_import`:**
-- `SECURITY INVOKER` (runs with the caller's rights, never elevated).
-- `SET search_path = pg_catalog, pg_temp` in its definition; every table and
-  function reference inside is schema-qualified (`public.recruitments`, …).
-- `REVOKE EXECUTE ... FROM PUBLIC`; granted to the application role only.
-- Checks `admin_id` exists in `public.admins`.
+- `SECURITY INVOKER`; `SET search_path = pg_catalog, pg_temp` in its
+  definition; every table and function reference inside is schema-qualified
+  (`public.recruitments`, …), so objects created elsewhere cannot hijack it.
+- Checks `admin_id` exists in `public.admins` (the route has already validated
+  the admin's session; the function cannot see sessions).
 - **Takes values only from the stored proposal.** It receives item ids; for each
   it reads the item from `recruitment_imports.proposal` (immutable by trigger)
   and writes that value. The TypeScript side computes and validates the full
@@ -406,10 +467,6 @@ not affect the gate: switching the importer off never releases an imported job.
 - AI requests count toward the existing daily cap; without AI the preview still
   shows what the non-AI parts found.
 
-**Database role:** the site connects as the database owner. A separate,
-least-privilege application role would make the triggers and grants binding
-even against bugs that try to disable them; that is a production change to
-connection settings and is listed as an option, not part of this work.
 
 ---
 
@@ -420,21 +477,23 @@ original bytes, byte size, page count, and every address and time it was
 retrieved from. The hash lets anyone later prove that a re-downloaded file is
 the same document.
 
-The original bytes are **not** kept by this design. Keeping them privately
-needs storage the site does not have yet (no Vercel Blob store in production;
-4 MB PDFs in the database would quickly fill Neon's storage). Options for
-later, each a separate decision: a private Blob store, or a capped `bytea`
-copy of notices only.
+The original bytes are **not** kept (decided: no new storage service in this
+project). **Limitation:** a hash cannot rebuild a file. If the official site
+removes or replaces the PDF, the original cannot be retrieved again; we keep
+its text, its fingerprint, and the record of where and when it was obtained.
+Private PDF storage is a possible later enhancement, separately decided.
 
 ---
 
-## 12. Decisions requested
+## 12. Decisions (taken on review of revision 2)
 
-1. **Gate tiers (§8):** Tier A / Tier B as above, or NOT_STATED blocks every critical field?
-2. **Manual create lock (§3):** add the two advisory locks to the existing "New job" route?
-3. **PDF bytes (§11):** text + hash only for now, or plan private storage?
-4. **Five tables** instead of the three in revision 1 (sources split into
-   documents and retrievals; supersessions in their own table). OK?
+1. **Gate tiers:** Tier A + Tier B, approved (§8). NOT_STATED only as a
+   deliberate admin decision after reviewing the authoritative notice (§5).
+2. **Manual create lock:** approved; minimal change to the existing route,
+   shared helper, regression tests (§3).
+3. **PDF bytes:** text, SHA-256, size, page count, URL and retrieval records
+   only; limitation documented (§11).
+4. **Five tables:** approved (§2).
 
 ---
 
@@ -482,6 +541,11 @@ copy of notices only.
 - Browser sends a selected id not in the proposal, or a modified value → refused.
 - UPDATE or DELETE on claims, sources, retrievals, supersessions → refused by trigger.
 - Import proposal edited after preview, or status moved backwards → refused.
+- `identity_key`, `org_year_key` or `base_revision` changed after preview → refused;
+  `recruitment_id` changed on an EXISTING import → refused.
+- Two simultaneous manual "New job" creates of the same notification → one job,
+  the other sees the duplicate warning; manual create racing an import → one job.
+- Manual "New job" behaves exactly as before in every existing test.
 
 **Verification binding**
 - Verify 7 Nov → edit to 10 Nov → restore 7 Nov → **not verified** (new revision).
@@ -492,6 +556,8 @@ copy of notices only.
 **Provenance**
 - Server-fetched bfsissc.com PDF → CONFIRMED; can verify exam fee; cannot verify age.
 - Upload identical to a server fetch → CONFIRMED by hash match; one byte different → UNCONFIRMED.
+- Hash match pointing at a retrieval of a different source, at an upload rather
+  than a server fetch, or at a fetch from another host → refused by trigger.
 - Blocked official site → ATTESTED with note and admin; verifiable; shown as attested.
 - Research text with official wording → RESEARCH_ONLY; never verifiable.
 - Blog URL declared official → UNLISTED host, cannot verify.
@@ -507,8 +573,14 @@ copy of notices only.
 
 **Gate**
 - Tier A field NOT_STATED → publish refused. Tier B field NOT_STATED → allowed,
-  public page says "Not stated in the official notification".
-- NOT_APPLICABLE without justification or source → refused at insert.
+  public page says "Not stated in the official notification" plus the public
+  wording when given ("Vacancies will be notified later").
+- NOT_APPLICABLE without page, without quote or table cell, or without
+  justification → refused at insert.
+- NOT_STATED without a review scope, from a PARTNER host, or from an
+  UNCONFIRMED or research retrieval → refused.
+- A field the extraction did not find → MISSING, never NOT_STATED; no import
+  ever writes an ADMIN_* claim.
 - LEGACY fields after first import into an old job → refused until checked.
 - Non-imported job → publishes exactly as today (existing tests unchanged).
 - Importer switched off → imported jobs still gated.
