@@ -112,7 +112,8 @@ export const MarketplaceJobCard: React.FC<MarketplaceJobCardProps> = ({
                   </h3>
                   {freshUpdate && (
                     <span className="mt-1 flex items-center gap-1.5 min-w-0">
-                      <NewBadge />
+                      {/* A job that is itself new already wears the NEW mark above: one is enough. */}
+                      {!isNew && <NewBadge />}
                       <span className="text-xs font-bold text-red-700 truncate">{freshUpdate.title}</span>
                     </span>
                   )}
