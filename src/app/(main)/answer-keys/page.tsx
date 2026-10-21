@@ -9,7 +9,7 @@ import { getLifecycleLinks } from "@/lib/cms/lifecycle-links";
 import { LifecycleLinkGrid } from "@/components/lifecycle/LifecycleLinkList";
 
 export const metadata = {
-  title: "Answer Keys & Response Sheets 2026 | LakshyaNaukri",
+  title: "Answer Keys & Response Sheets 2026",
   description:
     "Download official exam answer keys and candidate response sheets for competitive exams. Sourced directly from official exam authority portals.",
 };

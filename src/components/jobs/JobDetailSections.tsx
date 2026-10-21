@@ -614,7 +614,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
         </div>
         <h3 className="text-xl font-black text-white">{job.organizationName}</h3>
         <p className="text-xs text-slate-300 leading-relaxed font-medium">
-          {job.organizationName} is a premier organization responsible for conducting recruitment examinations and selecting qualified candidates across India.
+          This recruitment is conducted by {job.organizationName}. Check the official notification and website linked on this page before you apply.
         </p>
       </section>
     </div>

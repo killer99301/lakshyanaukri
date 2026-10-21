@@ -7,7 +7,7 @@ import { getFilterCounts } from "@/lib/filters";
 import { getAllVerifiedOpportunitiesWithCMS } from "@/lib/repository";
 
 export const metadata = {
-  title: "Competitive Exams Directory 2026 | LakshyaNaukri",
+  title: "Competitive Exams Directory 2026",
   description: "Explore complete exam patterns, syllabi, exam calendars, and eligibility criteria for UPSC CSE, SSC CGL, RRB NTPC, IBPS PO, and State PSCs.",
 };
 

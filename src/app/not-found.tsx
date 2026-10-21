@@ -4,7 +4,7 @@ import { Search, Compass, ArrowRight, Home } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export const metadata = {
-  title: "404 - Page Not Found | LakshyaNaukri",
+  title: "404 - Page Not Found",
   description: "The page you are looking for does not exist or has been moved.",
 };
 

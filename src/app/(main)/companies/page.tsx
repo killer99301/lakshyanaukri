@@ -7,7 +7,7 @@ import { CardHover } from "@/components/common/motion/CardHover";
 import { getAllVerifiedOpportunitiesWithCMS } from "@/lib/repository";
 
 export const metadata = {
-  title: "Recruiting Organizations & Boards 2026 | LakshyaNaukri",
+  title: "Recruiting Organizations & Boards 2026",
   description: "Browse major hiring organizations, government commissions, public sector undertakings, and top corporate employers in India.",
 };
 
