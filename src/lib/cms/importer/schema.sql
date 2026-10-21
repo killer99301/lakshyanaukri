@@ -271,7 +271,9 @@ BEGIN
 
   -- ADMIN_VERIFIED / ADMIN_NOT_APPLICABLE / ADMIN_NOT_STATED
   SELECT * INTO fr FROM public.field_revisions WHERE id = NEW.field_revision_id;
-  IF NOT FOUND OR fr.recruitment_id <> NEW.recruitment_id OR fr.field_path <> split_part(NEW.field_path, '#', 1) THEN
+  -- A link decision may cite a revision of the whole list ("links") or its own ("links#APPLY_ONLINE").
+  IF NOT FOUND OR fr.recruitment_id <> NEW.recruitment_id
+     OR fr.field_path NOT IN (NEW.field_path, split_part(NEW.field_path, '#', 1)) THEN
     RAISE EXCEPTION 'The decision must refer to a revision of the same field of the same job'
       USING ERRCODE = 'P0001';
   END IF;

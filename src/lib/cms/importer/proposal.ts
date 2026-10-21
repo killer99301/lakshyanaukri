@@ -123,6 +123,8 @@ export function buildProposal(input: {
   for (const ex of input.extractions) {
     for (const v of ex.values) {
       if (isEmpty(v.value)) continue;
+      // A corrigendum's heading ("Corrigendum 1 to …") is not the job's title.
+      if (ex.retrieval.declaredKind === "OFFICIAL_CORRIGENDUM" && (v.fieldPath === "identity.title" || v.fieldPath === "identity.shortTitle")) continue;
       const perField = groups.get(v.fieldPath) ?? new Map();
       const h = shortHash(v.fieldPath, v.value);
       const g = perField.get(h) ?? { value: v.value, claims: [] };

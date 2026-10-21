@@ -92,6 +92,10 @@ export interface PublishedRecruitmentSnapshot {
   projectedAt: string;
   /** When the record first went live. Not stored in the snapshot — filled in when listings are read. */
   firstPublishedAt?: string;
+  /** Imported jobs only: fields recorded as not applicable, with what the notice says ("No application fee"). */
+  notApplicable?: Record<string, string>;
+  /** Imported jobs only: fields the notice does not state, with optional public wording. */
+  notStated?: Record<string, string>;
   projectionVersion: string;
   sourceRecordRevision: string;
 }

@@ -60,3 +60,14 @@ export function fieldDef(path: string): FieldDef {
 
 /** The field_revisions path a claim's field is written to ("links#APPLY_ONLINE" → "links"). */
 export const revisionPath = (fieldPath: string): string => fieldPath.split("#")[0];
+
+/**
+ * The revision paths that can make a decision on this field stale. A link is
+ * decided on under its own path ("links#APPLY_ONLINE"), so deciding one link
+ * does not unsettle another; any save of the whole list ("links") unsettles all.
+ */
+export const decisionRevisionPaths = (fieldPath: string): string[] =>
+  fieldPath.includes("#") ? [fieldPath, revisionPath(fieldPath)] : [fieldPath];
+
+/** Where a decision writes its own revision. */
+export const decisionRevisionPath = (fieldPath: string): string => (fieldPath.includes("#") ? fieldPath : revisionPath(fieldPath));

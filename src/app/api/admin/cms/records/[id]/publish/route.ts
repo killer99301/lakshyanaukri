@@ -28,6 +28,7 @@ import { sql } from "@/lib/db";
 import { buildJobAnnouncement, sendToChannel, type AnnouncementResult } from "@/lib/telegram";
 import { CHANNEL_POST_EVENT, REPEAT_WINDOW_HOURS, decideChannelPost, messageHash, newsLine } from "@/lib/cms/channel-post";
 import { todayInIndia } from "@/lib/cms/attention";
+import { publishGateFor } from "@/lib/cms/importer/service";
 
 export async function POST(
   request: NextRequest,
@@ -88,10 +89,30 @@ export async function POST(
     );
   }
 
+  // ── Imported jobs: every critical field checked by a person ──
+  // Jobs that were never imported skip this and publish exactly as before.
+  const gate = await publishGateFor(record);
+  if (!gate.ok) {
+    return NextResponse.json(
+      {
+        error: `Check these before publishing: ${gate.blockers.map((b) => b.label).join(", ")}.`,
+        code: "IMPORT_CHECKS_PENDING",
+        blockers: gate.blockers.map((b) => ({ fieldPath: b.fieldPath, label: b.label, class: b.cls, reason: b.reason })),
+      },
+      { status: 422 },
+    );
+  }
+
   // ── Project ───────────────────────────────────────────────
   let snapshot: ReturnType<typeof projectToPublished>;
   try {
     snapshot = projectToPublished(record);
+    if (gate.gated) {
+      const words = (cls: string) => Object.fromEntries(gate.verdicts
+        .filter((v) => v.cls === cls)
+        .map((v) => [v.fieldPath, v.publicNote ?? ""]));
+      snapshot = { ...snapshot, notApplicable: words("NOT_APPLICABLE"), notStated: words("NOT_STATED") };
+    }
   } catch (err) {
     console.error("[CMS] projection failed", err);
     return NextResponse.json(

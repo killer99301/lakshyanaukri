@@ -106,6 +106,16 @@ test("IC07 a corrigendum replaces only the fields it states", () => {
   assert.deepEqual(fee.supersedes, []);
   assert.deepEqual(p.replacedInImport.map((r) => r.value), ["2026-11-01"]);
 });
+test("IC07b a corrigendum's heading is never proposed as the job's title", () => {
+  const p = buildProposal({
+    extractions: [ex(R("corr", "OFFICIAL_CORRIGENDUM"), [
+      { fieldPath: "identity.title", value: "Corrigendum 1 to LICHFL Apprenticeship Program-010" },
+      { fieldPath: "dates.applicationCloseDate", value: "2026-11-08" },
+    ])],
+    current: () => ({ value: "LIC HFL Apprentice Recruitment 2026", verified: false }),
+  });
+  assert.deepEqual(p.items.map((i) => i.fieldPath), ["dates.applicationCloseDate"]);
+});
 test("IC08 a syllabus only research states is flagged when an official document is in the import", () => {
   const p = buildProposal({
     extractions: [

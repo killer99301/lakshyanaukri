@@ -50,6 +50,7 @@
     "cms:phase-e-test": "npx tsx --tsconfig tsconfig.json tests/cms/phase-e.test.ts",
     "cms:ai-assist-test": "npx tsx --tsconfig tsconfig.json tests/cms/ai-assist.test.ts",
     "test:importer:db": "npx tsx --tsconfig tsconfig.json tests/local-stack/importer-schema.test.ts",
+    "test:importer:flow": "npx tsx --tsconfig tsconfig.json tests/local-stack/importer-flow.test.ts",
     "test:importer:pg": "npx tsx --tsconfig tsconfig.json tests/pg/importer-concurrency.test.ts",
     "test:stack": "npx tsx --tsconfig tsconfig.json tests/local-stack/cms-workflows.test.ts",
     "test:stack:db": "npx tsx --tsconfig tsconfig.json tests/local-stack/serve.ts",
