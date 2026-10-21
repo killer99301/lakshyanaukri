@@ -224,6 +224,8 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
                 }}
                 handleResetFilters={handleResetFilters}
                 allJobs={scopedJobs}
+                location={selectedLocation}
+                onLocationChange={(loc) => { setSelectedLocation(loc); setCurrentPage(1); }}
               />
             </div>
 
@@ -351,6 +353,8 @@ function JobsPageContent({ opportunities }: JobsPageClientProps) {
               }}
               handleResetFilters={handleResetFilters}
               allJobs={scopedJobs}
+              location={selectedLocation}
+              onLocationChange={(loc) => { setSelectedLocation(loc); setCurrentPage(1); }}
               className="border-none shadow-none p-0"
             />
 

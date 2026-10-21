@@ -213,19 +213,35 @@ export function applyLocationFilter(
   opportunities: Opportunity[],
   selectedLocation: string
 ): Opportunity[] {
-  if (!selectedLocation || selectedLocation === "All India") return opportunities;
+  if (!selectedLocation || isNationwide(selectedLocation)) return opportunities;
 
-  const loc = selectedLocation.toLowerCase();
+  const loc = stateKey(selectedLocation);
+  return opportunities.filter((opp) => isNationwide(opp.state ?? "") || stateKey(opp.state ?? "") === loc);
+}
 
-  return opportunities.filter((opp) => {
-    const oppState = opp.state.toLowerCase();
-    const isNationwide =
-      opp.state === "All India" ||
-      opp.state === "Pan India" ||
-      opp.state === "all india";
-    const isExactMatch = oppState === loc;
-    return isExactMatch || isNationwide;
-  });
+/**
+ * One spelling for a state or UT, so "Jammu and Kashmir" on a job matches
+ * "Jammu & Kashmir" in the picker, and "Delhi" matches "Delhi NCR".
+ */
+export function stateKey(name: string): string {
+  return name.toLowerCase().replace(/&/g, " and ").replace(/\bncr\b|\bnct of\b|\bnational capital territory of\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/** A job open across the country, shown whichever state is picked. */
+export function isNationwide(state: string): boolean {
+  return /^(all|pan)[\s-]*india$/i.test(state.trim()) || state.trim() === "";
+}
+
+/** How many jobs each state or UT has, by its stateKey. Nationwide jobs are counted separately. */
+export function stateCounts(opportunities: Opportunity[]): { byState: Map<string, number>; nationwide: number } {
+  const byState = new Map<string, number>();
+  let nationwide = 0;
+  for (const opp of opportunities) {
+    if (isNationwide(opp.state ?? "")) { nationwide++; continue; }
+    const key = stateKey(opp.state);
+    byState.set(key, (byState.get(key) ?? 0) + 1);
+  }
+  return { byState, nationwide };
 }
 
 // ─── Filter Application ─────────────────────────────────

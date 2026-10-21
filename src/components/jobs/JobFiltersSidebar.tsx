@@ -5,6 +5,7 @@ import { Filter, RotateCcw, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getFilterCounts } from "@/lib/filters";
 import { getAllVerifiedOpportunities } from "@/lib/repository";
+import { StateFilterSection } from "@/components/jobs/StateFilterSection";
 import type { Opportunity, FilterState, Category, Qualification, Experience, ApplicationStatus } from "@/types";
 
 interface JobFiltersSidebarProps {
@@ -14,6 +15,9 @@ interface JobFiltersSidebarProps {
   allJobs?: Opportunity[];
   className?: string;
   now?: Date;
+  /** The chosen state, shared with the location box beside the search bar. Without these, no State section. */
+  location?: string;
+  onLocationChange?: (location: string) => void;
 }
 
 export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
@@ -23,6 +27,8 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
   allJobs = getAllVerifiedOpportunities(),
   className,
   now = new Date(),
+  location,
+  onLocationChange,
 }) => {
   const [openSections, setOpenSections] = useState({
     opportunityTypes: true,
@@ -295,6 +301,11 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
           </div>
         )}
       </div>
+
+      {/* State / UT, shared with the location box beside the search bar */}
+      {onLocationChange && (
+        <StateFilterSection allJobs={allJobs} location={location ?? "All India"} onLocationChange={onLocationChange} />
+      )}
 
       {/* 4. Qualification Section */}
       <div data-filter-section="qualification" className="space-y-2 border-b border-slate-100 pb-3 rounded-lg transition-shadow duration-300">
