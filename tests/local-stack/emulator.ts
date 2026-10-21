@@ -57,6 +57,9 @@ export async function createDb(): Promise<PGlite> {
   await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS exam_pattern JSONB");
   await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS syllabus JSONB");
   await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS taken_down JSONB");
+  // The importer's tables, triggers and functions. Loaded whole: function
+  // bodies contain semicolons that splitStatements would cut.
+  await pg.exec(readFileSync(join(process.cwd(), "src/lib/cms/importer/schema.sql"), "utf8"));
   return pg;
 }
 
