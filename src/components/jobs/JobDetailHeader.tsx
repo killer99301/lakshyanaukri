@@ -68,7 +68,7 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
 
   const examScheduleSummary =
     job.type === "government"
-      ? getCurrentExamSummary(job.examStages)
+      ? getCurrentExamSummary(job.examStages, now)
       : "As per listing";
 
   const handleShare = async () => {

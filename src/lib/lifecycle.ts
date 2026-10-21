@@ -90,20 +90,31 @@ export function getStageCertainty(stage: ExamStage): DateCertainty {
 }
 
 /**
- * Get a human-readable summary of the current exam status.
- * Derives from the ordered examStages array.
+ * The stage a reader needs to hear about now. When several stages are already
+ * scheduled (exam on 7 Nov, interview on 15 Nov), that is the next one still
+ * ahead, not the last in the list; once every dated stage has passed, it is
+ * the furthest stage reached.
  */
-export function getCurrentExamSummary(stages: ExamStage[]): string {
-  if (stages.length === 0) return "To be announced";
-
-  // Find the most advanced non-NOT_DECLARED stage
+export function currentExamStage(stages: ExamStage[], now: Date): ExamStage | undefined {
   const activeStages = stages
     .filter((s) => s.status !== "NOT_DECLARED")
     .sort((a, b) => a.order - b.order);
+  const ahead = activeStages.find(
+    (s) => (s.status === "SCHEDULED" || s.status === "ADMIT_CARD_OUT") && s.dateIso && diffCalendarDays(now, new Date(s.dateIso)) >= 0,
+  );
+  return ahead ?? activeStages[activeStages.length - 1];
+}
 
-  if (activeStages.length === 0) return "Exam date not declared";
+/**
+ * Get a human-readable summary of the current exam status.
+ * Derives from the ordered examStages array.
+ */
+export function getCurrentExamSummary(stages: ExamStage[], now: Date): string {
+  if (stages.length === 0) return "To be announced";
 
-  const latest = activeStages[activeStages.length - 1];
+  const latest = currentExamStage(stages, now);
+
+  if (!latest) return "Exam date not declared";
 
   switch (latest.status) {
     case "POSTPONED":
@@ -126,10 +137,10 @@ export function getCurrentExamSummary(stages: ExamStage[]): string {
     case "RESULT_DECLARED":
       return `${latest.name} — Result Declared`;
 
-    case "SCHEDULED":
-      return latest.dateDisplay
-        ? `${latest.name}: ${latest.dateDisplay}`
-        : `${latest.name} Scheduled`;
+    case "SCHEDULED": {
+      const when = latest.dateDisplay || (latest.dateIso ? formatDate(latest.dateIso) : "");
+      return when ? `${latest.name}: ${when}` : `${latest.name} Scheduled`;
+    }
 
     case "ADMIT_CARD_OUT":
       return `${latest.name} — Admit Card Released`;
@@ -142,11 +153,11 @@ export function getCurrentExamSummary(stages: ExamStage[]): string {
 /**
  * Get the current exam status badge text and class for cards.
  */
-export function getExamStatusBadge(stages: ExamStage[]): {
+export function getExamStatusBadge(stages: ExamStage[], now: Date): {
   label: string;
   badgeClass: string;
 } {
-  const summary = getCurrentExamSummary(stages);
+  const summary = getCurrentExamSummary(stages, now);
 
   if (summary.includes("Postponed")) {
     return { label: summary, badgeClass: "bg-amber-50 text-amber-800 border-amber-200" };
@@ -245,11 +256,7 @@ export function deriveStatusBadge(opp: Opportunity, now: Date): StatusBadgeInfo 
   // 2. Applications closed — Check for active scheduled/admit card/result exam milestones for government jobs
   if (appStatus === "APPLICATIONS_CLOSED") {
     if (opp.type === "government" && opp.examStages && opp.examStages.length > 0) {
-      const activeStages = opp.examStages
-        .filter((s) => s.status !== "NOT_DECLARED")
-        .sort((a, b) => a.order - b.order);
-
-      const latestStage = activeStages[activeStages.length - 1];
+      const latestStage = currentExamStage(opp.examStages, now);
 
       if (latestStage) {
         if (latestStage.status === "ADMIT_CARD_OUT") {

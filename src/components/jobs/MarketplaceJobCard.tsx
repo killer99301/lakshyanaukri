@@ -201,7 +201,7 @@ export const MarketplaceJobCard: React.FC<MarketplaceJobCardProps> = ({
             {/* Secondary Exam Status Indicator for Government opportunities when closed */}
             {job.type === "government" && (
               (() => {
-                const examSummary = getCurrentExamSummary(job.examStages);
+                const examSummary = getCurrentExamSummary(job.examStages, now);
                 if (examSummary && !examSummary.includes("not declared") && !derivedStatus.label.includes("Postponed")) {
                   return (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200" title={examSummary}>
