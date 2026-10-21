@@ -1,4 +1,4 @@
-# Recruitment importer — Phase 1 design, revision 3 (for approval)
+# Recruitment importer — Phase 1 design, revision 4 (final, for approval)
 
 Status: DESIGN ONLY. Nothing here is implemented, migrated or deployed.
 Branch: `feature/importer` (worktree `D:\LakshyaNaukri-importer`, from production `715e4e4`).
@@ -38,6 +38,17 @@ existing manual "New job" route; text + hash only for PDFs; five tables.
 | C | A hash match could point at any retrieval | Trigger: the matched retrieval must be a server fetch of the same source from the same host (§2) |
 | D | Owner-role limitation overstated | §10 rewritten: the site connects as the owner, so INVOKER gives no privilege isolation; triggers and checks guard against our own bugs only |
 
+## Changes from revision 3 (last architecture review)
+
+| # | Review point | Resolution (section) |
+|---|---|---|
+| 1 | CHECKs could pass through SQL NULL | Authenticity written as five explicit, complete combinations; every CHECK written to be TRUE or FALSE, never NULL (§2.1) |
+| 2 | Lock keys could be NULL; manual create atomicity | Organisation + year key mandatory for every creation and always locked; notification key locked when present; manual create uses one `sql.transaction([...])` batch (§3) |
+| 3 | A claim could point at another job's evidence | Composite foreign key (retrieval belongs to the claim's import) plus an insert trigger (retrieval's import belongs to the claim's job) (§2) |
+| 4 | Same document twice in one import | `UNIQUE (import_id, source_id)` removed; every acquisition is its own retrieval row (§2.2) |
+| 5 | Two simultaneous revocations; several decisions on one revision | Unique index: a claim can be revoked once; decisions serialised per field, ordered by a sequence, latest unrevoked wins (§5.2) |
+| + | Decisions on a field that was never saved | A decision always writes its own field revision in the same transaction (§5.3) |
+
 ---
 
 ## 1. Words used below
@@ -65,8 +76,8 @@ CREATE TABLE recruitment_imports (
   mode             VARCHAR(10)  NOT NULL CHECK (mode IN ('NEW', 'EXISTING')),
   recruitment_id   UUID         REFERENCES recruitments(id), -- EXISTING: set at preview; NEW: set at apply
   base_revision    VARCHAR(64),                              -- record_revision the preview was computed on
-  identity_key     TEXT,                                     -- normalised notification number, for NEW
-  org_year_key     TEXT,                                     -- organisation id + year, for NEW
+  identity_key     TEXT,                                     -- normalised notification number; NEW only, when the notice has one
+  org_year_key     TEXT,                                     -- organisation id + ':' + year; required for NEW
   status           VARCHAR(12)  NOT NULL DEFAULT 'PREVIEWED'
                    CHECK (status IN ('PREVIEWED', 'APPLIED', 'DISCARDED', 'EXPIRED')),
   proposal         JSONB        NOT NULL,                    -- immutable: every proposed item, each with an id
@@ -78,7 +89,10 @@ CREATE TABLE recruitment_imports (
   applied_by       UUID         REFERENCES admins(id),
   applied_at       TIMESTAMPTZ,
   CHECK ((status = 'APPLIED') = (applied_at IS NOT NULL AND applied_by IS NOT NULL)),
-  CHECK (mode = 'NEW' OR (recruitment_id IS NOT NULL AND base_revision IS NOT NULL))
+  CHECK (mode = 'NEW' OR (recruitment_id IS NOT NULL AND base_revision IS NOT NULL)),
+  CHECK (mode = 'EXISTING' OR (org_year_key IS NOT NULL AND length(org_year_key) > 0)),
+  CHECK (identity_key IS NULL OR length(identity_key) > 0),
+  UNIQUE (import_id, recruitment_id)                          -- target of the claims' composite key
 );
 CREATE INDEX idx_recruitment_imports_recruitment ON recruitment_imports(recruitment_id, created_at DESC);
 
@@ -121,19 +135,47 @@ CREATE TABLE recruitment_source_retrievals (
   attestation_note     TEXT,                                 -- e.g. "downloaded from rrbcdg.gov.in, site blocks servers"
   retrieved_by         UUID         NOT NULL REFERENCES admins(id),
   retrieved_at         TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  UNIQUE (import_id, source_id),
-  CHECK ((authenticity = 'CONFIRMED') = (authenticity_method IN ('FETCHED_BY_SERVER', 'HASH_MATCHES_SERVER_FETCH'))),
-  CHECK ((authenticity = 'ATTESTED')  = (authenticity_method = 'ADMIN_ATTESTED' AND attested_by IS NOT NULL
-                                         AND attested_at IS NOT NULL AND attestation_note IS NOT NULL)),
-  CHECK ((authenticity_method = 'HASH_MATCHES_SERVER_FETCH') = (matched_retrieval_id IS NOT NULL)),
-  CHECK (declared_kind <> 'RESEARCH' OR authenticity = 'NOT_APPLICABLE'),
-  CHECK (authenticity <> 'CONFIRMED' OR origin_host IS NOT NULL)
+  UNIQUE (id, import_id),                                    -- target of the claims' composite key
+  -- §2.1: exactly one of five complete combinations; no column left to NULL semantics
+  CHECK (
+    (authenticity = 'CONFIRMED' AND authenticity_method = 'FETCHED_BY_SERVER'
+       AND method = 'FETCHED' AND origin_host IS NOT NULL
+       AND matched_retrieval_id IS NULL
+       AND attested_by IS NULL AND attested_at IS NULL AND attestation_note IS NULL
+       AND declared_kind <> 'RESEARCH')
+    OR
+    (authenticity = 'CONFIRMED' AND authenticity_method = 'HASH_MATCHES_SERVER_FETCH'
+       AND method = 'UPLOADED' AND origin_host IS NOT NULL
+       AND matched_retrieval_id IS NOT NULL
+       AND attested_by IS NULL AND attested_at IS NULL AND attestation_note IS NULL
+       AND declared_kind <> 'RESEARCH')
+    OR
+    (authenticity = 'ATTESTED' AND authenticity_method = 'ADMIN_ATTESTED'
+       AND method IN ('UPLOADED', 'PASTED') AND origin_host IS NOT NULL
+       AND matched_retrieval_id IS NULL
+       AND attested_by IS NOT NULL AND attested_at IS NOT NULL
+       AND attestation_note IS NOT NULL AND length(trim(attestation_note)) >= 10
+       AND declared_kind <> 'RESEARCH')
+    OR
+    (authenticity = 'UNCONFIRMED' AND authenticity_method IS NULL
+       AND method IN ('UPLOADED', 'PASTED')
+       AND matched_retrieval_id IS NULL
+       AND attested_by IS NULL AND attested_at IS NULL AND attestation_note IS NULL
+       AND declared_kind <> 'RESEARCH')
+    OR
+    (authenticity = 'NOT_APPLICABLE' AND authenticity_method IS NULL
+       AND matched_retrieval_id IS NULL
+       AND attested_by IS NULL AND attested_at IS NULL AND attestation_note IS NULL
+       AND declared_kind = 'RESEARCH')
+  )
 );
 CREATE INDEX idx_source_retrievals_source ON recruitment_source_retrievals(source_id);
+CREATE INDEX idx_source_retrievals_import ON recruitment_source_retrievals(import_id);
 
 -- ── Claims: append-only statements about one field ─────────────────
 CREATE TABLE recruitment_field_claims (
   id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  seq                 BIGINT       GENERATED ALWAYS AS IDENTITY UNIQUE,  -- total order of claims (§5.2)
   recruitment_id      UUID         NOT NULL REFERENCES recruitments(id),
   field_path          VARCHAR(255) NOT NULL,       -- same paths as field_revisions; links as "links#APPLY_ONLINE"
   kind                VARCHAR(20)  NOT NULL CHECK (kind IN
@@ -167,16 +209,23 @@ CREATE TABLE recruitment_field_claims (
   -- Not stated: the admin records which document and which part of it was read
   CHECK (kind <> 'ADMIN_NOT_STATED' OR (retrieval_id IS NOT NULL AND field_revision_id IS NOT NULL
                                         AND review_scope IS NOT NULL
-                                        AND ((review_scope->>'whole_document') = 'true'
-                                             OR (jsonb_typeof(review_scope->'pages') = 'array'
-                                                 AND jsonb_array_length(review_scope->'pages') > 0)
-                                             OR (jsonb_typeof(review_scope->'sections') = 'array'
-                                                 AND jsonb_array_length(review_scope->'sections') > 0))
+                                        AND (coalesce(review_scope->>'whole_document', '') = 'true'
+                                             OR coalesce(jsonb_typeof(review_scope->'pages') = 'array'
+                                                         AND jsonb_array_length(review_scope->'pages') > 0, false)
+                                             OR coalesce(jsonb_typeof(review_scope->'sections') = 'array'
+                                                         AND jsonb_array_length(review_scope->'sections') > 0, false))
                                         AND length(trim(coalesce(justification, ''))) >= 10)),
   CHECK (public_note IS NULL OR (kind = 'ADMIN_NOT_STATED' AND length(public_note) <= 160)),
-  CHECK ((kind = 'ADMIN_REVOKED') = (revokes_claim_id IS NOT NULL))
+  CHECK ((kind = 'ADMIN_REVOKED') = (revokes_claim_id IS NOT NULL)),
+  -- §2: an extracted claim's retrieval belongs to the claim's import, and the
+  -- import belongs to the claim's job (both enforced by the database)
+  FOREIGN KEY (retrieval_id, import_id)   REFERENCES recruitment_source_retrievals(id, import_id),
+  FOREIGN KEY (import_id, recruitment_id) REFERENCES recruitment_imports(import_id, recruitment_id)
 );
-CREATE INDEX idx_field_claims_lookup ON recruitment_field_claims(recruitment_id, field_path, claimed_at DESC);
+CREATE INDEX idx_field_claims_lookup ON recruitment_field_claims(recruitment_id, field_path, seq DESC);
+-- §5.2: a decision can be revoked once, even by two simultaneous requests
+CREATE UNIQUE INDEX uq_field_claims_revoked_once ON recruitment_field_claims(revokes_claim_id)
+  WHERE kind = 'ADMIN_REVOKED';
 
 -- ── Supersession: a claim for one field replaces claims for the same field ──
 CREATE TABLE recruitment_claim_supersessions (
@@ -195,9 +244,39 @@ CREATE TABLE recruitment_claim_supersessions (
 |---|---|
 | `recruitment_field_claims`, `recruitment_claim_supersessions`, `recruitment_sources`, `recruitment_source_retrievals` | `BEFORE UPDATE OR DELETE` → raise. Corrections are new rows. |
 | `recruitment_claim_supersessions` | `BEFORE INSERT`: both claims must be EXTRACTED, same `recruitment_id`, same `field_path`. |
-| `recruitment_field_claims` | `BEFORE INSERT` for ADMIN_REVOKED: the revoked claim is an ADMIN_* claim (not EXTRACTED, not another revocation), same job, same field, not already revoked. For ADMIN_*: `field_revision_id` belongs to the same job and field. For ADMIN_VERIFIED, ADMIN_NOT_APPLICABLE and ADMIN_NOT_STATED: the retrieval's `authenticity` is CONFIRMED or ATTESTED and its `origin_role` is AUTHORITY or PARTNER; for ADMIN_NOT_STATED the role must be AUTHORITY (a partner page being silent proves nothing about the notice). When the retrieval's source is a PDF, ADMIN_VERIFIED and ADMIN_NOT_APPLICABLE must give `page`; for a scanned PDF the admin reads the page number off the document. The field-to-purpose check is done in the verify route (§4). |
+| `recruitment_field_claims` | `BEFORE INSERT` for every ADMIN_* claim with a retrieval: the retrieval's import has `recruitment_id` equal to the claim's (the composite keys cover EXTRACTED claims; this covers decisions, which carry no `import_id`). For ADMIN_REVOKED: the revoked claim is an ADMIN_* claim (not EXTRACTED, not another revocation), same job, same field (the unique index makes "only once" hold under concurrency). For ADMIN_*: `field_revision_id` belongs to the same job and field. For ADMIN_VERIFIED, ADMIN_NOT_APPLICABLE and ADMIN_NOT_STATED: the retrieval's `authenticity` is CONFIRMED or ATTESTED and its `origin_role` is AUTHORITY or PARTNER; for ADMIN_NOT_STATED the role must be AUTHORITY (a partner page being silent proves nothing about the notice). When the retrieval's source is a PDF, ADMIN_VERIFIED and ADMIN_NOT_APPLICABLE must give `page`; for a scanned PDF the admin reads the page number off the document. The field-to-purpose check is done in the verify route (§4). |
 | `recruitment_source_retrievals` | `BEFORE INSERT` when `authenticity_method = 'HASH_MATCHES_SERVER_FETCH'`: the `matched_retrieval_id` row has the **same `source_id`**, `method = 'FETCHED'`, `authenticity_method = 'FETCHED_BY_SERVER'`, and the **same `origin_host`** as the new row. Anything else → raise. |
 | `recruitment_imports` | `BEFORE UPDATE`: `import_id`, `proposal`, `mode`, `identity_key`, `org_year_key`, `base_revision`, `created_by`, `created_at` never change; `recruitment_id` only NULL→value, and only for `mode = 'NEW'`; status only PREVIEWED→APPLIED, PREVIEWED→DISCARDED, PREVIEWED→EXPIRED; `selected_items`, `duplicate_override`, `result`, `applied_*` set only together with →APPLIED. `BEFORE DELETE` → raise. |
+
+### 2.1 No constraint may pass through NULL
+
+PostgreSQL accepts a row when a CHECK evaluates to NULL. Every CHECK above is
+written so it can only be TRUE or FALSE: combinations are listed explicitly
+(the authenticity CHECK is the five complete, mutually exclusive cases), every
+nullable column is tested with `IS [NOT] NULL` or wrapped in `coalesce(…, false)`,
+and no CHECK compares a nullable expression with `=`. The acceptance tests try
+every invalid combination, including each relevant column set to NULL.
+
+Composite foreign keys use PostgreSQL's default MATCH SIMPLE: they are checked
+when all their columns are set, which is exactly the EXTRACTED case (both
+`import_id` and `retrieval_id` required by CHECK). Decisions have no
+`import_id`, so the insert trigger checks their job instead.
+
+### 2.2 The same document more than once
+
+There is no uniqueness on (import, source). Each acquisition is its own
+retrieval row with its own method, origin and authenticity: an admin's upload
+(UNCONFIRMED or ATTESTED) and the server's fetch of the same file from the
+official site (CONFIRMED) are two rows pointing at the one `recruitment_sources`
+row, in the same import or in different ones. The upload may then be recorded
+as CONFIRMED by hash match, pointing at the fetch row (trigger-checked).
+
+When the preview extracts from a document that has several retrievals, each
+EXTRACTED claim records the retrieval it relies on: the strongest one in the
+order CONFIRMED > ATTESTED > UNCONFIRMED, and within that, an AUTHORITY host
+before a PARTNER. The other retrievals stay recorded and visible.
+
+### 2.3 Owner account
 
 The site connects as the database owner, which can switch a trigger off or
 bypass a check; the application never does. The triggers and constraints
@@ -245,16 +324,50 @@ Inside the function, in order:
 2. Check `admin_id` exists in `admins`. Check every selected id is in `proposal`.
 3. **EXISTING**: lock the job row (`FOR UPDATE`); `record_revision` ≠
    `base_revision` → raise `STALE`.
-4. **NEW**: take transaction-level advisory locks on
-   `hashtextextended('job-id:' || identity_key, 0)` and
-   `hashtextextended('job-org-year:' || org_year_key, 0)`, always in that
-   order (no deadlocks). Then re-run **both** duplicate checks inside the
-   transaction: same normalised notification number, and same organisation +
-   year among non-archived jobs. A match → raise `DUPLICATE` with the matches,
-   unless `duplicate_override` is present with a reason of at least 10
-   characters; the override is stored on the import and written as a
-   `DUPLICATE_OVERRIDE` audit event. Two different imports of the same job
-   therefore queue on the lock, and the second finds the first's job.
+4. **NEW**: take the creation locks (below), then re-run **both** duplicate
+   checks inside the transaction: same normalised notification number (when
+   the import has one), and same organisation + year among non-archived jobs.
+   A match → raise `DUPLICATE` with the matches, unless `duplicate_override`
+   is present with a reason of at least 10 characters; the override is stored
+   on the import and written as a `DUPLICATE_OVERRIDE` audit event. Two
+   different imports of the same job therefore queue on the lock, and the
+   second finds the first's job.
+
+**Creation locks (shared by the importer and the manual "New job" route):**
+- Every new job has an organisation and a year: the existing create route
+  already refuses a job without them, and the import table requires
+  `org_year_key` for NEW (CHECK). So **every** creation takes
+  `pg_advisory_xact_lock(hashtextextended('job-org-year:' || org_year_key, 0))`.
+  There is no creation without an effective lock.
+- When a notification number is known, it also takes
+  `pg_advisory_xact_lock(hashtextextended('job-id:' || identity_key, 0))`.
+  With no number, this lock is skipped; the organisation + year lock and check
+  still apply.
+- Order is always organisation + year first, then notification number, so two
+  creations can never wait on each other in a cycle.
+- Transaction-level locks are released at commit or rollback; none can be left behind.
+- Keys are normalised by one shared function (lower case, spaces and
+  punctuation collapsed, as the existing duplicate detector does).
+
+**How the manual route does it with the Neon driver.** The site's driver sends
+HTTP requests; it cannot hold a transaction open between requests, but
+`sql.transaction([...])` sends several statements that run as **one
+transaction** (the local test database already behaves the same way). The
+manual route becomes one batch:
+1. `SELECT pg_advisory_xact_lock(…org-year…)`
+2. `SELECT pg_advisory_xact_lock(…notification…)` (only when a number is given)
+3. `INSERT INTO recruitments (…) SELECT … WHERE $force OR NOT EXISTS (<the existing duplicate conditions>) RETURNING id`
+4. `INSERT INTO recruitment_audit_events … SELECT … FROM` the row inserted in 3,
+   recording `DUPLICATE_OVERRIDE` with the reason when `$force` was used
+
+Under PostgreSQL's default isolation each statement sees everything committed
+before it starts, so statement 3 runs after the lock is held and sees a job
+another request has just committed. If 3 inserts nothing, the route reads the
+matches and returns the same duplicate warning the form shows today. The
+form, its fields and "create anyway" are unchanged. A manual "create anyway"
+is recorded as a `DUPLICATE_OVERRIDE` audit event with the admin, the time and
+the matching jobs (no new reason box on the form; the importer's override does
+require a reason, as it is a new screen).
 5. Build the writes from the stored `proposal` for the selected ids (§10), write
    the job, one `field_revisions` row per changed field, the EXTRACTED claims
    (now linked to the job), any supersessions chosen in the preview, one
@@ -317,9 +430,50 @@ hand edit, Restore, AI Assist, corrigendum, import — creates a new revision an
 the old decision stops counting, **even if the value is byte-identical to the
 one that was verified**. `value_hash` is only a consistency check, never the test.
 
-Recording a decision is guarded: the admin's screen sends the revision id it
-showed; the insert succeeds only if that is still the latest revision, otherwise
-"the field changed while you were checking it".
+### 5.1 Recording a decision is guarded
+
+The admin's screen sends the revision id and the current decision id it
+showed. The route runs one `sql.transaction([...])` batch:
+1. `SELECT pg_advisory_xact_lock(hashtextextended('field:' || recruitment_id || ':' || field_path, 0))`
+2. the writes of §5.3 and the claim insert, each conditional on the field's
+   latest revision and current decision still being the ones the screen showed.
+If either changed, nothing is written: "the field changed while you were checking it".
+
+### 5.2 Several decisions on one revision, and revocations
+
+- Decisions on the same field are serialised by the field lock (§5.1), so two
+  admins cannot record decisions from the same stale screen.
+- If a revision nevertheless has several decisions (one replaced by another
+  through a fresh screen), the **effective decision** is the one with the highest
+  `seq` that is not revoked. `seq` is a database-generated sequence, strictly
+  increasing, so the order is deterministic (timestamps can tie; `seq` cannot).
+- A decision is revoked by an ADMIN_REVOKED claim pointing at it. The unique
+  index `uq_field_claims_revoked_once` lets the database accept only one
+  revocation per decision, however many requests arrive at once; the loser gets
+  "already revoked". Revoking the effective decision makes the next-highest
+  unrevoked decision effective, if any; otherwise the field falls back to its
+  claim-based class.
+
+### 5.3 Fields that were never saved
+
+Creating a job writes no field history (checked in the code: the create route
+inserts the job row only), so a field such as the title, or any empty field,
+may have no `field_revisions` row at all. Therefore **every decision writes its
+own field revision**, in the same transaction as the claim, through the
+existing field-update builder (`routeFieldUpdate`), so history and validation
+work exactly as for any other save:
+- **NOT_APPLICABLE / NOT_STATED:** the field is saved as `NOT_SPECIFIED`
+  (value null), reason "Recorded as not applicable/not stated: <justification>".
+  This creates a revision even if the field was never saved before, and the
+  claim references it. If the field held a value, that value is replaced and
+  stays in history (Restore works as usual, and a restore unverifies).
+- **VERIFIED:** the value does not change. A baseline revision is written
+  (old value = new value, reason "Checked against <document, version>, p.<n>"),
+  and the claim references it. This also gives fields that were never saved
+  their first history row.
+The revision id is generated by the route so the revision and the claim can
+reference each other inside one batch; the record's `record_revision` check
+(as in every save) refuses the batch if the job changed meanwhile.
 
 Links: all links share the `links` revision, so any link change unverifies every
 link claim. Strict on purpose.
@@ -403,7 +557,10 @@ stated".
 **On the public page**, a Tier B field recorded NOT_STATED shows "Not stated in
 the official notification", followed by the admin's public wording when given
 (for vacancies: "Vacancies will be notified later"). It is never shown as a
-number, a blank or "not applicable".
+number, a blank or "not applicable". To do this, publishing an imported job
+adds a `notStated` map (field → public wording) to the published snapshot, and
+the job page reads it. This is the only addition to public page data; jobs
+that were never imported publish the same snapshot as today.
 
 The existing official-link gate still applies. Republishing re-checks the gate.
 No automatic verification, approval or publishing anywhere. The kill switch does
@@ -527,6 +684,26 @@ Private PDF storage is a possible later enhancement, separately decided.
 
 ## 14. Acceptance tests
 
+**Constraints under NULL (§2.1)**
+- Every invalid authenticity combination refused, including: CONFIRMED with a
+  NULL method; CONFIRMED by hash match with a NULL `matched_retrieval_id`;
+  ATTESTED with a NULL `attested_by`, `attested_at` or note; UNCONFIRMED with a
+  method; RESEARCH declared anything but NOT_APPLICABLE; a fetch recorded as
+  UNCONFIRMED; an upload recorded as FETCHED_BY_SERVER.
+- Each of the five valid combinations accepted.
+- NOT_STATED with `review_scope` = `{}`, `{"pages": []}`, `{"pages": "1"}`,
+  `{"whole_document": false}` → refused.
+- NEW import with NULL or empty `org_year_key` → refused.
+
+**Claim consistency (§2)**
+- EXTRACTED claim whose retrieval belongs to another import → refused (composite key).
+- EXTRACTED claim whose import belongs to another job → refused (composite key).
+- Decision citing a retrieval from another job's import → refused (trigger).
+
+**Retrievals (§2.2)**
+- Upload and server fetch of the same PDF in one import → one source row, two
+  retrieval rows, each with its own method and authenticity; claims use the fetch.
+
 **Database, atomicity, concurrency**
 - Migration creates exactly the declared objects; idempotent; `--check` catches
   each missing or altered column, constraint, trigger and the function (PGlite, PG17, PG18).
@@ -552,6 +729,18 @@ Private PDF storage is a possible later enhancement, separately decided.
 - Same with NOT_APPLICABLE and NOT_STATED.
 - Verification recorded while someone else edits → refused ("field changed").
 - Revoking a verification → field unverified; revocation points at the exact claim.
+- Two simultaneous revocations of one decision → exactly one stored, the other
+  "already revoked" (unique index), tested on two PG17 connections.
+- Two decisions recorded from the same stale screen at once → one stored, the
+  other "field changed" (field lock), on two PG17 connections.
+- Decisions A then B on one revision → B effective; revoke B → A effective;
+  revoke A → claim-based class.
+- NOT_STATED on a field that was never saved → one new revision (NOT_SPECIFIED)
+  and a claim referencing it, in one transaction; failure in either → neither.
+- VERIFIED on a never-saved field (e.g. the title) → baseline revision with
+  unchanged value, claim referencing it.
+- Manual create with no notification number → organisation + year lock still
+  taken; two such creates at once → one job, one duplicate warning.
 
 **Provenance**
 - Server-fetched bfsissc.com PDF → CONFIRMED; can verify exam fee; cannot verify age.
