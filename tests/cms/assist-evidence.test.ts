@@ -1,7 +1,7 @@
 // The quotes kept for one AI Assist run
 //   npx tsx --tsconfig tsconfig.json tests/cms/assist-evidence.test.ts
 import { suite, test, assert } from "../intelligence/suite";
-import { assistExcerpts } from "@/lib/cms/assist-evidence";
+import { assistExcerpts } from "@/lib/cms/assist-excerpts";
 
 suite("Evidence kept for an AI Assist run");
 
