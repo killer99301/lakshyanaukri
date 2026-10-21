@@ -1334,9 +1334,11 @@ export default function CmsRecordEditorPage() {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
-  // A save that went through starts afresh.
-  const savedRevision = record?.recordRevision;
-  useEffect(() => { unsaved.current = false; }, [savedRevision]);
+  // A save that went through starts afresh. Keyed on the save time, not only
+  // the content fingerprint: links, listing details and exam stages are not in
+  // the fingerprint, and saving them left the "not saved" warning armed.
+  const savedAt = `${record?.recordRevision}|${record?.updatedAt}`;
+  useEffect(() => { unsaved.current = false; }, [savedAt]);
 
   // AI Assist
   const [aiUrl, setAiUrl] = useState("");
