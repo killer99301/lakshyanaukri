@@ -109,6 +109,8 @@ interface RecordRow {
   updated_at: string;
   /** Set the first time the record went live; stays set while it is edited again. */
   published_at?: string | null;
+  /** Taken off the website: hidden from every public page, record kept. */
+  taken_down?: boolean;
 }
 
 // A job that is live but has been reopened for editing: the public still sees
@@ -258,7 +260,7 @@ export default function CmsListPage() {
                 </thead>
                 <tbody>
                   {visible.map((r) => {
-                    const color = STATE_COLORS[r.draft_state] ?? "#8c9bb8";
+                    const color = r.taken_down ? "#f85149" : STATE_COLORS[r.draft_state] ?? "#8c9bb8";
                     return (
                       <tr key={r.id} className="cms-row">
                         <td style={S.td}>
@@ -283,14 +285,14 @@ export default function CmsListPage() {
                             border: `1px solid ${color}44`,
                             whiteSpace: "nowrap",
                           }}>
-                            {editingLive(r) ? "Live · being edited" : STATE_LABELS[r.draft_state] ?? r.draft_state}
+                            {r.taken_down ? "Off the website" : editingLive(r) ? "Live · being edited" : STATE_LABELS[r.draft_state] ?? r.draft_state}
                           </span>
                         </td>
                         <td style={{ ...S.td, color: "#8c9bb8", fontSize: 12, whiteSpace: "nowrap" }}>
                           {updatedLabel(r.updated_at, loadedAt)}
                         </td>
                         <td style={{ ...S.td, textAlign: "right", whiteSpace: "nowrap" }}>
-                          {(r.draft_state === "PUBLISHED" || editingLive(r)) && (
+                          {(r.draft_state === "PUBLISHED" || editingLive(r)) && !r.taken_down && (
                             <a
                               href={`/jobs/${r.slug}`}
                               target="_blank"

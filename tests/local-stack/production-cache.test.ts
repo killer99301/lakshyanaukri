@@ -127,6 +127,23 @@ const section = (s: string) => console.log(`\n── ${s}`);
   const after = await page(`/jobs/${seed.slug}`);
   check("H. public detail page shows the update (1,234) without a redeploy", after.html.includes("1,234 Posts") && !after.html.includes("1,000 Posts"));
 
+  section("J. Take a live job off the website, then put it back");
+  c = await api(`/api/admin/cms/records/${b.id}/take-down`, "POST", { reason: "cache test: out of date" });
+  check("take B off → 200 and revalidated: true", c.status === 200 && c.data.revalidated === true && c.data.record.takenDown?.reason === "cache test: out of date", c.data);
+  const offDetail = await page(`/jobs/${B_SLUG}`);
+  check("J. B's detail page is gone (404) without a redeploy", offDetail.status === 404, offDetail.status);
+  jobs = await page("/jobs");
+  check("J. /jobs no longer lists B", !jobs.html.includes("CACHE TEST B"));
+  check("…while the other jobs are still listed", jobs.html.includes("TEST SEED IBPS Clerk 2026"));
+  const offSitemap = await page("/sitemap.xml");
+  check("J. sitemap no longer lists B", !offSitemap.html.includes(B_SLUG));
+  c = await api(`/api/admin/cms/records/${b.id}/put-back`, "POST");
+  check("put B back → 200 and revalidated: true", c.status === 200 && c.data.revalidated === true && !c.data.record.takenDown, c.data);
+  const backDetail = await page(`/jobs/${B_SLUG}`);
+  check("J. B's detail page is back with its published content", backDetail.status === 200 && backDetail.html.includes("777"), backDetail.status);
+  jobs = await page("/jobs");
+  check("J. /jobs lists B again", jobs.html.includes("CACHE TEST B"));
+
   console.log(`\n${failed === 0 ? "ALL PASS" : "FAILURES"}: ${passed} passed, ${failed} failed`);
   process.exitCode = failed === 0 ? 0 : 1;
 })().catch((e) => { console.error("CACHE TEST ERROR:", e); process.exit(1); });

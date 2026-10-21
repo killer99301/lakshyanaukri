@@ -22,7 +22,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
-import { getRecruitmentById, persistPublication } from "@/lib/cms/repository";
+import { getRecruitmentById, persistPublication, PUT_BACK_EVENT } from "@/lib/cms/repository";
 import { projectToPublished, PROJECTION_VERSION } from "@/lib/cms/projector";
 import { sql } from "@/lib/db";
 import { buildJobAnnouncement, sendToChannel, type AnnouncementResult } from "@/lib/telegram";
@@ -105,6 +105,17 @@ export async function POST(
     // Asked before the write, so the channel post can say "New" or "Updated".
     const earlier = await sql`SELECT 1 FROM published_recruitments WHERE recruitment_id = ${id} LIMIT 1`;
     const published = await persistPublication(record, snapshot, PROJECTION_VERSION, auth.adminId);
+    // A job taken off the site goes back on it with this new version; say so in its history.
+    if (record.takenDown) {
+      try {
+        await sql`
+          INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+          VALUES (${id}, ${auth.adminId}, ${PUT_BACK_EVENT}, ${JSON.stringify({ via: "publish", takenDown: record.takenDown })})
+        `;
+      } catch (err) {
+        console.error("[CMS] put back by publishing, but the history row was not written", err instanceof Error ? err.message : "error");
+      }
+    }
 
     // Public pages are statically cached. Without this, a new or updated job
     // stays invisible on the listing, home, sitemap and its own page until the

@@ -349,6 +349,14 @@ export interface SpecialConditions {
 // Domain-block shape is the implementation target from day one.
 // Never build a flat version first. See architecture §20.
 
+/** Who took a live job off the website, when and why. */
+export interface TakenDown {
+  at: string;       // ISO
+  by: string;       // admin UUID
+  byName?: string;  // admin username at the time
+  reason: string;
+}
+
 export interface RecruitmentRecord {
   id: string;
   slug: string;
@@ -356,6 +364,8 @@ export interface RecruitmentRecord {
   recordRevision: string;     // content hash; incremented on every approved edit
   publishedAt?: string;       // ISO
   lastPublishedRevision?: string;
+  /** Set while a live job is taken off the website; absent when it shows as usual. */
+  takenDown?: TakenDown;
 
   // Namespace blocks (individual ProvenanceField per field)
   identity:  RecruitmentIdentity;

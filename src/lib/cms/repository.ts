@@ -60,6 +60,7 @@ interface RecruitmentRow {
   exam_stages: unknown;
   exam_pattern?: unknown;
   syllabus?: unknown;
+  taken_down?: unknown;
   classification: unknown;
   provenance: unknown;
   updates: unknown;
@@ -77,6 +78,7 @@ function rowToRecord(row: RecruitmentRow): RecruitmentRecord {
     recordRevision:         row.record_revision,
     publishedAt:            row.published_at ?? undefined,
     lastPublishedRevision:  row.last_published_revision ?? undefined,
+    takenDown:              (row.taken_down as RecruitmentRecord["takenDown"]) ?? undefined,
     identity:               row.identity as RecruitmentRecord["identity"],
     dates:                  row.dates as RecruitmentRecord["dates"],
     vacancies:              row.vacancies as RecruitmentRecord["vacancies"],
@@ -112,11 +114,11 @@ export async function getRecruitmentById(id: string): Promise<RecruitmentRecord 
   return rowToRecord(rows[0] as RecruitmentRow);
 }
 
-/** Every record the public can see: published at least once and not archived. */
+/** Every record the public can see: published at least once, not archived, not taken off the site. */
 export async function listLiveRecruitments(): Promise<RecruitmentRecord[]> {
   const rows = await sql`
     SELECT * FROM recruitments
-    WHERE published_at IS NOT NULL AND draft_state <> 'ARCHIVED'
+    WHERE published_at IS NOT NULL AND draft_state <> 'ARCHIVED' AND taken_down IS NULL
     ORDER BY updated_at DESC
     LIMIT 500
   `;
@@ -432,6 +434,8 @@ export async function persistPublication(
         draft_state             = 'PUBLISHED',
         published_at            = coalesce(published_at, now()),
         last_published_revision = ${sourceRevision},
+        -- Publishing puts a job that was taken off the site back on it.
+        taken_down              = NULL,
         updated_at              = now(),
         updated_by              = ${adminId}
       WHERE id = ${record.id}
@@ -536,6 +540,95 @@ export async function persistRevert(
 
   const saved = await getRecruitmentById(record.id);
   if (!saved) throw new Error(`Record ${record.id} not found after revert`);
+  return saved;
+}
+
+// ─── Taking a live job off the website, and putting it back ──
+
+export const TAKEN_DOWN_EVENT = "TAKEN_OFF_SITE";
+export const PUT_BACK_EVENT = "PUT_BACK_ON_SITE";
+
+/** Thrown when a job is not in the state a take-down or put-back needs (someone else got there first, or it was never live). */
+export class SiteVisibilityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SiteVisibilityError";
+  }
+}
+
+/**
+ * Hide a live job from every public page at once, keeping the record, its
+ * published snapshots and all its history. Records who did it, when and why.
+ * Neither the content nor record_revision changes, so an editor open on the
+ * record keeps working. Nothing is posted anywhere.
+ *
+ * Guard: the job has been published, is not archived and is not already off
+ * the site. Otherwise throws SiteVisibilityError.
+ */
+export async function persistTakeDown(
+  record: RecruitmentRecord,
+  adminId: string,
+  reason: string,
+): Promise<RecruitmentRecord> {
+  const rows = await sql`
+    WITH updated AS (
+      UPDATE recruitments SET
+        taken_down = jsonb_build_object(
+          'at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+          'by', ${adminId}::text,
+          'byName', (SELECT username FROM admins WHERE id = ${adminId}),
+          'reason', ${reason}::text
+        ),
+        updated_at = now(),
+        updated_by = ${adminId}
+      WHERE id = ${record.id}
+        AND last_published_revision IS NOT NULL
+        AND draft_state <> 'ARCHIVED'
+        AND taken_down IS NULL
+      RETURNING id
+    )
+    INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+    SELECT id, ${adminId}, ${TAKEN_DOWN_EVENT}, ${JSON.stringify({ reason })}
+    FROM updated
+    RETURNING recruitment_id
+  `;
+  if (rows.length === 0) throw new SiteVisibilityError("This job is not live on the site, so there is nothing to take off. It may already have been taken off.");
+
+  const saved = await getRecruitmentById(record.id);
+  if (!saved) throw new Error(`Record ${record.id} not found after taking it off the site`);
+  return saved;
+}
+
+/**
+ * Show a job that was taken off the site again. The public pages serve its
+ * last published snapshot, exactly as visitors last saw it; edits made since
+ * stay in the draft until they are published the usual way.
+ *
+ * Guard: the job is off the site. Otherwise throws SiteVisibilityError.
+ */
+export async function persistPutBack(
+  record: RecruitmentRecord,
+  adminId: string,
+): Promise<RecruitmentRecord> {
+  const rows = await sql`
+    WITH updated AS (
+      UPDATE recruitments SET
+        taken_down = NULL,
+        updated_at = now(),
+        updated_by = ${adminId}
+      WHERE id = ${record.id}
+        AND taken_down IS NOT NULL
+      RETURNING id
+    )
+    INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+    SELECT id, ${adminId}, ${PUT_BACK_EVENT}, ${JSON.stringify({ via: "put-back", takenDown: record.takenDown ?? null })}
+    FROM updated
+    RETURNING recruitment_id
+  `;
+  if (rows.length === 0) throw new SiteVisibilityError("This job is not off the site. It may already have been put back.");
+
+  const saved = await getRecruitmentById(record.id);
+  if (!saved) throw new Error(`Record ${record.id} not found after putting it back`);
   return saved;
 }
 

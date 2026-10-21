@@ -26,7 +26,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       SELECT
         id, slug, draft_state, record_revision,
         organization_id, organization_name, title_text, gov_type,
-        created_at, updated_at, published_at
+        created_at, updated_at, published_at, taken_down IS NOT NULL AS taken_down
       FROM recruitments
       ORDER BY updated_at DESC
       LIMIT 100

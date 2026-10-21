@@ -56,6 +56,7 @@ export async function createDb(): Promise<PGlite> {
   await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS exam_stages JSONB");
   await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS exam_pattern JSONB");
   await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS syllabus JSONB");
+  await pg.query("ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS taken_down JSONB");
   return pg;
 }
 

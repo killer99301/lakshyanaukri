@@ -3,6 +3,8 @@
 // ═══════════════════════════════════════════════════════════
 //
 // Called only from the public read path (src/lib/repository.ts).
+// Every query here leaves out archived jobs and jobs taken off the site, so
+// one place decides what the public can see.
 // Never called from admin routes — admin reads go through repository.ts.
 // ═══════════════════════════════════════════════════════════
 
@@ -24,6 +26,7 @@ export async function getPublishedBySlug(
     WHERE r.slug = ${slug}
       AND r.last_published_revision IS NOT NULL
       AND r.draft_state != 'ARCHIVED'
+      AND r.taken_down IS NULL
     ORDER BY pr.published_at DESC
     LIMIT 1
   `;
@@ -42,6 +45,7 @@ export async function getPublishedSlugs(): Promise<string[]> {
     JOIN recruitments r ON r.id = pr.recruitment_id
     WHERE r.last_published_revision IS NOT NULL
       AND r.draft_state != 'ARCHIVED'
+      AND r.taken_down IS NULL
     ORDER BY r.slug
   `;
   return rows.map((r) => r.slug as string);
@@ -49,7 +53,7 @@ export async function getPublishedSlugs(): Promise<string[]> {
 
 /**
  * Returns the most recent published snapshot for every recruitment that has
- * ever been published and is not ARCHIVED. Includes records reverted to DRAFT
+ * ever been published, is not ARCHIVED and is not taken off the site. Includes records reverted to DRAFT
  * after publication — public pages continue to serve their last snapshot.
  * Single batch query — no N+1. Used by the /jobs marketplace listing.
  */
@@ -64,6 +68,7 @@ export async function getAllPublishedSnapshots(): Promise<PublishedRecruitmentSn
     JOIN recruitments r ON r.id = pr.recruitment_id
     WHERE r.last_published_revision IS NOT NULL
       AND r.draft_state != 'ARCHIVED'
+      AND r.taken_down IS NULL
     ORDER BY r.id, pr.published_at DESC
   `;
   return rows.map((row) => {

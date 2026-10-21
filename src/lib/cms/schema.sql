@@ -193,3 +193,10 @@ CREATE TABLE IF NOT EXISTS syllabus_library (
 -- dateIso, dateDisplay, dateProvenance, noticeUrl, notes.
 -- Safe to re-run (IF NOT EXISTS).
 -- ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS exam_stages JSONB;
+
+-- ─── Taken off the website (added 2026-10-21) ────────────────
+-- Set when an admin takes a live job off the website: { at, by, byName, reason }.
+-- NULL means the job shows as usual. The record, its snapshots and its history
+-- are kept; "Put it back" clears this and the last published snapshot shows
+-- again. Applied to production by scripts/cms-add-taken-down.ts.
+-- ALTER TABLE recruitments ADD COLUMN IF NOT EXISTS taken_down JSONB;

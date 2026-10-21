@@ -32,6 +32,7 @@ import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { LiveChangesPanel } from "./LiveChangesPanel";
+import { TakeDownControl, TakenDownBanner } from "./SiteVisibility";
 import { currentValue, restorable, sameAsNow } from "@/lib/cms/restore-value";
 import { SmartDateInput } from "../../SmartDateInput";
 import { EvidenceList, EvidenceProvider, FieldQuotes } from "./EvidenceQuotes";
@@ -1204,7 +1205,7 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
           {live
-            ? done === items.length ? "Live — nothing is missing" : `Live — ${items.length - done} detail${items.length - done === 1 ? " is" : "s are"} still empty on the public page`
+            ? done === items.length ? `${record.takenDown ? "Off the website" : "Live"} — nothing is missing` : `${record.takenDown ? "Off the website" : "Live"} — ${items.length - done} detail${items.length - done === 1 ? " is" : "s are"} still empty on the public page`
             : blocked ? "Not ready to publish yet" : done === items.length ? "Ready to publish" : "Can be published — some details are still empty"}
         </div>
         <div style={{ fontSize: 12, color: C.muted }}>{done} of {items.length} filled</div>
@@ -1632,7 +1633,7 @@ export default function CmsRecordEditorPage() {
   if (loadErr) return <div style={{ color: C.red, padding: 40 }}>Error: {loadErr}</div>;
   if (!record) return <div style={{ color: C.muted, padding: 40 }}>Record not found.</div>;
 
-  const stateColor = { DRAFT: C.amber, APPROVED: C.green, PUBLISHED: C.accent, ARCHIVED: C.muted }[record.draftState] ?? C.muted;
+  const stateColor = record.takenDown ? C.red : { DRAFT: C.amber, APPROVED: C.green, PUBLISHED: C.accent, ARCHIVED: C.muted }[record.draftState] ?? C.muted;
   // Live, but reopened for editing: the public still sees the last published version.
   const editingLive = Boolean(record.publishedAt) && (record.draftState === "DRAFT" || record.draftState === "APPROVED");
 
@@ -1745,6 +1746,11 @@ export default function CmsRecordEditorPage() {
               />
               <span>{record.publishedAt ? "Post “Updated” to the Telegram channel" : "Post “New job” to the Telegram channel"}</span>
             </label>
+            {record.takenDown && (
+              <div style={{ fontSize: 11, color: C.amber, marginTop: 6, lineHeight: 1.4 }}>
+                This job is off the website. Publishing puts this version back on it.
+              </div>
+            )}
             {publishSeqErr && (
               <div style={{ color: C.red, fontSize: 11, marginTop: 8 }}>{publishSeqErr}</div>
             )}
@@ -1782,6 +1788,8 @@ export default function CmsRecordEditorPage() {
             </div>
           </div>
         )}
+
+        <TakeDownControl record={record} onChange={setRecord} />
 
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           <button
@@ -1848,13 +1856,15 @@ export default function CmsRecordEditorPage() {
               color: stateColor,
               border: `1px solid ${stateColor}44`,
             }}>
-              {editingLive ? "Live · being edited" : STATE_INFO[record.draftState]?.label ?? record.draftState}
+              {record.takenDown ? "Off the website" : editingLive ? "Live · being edited" : STATE_INFO[record.draftState]?.label ?? record.draftState}
             </span>
           </div>
           <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>
             {record.identity.organizationName} ·{" "}
-            {editingLive ? "The public still sees the last published version until you publish again" : STATE_INFO[record.draftState]?.note}
-            {(record.draftState === "PUBLISHED" || editingLive) && (
+            {record.takenDown
+              ? "Off the website: visitors cannot see it"
+              : editingLive ? "The public still sees the last published version until you publish again" : STATE_INFO[record.draftState]?.note}
+            {(record.draftState === "PUBLISHED" || editingLive) && !record.takenDown && (
               <>
                 {" · "}
                 <a href={`/jobs/${record.slug}`} target="_blank" rel="noreferrer" style={{ color: C.accent, textDecoration: "none" }}>
@@ -1865,11 +1875,15 @@ export default function CmsRecordEditorPage() {
           </div>
         </div>
 
+        <TakenDownBanner record={record} onChange={setRecord} />
+
         {/* A live job is locked. Said here, where the editing happens, not only on the side button. */}
         {record.draftState === "PUBLISHED" && (
           <div role="note" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 14, padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.amber}55`, background: `${C.amber}12`, fontSize: 12, color: C.text, lineHeight: 1.5 }}>
             <span style={{ flex: "1 1 320px" }}>
-              This job is live, so its fields, AI Assist and the editors are locked. Open it for editing to change anything: visitors keep seeing the live version until you publish again.
+              {record.takenDown
+                ? "Its fields, AI Assist and the editors are locked. Open it for editing to change anything; it stays off the website until you publish or put it back."
+                : "This job is live, so its fields, AI Assist and the editors are locked. Open it for editing to change anything: visitors keep seeing the live version until you publish again."}
             </span>
             <button
               onClick={() => { void handleRevert(); }}
