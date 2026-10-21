@@ -138,6 +138,35 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   const pasteHistory = (await pg.query("SELECT reason FROM field_revisions WHERE recruitment_id = $1", [pasteId])).rows as Array<{ reason: string }>;
   check("the history says the text was pasted by the admin", pasteHistory.length === 0 || pasteHistory.every((h) => /text pasted by admin/.test(h.reason)), pasteHistory.map((h) => h.reason));
 
+  section("Evidence: the source's words behind each value are kept");
+  const evidenceRoute = await import("@/app/api/admin/cms/records/[id]/evidence/route");
+  const evJob = await records.POST(json("/api/admin/cms/records", {
+    organizationId: "mp-esb-2", organizationName: "Madhya Pradesh Employees Selection Board", govType: "State Govt", title: "TEST RECORD MP Jail Prahari 2026", recruitmentYear: 2025, forceCreate: true,
+  }));
+  const evId: string = (await evJob.json()).record.id;
+  const EV_TEXT = `${READING}
+PAY SCALE
+Pay Scale: Rs. 19,500 - 62,000 per month.`;
+  aiAnswer = { status: 200, text: JSON.stringify({
+    age: { min: 18, max: 33, asOf: "2026-10-29", evidence: "Minimum 18 years and maximum 33 years as on 29-10-2026.", relaxations: [] },
+    payScale: { value: "Rs. 19,500 - 62,000 per month", evidence: "Pay Scale: Rs. 19,500 - 62,000 per month." },
+  }) };
+  r = await aiAssist.POST(form(`/api/admin/cms/records/${evId}/ai-assist`, (f) => { f.set("url", "https://esb.mp.gov.in/rulebook.pdf"); f.set("pastedText", EV_TEXT); }), ctx(evId));
+  d = await r.json();
+  const filledPaths = ((d.filled ?? []) as Array<{ fieldPath: string }>).map((x) => x.fieldPath);
+  check("the age limit and pay scale were filled", r.status === 200 && filledPaths.includes("age") && filledPaths.includes("financial.payScale"), { status: r.status, filledPaths, error: d.error, flagged: d.flagged });
+  const ev = await (await evidenceRoute.GET(new NextRequest(`${ORIGIN}/api/admin/cms/records/${evId}/evidence`, { headers: { cookie: `admin_sid=${token}` } }), ctx(evId))).json();
+  const evRow = (ev.evidence ?? [])[0] as { sourceType: string; url: string; excerpts: Array<{ fieldPath: string; quote: string; outcome: string }> } | undefined;
+  check("one evidence row, of its own type, for the source address", (ev.evidence ?? []).length === 1 && evRow?.sourceType === "AI_ASSIST" && evRow?.url === "https://esb.mp.gov.in/rulebook.pdf", ev);
+  const quoteFor = (fp: string) => evRow?.excerpts.find((e) => e.fieldPath === fp)?.quote;
+  check("each filled value keeps its quote", quoteFor("age") === "Minimum 18 years and maximum 33 years as on 29-10-2026." && quoteFor("financial.payScale") === "Pay Scale: Rs. 19,500 - 62,000 per month.", evRow?.excerpts);
+  const saved = (await pg.query("SELECT financial, age FROM recruitments WHERE id = $1", [evId])).rows[0] as { financial: { payScale: { status: string; evidenceIds: string[] } }; age: { status: string; evidenceIds: string[] } };
+  check("the fields stay Pending, with no evidence ids that would read as checked", saved.financial.payScale.status === "PENDING" && saved.financial.payScale.evidenceIds.length === 0 && saved.age.status === "PENDING" && saved.age.evidenceIds.length === 0, saved);
+  const gate = (await pg.query("SELECT count(*)::int AS n FROM recruitment_evidence WHERE recruitment_id = $1 AND source_type IN ('OFFICIAL_NOTIFICATION', 'OFFICIAL_CORRIGENDUM', 'OFFICIAL_EXAM_NOTICE')", [evId])).rows[0] as { n: number };
+  check("the evidence can never stand in for the official link a publish needs", gate.n === 0);
+  r = await evidenceRoute.GET(new NextRequest(`${ORIGIN}/api/admin/cms/records/${evId}/evidence`), ctx(evId));
+  check("evidence without a session → 401", r.status === 401, r.status);
+
   globalThis.fetch = realFetch;
   summary();
 })().catch((e) => { console.error("HARNESS ERROR:", e); process.exit(1); });

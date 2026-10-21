@@ -41,6 +41,7 @@ import {
 } from "@/lib/cms/ai-assist";
 import { aiAssistReason } from "@/lib/cms/ai-assist-apply";
 import { MIN_SCAN_TEXT_CHARS } from "@/lib/cms/scan-reader";
+import { saveAssistEvidence } from "@/lib/cms/assist-evidence";
 import { rememberSyllabusInLibrary, type LibraryAutosave } from "@/lib/cms/library-autosave";
 import { todayInIndia } from "@/lib/cms/attention";
 import { buildSyllabusSections, extractPatternAndSyllabus, SYLLABUS_FIELDS } from "@/lib/cms/ai-assist-syllabus";
@@ -249,9 +250,22 @@ export async function POST(
   const notFound: string[] = [];
   const candidates: AssistCandidate[] = [...merged.candidates];
 
+  // The source's own words behind each value, every one found verbatim in the
+  // source. Kept as evidence for the admin (see saveAssistEvidence); a quote
+  // is kept only when the value it backs is the one offered.
+  const quotesByField = new Map<string, string[]>();
+  const offered = (fieldPath: string) => candidates.find((c) => c.fieldPath === fieldPath)?.value;
+  for (const [field, outcome] of Object.entries(ai.dates)) {
+    if (outcome.status === "accepted" && outcome.quote && offered(`dates.${field}`) === outcome.value) quotesByField.set(`dates.${field}`, [outcome.quote]);
+  }
+  if (ai.notificationNumber.status === "accepted" && ai.notificationNumber.quote && offered("identity.notificationNumber") === ai.notificationNumber.value) {
+    quotesByField.set("identity.notificationNumber", [ai.notificationNumber.quote]);
+  }
+
   const addFee = (fieldPath: string, label: string, outcome: FeeOutcome) => {
     if (outcome.status === "accepted") {
       candidates.push({ fieldPath, label, value: outcome.value });
+      if (outcome.quote) quotesByField.set(fieldPath, [outcome.quote]);
     } else if (outcome.status === "rejected") {
       flagged.push({ label, value: outcome.value, reason: `${outcome.reason} — not applied` });
     } else if (outcome.status === "skipped") {
@@ -267,6 +281,7 @@ export async function POST(
     const outcome = details[key];
     if (outcome.status === "accepted") {
       candidates.push({ fieldPath, label, value: outcome.value });
+      if (outcome.quotes?.length) quotesByField.set(fieldPath, outcome.quotes);
       if (outcome.dropped > 0) {
         flagged.push({
           label,
@@ -287,6 +302,7 @@ export async function POST(
     const outcome = pattern[key];
     if (outcome.status === "accepted") {
       candidates.push({ fieldPath, label, value: outcome.value });
+      if (outcome.quotes?.length) quotesByField.set(fieldPath, outcome.quotes);
       if (outcome.dropped > 0) {
         flagged.push({
           label,
@@ -379,6 +395,15 @@ export async function POST(
       notFound.push(`Listing details (could not apply: ${String(err)})`);
     }
   }
+
+  // Quotes for what was filled, and for suggestions the admin may still apply.
+  await saveAssistEvidence({
+    recruitmentId: id,
+    url,
+    label: sourceLabel,
+    quotes: quotesByField,
+    fields: [...filled.map((f) => ({ fieldPath: f.fieldPath, outcome: "filled" as const })), ...suggested.map((f) => ({ fieldPath: f.fieldPath, outcome: "suggested" as const }))],
+  });
 
   const library = filled.some((f) => f.fieldPath === "syllabus" || f.fieldPath === "examPattern")
     ? await rememberSyllabusInLibrary(record, auth.adminId, todayInIndia())

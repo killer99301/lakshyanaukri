@@ -430,7 +430,7 @@ export function feeValueSupported(value: number, evidence: string): boolean {
 }
 
 export type FeeOutcome =
-  | { status: "accepted"; value: number }
+  | { status: "accepted"; value: number; quote?: string }
   | { status: "not_stated" }
   | { status: "rejected"; value: number; reason: string }
   | { status: "skipped"; reason: string };
@@ -447,7 +447,7 @@ function judgeFee(
   if (!feeValueSupported(candidate.value, candidate.evidence)) {
     return { status: "rejected", value: candidate.value, reason: "amount does not appear in the quoted source text" };
   }
-  return { status: "accepted", value: candidate.value };
+  return { status: "accepted", value: candidate.value, quote: candidate.evidence };
 }
 
 // The 512-token provider default is consumed by model "thinking" tokens,
@@ -541,7 +541,7 @@ export function buildDateSections(content: string, kind: SourceKind, url: string
 export type DateField = "applicationOpenDate" | "applicationCloseDate" | "feePaymentCloseDate" | "correctionWindowEnd";
 
 export type DateOutcome =
-  | { status: "accepted"; value: string }
+  | { status: "accepted"; value: string; quote?: string }
   | { status: "not_stated" }
   | { status: "rejected"; value: string; reason: string }
   | { status: "skipped"; reason: string };
@@ -580,7 +580,7 @@ export function judgeDate(
   if (field === "correctionWindowEnd" && !CORRECTION_RE.test(quote)) {
     return reject("the quote does not mention the correction window");
   }
-  return { status: "accepted", value };
+  return { status: "accepted", value, quote };
 }
 
 // ─── One Gemini call per Assist click ─────────────────────
@@ -649,7 +649,7 @@ export function judgeNotificationNumber(
   if (!NUMBER_LABEL_RE.test(candidate.evidence)) {
     return reject("the quote does not call it a notification or advertisement number");
   }
-  return { status: "accepted", value };
+  return { status: "accepted", value, quote: candidate.evidence };
 }
 
 const DATE_FIELDS: DateField[] = ["applicationOpenDate", "applicationCloseDate", "feePaymentCloseDate", "correctionWindowEnd"];

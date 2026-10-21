@@ -152,6 +152,7 @@ const notStated = { status: "not_stated" } as const;
 export function judgeExamPattern(raw: unknown, ev: Evidence): DetailOutcome<ExamPatternPaper[]> {
   if (!Array.isArray(raw) || raw.length === 0) return notStated;
   const papers: ExamPatternPaper[] = [];
+  const quotes: string[] = [];
   let dropped = 0;
 
   for (const item of raw.slice(0, 8)) {
@@ -190,11 +191,12 @@ export function judgeExamPattern(raw: unknown, ev: Evidence): DetailOutcome<Exam
       continue;
     }
     papers.push(paper);
+    quotes.push(String(p.evidence));
   }
 
   if (papers.length === 0) return { status: "rejected", reason: "no exam pattern item could be matched to the source text" };
   try {
-    return { status: "accepted", value: cleanExamPattern(papers), dropped: dropped + Math.max(0, raw.length - 8) };
+    return { status: "accepted", value: cleanExamPattern(papers), dropped: dropped + Math.max(0, raw.length - 8), quotes };
   } catch {
     return { status: "rejected", reason: "the exam pattern found was not in a usable form" };
   }
@@ -203,6 +205,7 @@ export function judgeExamPattern(raw: unknown, ev: Evidence): DetailOutcome<Exam
 export function judgeSyllabus(raw: unknown, ev: Evidence): DetailOutcome<SyllabusSubject[]> {
   if (!Array.isArray(raw) || raw.length === 0) return notStated;
   const subjects: SyllabusSubject[] = [];
+  const quotes: string[] = [];
   let dropped = 0;
 
   for (const item of raw.slice(0, 30)) {
@@ -221,11 +224,12 @@ export function judgeSyllabus(raw: unknown, ev: Evidence): DetailOutcome<Syllabu
 
     const paper = text(s.paper, 80);
     subjects.push({ ...(paper && inSource(paper, ev) ? { paper } : {}), subject, topics });
+    quotes.push(String(s.evidence));
   }
 
   if (subjects.length === 0) return { status: "rejected", reason: "no syllabus item could be matched to the source text" };
   try {
-    return { status: "accepted", value: cleanSyllabus(subjects), dropped: dropped + Math.max(0, raw.length - 30) };
+    return { status: "accepted", value: cleanSyllabus(subjects), dropped: dropped + Math.max(0, raw.length - 30), quotes };
   } catch {
     return { status: "rejected", reason: "the syllabus found was not in a usable form" };
   }

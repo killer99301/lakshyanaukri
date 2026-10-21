@@ -32,6 +32,18 @@ import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { LiveChangesPanel } from "./LiveChangesPanel";
+import { EvidenceList, EvidenceProvider, FieldQuotes } from "./EvidenceQuotes";
+
+// Readable names for the fields evidence is kept for.
+const EVIDENCE_LABELS: Record<string, string> = {
+  "identity.notificationNumber": "Notification number", "dates.applicationOpenDate": "Applications open",
+  "dates.applicationCloseDate": "Last date", "dates.feePaymentCloseDate": "Fee payment deadline",
+  "dates.correctionWindowEnd": "Correction window ends", "dates.notificationDate": "Notification date",
+  "financial.feeGeneral": "Fee (General / OBC)", "financial.feeSCST": "Fee (SC / ST / PwBD)", "financial.payScale": "Pay scale",
+  eligibility: "Eligibility", age: "Age limit", selection: "Selection process", howToApply: "How to apply",
+  examPattern: "Exam pattern", syllabus: "Syllabus", "vacancies.total": "Vacancies",
+};
+const evidenceLabel = (fieldPath: string) => EVIDENCE_LABELS[fieldPath] ?? fieldPath;
 import { prepublishChecks } from "@/lib/cms/prepublish-checks";
 import { guessLinkType, onGovernmentDomain } from "@/lib/cms/link-guess";
 import { UpdateCheckPanel } from "./UpdateCheckPanel";
@@ -219,6 +231,7 @@ function EditableField<T>({
         )}
       </div>
 
+      {!editing && <FieldQuotes fieldPath={fieldPath} block />}
       {!editing ? (
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <div style={{ fontSize: 14, color: C.text }}>{displayValue}</div>
@@ -1603,6 +1616,7 @@ export default function CmsRecordEditorPage() {
   const editingLive = Boolean(record.publishedAt) && (record.draftState === "DRAFT" || record.draftState === "APPROVED");
 
   return (
+    <EvidenceProvider recordId={record.id} revision={record.recordRevision}>
     <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
       {/* ── Left: section nav ── */}
       <div style={{
@@ -2234,6 +2248,7 @@ export default function CmsRecordEditorPage() {
         {/* ── Eligibility ── */}
         {activeSection === "Eligibility" && (
           <Section title="Post-wise Eligibility">
+            <FieldQuotes fieldPath="eligibility" block />
             <ProvenanceBlockDisplay
               label="Eligibility Block"
               field={record.eligibility}
@@ -2259,6 +2274,7 @@ export default function CmsRecordEditorPage() {
         {/* ── Age ── */}
         {activeSection === "Age" && (
           <Section title="Age Criteria">
+            <FieldQuotes fieldPath="age" block />
             <ProvenanceBlockDisplay
               label="Age Block"
               field={record.age}
@@ -2341,6 +2357,7 @@ export default function CmsRecordEditorPage() {
         {/* ── Selection ── */}
         {activeSection === "Selection" && (
           <Section title="Selection Process">
+            <FieldQuotes fieldPath="selection" block />
             <ProvenanceBlockDisplay
               label="Selection Block"
               field={record.selection}
@@ -2386,6 +2403,7 @@ export default function CmsRecordEditorPage() {
         {/* ── Exam Pattern ── */}
         {activeSection === "Exam Pattern" && (
           <Section title="Exam Pattern">
+            <FieldQuotes fieldPath="examPattern" block />
             <NoWrittenExamToggle record={record} onSave={saveBlock} />
             <ContentImportBox record={record} onSaveMany={saveBlocks} />
             {libraryNote && <div role="status" style={{ color: C.green, fontSize: 12, margin: "0 0 12px" }}>{libraryNote}</div>}
@@ -2397,6 +2415,7 @@ export default function CmsRecordEditorPage() {
         {/* ── Syllabus ── */}
         {activeSection === "Syllabus" && (
           <Section title="Syllabus">
+            <FieldQuotes fieldPath="syllabus" block />
             <ContentImportBox record={record} onSaveMany={saveBlocks} />
             {libraryNote && <div role="status" style={{ color: C.green, fontSize: 12, margin: "0 0 12px" }}>{libraryNote}</div>}
             <LibraryCompare record={record} />
@@ -2407,6 +2426,7 @@ export default function CmsRecordEditorPage() {
         {/* ── How to Apply ── */}
         {activeSection === "How to Apply" && (
           <Section title="How to Apply">
+            <FieldQuotes fieldPath="howToApply" block />
             <HowToApplyEditor record={record} onSaved={onFieldSaved} />
           </Section>
         )}
@@ -2496,10 +2516,7 @@ export default function CmsRecordEditorPage() {
         {/* ── Evidence ── */}
         {activeSection === "Evidence" && (
           <Section title="Evidence Sources">
-            <div style={{ color: C.muted, fontSize: 13 }}>
-              Evidence is attached to individual fields via evidenceIds.
-              The evidence store (recruitment_evidence table) is populated during IntelligenceDraft promotion (Phase E).
-            </div>
+            <EvidenceList labelFor={evidenceLabel} />
             <div style={{ marginTop: 16 }}>
               <Row label="Record Revision" value={record.recordRevision} mono />
               <Row label="Last Updated" value={record.updatedAt} />
@@ -2599,6 +2616,7 @@ export default function CmsRecordEditorPage() {
         )}
       </div>
     </div>
+    </EvidenceProvider>
   );
 }
 

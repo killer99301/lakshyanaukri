@@ -4,7 +4,8 @@
 // Same rules as the rest of AI Assist: nothing is invented, every item must be
 // backed by a quote found in the source, and everything stays PENDING.
 // The model writes facts in its own short words; the source's sentences are
-// used only as evidence quotes and are never stored.
+// never used as values. They are kept only as evidence: an admin-side record
+// of the words behind each value, never shown on the public page.
 
 import * as cheerio from "cheerio";
 import type { PageSection } from "@/intelligence/page-structurer";
@@ -179,7 +180,7 @@ function numbersSupported(value: string, ev: Evidence): boolean {
 const hasWholeNumber = (text: string, n: number) => new RegExp(`(?<!\\d)${n}(?!\\d)`).test(text);
 
 export type DetailOutcome<T> =
-  | { status: "accepted"; value: T; dropped: number }
+  | { status: "accepted"; value: T; dropped: number; /** The source's own words behind the value, each found verbatim in the source. */ quotes?: string[] }
   | { status: "not_stated" }
   | { status: "rejected"; reason: string }
   | { status: "skipped"; reason: string };
@@ -193,7 +194,7 @@ export function judgeHowToApply(raw: unknown, ev: Evidence): DetailOutcome<strin
   if (!quoteFound(r.evidence, ev)) return { status: "rejected", reason: "AI quote not found in the source text" };
   const steps = r.steps.map((s) => str(s, 220)).filter((s): s is string => s !== null).slice(0, 8);
   if (steps.length < 2) return { status: "rejected", reason: "fewer than two usable steps" };
-  return { status: "accepted", value: steps, dropped: r.steps.length - steps.length };
+  return { status: "accepted", value: steps, dropped: r.steps.length - steps.length, quotes: [String(r.evidence)] };
 }
 
 export function judgeAge(raw: unknown, ev: Evidence): DetailOutcome<AgeCriteria> {
@@ -204,6 +205,7 @@ export function judgeAge(raw: unknown, ev: Evidence): DetailOutcome<AgeCriteria>
   const max = okAge(r.max) ? r.max : undefined;
 
   let dropped = 0;
+  const quotes: string[] = [];
   const relaxations: AgeCriteria["relaxations"] = [];
   for (const item of Array.isArray(r.relaxations) ? r.relaxations.slice(0, 15) : []) {
     const it = (item ?? {}) as { category?: unknown; years?: unknown; evidence?: unknown };
@@ -211,6 +213,7 @@ export function judgeAge(raw: unknown, ev: Evidence): DetailOutcome<AgeCriteria>
     const years = Number.isInteger(it.years) && (it.years as number) >= 1 && (it.years as number) <= 20 ? (it.years as number) : null;
     if (category && years !== null && quoteFound(it.evidence, ev) && hasWholeNumber(it.evidence, years)) {
       relaxations.push({ category, years });
+      quotes.push(String(it.evidence));
     } else {
       dropped++;
     }
@@ -228,18 +231,20 @@ export function judgeAge(raw: unknown, ev: Evidence): DetailOutcome<AgeCriteria>
     if (min !== undefined && max !== undefined && min > max) return { status: "rejected", reason: "minimum age is above the maximum" };
     if (min !== undefined) value.min = min;
     if (max !== undefined) value.max = max;
+    quotes.unshift(String(r.evidence));
     // The reference date is kept only if the source text states that exact date.
     if (typeof r.asOf === "string" && /^20\d{2}-\d{2}-\d{2}$/.test(r.asOf)) {
       const stated = ev.text.length > 0 && parseDatesInText(r.evidence).includes(r.asOf);
       if (stated) value.asOf = r.asOf;
     }
   }
-  return { status: "accepted", value, dropped };
+  return { status: "accepted", value, dropped, quotes };
 }
 
 export function judgeEligibility(raw: unknown, ev: Evidence): DetailOutcome<CmsRecruitmentPost[]> {
   if (!Array.isArray(raw) || raw.length === 0) return notStated;
   const posts: CmsRecruitmentPost[] = [];
+  const quotes: string[] = [];
   let dropped = 0;
   for (const item of raw.slice(0, 12)) {
     const it = (item ?? {}) as { post?: unknown; qualification?: unknown; evidence?: unknown };
@@ -249,12 +254,13 @@ export function judgeEligibility(raw: unknown, ev: Evidence): DetailOutcome<CmsR
     const named = post !== null && normalizeForMatching(post).split(" ").some((w) => w.length >= 4 && ev.text.includes(w));
     if (post && qualification && named && quoteFound(it.evidence, ev) && numbersSupported(qualification, ev)) {
       posts.push({ post, qualification: [qualification] });
+      quotes.push(String(it.evidence));
     } else {
       dropped++;
     }
   }
   if (posts.length === 0) return { status: "rejected", reason: "no eligibility item could be matched to the source text" };
-  return { status: "accepted", value: posts, dropped: dropped + Math.max(0, raw.length - 12) };
+  return { status: "accepted", value: posts, dropped: dropped + Math.max(0, raw.length - 12), quotes };
 }
 
 const STAGE_TYPES = new Set<SelectionStageType>(["WRITTEN", "CBT", "INTERVIEW", "SKILL_TEST", "DOCUMENT_VERIFICATION", "PHYSICAL", "OTHER"]);
@@ -263,6 +269,7 @@ export function judgeSelection(raw: unknown, ev: Evidence): DetailOutcome<CmsSel
   if (typeof raw !== "object" || raw === null) return notStated;
   const r = raw as { stages?: unknown; negativeMarking?: unknown };
   const stages: CmsSelectionStage[] = [];
+  const quotes: string[] = [];
   let dropped = 0;
 
   for (const item of Array.isArray(r.stages) ? r.stages.slice(0, 8) : []) {
@@ -274,18 +281,22 @@ export function judgeSelection(raw: unknown, ev: Evidence): DetailOutcome<CmsSel
     const summary = str(it.summary, 160);
     if (summary && numbersSupported(summary, ev)) stage.description = summary;
     stages.push(stage);
+    quotes.push(String(it.evidence));
   }
 
   const value: CmsSelectionInformation = {};
   if (stages.length > 0) value.stages = stages;
   const nm = (r.negativeMarking ?? {}) as { value?: unknown; evidence?: unknown };
   const negative = str(nm.value, 160);
-  if (negative && quoteFound(nm.evidence, ev) && numbersSupported(negative, ev)) value.negativeMarking = negative;
+  if (negative && quoteFound(nm.evidence, ev) && numbersSupported(negative, ev)) {
+    value.negativeMarking = negative;
+    quotes.push(String(nm.evidence));
+  }
 
   if (!value.stages && !value.negativeMarking) {
     return dropped > 0 ? { status: "rejected", reason: "no selection stage could be matched to the source text" } : notStated;
   }
-  return { status: "accepted", value, dropped };
+  return { status: "accepted", value, dropped, quotes };
 }
 
 export function judgePayScale(raw: unknown, ev: Evidence): DetailOutcome<string> {
@@ -295,7 +306,7 @@ export function judgePayScale(raw: unknown, ev: Evidence): DetailOutcome<string>
   if (!value) return notStated;
   if (!quoteFound(r.evidence, ev)) return { status: "rejected", reason: "AI quote not found in the source text" };
   if (!numbersSupported(value, ev)) return { status: "rejected", reason: "a number in the pay scale does not appear in the source text" };
-  return { status: "accepted", value, dropped: 0 };
+  return { status: "accepted", value, dropped: 0, quotes: [String(r.evidence)] };
 }
 
 export interface DetailExtraction {

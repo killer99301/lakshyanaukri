@@ -130,6 +130,13 @@ function makeRecord(overrides: {
 
 // ─── Tests ────────────────────────────────────────────────
 
+// The value an accepted result carries, without the source quote it now also keeps.
+const accepted = <T extends { status: string }>(o: T) => {
+  const { quote: _quote, ...rest } = o as T & { quote?: string };
+  void _quote;
+  return rest;
+};
+
 suite("AI Assist V2 — helpers");
 
 test("AB01 vacancyRows conversion: label/count → VacancyRow post/count", () => {
@@ -518,8 +525,8 @@ test("FE03 fees from PDF text accepted when evidence is in the source", async ()
       applicationFeeSCST: { value: 0, evidence: "SC/ST/PwBD NIL", sectionHeading: "Fee section 1", confidence: "high" },
     }),
   });
-  assert.deepEqual(fees.general, { status: "accepted", value: 500 });
-  assert.deepEqual(fees.scst, { status: "accepted", value: 0 });
+  assert.deepEqual(accepted(fees.general), { status: "accepted", value: 500 });
+  assert.deepEqual(accepted(fees.scst), { status: "accepted", value: 0 });
 });
 
 test("FE04 fee whose quote is not in the source is rejected", async () => {
@@ -585,7 +592,7 @@ test("FE08 HTML path: fee section found and verified end to end", async () => {
       applicationFeeGeneral: { value: 500, evidence: "General / OBC / EWS: Rs. 500/-", sectionHeading: heading, confidence: "high" },
     }),
   });
-  assert.deepEqual(fees.general, { status: "accepted", value: 500 });
+  assert.deepEqual(accepted(fees.general), { status: "accepted", value: 500 });
 });
 
 suite("AI Assist V3 — preservation and state safety");
@@ -879,7 +886,8 @@ test("AD01 parseDatesInText reads the formats notices use", () => {
 });
 
 test("AD02 a date is accepted only when its quote is in the source and contains it", () => {
-  assert.deepEqual(judgeDate("applicationCloseDate", cand("2026-10-07", "Last Date to Submit Form 7th October 2026 (11 PM)"), dateSection), { status: "accepted", value: "2026-10-07" });
+  assert.deepEqual(accepted(judgeDate("applicationCloseDate", cand("2026-10-07", "Last Date to Submit Form 7th October 2026 (11 PM)"), dateSection)), { status: "accepted", value: "2026-10-07" });
+  assert.equal((judgeDate("applicationCloseDate", cand("2026-10-07", "Last Date to Submit Form 7th October 2026 (11 PM)"), dateSection) as { quote?: string }).quote, "Last Date to Submit Form 7th October 2026 (11 PM)");
   assert.equal(judgeDate("applicationCloseDate", cand("2026-10-09", "Last Date to Submit Form 7th October 2026 (11 PM)"), dateSection).status, "rejected");
   assert.equal(judgeDate("applicationCloseDate", cand("2026-10-07", "Last date is 7th October 2026, confirmed"), dateSection).status, "rejected");
   assert.equal(judgeDate("applicationOpenDate", cand("07/09/2026", "Online Application Started 7th September 2026"), dateSection).status, "rejected");
@@ -910,11 +918,11 @@ test("AD04 one AI call returns verified dates, fees and number; a list-wrapped a
   const fetchFn = (async (i: RequestInfo | URL, init?: RequestInit) => { calls++; return inner(i, init); }) as typeof fetch;
   const ai = await extractWithAi({ sections: dateSection, url: PDF_URL, apiKey: "test-key", fetchFn });
   assert.equal(calls, 1);
-  assert.deepEqual(ai.dates.applicationOpenDate, { status: "accepted", value: "2026-09-07" });
-  assert.deepEqual(ai.dates.applicationCloseDate, { status: "accepted", value: "2026-10-07" });
-  assert.deepEqual(ai.dates.feePaymentCloseDate, { status: "accepted", value: "2026-10-08" });
-  assert.deepEqual(ai.dates.correctionWindowEnd, { status: "accepted", value: "2026-10-16" });
-  assert.deepEqual(ai.notificationNumber, { status: "accepted", value: "F. No. HQ-C1102/5/2026-C-1" });
+  assert.deepEqual(accepted(ai.dates.applicationOpenDate), { status: "accepted", value: "2026-09-07" });
+  assert.deepEqual(accepted(ai.dates.applicationCloseDate), { status: "accepted", value: "2026-10-07" });
+  assert.deepEqual(accepted(ai.dates.feePaymentCloseDate), { status: "accepted", value: "2026-10-08" });
+  assert.deepEqual(accepted(ai.dates.correctionWindowEnd), { status: "accepted", value: "2026-10-16" });
+  assert.deepEqual(accepted(ai.notificationNumber), { status: "accepted", value: "F. No. HQ-C1102/5/2026-C-1" });
   assert.equal(ai.fees.general.status, "not_stated");
 });
 
