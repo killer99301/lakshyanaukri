@@ -73,7 +73,7 @@ const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "
 /** The date is written in the quote: its year, and its day with its month (as a number or a name). */
 export function dateInQuote(iso: string, quote: string): boolean {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m || Number.isNaN(Date.parse(iso))) return false;
+  if (!m || Number.isNaN(Date.parse(iso)) || new Date(`${iso}T00:00:00Z`).toISOString().slice(0, 10) !== iso) return false;
   const q = norm(quote);
   const [y, mo, d] = [m[1], Number(m[2]), Number(m[3])];
   if (!q.includes(y) && !q.includes(`-${y.slice(2)}`) && !q.includes(`/${y.slice(2)}`)) return false;
@@ -95,6 +95,7 @@ const str = (v: unknown, max = 300): string | undefined => (typeof v === "string
 const arr = (v: unknown): J[] => (Array.isArray(v) ? v.filter((x): x is J => !!x && typeof x === "object").slice(0, MAX_ITEMS) : []);
 const obj = (v: unknown): J | undefined => (v && typeof v === "object" && !Array.isArray(v) ? (v as J) : undefined);
 
+const ARTICLE_DATE = /\b(posted|updated|published|last modified)\b(?![^.]*\b(notification|advertisement|notice)\b)/i;
 const DATE_KEYS = ["applicationOpenDate", "applicationCloseDate", "feePaymentCloseDate", "correctionWindowEnd", "examDate", "admitCardDate", "interviewDate", "resultDate"] as const;
 const STAGE_TYPES: SelectionStageType[] = ["WRITTEN", "CBT", "INTERVIEW", "SKILL_TEST", "DOCUMENT_VERIFICATION", "PHYSICAL", "OTHER"];
 
@@ -144,7 +145,9 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
     const path = `dates.${key}`;
     const v = str(d.value, 10);
     if (!v || !quoted(path, d.quote)) continue;
-    if (dateInQuote(v, d.quote as string)) keep(path, v, d.quote as string);
+    // "Posted on 15 October 2026", "Updated on …": the article's own date.
+    if (ARTICLE_DATE.test(d.quote as string)) refuse(path, "the quote dates the article, not the recruitment");
+    else if (dateInQuote(v, d.quote as string)) keep(path, v, d.quote as string);
     else refuse(path, "the date is not written in its quote");
   }
 
