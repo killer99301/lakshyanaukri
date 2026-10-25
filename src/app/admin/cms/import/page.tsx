@@ -14,7 +14,8 @@ import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DiscoverPanel, type FoundJob } from "./DiscoverPanel";
-import { C, PANEL, badge, inputStyle, labelStyle, primaryBtn, quietBtn, showValue } from "./ui";
+import { ReviewPanel } from "./ReviewPanel";
+import { C, PANEL, badge, inputStyle, labelStyle, primaryBtn, quietBtn } from "./ui";
 
 type Kind = "OFFICIAL_NOTIFICATION" | "OFFICIAL_CORRIGENDUM" | "OFFICIAL_PAGE" | "RESEARCH" | "OTHER";
 type Method = "paste" | "upload" | "url";
@@ -55,18 +56,6 @@ const KIND_LABELS: Record<Kind, string> = {
   OFFICIAL_PAGE: "Official web page",
   RESEARCH: "Research (ChatGPT, Claude, a portal)",
   OTHER: "Other",
-};
-const ACTION_LOOK: Record<Item["action"], { label: string; color: string }> = {
-  FILL: { label: "Fill", color: C.green },
-  MATCHES: { label: "Same as now — adds evidence", color: C.muted },
-  REPLACE: { label: "Replace", color: C.amber },
-  REPLACE_VERIFIED: { label: "Replace a verified value", color: C.red },
-};
-const AUTH_LOOK: Record<string, { label: string; color: string }> = {
-  CONFIRMED: { label: "Confirmed", color: C.green },
-  ATTESTED: { label: "Attested by you", color: C.amber },
-  UNCONFIRMED: { label: "Not confirmed", color: C.red },
-  NOT_APPLICABLE: { label: "Research — never official", color: C.orange },
 };
 
 let nextKey = 1;
@@ -266,7 +255,6 @@ function Importer() {
   };
 
   const items = useMemo(() => preview?.proposal.items ?? [], [preview]);
-  const sourceById = useMemo(() => new Map((preview?.proposal.meta.sources ?? []).map((s) => [s.id, s])), [preview]);
   const toggle = (item: Item) => setTicked((prev) => {
     const next = new Set(prev);
     if (next.has(item.id)) next.delete(item.id);
@@ -299,23 +287,27 @@ function Importer() {
     setPreview(null);
   };
 
-  const groups = useMemo(() => {
-    const m = new Map<string, Item[]>();
-    for (const i of items) m.set(i.fieldPath, [...(m.get(i.fieldPath) ?? []), i]);
-    return [...m.entries()];
-  }, [items]);
-
   return (
     <div style={{ maxWidth: 1100 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5ff", margin: 0 }}>{recordId ? "Smart intake into this job" : "Smart intake"}</h1>
           <div style={{ fontSize: 13, color: C.muted, marginTop: 4, maxWidth: 760, lineHeight: 1.5 }}>
-            Paste a whole article or ChatGPT answer, upload the notice PDF or a screenshot, or give an address. Every section of the job is filled from what they say; you tick what to keep. Values are saved as Pending, and the job cannot be published until you check its critical fields against the official notice. AI Assist and manual entry work as before.
+            Give it an article, the notice PDF, a screenshot or a link. It fills the job&apos;s sections; you review and save a draft. AI Assist and manual entry work as before.
           </div>
-          <div data-import-retention style={{ fontSize: 11, color: C.muted, marginTop: 6, maxWidth: 760, lineHeight: 1.5 }}>
-            Kept: the text of each source, its fingerprint (SHA-256), size, pages and address. Not kept: the original PDF or image file, so keep your own copy if you may need it again.
-          </div>
+          {on && (
+            <ol data-import-steps style={{ display: "flex", gap: 6, listStyle: "none", padding: 0, margin: "10px 0 0", flexWrap: "wrap" }}>
+              {["Provide information", "Review", "Save as draft"].map((label, n) => {
+                const step = applied ? 2 : preview ? 1 : 0;
+                return (
+                  <li key={label} aria-current={n === step ? "step" : undefined} style={{
+                    fontSize: 12, padding: "4px 10px", borderRadius: 999,
+                    border: `1px solid ${n === step ? C.accent : C.border}`, color: n === step ? C.text : C.muted, background: n === step ? `${C.accent}18` : "transparent",
+                  }}>{n + 1}. {label}</li>
+                );
+              })}
+            </ol>
+          )}
         </div>
         <Link href={recordId ? `/admin/cms/${recordId}` : "/admin/cms"} style={{ color: C.accent, fontSize: 13, textDecoration: "none" }}>← {recordId ? "Back to the job" : "All jobs"}</Link>
       </div>
@@ -324,14 +316,15 @@ function Importer() {
 
       {on === null ? <div style={{ color: C.muted, fontSize: 13 }}>Checking the importer switch…</div> : on === false ? null : applied ? (
         <div data-import-applied style={{ ...PANEL, padding: 18, color: C.text, fontSize: 14, lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 700, color: C.green }}>{applied.replayed ? "This import was already applied." : "Applied."} Nothing is published.</div>
-          <div style={{ color: C.muted, fontSize: 13 }}>Open the job and work through “Check before publishing”: every critical field needs a person’s check against the official document.</div>
+          <div style={{ fontWeight: 700, color: C.green }}>{applied.replayed ? "This was already saved." : "Saved as a draft."} Nothing is published or verified.</div>
+          <div style={{ color: C.muted, fontSize: 13 }}>Open the job: its sections hold these values as Pending. “Check before publishing” lists the key details to check against the official notification before it can go live.</div>
           <Link href={`/admin/cms/${applied.recruitmentId}`} style={{ ...primaryBtn, display: "inline-block", marginTop: 12, textDecoration: "none" }}>Open the job</Link>
         </div>
       ) : (
         <>
-          {!recordId && <DiscoverPanel onPick={pickFound} />}
+          {!preview && !recordId && <DiscoverPanel onPick={pickFound} />}
 
+          {!preview && (<>
           {/* The job */}
           <div data-import-job style={{ ...PANEL, padding: 16, marginBottom: 16 }}>
             {recordId ? (
@@ -368,104 +361,38 @@ function Importer() {
             ))}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {sources.length < 4 && <button onClick={() => setSources((all) => [...all, newSource("OFFICIAL_PAGE", "url")])} style={quietBtn}>+ Add a source</button>}
-              <button onClick={() => { void makePreview(); }} disabled={busy || sources.length === 0} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{busy && !preview ? "Reading the sources…" : "Make the preview"}</button>
+              <button onClick={() => { void makePreview(); }} disabled={busy || sources.length === 0} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{busy && !preview ? "Reading the sources…" : "Read and fill the job →"}</button>
+            </div>
+            <div data-import-retention style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>
+              Kept with the job: the text of each source, its fingerprint (SHA-256), size, pages and address. Not kept: the original PDF or image, so keep your own copy.
             </div>
             {err && !preview && <div role="alert" style={{ color: C.red, fontSize: 13 }}>{err}</div>}
           </div>
+          </>)}
 
-          {/* Preview */}
+          {/* Review */}
           {preview && (
-            <div data-import-preview style={{ ...PANEL, padding: 16, display: "grid", gap: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#c7d2e6" }}>Preview — nothing is saved yet</div>
-
-              {(preview.proposal.warnings ?? []).length > 0 && (
-                <div data-import-warnings role="alert" style={{ border: `1px solid ${C.amber}66`, background: `${C.amber}12`, borderRadius: 8, padding: 10, fontSize: 12, color: C.text, display: "grid", gap: 4 }}>
-                  {(preview.proposal.warnings ?? []).map((w) => <div key={w}>⚠ {w}</div>)}
-                </div>
-              )}
-
-              <div style={{ display: "grid", gap: 8 }}>
-                {preview.proposal.meta.sources.map((s) => (
-                  <div key={s.id} style={{ fontSize: 12, color: C.text, lineHeight: 1.5 }}>
-                    <span style={badge((AUTH_LOOK[s.authenticity] ?? AUTH_LOOK.UNCONFIRMED).color)}>{(AUTH_LOOK[s.authenticity] ?? AUTH_LOOK.UNCONFIRMED).label}</span>{" "}
-                    {s.label}
-                    {s.notFound.length > 0 && <div style={{ color: C.muted }}>Not found in it: {s.notFound.join(", ")}</div>}
-                    {s.refused.length > 0 && <div style={{ color: C.amber }}>Left out: {s.refused.map((r) => `${r.fieldPath} (${r.reason})`).join("; ")}</div>}
-                    {s.articleSkipped && <div style={{ color: C.amber }}>The whole-text reading did not run: {s.articleSkipped}</div>}
-                  </div>
-                ))}
-              </div>
-
-              {duplicates.length > 0 && (
-                <div role="alert" style={{ border: `1px solid ${C.red}66`, background: `${C.red}12`, borderRadius: 8, padding: 10, fontSize: 12, color: C.text }}>
-                  <strong>A job like this already exists:</strong>{" "}
-                  {duplicates.map((d) => <Link key={d.id} href={`/admin/cms/${d.id}`} style={{ color: C.accent, marginRight: 8 }}>{d.title || d.id}</Link>)}
-                  <div style={{ color: C.muted, marginTop: 4 }}>Import into that job instead, or say why this is a separate job:</div>
-                  <input value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="e.g. a separate notice for a different post" style={{ ...inputStyle, marginTop: 6 }} />
-                </div>
-              )}
-
-              {preview.proposal.replacedInImport.length > 0 && (
-                <div style={{ fontSize: 12, color: C.muted }}>
-                  Replaced by the corrigendum: {preview.proposal.replacedInImport.map((r) => `${r.fieldPath} was ${showValue(r.value, r.fieldPath)}`).join("; ")}
-                </div>
-              )}
-
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <thead>
-                    <tr>{["", "Field", "Proposed", "Now", "Sources"].map((h) => (
-                      <th key={h} style={{ textAlign: "left", color: C.muted, fontWeight: 600, padding: "6px 8px 6px 0", borderBottom: `1px solid ${C.border}` }}>{h}</th>
-                    ))}</tr>
-                  </thead>
-                  <tbody>
-                    {groups.flatMap(([, group]) => group.map((i, k) => (
-                      <tr key={i.id} data-import-item={i.id} style={{ verticalAlign: "top", borderTop: k === 0 ? `1px solid ${C.border}` : "none" }}>
-                        <td style={{ padding: "8px 8px 8px 0" }}>
-                          <input type="checkbox" aria-label={`Keep ${i.label}`} checked={ticked.has(i.id)} onChange={() => toggle(i)} />
-                        </td>
-                        <td style={{ padding: "8px 8px 8px 0", color: C.text, minWidth: 140 }}>
-                          {k === 0 && <strong>{i.label}</strong>}
-                          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
-                            <span style={badge(ACTION_LOOK[i.action].color)}>{ACTION_LOOK[i.action].label}</span>
-                            {i.conflict && <span style={badge(C.red)}>Sources disagree — pick one</span>}
-                          </div>
-                        </td>
-                        <td style={{ padding: "8px 8px 8px 0", color: C.text, whiteSpace: "pre-wrap", maxWidth: 340, overflowWrap: "anywhere" }}>
-                          {showValue(i.value, i.fieldPath)}
-                          {i.flags.map((f) => <div key={f} style={{ color: C.amber, marginTop: 4 }}>⚠ {f}</div>)}
-                        </td>
-                        <td style={{ padding: "8px 8px 8px 0", color: C.muted, whiteSpace: "pre-wrap", maxWidth: 220, overflowWrap: "anywhere" }}>{i.current === undefined ? "—" : showValue(i.current, i.fieldPath)}</td>
-                        <td style={{ padding: "8px 0", color: C.muted, maxWidth: 300 }}>
-                          {i.claims.map((c, n) => (
-                            <div key={n} style={{ marginBottom: 4 }}>
-                              <span style={{ color: C.text }}>{sourceById.get(c.retrievalId)?.label ?? "source"}</span>
-                              {c.page ? `, p.${c.page}` : ""}
-                              {c.quote && <div style={{ fontStyle: "italic", overflowWrap: "anywhere" }}>“{c.quote.slice(0, 220)}”</div>}
-                            </div>
-                          ))}
-                        </td>
-                      </tr>
-                    )))}
-                  </tbody>
-                </table>
-              </div>
-
-              {needsVerifiedConfirm && (
-                <label style={{ display: "flex", gap: 8, fontSize: 12, color: C.red }}>
-                  <input type="checkbox" checked={confirmVerified} onChange={(e) => setConfirmVerified(e.target.checked)} />
-                  I am replacing values that were verified. They will need checking again.
-                </label>
-              )}
-              {err && <div role="alert" style={{ color: C.red, fontSize: 13 }}>{err}</div>}
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <button onClick={() => { void apply(); }} disabled={busy || ticked.size === 0 || (needsVerifiedConfirm && !confirmVerified)} style={{ ...primaryBtn, opacity: busy || ticked.size === 0 ? 0.6 : 1 }}>
-                  {busy ? "Applying…" : `Apply ${ticked.size} ticked item${ticked.size === 1 ? "" : "s"}`}
-                </button>
-                <button onClick={() => { void discard(); }} disabled={busy} style={{ ...quietBtn, color: C.muted, borderColor: C.border }}>Discard the preview</button>
-                <span style={{ fontSize: 11, color: C.muted }}>Applied in one step: either everything ticked is saved, or nothing is.</span>
-              </div>
-            </div>
+            <ReviewPanel
+              title={recordId ? job?.title ?? "" : newJob.title}
+              organization={recordId ? "" : newJob.organizationName}
+              existing={!!recordId}
+              items={items}
+              sources={preview.proposal.meta.sources}
+              warnings={preview.proposal.warnings ?? []}
+              replaced={preview.proposal.replacedInImport}
+              ticked={ticked}
+              onToggle={(i) => { const item = items.find((x) => x.id === i.id); if (item) toggle(item); }}
+              duplicates={duplicates}
+              overrideReason={overrideReason}
+              setOverrideReason={setOverrideReason}
+              needsVerifiedConfirm={needsVerifiedConfirm}
+              confirmVerified={confirmVerified}
+              setConfirmVerified={setConfirmVerified}
+              busy={busy}
+              err={err}
+              onSave={() => { void apply(); }}
+              onBack={() => { void discard(); }}
+            />
           )}
         </>
       )}

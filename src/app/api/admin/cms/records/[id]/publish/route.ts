@@ -111,7 +111,8 @@ export async function POST(
       const words = (cls: string) => Object.fromEntries(gate.verdicts
         .filter((v) => v.cls === cls)
         .map((v) => [v.fieldPath, v.publicNote ?? ""]));
-      snapshot = { ...snapshot, notApplicable: words("NOT_APPLICABLE"), notStated: words("NOT_STATED") };
+      // The gate passed (it refused above otherwise): say so on the public page.
+      snapshot = { ...snapshot, notApplicable: words("NOT_APPLICABLE"), notStated: words("NOT_STATED"), keyDetailsChecked: gate.ok };
     }
   } catch (err) {
     console.error("[CMS] projection failed", err);

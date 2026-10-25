@@ -96,6 +96,8 @@ export interface PublishedRecruitmentSnapshot {
   notApplicable?: Record<string, string>;
   /** Imported jobs only: fields the notice does not state, with optional public wording. */
   notStated?: Record<string, string>;
+  /** Imported jobs only: published after every critical field passed the import checks. */
+  keyDetailsChecked?: boolean;
   projectionVersion: string;
   sourceRecordRevision: string;
 }

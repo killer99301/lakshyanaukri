@@ -54,6 +54,8 @@ export interface Provenance {
   primarySourceType: SourceType;
   notes?: string;                 // "Vacancy verified from corrigendum PDF page 3"
   sourceDraftId?: string;         // set when record was promoted from an intelligence draft
+  /** Imported jobs only: every critical detail was checked by a person against the official notification (or recorded as not applicable / not stated). */
+  keyDetailsChecked?: boolean;
 }
 
 // ─── Update History (Layer 2: Historical Events) ────────

@@ -33,6 +33,7 @@ import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { LiveChangesPanel } from "./LiveChangesPanel";
 import { ImportChecksPanel, type ImportCheckState } from "./ImportChecksPanel";
+import { ImportVerdictBadge, ImportVerdicts } from "./ImportVerdict";
 import { ImporterLink } from "../import/ImporterLink";
 import { TakeDownControl, TakenDownBanner } from "./SiteVisibility";
 import { currentValue, restorable, sameAsNow } from "@/lib/cms/restore-value";
@@ -226,6 +227,7 @@ function EditableField<T>({
         </span>
         <InfoTip id={fieldPath} />
         {field && <Badge status={field.status} />}
+        <ImportVerdictBadge fieldPath={fieldPath} />
         {field?.conflict && (
           <span style={{ marginLeft: 6, fontSize: 11, color: C.red }}>⚠ conflict</span>
         )}
@@ -1310,7 +1312,7 @@ export default function CmsRecordEditorPage() {
   // job going live the first time, no for a republish.
   const [announceChoice, setAnnounceChoice] = useState<boolean | null>(null);
   const [reverting, setReverting] = useState(false);
-  const [importChecks, setImportChecks] = useState<ImportCheckState>({ toCheck: 0, checked: [] });
+  const [importChecks, setImportChecks] = useState<ImportCheckState>({ toCheck: 0, checked: [], fields: {} });
   const importToCheck = importChecks.toCheck;
   const [revertErr, setRevertErr] = useState<string | null>(null);
   const [showAddUpdate, setShowAddUpdate] = useState(false);
@@ -1659,6 +1661,7 @@ export default function CmsRecordEditorPage() {
 
   return (
     <EvidenceProvider recordId={record.id} revision={record.recordRevision}>
+    <ImportVerdicts.Provider value={importChecks.fields}>
     <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
       {/* ── Left: section nav ── */}
       <div style={{
@@ -2306,6 +2309,7 @@ export default function CmsRecordEditorPage() {
               <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
                 Breakdown
                 {record.vacancies.breakdown && <Badge status={record.vacancies.breakdown.status} />}
+                <ImportVerdictBadge fieldPath="vacancies.breakdown" />
               </div>
               <VacancyBreakdownEditor record={record} onSaved={onFieldSaved} />
             </div>
@@ -2318,6 +2322,7 @@ export default function CmsRecordEditorPage() {
             <FieldQuotes fieldPath="eligibility" block />
             <ProvenanceBlockDisplay
               label="Eligibility Block"
+              fieldPath="eligibility"
               field={record.eligibility}
               renderContent={(val: unknown) => {
                 const posts = val as Array<{ post: string; qualification?: string[]; experience?: string[] }>;
@@ -2344,6 +2349,7 @@ export default function CmsRecordEditorPage() {
             <FieldQuotes fieldPath="age" block />
             <ProvenanceBlockDisplay
               label="Age Block"
+              fieldPath="age"
               field={record.age}
               renderContent={(val: unknown) => {
                 const age = val as { min?: number; max?: number; asOf?: string; relaxations?: Array<{ category: string; years?: number; text?: string }>; postWise?: Array<{ post: string; min?: number; max?: number; bornFrom?: string; bornTo?: string }>; bornFrom?: string; bornTo?: string };
@@ -2427,6 +2433,7 @@ export default function CmsRecordEditorPage() {
             <FieldQuotes fieldPath="selection" block />
             <ProvenanceBlockDisplay
               label="Selection Block"
+              fieldPath="selection"
               field={record.selection}
               renderContent={(val: unknown) => {
                 const sel = val as { stages?: Array<{ name: string; order: number }>; examPattern?: string; negativeMarking?: string; finalMeritFormula?: string };
@@ -2684,6 +2691,7 @@ export default function CmsRecordEditorPage() {
         )}
       </div>
     </div>
+    </ImportVerdicts.Provider>
     </EvidenceProvider>
   );
 }
@@ -2749,10 +2757,12 @@ function RestoreButton({ record, rev, onSaved }: { record: RecruitmentRecord; re
 
 function ProvenanceBlockDisplay({
   label,
+  fieldPath,
   field,
   renderContent,
 }: {
   label: string;
+  fieldPath?: string;
   field: ProvenanceField<unknown> | undefined;
   renderContent: (v: unknown) => React.ReactNode;
 }) {
@@ -2764,6 +2774,7 @@ function ProvenanceBlockDisplay({
       <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
         <Badge status={field.status} />
+        {fieldPath && <ImportVerdictBadge fieldPath={fieldPath} />}
         {field.evidenceIds.length > 0 && (
           <span style={{ marginLeft: 6, fontSize: 11, color: C.muted }}>{field.evidenceIds.length} source(s)</span>
         )}

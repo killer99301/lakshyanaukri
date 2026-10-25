@@ -205,6 +205,7 @@ export function snapshotToGovernmentRecruitment(
       lastVerifiedAt:    snapshot.projectedAt,
       primarySourceUrl:  snapshot.primarySourceUrl ?? undefined,
       primarySourceType: "OFFICIAL_NOTIFICATION" as SourceType,
+      ...(snapshot.keyDetailsChecked ? { keyDetailsChecked: true } : {}),
     },
     updates,
   };

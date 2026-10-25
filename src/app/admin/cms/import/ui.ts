@@ -48,7 +48,14 @@ export function badge(color: string): React.CSSProperties {
 }
 
 /** A proposed or current value, in words. */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** "2026-10-24" → "24 Oct 2026", wherever it appears in a text. */
+export function readableDates(text: string): string {
+  return text.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (m, y, mo, d) => (Number(mo) >= 1 && Number(mo) <= 12 ? `${Number(d)} ${MONTHS[Number(mo) - 1]} ${y}` : m));
+}
+
 export function showValue(value: unknown, fieldPath?: string): string {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return readableDates(value);
   if (value && typeof value === "object" && !Array.isArray(value) && "url" in (value as object)) {
     const l = value as { label?: string; url: string; official?: boolean };
     return `${l.label ?? "Link"}: ${l.url}${l.official ? " (official)" : ""}`;
@@ -66,7 +73,7 @@ export function showValue(value: unknown, fieldPath?: string): string {
     }).join("\n");
   }
   if (fieldPath === "conditions" && Array.isArray(value)) return (value as string[]).map((n, i) => `${i + 1}. ${n}`).join("\n");
-  return describeAiValue(value);
+  return readableDates(describeAiValue(value));
 }
 
 /** Field classes for the check list, in words and colours. */
@@ -74,10 +81,10 @@ export const CLASS_LOOK: Record<string, { label: string; color: string }> = {
   VERIFIED: { label: "Verified", color: C.green },
   NOT_APPLICABLE: { label: "Not applicable", color: C.green },
   NOT_STATED: { label: "Not stated", color: C.accent },
-  SUPPORTED: { label: "Official source, not checked", color: C.amber },
-  RESEARCH_ONLY: { label: "Research only", color: C.orange },
-  UNSUPPORTED: { label: "No source", color: C.red },
+  SUPPORTED: { label: "In the official notice — not checked yet", color: C.amber },
+  RESEARCH_ONLY: { label: "From research only", color: C.orange },
+  UNSUPPORTED: { label: "No official source", color: C.red },
   CONFLICTING: { label: "Sources disagree", color: C.red },
   LEGACY: { label: "Entered before import", color: C.amber },
-  MISSING: { label: "Missing", color: C.red },
+  MISSING: { label: "Not filled in", color: C.red },
 };

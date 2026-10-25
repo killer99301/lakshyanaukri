@@ -24,7 +24,7 @@ interface Retrieval {
   id: string; declaredKind: string; versionLabel: string | null; originHost: string | null; originRole: string;
   authenticity: string; contentKind: string; pageCount: number | null;
 }
-interface Checks { imported: boolean; ok: boolean; rows: Row[]; retrievals: Retrieval[] }
+interface Checks { imported: boolean; ok: boolean; rows: Row[]; retrievals: Retrieval[]; fields?: Record<string, string> }
 type Kind = "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED";
 
 const docName = (r: Retrieval) =>
@@ -114,8 +114,9 @@ function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel }: {
   );
 }
 
-export interface ImportCheckState { toCheck: number; checked: string[] }
+export interface ImportCheckState { toCheck: number; checked: string[]; fields: Record<string, string> }
 const checkState = (c: Checks): ImportCheckState => ({
+  fields: c.imported ? c.fields ?? {} : {},
   toCheck: c.imported && !c.ok ? c.rows.filter((r) => !(r.cls === "VERIFIED" || r.cls === "NOT_APPLICABLE" || (r.cls === "NOT_STATED" && r.tier === "B"))).length : 0,
   checked: c.imported ? c.rows.filter((r) => r.cls === "VERIFIED").map((r) => r.fieldPath) : [],
 });
@@ -129,6 +130,7 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
   const [checks, setChecks] = useState<Checks | null>(null);
   const [open, setOpen] = useState<{ path: string; kind: Kind } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
 
   const load = useCallback(async () => {
@@ -160,19 +162,34 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
 
   if (!checks || !checks.imported) return null;
   const blockers = checks.rows.filter((r) => !(r.cls === "VERIFIED" || r.cls === "NOT_APPLICABLE" || (r.cls === "NOT_STATED" && r.tier === "B")));
+  const done = checks.rows.length - blockers.length;
+  // Checks need an official document a person can open: confirmed or
+  // attested, from the body or a listed partner. Research alone has none.
+  const canCheck = checks.retrievals.some((r) => (r.authenticity === "CONFIRMED" || r.authenticity === "ATTESTED") && (r.originRole === "AUTHORITY" || r.originRole === "PARTNER"));
+  const showList = expanded || open !== null;
 
   return (
     // Typing here is not an edit of the job (each check is sent by its own
     // button), so it must not set off the page's "not saved" warning.
     <section data-import-checks aria-label="Check before publishing" onInput={(e) => e.stopPropagation()} style={{ ...PANEL, padding: "14px 18px", marginBottom: 16, fontSize: 12, color: C.text }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 14, fontWeight: 700 }}>
-          {checks.ok ? "Checked — ready to publish" : `Check before publishing — ${blockers.length} field${blockers.length === 1 ? "" : "s"} to go`}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>
+            {checks.ok ? "Key details checked — ready to publish" : `Check before publishing: ${done} of ${checks.rows.length} key details done`}
+          </div>
+          <div style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>
+            {checks.ok ? "Every key detail was checked against the official notification, or recorded as not applicable or not stated."
+              : canCheck ? "This job was imported. Each key detail needs a person's check against the official notification before it can go live."
+                : "This job was filled from research only. Add the official notification first (Smart intake into this job), then check each key detail against it."}
+          </div>
         </div>
-        <span style={{ color: C.muted, fontSize: 11 }}>This job was imported, so a person must check each of these against the official document.</span>
+        <button onClick={() => setExpanded((x) => !x)} style={{ ...quietBtn, padding: "4px 10px" }}>{showList ? "Hide the checks" : "Show the checks"}</button>
+      </div>
+      <div style={{ height: 4, background: "#070b16", borderRadius: 999, marginTop: 10, overflow: "hidden" }}>
+        <div style={{ width: `${Math.round((done / Math.max(1, checks.rows.length)) * 100)}%`, height: "100%", background: checks.ok ? C.green : C.amber }} />
       </div>
       {err && <div role="alert" style={{ color: C.red, marginTop: 6 }}>{err}</div>}
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10 }}>
+      {showList && <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10 }}>
         <tbody>
           {checks.rows.map((row) => {
             const look = CLASS_LOOK[row.cls] ?? { label: row.cls, color: C.muted };
@@ -181,18 +198,17 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
               <tr key={row.fieldPath} data-check-row={row.fieldPath} style={{ borderTop: `1px solid ${C.border}`, verticalAlign: "top" }}>
                 <td style={{ padding: "7px 8px 7px 0", whiteSpace: "nowrap" }}>
                   <span style={{ color: blocking ? C.text : C.muted, fontWeight: blocking ? 700 : 400 }}>{row.label}</span>
-                  {row.tier && <span style={{ color: C.muted, fontSize: 10 }}> · Tier {row.tier}</span>}
                 </td>
                 <td style={{ padding: "7px 8px 7px 0" }}><span style={badge(look.color)}>{look.label}</span></td>
                 <td style={{ padding: "7px 8px 7px 0", color: C.muted, whiteSpace: "pre-wrap", maxWidth: 320, overflowWrap: "anywhere" }}>{row.value === null || row.value === undefined ? "—" : showValue(row.value, row.fieldPath)}</td>
                 <td style={{ padding: "7px 0", textAlign: "right", whiteSpace: "nowrap" }}>
-                  {editable && (
+                  {editable && canCheck && (
                     <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
                       {row.value !== null && row.value !== undefined && row.cls !== "VERIFIED" && (
                         <button onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_VERIFIED" })} style={{ ...quietBtn, padding: "2px 8px" }}>Verify</button>
                       )}
                       {row.cls !== "NOT_APPLICABLE" && <button onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_NOT_APPLICABLE" })} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Not applicable</button>}
-                      {row.cls !== "NOT_STATED" && <button onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_NOT_STATED" })} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Not stated</button>}
+                      {row.cls !== "NOT_STATED" && row.tier === "B" && <button onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_NOT_STATED" })} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Not stated</button>}
                       {row.decisionId && <button onClick={() => { void revoke(row); }} style={{ ...quietBtn, padding: "2px 8px", color: C.red, borderColor: `${C.red}55` }}>Withdraw</button>}
                     </span>
                   )}
@@ -206,8 +222,8 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
             ];
           })}
         </tbody>
-      </table>
-      {!editable && <div style={{ color: C.muted, marginTop: 8 }}>Open the job for editing to record checks.</div>}
+      </table>}
+      {showList && !editable && <div style={{ color: C.muted, marginTop: 8 }}>Open the job for editing to record checks.</div>}
     </section>
   );
 }

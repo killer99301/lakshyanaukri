@@ -439,7 +439,12 @@ export function getProvenanceSummary(opp: Opportunity): ProvenanceSummary {
     NOT_VERIFIED: "Not Verified",
   };
 
-  const status = statusMap[provenance.status] ?? statusMap.NOT_VERIFIED;
+  // An imported job published after a person checked every critical detail
+  // against the official notification. Not "Verified": some details may be
+  // recorded as not stated in the notice.
+  const status = provenance.keyDetailsChecked
+    ? { label: "Key details checked against official notification", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+    : statusMap[provenance.status] ?? statusMap.NOT_VERIFIED;
 
   const lastVerifiedDate = formatDate(provenance.lastVerifiedAt);
 

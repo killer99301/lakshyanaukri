@@ -74,6 +74,7 @@ function summaryLabel(r: NewRetrieval): string {
   const how = r.authenticity === "CONFIRMED" ? (r.authenticityMethod === "FETCHED_BY_SERVER" ? "fetched by the server" : "same file as the server's fetch")
     : r.authenticity === "ATTESTED" ? "attested by admin" : r.authenticity === "UNCONFIRMED" ? "not confirmed" : "research";
   const image = r.source.kind === "IMAGE" ? " (an image: its text was read by AI, compare with the image)" : "";
+  if (r.declaredKind === "RESEARCH") return `${where} — research${image}`;
   return `${where} — ${KIND_LABEL[r.declaredKind] ?? r.declaredKind}${r.versionLabel ? ` (${r.versionLabel})` : ""}, ${how}${image}`;
 }
 
@@ -328,7 +329,16 @@ export async function checksFor(record: RecruitmentRecord) {
     const s = states.find((x) => x.fieldPath === v.fieldPath)!;
     return { ...v, tier: fieldDef(v.fieldPath).tier, value: s.value, latestRevisionId: s.latestRevisionId, decisionId: effectiveDecision(s)?.id };
   });
-  return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals };
+  // Every imported field's state, for the editor's badges (critical or not).
+  // Derived from the claims and the field's current revision; the field's own
+  // CMS status is left as it is.
+  const fields: Record<string, string> = {};
+  if (imported) {
+    const all = await fieldStates(record, Object.keys(FIELD_DEFS).filter((p) => !p.startsWith("links#") && p !== "identity.title"));
+    for (const s of all) if (s.hasValue || s.claims.length > 0) fields[s.fieldPath] = classifyField(s, first).cls;
+    for (const r of rows) fields[r.fieldPath] = r.cls;
+  }
+  return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals, fields };
 }
 
 /** The publish gate for one job: only imported jobs are gated. */
