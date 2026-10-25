@@ -407,7 +407,7 @@ function Importer() {
 
               {preview.proposal.replacedInImport.length > 0 && (
                 <div style={{ fontSize: 12, color: C.muted }}>
-                  Replaced by the corrigendum: {preview.proposal.replacedInImport.map((r) => `${r.fieldPath} was ${showValue(r.value)}`).join("; ")}
+                  Replaced by the corrigendum: {preview.proposal.replacedInImport.map((r) => `${r.fieldPath} was ${showValue(r.value, r.fieldPath)}`).join("; ")}
                 </div>
               )}
 
@@ -432,10 +432,10 @@ function Importer() {
                           </div>
                         </td>
                         <td style={{ padding: "8px 8px 8px 0", color: C.text, whiteSpace: "pre-wrap", maxWidth: 340, overflowWrap: "anywhere" }}>
-                          {showValue(i.value)}
+                          {showValue(i.value, i.fieldPath)}
                           {i.flags.map((f) => <div key={f} style={{ color: C.amber, marginTop: 4 }}>⚠ {f}</div>)}
                         </td>
-                        <td style={{ padding: "8px 8px 8px 0", color: C.muted, whiteSpace: "pre-wrap", maxWidth: 220, overflowWrap: "anywhere" }}>{i.current === undefined ? "—" : showValue(i.current)}</td>
+                        <td style={{ padding: "8px 8px 8px 0", color: C.muted, whiteSpace: "pre-wrap", maxWidth: 220, overflowWrap: "anywhere" }}>{i.current === undefined ? "—" : showValue(i.current, i.fieldPath)}</td>
                         <td style={{ padding: "8px 0", color: C.muted, maxWidth: 300 }}>
                           {i.claims.map((c, n) => (
                             <div key={n} style={{ marginBottom: 4 }}>

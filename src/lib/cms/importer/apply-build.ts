@@ -14,7 +14,7 @@ import { routeFieldUpdate } from "@/lib/cms/field-update-router";
 import { buildAiField } from "@/lib/cms/ai-assist-apply";
 import { comparable, type Proposal, type ProposalItem } from "@/lib/cms/importer/proposal";
 import { valueHash } from "@/lib/cms/importer/evidence-text";
-import { recordColumns } from "@/lib/cms/importer/repository";
+import { fieldValue, recordColumns } from "@/lib/cms/importer/repository";
 
 export interface ApplyPayload {
   record: Record<string, unknown>;
@@ -25,6 +25,21 @@ export interface ApplyPayload {
 
 export class ApplySelectionError extends Error {
   constructor(message: string) { super(message); this.name = "ApplySelectionError"; }
+}
+
+/**
+ * A value as the editor would store it: run through the same field builder
+ * as any save, on an empty record. A value the editor refuses comes back
+ * with the editor's reason, so the preview never offers it as a fill.
+ */
+export function editorValue(fieldPath: string, value: unknown): { ok: true; value: unknown } | { ok: false; reason: string } {
+  try {
+    const record = blankRecord({ organizationId: "-", organizationName: "-", recruitmentYear: 2026, title: { value: "-", status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true } } as unknown as RecruitmentRecord["identity"], "00000000-0000-0000-0000-000000000000");
+    const result = routeFieldUpdate(record, fieldPath, buildAiField(value) as ProvenanceField<unknown>, "00000000-0000-0000-0000-000000000000", "preview");
+    return { ok: true, value: fieldValue(result.record, fieldPath) };
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message.replace(/^[\w.]+ invariant: /, "") : "refused" };
+  }
 }
 
 /** An empty record for a new job, in memory only, to run the ordinary field builders on. */

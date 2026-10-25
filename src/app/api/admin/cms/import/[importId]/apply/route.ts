@@ -40,6 +40,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const status = err.code === "STALE" || err.code === "DUPLICATE" || err.code === "IMPORT_NOT_PREVIEWED" ? 409 : 400;
       return NextResponse.json({ error: err.message, code: err.code, ...(err.detail ? { duplicates: err.detail } : {}) }, { status });
     }
+    // The editor's own rules refused a value (the same rules as a manual save).
+    if (err instanceof Error && /invariant:/.test(err.message)) {
+      return NextResponse.json({ error: `A ticked value breaks the editor's rules, so nothing was saved: ${err.message.replace(/^[\w.]+ invariant: /, "")}. Untick it and apply again.` }, { status: 400 });
+    }
     console.error("[importer] apply failed", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "The import could not be applied. Nothing was saved." }, { status: 500 });
   }

@@ -128,7 +128,8 @@ test("IA04 stages, pattern, syllabus, steps and notes keep only words from the t
   const stage = (value("examStages") as unknown as Array<Record<string, unknown>>)[0];
   assert.equal(stage.status, "NOT_DECLARED");
   assert.equal(stage.certainty, "TBA");
-  assert.equal(stage.dateDisplay, "To be announced");
+  assert.equal(stage.dateDisplay, undefined, "not a date: the editor refuses date text without a certainty");
+  assert.equal(stage.notes, "To be announced");
   assert.equal((value("examPattern") as unknown as Array<{ sections: unknown[] }>)[0].sections.length, 2);
   assert.deepEqual((value("syllabus") as unknown as Array<{ topics: string[] }>)[0].topics, ["Food processing and preservation"]);
   assert.deepEqual(value("eligibility") as unknown, [{ post: "Food Safety Officer", qualification: ["a degree in Food Technology, Dairy Technology, Biotechnology, Chemistry or Medicine"] }]);

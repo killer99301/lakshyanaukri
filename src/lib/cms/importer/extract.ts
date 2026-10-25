@@ -125,7 +125,8 @@ export async function readSource(opts: {
     "financial.feeSCST": /^Application fee \(SC/, "eligibility": /^Post-wise Eligibility/, "age": /^Age Limit/, "selection": /^Selection Process/,
     "howToApply": /^How to Apply/, "financial.payScale": /^Pay Scale/, "examPattern": /^Exam Pattern/, "syllabus": /^Syllabus/,
     "identity.notificationNumber": /^Notification Number/, "dates.notificationDate": /^Notification Date/, "dates.feePaymentCloseDate": /^Fee Payment Deadline/,
-    "dates.correctionWindowEnd": /^Correction Window End/,
+    "dates.correctionWindowEnd": /^Correction Window End/, "dates.applicationOpenDate": /^Application Opens/,
+    "dates.applicationCloseDate": /^Application Closes/,
   };
   const stillMissing = notFound.filter((label) => !filled.some((p) => NOT_FOUND_LABEL[p]?.test(label)));
 

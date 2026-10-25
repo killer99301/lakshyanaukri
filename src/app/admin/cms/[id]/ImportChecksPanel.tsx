@@ -184,7 +184,7 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
                   {row.tier && <span style={{ color: C.muted, fontSize: 10 }}> · Tier {row.tier}</span>}
                 </td>
                 <td style={{ padding: "7px 8px 7px 0" }}><span style={badge(look.color)}>{look.label}</span></td>
-                <td style={{ padding: "7px 8px 7px 0", color: C.muted, whiteSpace: "pre-wrap", maxWidth: 320, overflowWrap: "anywhere" }}>{row.value === null || row.value === undefined ? "—" : showValue(row.value)}</td>
+                <td style={{ padding: "7px 8px 7px 0", color: C.muted, whiteSpace: "pre-wrap", maxWidth: 320, overflowWrap: "anywhere" }}>{row.value === null || row.value === undefined ? "—" : showValue(row.value, row.fieldPath)}</td>
                 <td style={{ padding: "7px 0", textAlign: "right", whiteSpace: "nowrap" }}>
                   {editable && (
                     <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>

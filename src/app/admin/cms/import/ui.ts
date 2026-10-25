@@ -48,11 +48,24 @@ export function badge(color: string): React.CSSProperties {
 }
 
 /** A proposed or current value, in words. */
-export function showValue(value: unknown): string {
+export function showValue(value: unknown, fieldPath?: string): string {
   if (value && typeof value === "object" && !Array.isArray(value) && "url" in (value as object)) {
     const l = value as { label?: string; url: string; official?: boolean };
     return `${l.label ?? "Link"}: ${l.url}${l.official ? " (official)" : ""}`;
   }
+  // Exam stages: name, then the date or what the notice says instead.
+  if (fieldPath === "examStages" && Array.isArray(value)) {
+    return (value as Array<{ name: string; dateIso?: string; dateDisplay?: string; notes?: string; certainty?: string }>)
+      .map((s, i) => `${i + 1}. ${s.name} — ${s.dateIso ?? s.dateDisplay ?? s.notes ?? "date not announced"}${s.certainty === "TENTATIVE" ? " (tentative)" : ""}`).join("\n");
+  }
+  // Vacancy rows with their category split.
+  if (fieldPath === "vacancies.breakdown" && Array.isArray(value)) {
+    return (value as Array<{ post: string; count: number; payScale?: string; breakdown?: Record<string, unknown> }>).map((r) => {
+      const split = Object.entries(r.breakdown ?? {}).filter(([, n]) => typeof n === "number").map(([k, n]) => `${k.length <= 5 ? k.toUpperCase() : k} ${n}`).join(", ");
+      return `${r.post}: ${r.count}${r.payScale ? ` (${r.payScale})` : ""}${split ? ` — ${split}` : ""}`;
+    }).join("\n");
+  }
+  if (fieldPath === "conditions" && Array.isArray(value)) return (value as string[]).map((n, i) => `${i + 1}. ${n}`).join("\n");
   return describeAiValue(value);
 }
 

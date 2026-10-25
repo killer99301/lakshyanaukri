@@ -23,7 +23,7 @@ import { classifyField, effectiveDecision, publishGate, type FieldVerdict } from
 import { contentHash, valueHash } from "@/lib/cms/importer/evidence-text";
 import { CRITICAL_FIELDS, FIELD_DEFS, fieldDef, revisionPath } from "@/lib/cms/importer/fields";
 import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-domains";
-import { buildApplyPayload, blankRecord } from "@/lib/cms/importer/apply-build";
+import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
 import {
   applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -132,6 +132,14 @@ async function readOne(input: SourceInput, organizationId: string, subject: stri
   const reading = await readSource({
     content: obtained.text, kind: obtained.kind === "PDF" ? "pdf" : "html", url: obtained.finalUrl ?? input.url ?? "",
     subject, organizationId, apiKey, fetchFn,
+  });
+  // Every value as the editor would store it; one the editor refuses is left
+  // out with its reason, never offered.
+  reading.values = reading.values.flatMap((v) => {
+    const stored = editorValue(v.fieldPath, v.value);
+    if (stored.ok) return [{ ...v, value: stored.value }];
+    reading.refused.push({ fieldPath: v.fieldPath, reason: `the editor would refuse it: ${stored.reason}` });
+    return [];
   });
   const own = sourceOwnLink(obtained.finalUrl ?? input.url, input.declaredKind, organizationId);
   if (own) reading.links = [own, ...reading.links.filter((l) => l.url !== own.url)];

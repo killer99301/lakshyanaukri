@@ -263,8 +263,12 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
       certainty: dated ? (/tentative|likely|expected/i.test(s.quote as string) ? "TENTATIVE" : "CONFIRMED") : "TBA",
     };
     if (dated) stage.dateIso = date;
-    const shown = str(s.dateText, 80);
-    if (shown && inText(shown)) stage.dateDisplay = shown;
+    // "To be announced" is not a date: the editor keeps it as the stage's note.
+    const shown = str(s.dateText, 60);
+    if (shown && inText(shown)) {
+      if (dated) stage.dateDisplay = shown;
+      else stage.notes = shown;
+    }
     examStages.push(stage);
     stageQuote ||= s.quote as string;
   }
