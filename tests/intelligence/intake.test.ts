@@ -1763,6 +1763,14 @@ async function testF8G_EXTRACTION_QUALITY() {
       "no number from the word Notification (got: " + (ex.notificationNumber ?? "undefined") + ")");
   }
 
+  // Case C3: a fee-payment deadline is not the last date to apply (SSC CGL layout)
+  {
+    const ex = extractIntakeFields("Last date and time for receipt of online applications: 04-07-2026 (23:00)\nLast date and time for making online fee payment: 05-07-2026 (23:00)", "https://ssc.gov.in/notice.pdf",
+      undefined, undefined, "OFFICIAL_PDF");
+    assert("F8G-C3.1", ex.applicationCloseDate !== "2026-07-05",
+      "fee payment date not taken as the last date (got: " + (ex.applicationCloseDate ?? "undefined") + ")");
+  }
+
   // Case D: Official PDF vacancy value beats third-party vacancy value
   {
     const stageAUrl = "https://govtjobguru.in/xyz-recruit-2026/";

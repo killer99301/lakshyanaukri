@@ -425,7 +425,7 @@ export function feeValueSupported(value: number, evidence: string): boolean {
   const e = evidence.replace(/(\d),(?=\d)/g, "$1");
   // A preceding digit or "digit." means the number is part of a longer one
   // ("1850", "1.850"). A bare dot does not: notices write "Rs.850/-".
-  if (value === 0) return /\bnil\b|\bexempt(?:ed|ion)?\b|\bno\s+fees?\b|\bfree\b|(?<!\d)(?<!\d\.)0(?!\d)(?!\.\d)/i.test(e);
+  if (value === 0) return /\bnil\b|\bexempt(?:ed|ion)?\b|\bno\s+(?:application\s+|examination\s+)?fees?\b|\bfree\b|(?<!\d)(?<!\d\.)0(?!\d)(?!\.\d)/i.test(e);
   return new RegExp(`(?<!\\d)(?<!\\d\\.)${value}(?!\\d)`).test(e);
 }
 
@@ -627,7 +627,8 @@ export interface AiExtraction {
   notificationNumber: DateOutcome;
 }
 
-const NUMBER_LABEL_RE = /notif|advt|advertisement|\bf\.?\s*no\b|\bno\.?\s*:/i;
+// UPSC writes "Examination Notice No. 05/2026-CSP".
+const NUMBER_LABEL_RE = /notif|advt|advertisement|\bnotice\s+no\b|\bf\.?\s*no\b|\bno\.?\s*:/i;
 
 // Accepted only when the quote is in the source, names it as a notification or
 // advertisement number, and contains the value itself.

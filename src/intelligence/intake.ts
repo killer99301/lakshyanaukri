@@ -928,11 +928,17 @@ export function extractApplicationDates(text: string): {
     // [4] "from DATE to DATE" range — captures the close (right-hand) date. Fallback only.
     /from\s+.{5,30}?\d{4}\s+to\s+(.{5,25}?(?:\d{4}))/i,
   ];
+  // A "last date … fee payment / correction" line is not the application's
+  // last date (SSC: "Last date and time for making online fee payment:"), so
+  // it is skipped; better no date here than the wrong one.
+  const SIDE_DEADLINE = /fee|payment|correction|modif|edit/i;
   for (const re of closePatterns) {
-    const m = re.exec(text);
-    if (m) {
+    if (result.closeDate) break;
+    for (const m of text.matchAll(new RegExp(re.source, re.flags + "g"))) {
       const d = parseDateFromText(m[1]);
-      if (d && !result.closeDate) result.closeDate = d;
+      if (!d || SIDE_DEADLINE.test(m[0].slice(0, m[0].length - m[1].length))) continue;
+      result.closeDate = d;
+      break;
     }
   }
 
