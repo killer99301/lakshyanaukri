@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { AttentionPanel } from "./AttentionPanel";
+import { ImporterLink } from "./import/ImporterLink";
 
 const S = {
   header: {
@@ -185,7 +186,10 @@ export default function CmsListPage() {
             Create a record, fill it with AI Assist, check it, then publish.
           </div>
         </div>
-        <Link href="/admin/cms/new" style={S.btn}>+ New job</Link>
+        <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <ImporterLink href="/admin/cms/import" style={{ ...S.btn, background: "none", boxShadow: "none", border: "1px solid #62b5ff66", color: "#62b5ff" }}>Import a job</ImporterLink>
+          <Link href="/admin/cms/new" style={S.btn}>+ New job</Link>
+        </span>
       </div>
 
       <AttentionPanel />

@@ -32,6 +32,8 @@ import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { LiveChangesPanel } from "./LiveChangesPanel";
+import { ImportChecksPanel } from "./ImportChecksPanel";
+import { ImporterLink } from "../import/ImporterLink";
 import { TakeDownControl, TakenDownBanner } from "./SiteVisibility";
 import { currentValue, restorable, sameAsNow } from "@/lib/cms/restore-value";
 import { SmartDateInput } from "../../SmartDateInput";
@@ -1898,6 +1900,14 @@ export default function CmsRecordEditorPage() {
         )}
 
         <LiveChangesPanel record={record} onJump={jumpTo} />
+
+        {/* Imported jobs only: a person's check on every critical field. */}
+        <ImportChecksPanel record={record} onRecordChange={onFieldSaved} />
+        {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
+          <div style={{ marginBottom: 12, fontSize: 12 }}>
+            <ImporterLink href={`/admin/cms/import?record=${record.id}`} style={{ color: C.accent, textDecoration: "none" }}>Import into this job from a notice or research →</ImporterLink>
+          </div>
+        )}
 
         {record.draftState !== "ARCHIVED" && (
           <PublishChecklist record={record} onJump={jumpTo} />
