@@ -26,10 +26,17 @@ export function cleanUrl(raw: string): string | null {
 /** Recruitment portals and coaching sites: never an official source. */
 const PORTALS = /(^|\.)(bankersadda\.com|adda247\.com|govtjobguru\.in|careerpower\.in|freejobalert\.com|sarkariresult\.com|sarkariexam\.com|testbook\.com|jagranjosh\.com|naukri\.com|shiksha\.com|indiatoday\.in|ndtv\.com|timesofindia\.indiatimes\.com|chatgpt\.com|openai\.com)$/i;
 
+function hadTracking(raw: string): boolean {
+  try { return [...new URL(raw.trim()).searchParams.keys()].some((k) => TRACKING.test(k)); } catch { return false; }
+}
+
+// Help files that sit next to real notices as PDFs.
+const HELP_FILE = /manual|user[-_ ]?guide|help|faq|instruction/i;
+
 export function linkFlags(url: string, raw: string): string[] {
   const flags: string[] = [];
   const host = hostOf(url) ?? "";
-  if (raw !== url) flags.push("tracking removed");
+  if (hadTracking(raw)) flags.push("tracking removed");
   if (PORTALS.test(host)) flags.push("portal or news site, not the recruiting body");
   if (/\/(blog|blog2|news|post|posts)\//i.test(url) || /post\.php|[?&]slug=/i.test(url)) flags.push("looks like a blog or article, not an apply page");
   return flags;
@@ -59,7 +66,15 @@ export function linksInText(text: string, organizationId: string): FoundLink[] {
     if (!url || out.has(url)) continue;
     const origin = originFor(organizationId, hostOf(url));
     const flags = linkFlags(url, raw);
-    const type = guessLinkType(url) ?? (origin.role === "AUTHORITY" && new URL(url).pathname.length <= 1 ? "OFFICIAL_WEBSITE" : "OTHER");
+    let type = guessLinkType(url) ?? (origin.role === "AUTHORITY" && new URL(url).pathname.length <= 1 ? "OFFICIAL_WEBSITE" : "OTHER");
+    // A partner's site (the apprenticeship or exam portal) is neither the
+    // notification nor the body's website; a partner trusted for applications
+    // is where candidates apply. A help file is never the notification:
+    // portals keep user manuals as PDFs.
+    if (origin.role === "PARTNER" && (type === "OFFICIAL_NOTIFICATION" || type === "OFFICIAL_WEBSITE" || type === "OTHER")) {
+      type = origin.purposes.includes("application") && !HELP_FILE.test(new URL(url).pathname) ? "APPLY_ONLINE" : "OTHER";
+    }
+    if (type === "OFFICIAL_NOTIFICATION" && HELP_FILE.test(new URL(url).pathname)) type = "OTHER";
     const at = m.index ?? 0;
     out.set(url, {
       type,
@@ -71,4 +86,22 @@ export function linksInText(text: string, organizationId: string): FoundLink[] {
     });
   }
   return [...out.values()];
+}
+
+/**
+ * The notice's own address, offered as its notification (or corrigendum)
+ * link: the strongest evidence there is for that link. Null for research,
+ * for other kinds of source, and when the address is not known.
+ */
+export function sourceOwnLink(address: string | null | undefined, declaredKind: string, organizationId: string): FoundLink | null {
+  const type = declaredKind === "OFFICIAL_NOTIFICATION" ? "OFFICIAL_NOTIFICATION" : declaredKind === "OFFICIAL_CORRIGENDUM" ? "CORRIGENDUM" : null;
+  const url = type && address ? cleanUrl(address) : null;
+  if (!type || !url) return null;
+  const origin = originFor(organizationId, hostOf(url));
+  const flags = linkFlags(url, address!);
+  return {
+    type, label: LABEL[type], url,
+    official: (origin.role === "AUTHORITY" || origin.role === "PARTNER") && flags.every((f) => f === "tracking removed"),
+    flags, context: "The address this document came from",
+  };
 }

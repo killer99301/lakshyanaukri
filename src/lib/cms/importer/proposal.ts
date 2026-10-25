@@ -200,7 +200,8 @@ export function buildProposal(input: {
         action: onJob.has(l.url) ? "MATCHES" : "FILL",
         conflict: false,
         supersedes: [],
-        defaultTicked: blocking.length === 0 && ex.retrieval.declaredKind !== "RESEARCH",
+        // Ticked only for an address on the organisation's trusted list.
+        defaultTicked: l.official && blocking.length === 0 && ex.retrieval.declaredKind !== "RESEARCH",
         flags: [...l.flags, ...(ex.retrieval.declaredKind === "RESEARCH" ? ["found in research text"] : [])],
       });
     }

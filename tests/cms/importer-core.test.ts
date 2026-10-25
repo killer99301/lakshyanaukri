@@ -1,7 +1,7 @@
 // Importer core: links, trusted hosts, pages, the preview's items, field classes and the gate
 //   npx tsx --tsconfig tsconfig.json tests/cms/importer-core.test.ts
 import { suite, test, assert } from "../intelligence/suite";
-import { cleanUrl, linkFlags, linksInText } from "@/lib/cms/importer/links";
+import { cleanUrl, linkFlags, linksInText, sourceOwnLink } from "@/lib/cms/importer/links";
 import { authorityCovers, originFor } from "@/lib/cms/importer/trusted-domains";
 import { pageOf } from "@/lib/cms/importer/evidence-text";
 import { buildProposal, type RetrievalSummary, type SourceExtraction } from "@/lib/cms/importer/proposal";
@@ -22,6 +22,27 @@ test("IC02 blogs and portals flagged; official only for a listed host", () => {
   assert.ok(by("bankersadda").flags.some((f) => /portal/.test(f)));
   assert.equal(by("lichousing").type, "OFFICIAL_NOTIFICATION");
   assert.equal(by("lichousing").url.endsWith(".pdf"), true);
+});
+
+test("IC02b LIC batch 10 PDF: manuals and partner PDFs are not the notice; no tracking flag without tracking", () => {
+  const found = linksInText("refer to https://nats.education.gov.in/assets/manual/student_manual.pdf and https://nats.education.gov.in.in (Navigate) and https://beep.bfsissc.com will be", "lic-hfl");
+  const by = (s: string) => found.find((l) => l.url.includes(s))!;
+  assert.equal(by("student_manual").type, "OTHER");
+  assert.ok(found.every((l) => !l.flags.includes("tracking removed")));
+  assert.equal(by("gov.in.in").official, false);
+  assert.equal(linksInText("https://beep.bfsissc.com/notice.pdf", "lic-hfl")[0].type, "OTHER");
+  assert.equal(linksInText("https://beep.bfsissc.com", "lic-hfl")[0].type, "OTHER");
+  assert.equal(by("student_manual").type, "OTHER");
+  assert.equal(linksInText("https://nats.education.gov.in/student_type.php", "lic-hfl")[0].type, "APPLY_ONLINE");
+  assert.ok(linkFlags("https://x.gov.in/a", "https://x.gov.in/a?utm_source=chatgpt.com").includes("tracking removed"));
+});
+test("IC02c the notice's own address is its notification link; research has none", () => {
+  const own = sourceOwnLink("https://cdn.lichousing.com/2026/10/Batch-10.pdf", "OFFICIAL_NOTIFICATION", "lic-hfl")!;
+  assert.equal(own.type, "OFFICIAL_NOTIFICATION");
+  assert.equal(own.official, true);
+  assert.equal(sourceOwnLink("https://ssc.gov.in/c.pdf", "OFFICIAL_CORRIGENDUM", "ssc")!.type, "CORRIGENDUM");
+  assert.equal(sourceOwnLink("https://x.com/a", "RESEARCH", "ssc"), null);
+  assert.equal(sourceOwnLink(null, "OFFICIAL_NOTIFICATION", "ssc"), null);
 });
 
 suite("Trusted hosts");
@@ -135,6 +156,13 @@ test("IC09 links: a blog link is proposed but not ticked; research links are nev
   });
   assert.ok(p.items.every((i) => i.kind === "LINK" && !i.defaultTicked));
   assert.ok(p.items.some((i) => (i.value as { url: string }).url === "https://bfsissc.com/blog2/post.php?slug=lic"));
+  const fromPdf = buildProposal({
+    extractions: [ex(R("pdf", "OFFICIAL_NOTIFICATION", "CONFIRMED", "AUTHORITY"), [], linksInText("https://nats.education.gov.in/ and https://nats.education.gov.in.in", "lic-hfl"))],
+    current: () => undefined,
+  });
+  const tick = (host: string) => fromPdf.items.find((i) => (i.value as { url: string }).url.includes(host))!.defaultTicked;
+  assert.equal(tick("gov.in/"), true);
+  assert.equal(tick("gov.in.in"), false);
 });
 
 // ── Field classes ──

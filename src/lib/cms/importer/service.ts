@@ -17,6 +17,7 @@ import { extractPdfFromBuffer } from "@/intelligence/pdf-extractor";
 import { MIN_SCAN_TEXT_CHARS } from "@/lib/cms/scan-reader";
 import { fetchSource } from "@/lib/cms/importer/fetch-source";
 import { readSource, htmlToText, type SourceReading } from "@/lib/cms/importer/extract";
+import { sourceOwnLink } from "@/lib/cms/importer/links";
 import { buildProposal, comparable, type DeclaredKind, type RetrievalSummary } from "@/lib/cms/importer/proposal";
 import { classifyField, effectiveDecision, publishGate, type FieldVerdict } from "@/lib/cms/importer/classify";
 import { contentHash, valueHash } from "@/lib/cms/importer/evidence-text";
@@ -110,6 +111,8 @@ async function readOne(input: SourceInput, organizationId: string, subject: stri
     content: obtained.text, kind: obtained.kind === "PDF" ? "pdf" : "html", url: obtained.finalUrl ?? input.url ?? "",
     subject, organizationId, apiKey, fetchFn,
   });
+  const own = sourceOwnLink(obtained.finalUrl ?? input.url, input.declaredKind, organizationId);
+  if (own) reading.links = [own, ...reading.links.filter((l) => l.url !== own.url)];
   return { input, reading, obtained };
 }
 
