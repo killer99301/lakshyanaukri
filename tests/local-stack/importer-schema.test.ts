@@ -18,7 +18,6 @@ type Row = Record<string, unknown>;
   const refused = async (text: string, params: unknown[] = []): Promise<string | null> => {
     try { await pg.query(text, params); return null; } catch (e) { return e instanceof Error ? e.message : String(e); }
   };
-  const hex = (c: string) => c.repeat(64);
 
   // ── Fixtures ──
   const [admin] = await q("INSERT INTO admins (username, email, password_hash) VALUES ('a', 'a@example.test', 'x') RETURNING id");
