@@ -284,6 +284,8 @@ export interface GovernmentRecruitment extends BaseOpportunity {
   ageLimit?: AgeLimit;
   eligibility?: string[];
   selectionProcess?: string[];
+  /** Imported jobs: fields a person recorded as not applicable or not stated in the notice, in words. */
+  noticeNotes?: Array<{ label: string; text: string }>;
   /** The notice holds no written exam: selection by shortlisting, interview, merit or walk-in. */
   noWrittenExam?: boolean;
   /** Papers of the exam: subjects, questions, marks, time. From the official notification. */

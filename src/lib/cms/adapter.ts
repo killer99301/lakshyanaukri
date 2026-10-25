@@ -28,6 +28,7 @@ import type { FeeRow } from "@/types";
 import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, ExamPatternPaper, SyllabusSubject } from "@/types/recruitment-record";
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
+import { fieldDef } from "@/lib/cms/importer/fields";
 
 // ─── Internal helpers ─────────────────────────────────────
 
@@ -73,19 +74,35 @@ export function snapshotToGovernmentRecruitment(
     return "Central Govt" as const;
   })();
 
+  // Imported jobs: what a person recorded about a field the notice does not
+  // fill in. "Not applicable" shows the notice's own words ("No application
+  // fee"); "not stated" says so plainly. Other jobs have neither map.
+  const noticeNote = (fieldPath: string): string | undefined => {
+    if (snapshot.notApplicable && fieldPath in snapshot.notApplicable) {
+      return snapshot.notApplicable[fieldPath] || "Not applicable, as per the official notification";
+    }
+    if (snapshot.notStated && fieldPath in snapshot.notStated) {
+      const words = snapshot.notStated[fieldPath];
+      return words ? `Not stated in the official notification — ${words}` : "Not stated in the official notification";
+    }
+    return undefined;
+  };
+  const noticeNotes = [...Object.keys(snapshot.notApplicable ?? {}), ...Object.keys(snapshot.notStated ?? {})]
+    .map((path) => ({ label: fieldDef(path).label, text: noticeNote(path)! }));
+
   // Each fee row stands by itself: an amount, or "not specified" when the
   // notice gives none. A group nobody has filled in is simply left out.
   const NOT_SPECIFIED_FEE = "Not specified in the notice";
   const feeRows: FeeRow[] = [];
   if (snapshot.financial.feeGeneral !== null) {
     feeRows.push({ category: "General / OBC", amount: snapshot.financial.feeGeneral });
-  } else if (snapshot.financial.feeGeneralNotSpecified) {
-    feeRows.push({ category: "General / OBC", amount: null, note: NOT_SPECIFIED_FEE });
+  } else if (noticeNote("financial.feeGeneral") || snapshot.financial.feeGeneralNotSpecified) {
+    feeRows.push({ category: "General / OBC", amount: null, note: noticeNote("financial.feeGeneral") ?? NOT_SPECIFIED_FEE });
   }
   if (snapshot.financial.feeSCST !== null) {
     feeRows.push({ category: "SC / ST / PwBD", amount: snapshot.financial.feeSCST });
-  } else if (snapshot.financial.feeSCSTNotSpecified) {
-    feeRows.push({ category: "SC / ST / PwBD", amount: null, note: NOT_SPECIFIED_FEE });
+  } else if (noticeNote("financial.feeSCST") || snapshot.financial.feeSCSTNotSpecified) {
+    feeRows.push({ category: "SC / ST / PwBD", amount: null, note: noticeNote("financial.feeSCST") ?? NOT_SPECIFIED_FEE });
   }
   const payScale = snapshot.financial.payScale?.trim() || undefined;
 
@@ -145,7 +162,10 @@ export function snapshotToGovernmentRecruitment(
     totalVacancies:   snapshot.vacancies.total ?? 0,
     vacanciesDisplay: snapshot.vacancies.total !== null
       ? `${snapshot.vacancies.total.toLocaleString("en-IN")} Posts`
-      : "Vacancies TBC",
+      : snapshot.notStated && "vacancies.total" in snapshot.notStated
+        ? "Not stated in the notice"
+        : "Vacancies TBC",
+    ...(noticeNotes.length > 0 ? { noticeNotes } : {}),
 
     application: {
       notificationDate:    snapshot.dates.notificationDate ?? undefined,

@@ -549,6 +549,20 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
         </section>
       )}
 
+      {/* What the notification does not give, said plainly rather than left blank */}
+      {isGov && job.noticeNotes && job.noticeNotes.length > 0 && (
+        <section id="notice-notes" className="bg-white border border-[#E2E8F0] rounded-3xl p-6 sm:p-7 shadow-xs space-y-3">
+          <h2 className="text-lg font-black text-[#0F172A]">From the official notification</h2>
+          <ul className="space-y-2">
+            {job.noticeNotes.map((n) => (
+              <li key={n.label} className="text-sm text-[#0F172A] leading-relaxed">
+                <span className="font-bold">{n.label}:</span> {n.text}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* 7. Selection Process Section */}
       {isGov && job.selectionProcess && job.selectionProcess.length > 0 && (
         <section id="selection-process" className="bg-white border border-[#E2E8F0] rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
