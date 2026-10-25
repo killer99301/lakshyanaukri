@@ -10,9 +10,10 @@
 // a person has checked its critical fields on the job's page.
 // With ?record=<id> it imports into that job instead of creating one.
 
-import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { DiscoverPanel, type FoundJob } from "./DiscoverPanel";
 import { C, PANEL, badge, inputStyle, labelStyle, primaryBtn, quietBtn, showValue } from "./ui";
 
 type Kind = "OFFICIAL_NOTIFICATION" | "OFFICIAL_CORRIGENDUM" | "OFFICIAL_PAGE" | "RESEARCH" | "OTHER";
@@ -202,7 +203,18 @@ function Importer() {
   const [on, setOn] = useState<boolean | null>(null);
   const [job, setJob] = useState<{ title: string; draftState: string } | null>(null);
   const [newJob, setNewJob] = useState({ organizationId: "", organizationName: "", recruitmentYear: String(new Date().getFullYear()), title: "", govType: "Central Govt", notificationNumber: "" });
-  const [sources, setSources] = useState<SourceDraft[]>([newSource("OFFICIAL_NOTIFICATION", "upload"), newSource("RESEARCH", "paste")]);
+  // ?url=… (from "Find jobs on a page"): that page comes in as research.
+  const startUrl = params.get("url");
+  const [sources, setSources] = useState<SourceDraft[]>(() => startUrl
+    ? [{ ...newSource("RESEARCH", "url"), url: startUrl }, newSource("OFFICIAL_NOTIFICATION", "upload")]
+    : [newSource("OFFICIAL_NOTIFICATION", "upload"), newSource("RESEARCH", "paste")]);
+  const pickFound = (f: FoundJob) => {
+    const kind: Kind = !f.official ? "RESEARCH" : /\.pdf(\?|$)/i.test(f.url) ? "OFFICIAL_NOTIFICATION" : "OFFICIAL_PAGE";
+    setNewJob((n) => ({ ...n, title: f.title.slice(0, 160) }));
+    setSources([{ ...newSource(kind, "url"), url: f.url }, newSource("OFFICIAL_NOTIFICATION", "upload")]);
+    setPreview(null);
+    document.querySelector("[data-import-job]")?.scrollIntoView({ block: "start" });
+  };
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -223,7 +235,7 @@ function Importer() {
 
   const subject = recordId ? job?.title ?? "" : `${newJob.title} — ${newJob.organizationName}`;
 
-  const makePreview = useCallback(async () => {
+  const makePreview = async () => {
     setBusy(true);
     setErr(null);
     setPreview(null);
@@ -251,7 +263,7 @@ function Importer() {
     setPreview(d as Preview);
     setTicked(new Set((d as Preview).proposal.items.filter((i) => i.defaultTicked).map((i) => i.id)));
     setConfirmVerified(false);
-  }, [newJob, recordId, sources]);
+  };
 
   const items = useMemo(() => preview?.proposal.items ?? [], [preview]);
   const sourceById = useMemo(() => new Map((preview?.proposal.meta.sources ?? []).map((s) => [s.id, s])), [preview]);
@@ -318,8 +330,10 @@ function Importer() {
         </div>
       ) : (
         <>
+          {!recordId && <DiscoverPanel onPick={pickFound} />}
+
           {/* The job */}
-          <div style={{ ...PANEL, padding: 16, marginBottom: 16 }}>
+          <div data-import-job style={{ ...PANEL, padding: 16, marginBottom: 16 }}>
             {recordId ? (
               <div style={{ color: C.text, fontSize: 14 }}>
                 <span style={labelStyle}>Importing into</span>
