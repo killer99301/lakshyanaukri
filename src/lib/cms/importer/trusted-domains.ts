@@ -35,9 +35,14 @@ export const TRUSTED_DOMAINS: Record<string, HostEntry[]> = {
     { host: "onlinebpsc.bihar.gov.in", role: "AUTHORITY", purposes: ["all"] },
   ],
   ibps: [{ host: "ibps.in", role: "AUTHORITY", purposes: ["all"] }],
-  // Bihar Technical Service Commission. Its online form runs on an NIC exam
-  // portal (btsc.pariksha.nic.in) that is not listed until the owner confirms it.
-  btsc: [{ host: "btsc.bihar.gov.in", role: "AUTHORITY", purposes: ["all"] }],
+  // Bihar Technical Service Commission. Its online form runs on its own NIC
+  // PARIKSHA portal (owner's decision, 2026-10-25): trusted for applications
+  // only, never for the notice, eligibility, age, vacancies or fees. Other
+  // pariksha.nic.in sites are not covered.
+  btsc: [
+    { host: "btsc.bihar.gov.in", role: "AUTHORITY", purposes: ["all"] },
+    { host: "btsc.pariksha.nic.in", role: "PARTNER", purposes: ["application"] },
+  ],
   rrb: [
     { host: "rrbcdg.gov.in", role: "AUTHORITY", purposes: ["all"] },
     { host: "rrbapply.gov.in", role: "AUTHORITY", purposes: ["all"] },

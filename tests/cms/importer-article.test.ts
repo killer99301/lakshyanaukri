@@ -167,7 +167,8 @@ test("IA08 a bare government site is found and judged; label before an address t
   assert.equal(site?.official, true);
   const apply = found.find((l) => l.url.startsWith("https://btsc.pariksha.nic.in/"));
   assert.equal(apply?.type, "APPLY_ONLINE");
-  assert.equal(apply?.official, false, "the NIC portal is not on BTSC's list until the owner adds it");
+  assert.equal(apply?.official, true, "BTSC's PARIKSHA portal: a partner for applications");
+  assert.equal(linksInText("https://upsc.pariksha.nic.in/ and https://btsc.pariksha.nic.in/", "btsc").find((l) => l.url.includes("upsc"))?.official, false, "only BTSC's own portal");
   assert.equal(found.length, 2, "an e-mail address is not a link");
 });
 

@@ -92,8 +92,10 @@ export function similarJobs(title: string, jobs: Array<{ id: string; title: stri
   }).slice(0, 3);
 }
 
+// A listed host, or a .gov.in site. Not every .nic.in site: NIC hosts portals
+// for many bodies (pariksha.nic.in), so those count only when listed.
 const officialHost = (host: string | null) => !!host && (
-  /\.(gov|nic)\.in$/.test(host) || Object.values(TRUSTED_DOMAINS).flat().some((e) => host === e.host || host.endsWith(`.${e.host}`)));
+  /\.gov\.in$/.test(host) || Object.values(TRUSTED_DOMAINS).flat().some((e) => host === e.host || host.endsWith(`.${e.host}`)));
 
 export async function discoverFromPage(opts: {
   url: string;

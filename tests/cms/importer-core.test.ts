@@ -55,6 +55,12 @@ test("IC03 a partner speaks only for its purposes", () => {
   assert.equal(originFor("lic-hfl", "bankersadda.com").role, "UNLISTED");
   assert.equal(originFor("ssc", "lichousing.com").role, "UNLISTED");
   assert.equal(originFor("lic-hfl", null).role, "NONE");
+  const portal = originFor("btsc", "btsc.pariksha.nic.in");
+  assert.equal(portal.role, "PARTNER");
+  for (const p of ["recruitment_rules", "fee_payment", "general", "exam"] as const) assert.equal(authorityCovers(portal.role, portal.purposes, p), false, p);
+  assert.equal(authorityCovers(portal.role, portal.purposes, "application"), true);
+  assert.equal(originFor("btsc", "pariksha.nic.in").role, "UNLISTED");
+  assert.equal(originFor("btsc", "bpsc.pariksha.nic.in").role, "UNLISTED");
 });
 
 suite("Pages");
