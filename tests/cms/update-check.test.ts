@@ -444,7 +444,7 @@ test("AU01 requests are counted per feature and per day (Indian time)", async ()
   await recordAiFailure("update-check", { store, now: NOW });
   await reserveAiRequest("assist", { store, now: new Date("2026-10-09T06:00:00Z") });
   const [today, yesterday, before] = await readAiUsage(3, { store, now: NOW });
-  assert.deepEqual(today, { day: "2026-10-10", total: 3, failed: 1, refused: 0, byFeature: { assist: 2, "update-check": 1, "job-search": 0 } });
+  assert.deepEqual(today, { day: "2026-10-10", total: 3, failed: 1, refused: 0, byFeature: { assist: 2, "update-check": 1, "job-search": 0, import: 0 } });
   assert.equal(yesterday.total, 1);
   assert.equal(before.total, 0);
 });
@@ -459,7 +459,7 @@ test("AU02 the cap refuses further requests and a refused request is not counted
   const [today] = await readAiUsage(1, { store, now: NOW });
   assert.equal(today.total, 2);
   assert.equal(today.refused, 2);
-  assert.deepEqual(today.byFeature, { assist: 1, "update-check": 1, "job-search": 0 });
+  assert.deepEqual(today.byFeature, { assist: 1, "update-check": 1, "job-search": 0, import: 0 });
   // The next day starts from zero.
   assert.equal((await reserveAiRequest("assist", { ...opts, now: new Date("2026-10-11T06:00:00Z") })).allowed, true);
 });
