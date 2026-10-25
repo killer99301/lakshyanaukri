@@ -1066,6 +1066,35 @@ export function updateHowToApply(
   };
 }
 
+// ─── Special conditions (admin-only notes) ────────────────
+//
+// The notice's rules that fit no other field. Never published; the admin
+// note beside them is kept as it is.
+
+export function updateConditions(
+  record: RecruitmentRecord,
+  items: unknown,
+  adminId: string,
+  reason?: string,
+): FieldUpdateResult {
+  if (!Array.isArray(items)) throw new Error("conditions invariant: value must be an array");
+  const cleaned = items.map((s) => (typeof s === "string" ? s.trim() : "")).filter(Boolean);
+  if (cleaned.length !== items.length) throw new Error("conditions invariant: every item must be non-empty text");
+  if (cleaned.length > MAX_LIST_ITEMS || cleaned.some((s) => s.length > 500)) {
+    throw new Error(`conditions invariant: at most ${MAX_LIST_ITEMS} items of up to 500 characters`);
+  }
+
+  const updated = cloneRecord(record);
+  updated.conditions = { ...(record.conditions ?? {}), items: cleaned };
+  updated.updatedAt = now();
+  updated.updatedBy = adminId;
+
+  return {
+    record: updated,
+    revision: buildFieldRevision(record.id, "conditions", record.conditions?.items ?? [], cleaned, adminId, reason),
+  };
+}
+
 // ─── Classification (listing details) ─────────────────────
 //
 // Plain metadata that drives the public header boxes and listing filters.

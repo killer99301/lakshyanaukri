@@ -47,6 +47,7 @@ export const FIELD_DEFS: Record<string, FieldDef> = {
   "syllabus":                     { label: "Syllabus", purpose: "exam" },
   "howToApply":                   { label: "How to apply", purpose: "application" },
   "examStages":                   { label: "Exam stages", purpose: "exam" },
+  "conditions":                   { label: "Notes (admin only, not published)", purpose: "general" },
   "links#APPLY_ONLINE":           { label: "Apply Online link", purpose: "application", tier: "A" },
   "links#OFFICIAL_NOTIFICATION":  { label: "Official notification link", purpose: "general", tier: "A" },
   "links#OFFICIAL_WEBSITE":       { label: "Official website link", purpose: "general" },

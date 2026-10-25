@@ -16,7 +16,7 @@
 // with the PDF by the admin. They stay Pending until then.
 
 import { DEFAULT_GEMINI_MODEL } from "@/intelligence/gemini-extraction-provider";
-import { capReachedMessage, recordAiFailure, reserveAiRequest } from "@/lib/ai-usage";
+import { capReachedMessage, recordAiFailure, reserveAiRequest, type AiFeature } from "@/lib/ai-usage";
 
 const TIMEOUT_MS = 55_000;
 const MAX_OUTPUT_TOKENS = 12_000;
@@ -25,9 +25,9 @@ export const MIN_SCAN_TEXT_CHARS = 300;
 
 export type ScanReading = { ok: true; text: string } | { ok: false; reason: string };
 
-export function buildScanPrompt(subject: string): string {
+export function buildScanPrompt(subject: string, what = "PDF is a scanned recruitment notice"): string {
   return [
-    "The attached PDF is a scanned recruitment notice from an Indian government body. It may be in Hindi or another Indian language.",
+    `The attached ${what} from an Indian government body. It may be in Hindi or another Indian language.`,
     ...(subject ? [`It should be about: ${subject}. If it covers several recruitments, use only this one.`] : []),
     "",
     "Write out, in plain English text, the parts of the notice that state the following. Translate faithfully. Copy every number, date, amount, post name, advertisement number and web address exactly as printed. Do not summarise, do not add anything that is not printed, and do not guess a word you cannot read: write [unclear] in its place.",
@@ -58,15 +58,23 @@ function failure(status: number): string {
 }
 
 export async function readScannedNotice(opts: {
-  /** The PDF, base64. */
+  /** The PDF (or, for smart intake, an image), base64. */
   data: string;
   subject: string;
   apiKey: string | undefined;
   fetchFn?: typeof fetch;
+  /** "application/pdf" unless an image is read: "image/png", "image/jpeg", "image/webp". */
+  mimeType?: string;
+  /** A screenshot of one table is short; a whole scanned notice is not. */
+  minChars?: number;
+  feature?: AiFeature;
 }): Promise<ScanReading> {
   if (!opts.apiKey) return { ok: false, reason: "AI is not configured on this site." };
+  const mimeType = opts.mimeType ?? "application/pdf";
+  const minChars = opts.minChars ?? MIN_SCAN_TEXT_CHARS;
+  const feature = opts.feature ?? "assist";
 
-  const reserved = await reserveAiRequest("assist");
+  const reserved = await reserveAiRequest(feature);
   if (!reserved.allowed) return { ok: false, reason: capReachedMessage(reserved.cap) };
 
   const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
@@ -82,7 +90,10 @@ export async function readScannedNotice(opts: {
       body: JSON.stringify({
         contents: [{
           role: "user",
-          parts: [{ text: buildScanPrompt(opts.subject) }, { inline_data: { mime_type: "application/pdf", data: opts.data } }],
+          parts: [
+            { text: buildScanPrompt(opts.subject, mimeType === "application/pdf" ? undefined : "image is a photo or screenshot of a recruitment notice, or of part of one,") },
+            { inline_data: { mime_type: mimeType, data: opts.data } },
+          ],
         }],
         generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
       }),
@@ -90,18 +101,18 @@ export async function readScannedNotice(opts: {
     });
     status = response.status;
     if (!response.ok) {
-      await recordAiFailure("assist");
+      await recordAiFailure(feature);
       return { ok: false, reason: failure(status) };
     }
     const body = (await response.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
     const text = (body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "").trim();
-    if (text.length < MIN_SCAN_TEXT_CHARS) {
-      await recordAiFailure("assist");
+    if (text.length < minChars) {
+      await recordAiFailure(feature);
       return { ok: false, reason: failure(status) };
     }
     return { ok: true, text };
   } catch {
-    await recordAiFailure("assist");
+    await recordAiFailure(feature);
     return { ok: false, reason: failure(status) };
   } finally {
     clearTimeout(timer);

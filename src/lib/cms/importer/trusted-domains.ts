@@ -35,6 +35,9 @@ export const TRUSTED_DOMAINS: Record<string, HostEntry[]> = {
     { host: "onlinebpsc.bihar.gov.in", role: "AUTHORITY", purposes: ["all"] },
   ],
   ibps: [{ host: "ibps.in", role: "AUTHORITY", purposes: ["all"] }],
+  // Bihar Technical Service Commission. Its online form runs on an NIC exam
+  // portal (btsc.pariksha.nic.in) that is not listed until the owner confirms it.
+  btsc: [{ host: "btsc.bihar.gov.in", role: "AUTHORITY", purposes: ["all"] }],
   rrb: [
     { host: "rrbcdg.gov.in", role: "AUTHORITY", purposes: ["all"] },
     { host: "rrbapply.gov.in", role: "AUTHORITY", purposes: ["all"] },

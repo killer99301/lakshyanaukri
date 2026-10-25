@@ -16,12 +16,13 @@
 
 import { Redis } from "@upstash/redis";
 
-export type AiFeature = "assist" | "update-check" | "job-search";
+export type AiFeature = "assist" | "update-check" | "job-search" | "import";
 
 export const AI_FEATURE_LABELS: Record<AiFeature, string> = {
   assist: "AI Assist",
   "update-check": "Check for updates",
   "job-search": "New jobs search",
+  import: "Smart intake",
 };
 
 export const DEFAULT_AI_DAILY_CAP = 150;

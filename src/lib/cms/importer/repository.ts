@@ -35,7 +35,7 @@ export interface NewRetrieval {
   authenticityMethod: "FETCHED_BY_SERVER" | "HASH_MATCHES_SERVER_FETCH" | "ADMIN_ATTESTED" | null;
   matchedRetrievalId: string | null;
   attestationNote: string | null;
-  source: { sha256: string; kind: "PDF" | "HTML" | "TEXT"; byteSize: number; pageCount: number | null; text: string };
+  source: { sha256: string; kind: "PDF" | "HTML" | "TEXT" | "IMAGE"; byteSize: number; pageCount: number | null; text: string };
 }
 
 /** An earlier server fetch of the same document from the same host, if any (for a hash match). */
@@ -129,7 +129,7 @@ export function recordColumns(record: RecruitmentRecord, slug?: string): Record<
     eligibility: record.eligibility ?? null, age: record.age ?? null, financial: record.financial,
     selection: record.selection ?? null, exam_pattern: record.examPattern ?? null, syllabus: record.syllabus ?? null,
     how_to_apply: record.howToApply ?? null, links: record.links, exam_stages: record.examStages ?? null,
-    classification: record.classification ?? null, lifecycle: record.lifecycle, provenance: record.provenance,
+    classification: record.classification ?? null, conditions: record.conditions ?? null, lifecycle: record.lifecycle, provenance: record.provenance,
     documents: record.documents, updates: record.updates ?? [],
     record_revision: computeRecordRevision(record),
     organization_name: record.identity.organizationName ?? null, title_text: record.identity.title.value ?? null,
@@ -226,6 +226,7 @@ export function fieldValue(record: RecruitmentRecord, fieldPath: string): unknow
   if (key) return unwrap(at(at(record, ns), key));
   if (fieldPath === "examStages") return record.examStages ?? null;
   if (fieldPath === "howToApply") return record.howToApply ?? null;
+  if (fieldPath === "conditions") return record.conditions?.items ?? null;
   return unwrap(at(record, fieldPath));
 }
 

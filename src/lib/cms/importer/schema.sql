@@ -48,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_recruitment_imports_recruitment
 CREATE TABLE IF NOT EXISTS recruitment_sources (
   id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   content_sha256  CHAR(64)     NOT NULL UNIQUE CHECK (content_sha256 ~ '^[0-9a-f]{64}$'),
-  content_kind    VARCHAR(8)   NOT NULL CHECK (content_kind IN ('PDF', 'HTML', 'TEXT')),
+  content_kind    VARCHAR(8)   NOT NULL CHECK (content_kind IN ('PDF', 'HTML', 'TEXT', 'IMAGE')),
   byte_size       INTEGER      NOT NULL CHECK (byte_size > 0),
   page_count      INTEGER      CHECK (page_count IS NULL OR page_count > 0),
   text            TEXT         NOT NULL CHECK (length(text) <= 1048576),
@@ -430,6 +430,7 @@ BEGIN
     WHEN path = 'syllabus' THEN p_record->'syllabus'->'value' = v
     WHEN path = 'howToApply' THEN p_record->'how_to_apply' = v
     WHEN path = 'examStages' THEN p_record->'exam_stages' = v
+    WHEN path = 'conditions' THEN p_record->'conditions'->'items' = v
     WHEN path = 'classification' THEN p_record->'classification' @> v
     ELSE false
   END, false);
@@ -515,6 +516,7 @@ BEGIN
       how_to_apply      = rec->'how_to_apply',
       links             = rec->'links',
       exam_stages       = rec->'exam_stages',
+      conditions        = rec->'conditions',
       classification    = rec->'classification',
       record_revision   = rec->>'record_revision',
       organization_name = rec->>'organization_name',
@@ -538,14 +540,14 @@ BEGIN
     INSERT INTO public.recruitments (
       slug, identity, dates, vacancies, financial, eligibility, age, selection,
       exam_pattern, syllabus, exam_stages, how_to_apply, lifecycle, provenance,
-      links, documents, updates, classification, record_revision,
+      links, documents, updates, classification, conditions, record_revision,
       organization_id, organization_name, title_text, gov_type, created_by, updated_by
     ) VALUES (
       rec->>'slug', rec->'identity', rec->'dates', rec->'vacancies', rec->'financial',
       rec->'eligibility', rec->'age', rec->'selection', rec->'exam_pattern', rec->'syllabus',
       rec->'exam_stages', rec->'how_to_apply', rec->'lifecycle', rec->'provenance',
       coalesce(rec->'links', '[]'::jsonb), coalesce(rec->'documents', '[]'::jsonb),
-      coalesce(rec->'updates', '[]'::jsonb), rec->'classification', rec->>'record_revision',
+      coalesce(rec->'updates', '[]'::jsonb), rec->'classification', rec->'conditions', rec->>'record_revision',
       org_id, rec->>'organization_name', rec->>'title_text', rec->>'gov_type', p_admin_id, p_admin_id
     ) RETURNING id INTO rid;
     UPDATE public.recruitment_imports SET recruitment_id = rid WHERE import_id = p_import_id;

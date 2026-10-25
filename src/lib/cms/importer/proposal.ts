@@ -89,7 +89,12 @@ export interface Proposal {
   items: ProposalItem[];
   /** Values a corrigendum in this import replaced, for the preview to show. */
   replacedInImport: Array<{ fieldPath: string; value: unknown; by: string }>;
+  /** What the whole import lacks: no official notification or apply link, research only. */
+  warnings: string[];
 }
+
+/** Deadlines that can have passed; a passed one is flagged, never changed. */
+const DEADLINES = ["dates.applicationCloseDate", "dates.feePaymentCloseDate", "dates.correctionWindowEnd"];
 
 const isEmpty = (v: unknown) => v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
 
@@ -112,7 +117,9 @@ export function buildProposal(input: {
   current: (fieldPath: string) => CurrentField | undefined;
   existingClaims?: ExistingClaim[];
   /** Links already on the job, by address. */
-  currentLinks?: Array<{ url: string; type: string }>;
+  currentLinks?: Array<{ url: string; type: string; official?: boolean }>;
+  /** Today in India, YYYY-MM-DD, for the passed-deadline flag. */
+  today?: string;
 }): Proposal {
   const items: ProposalItem[] = [];
   const replacedInImport: Proposal["replacedInImport"] = [];
@@ -173,7 +180,10 @@ export function buildProposal(input: {
         action,
         conflict,
         supersedes: conflict ? [] : supersedes,
-        defaultTicked: !conflict && (action === "FILL" || action === "MATCHES"),
+        // A critical value that only research gives, while the official
+        // document in this import is silent on it, waits for the admin's tick.
+        defaultTicked: !conflict && (action === "FILL" || action === "MATCHES")
+          && !(officialInImport && !sources.some(eligibleRetrieval) && fieldDef(fieldPath).tier !== undefined),
         flags,
         ...(cur && !isEmpty(cur.value) ? { current: cur.value } : {}),
       });
@@ -208,5 +218,24 @@ export function buildProposal(input: {
   }
 
   items.sort((a, b) => a.fieldPath.localeCompare(b.fieldPath) || a.id.localeCompare(b.id));
-  return { items, replacedInImport };
+
+  if (input.today) {
+    for (const i of items) {
+      if (DEADLINES.includes(i.fieldPath) && typeof i.value === "string" && i.value < input.today) i.flags.push(`this date has passed (today is ${input.today})`);
+    }
+  }
+  const warnings: string[] = [];
+  const hasOfficial = (type: string) =>
+    items.some((i) => i.fieldPath === `links#${type}` && (i.value as { official?: boolean }).official === true)
+    || (input.currentLinks ?? []).some((l) => l.type === type && l.official === true);
+  if (!hasOfficial("OFFICIAL_NOTIFICATION")) {
+    warnings.push("No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.");
+  }
+  if (!hasOfficial("APPLY_ONLINE")) {
+    warnings.push("No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.");
+  }
+  if (input.extractions.length > 0 && input.extractions.every((e) => e.retrieval.declaredKind === "RESEARCH")) {
+    warnings.push("Every source here is research. Its values are saved as Pending, but none can be checked until an official document is added.");
+  }
+  return { items, replacedInImport, warnings };
 }

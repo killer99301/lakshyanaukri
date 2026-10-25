@@ -14,7 +14,7 @@ import { routeFieldUpdate } from "@/lib/cms/field-update-router";
 import { buildSlug } from "@/lib/cms/slug";
 import { normalizeNotifNum } from "@/lib/cms/duplicate-detector";
 import { extractPdfFromBuffer } from "@/intelligence/pdf-extractor";
-import { MIN_SCAN_TEXT_CHARS } from "@/lib/cms/scan-reader";
+import { MIN_SCAN_TEXT_CHARS, readScannedNotice } from "@/lib/cms/scan-reader";
 import { fetchSource } from "@/lib/cms/importer/fetch-source";
 import { readSource, htmlToText, type SourceReading } from "@/lib/cms/importer/extract";
 import { sourceOwnLink } from "@/lib/cms/importer/links";
@@ -73,10 +73,21 @@ function summaryLabel(r: NewRetrieval): string {
   const where = r.originHost ?? (r.method === "PASTED" ? "pasted text" : "upload");
   const how = r.authenticity === "CONFIRMED" ? (r.authenticityMethod === "FETCHED_BY_SERVER" ? "fetched by the server" : "same file as the server's fetch")
     : r.authenticity === "ATTESTED" ? "attested by admin" : r.authenticity === "UNCONFIRMED" ? "not confirmed" : "research";
-  return `${where} — ${KIND_LABEL[r.declaredKind] ?? r.declaredKind}${r.versionLabel ? ` (${r.versionLabel})` : ""}, ${how}`;
+  const image = r.source.kind === "IMAGE" ? " (an image: its text was read by AI, compare with the image)" : "";
+  return `${where} — ${KIND_LABEL[r.declaredKind] ?? r.declaredKind}${r.versionLabel ? ` (${r.versionLabel})` : ""}, ${how}${image}`;
 }
 
-async function obtain(input: SourceInput, fetchSourceFn: typeof fetchSource): Promise<{ method: NewRetrieval["method"]; finalUrl: string | null; kind: "PDF" | "HTML" | "TEXT"; bytes: Buffer; text: string; pages: number | null }> {
+/** An image's type from its first bytes; null when it is not a PNG, JPEG or WebP. */
+export function imageType(bytes: Buffer): string | null {
+  if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.subarray(0, 4).toString("latin1") === "RIFF" && bytes.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
+  return null;
+}
+/** Fewer characters than this read from an image is not a recruitment detail. */
+const MIN_IMAGE_TEXT_CHARS = 40;
+
+async function obtain(input: SourceInput, fetchSourceFn: typeof fetchSource, read: { subject: string; apiKey: string | undefined; fetchFn?: typeof fetch }): Promise<{ method: NewRetrieval["method"]; finalUrl: string | null; kind: "PDF" | "HTML" | "TEXT" | "IMAGE"; bytes: Buffer; text: string; pages: number | null }> {
   if (input.method === "url") {
     if (!input.url) throw new ImportInputError("A source by address needs the address");
     const got = await fetchSourceFn(input.url);
@@ -90,8 +101,19 @@ async function obtain(input: SourceInput, fetchSourceFn: typeof fetchSource): Pr
     const html = got.bytes.toString("utf8");
     return { method: "FETCHED", finalUrl: got.finalUrl, kind: "HTML", bytes: got.bytes, text: html, pages: null };
   }
+  if (input.method === "upload" && input.bytes && imageType(input.bytes)) {
+    // A photo or screenshot: the AI writes out what it shows. The image itself
+    // is not kept, only that text and the image's fingerprint (SHA-256).
+    let text = input.text?.trim() ?? "";
+    if (text.length < MIN_IMAGE_TEXT_CHARS) {
+      const reading = await readScannedNotice({ data: input.bytes.toString("base64"), subject: read.subject, apiKey: read.apiKey, fetchFn: read.fetchFn, mimeType: imageType(input.bytes)!, minChars: MIN_IMAGE_TEXT_CHARS, feature: "import" });
+      if (!reading.ok) throw new ImportInputError(`The image could not be read: ${reading.reason}`);
+      text = reading.text;
+    }
+    return { method: "UPLOADED", finalUrl: null, kind: "IMAGE", bytes: input.bytes, text: text.slice(0, MAX_TEXT_CHARS), pages: null };
+  }
   if (input.method === "upload") {
-    if (!input.bytes || input.bytes.subarray(0, 5).toString("latin1") !== "%PDF-") throw new ImportInputError("The uploaded file is not a PDF");
+    if (!input.bytes || input.bytes.subarray(0, 5).toString("latin1") !== "%PDF-") throw new ImportInputError("The uploaded file is not a PDF or an image (PNG, JPEG, WebP)");
     if (input.text && input.text.trim().length >= MIN_SCAN_TEXT_CHARS) {
       return { method: "UPLOADED", finalUrl: null, kind: "PDF", bytes: input.bytes, text: input.text.trim().slice(0, MAX_TEXT_CHARS), pages: null };
     }
@@ -106,7 +128,7 @@ async function obtain(input: SourceInput, fetchSourceFn: typeof fetchSource): Pr
 }
 
 async function readOne(input: SourceInput, organizationId: string, subject: string, apiKey: string | undefined, fetchFn: typeof fetch | undefined, fetchSourceFn: typeof fetchSource): Promise<Omit<ReadSource, "retrieval" | "summary"> & { obtained: Awaited<ReturnType<typeof obtain>> }> {
-  const obtained = await obtain(input, fetchSourceFn);
+  const obtained = await obtain(input, fetchSourceFn, { subject, apiKey, fetchFn });
   const reading = await readSource({
     content: obtained.text, kind: obtained.kind === "PDF" ? "pdf" : "html", url: obtained.finalUrl ?? input.url ?? "",
     subject, organizationId, apiKey, fetchFn,
@@ -201,9 +223,15 @@ export async function previewImport(opts: {
   }
   const proposal = buildProposal({
     extractions: sources.map((s) => ({ retrieval: s.summary, values: s.reading.values, links: s.reading.links })),
-    current: (fieldPath) => record ? { value: fieldValue(record, fieldPath), verified: verifiedPaths.has(fieldPath) } : undefined,
+    // A new job already has what the admin typed (title, maybe the number):
+    // a document's heading is offered as a replacement, never ticked over it.
+    current: (fieldPath) => record ? { value: fieldValue(record, fieldPath), verified: verifiedPaths.has(fieldPath) }
+      : fieldPath === "identity.title" ? { value: opts.newJob?.title, verified: false }
+      : fieldPath === "identity.notificationNumber" && opts.newJob?.notificationNumber ? { value: opts.newJob.notificationNumber, verified: false }
+      : undefined,
     existingClaims: existing,
     currentLinks: record?.links ?? [],
+    today: new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10),
   });
 
   // Keys for the duplicate lock and check of a new job.

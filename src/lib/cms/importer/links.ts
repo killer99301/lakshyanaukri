@@ -57,11 +57,33 @@ const LABEL: Record<string, string> = {
   ADMIT_CARD: "Admit Card", RESULT: "Result", ANSWER_KEY: "Answer Key", CORRIGENDUM: "Corrigendum", EXAM_NOTICE: "Exam Notice", OTHER: "Link",
 };
 
-/** Every http(s) address in the text, cleaned, typed and judged, one per address. */
+// What the words just before an address call it: "Apply Online: <url>" is
+// the apply link even when the address is a bare portal. The label nearest
+// the address wins ("apply online at the official website <url>" → website).
+const APPLY_WORDS = /apply\s+online|online\s+application|application\s+(?:link|portal)|apply\s+(?:at|here|through)|register\s+(?:at|on)/gi;
+const WEBSITE_WORDS = /official\s+website|website/gi;
+function labelBefore(text: string, at: number): "APPLY_ONLINE" | "OFFICIAL_WEBSITE" | null {
+  const before = text.slice(Math.max(0, at - 60), at);
+  const last = (re: RegExp) => Math.max(-1, ...[...before.matchAll(re)].map((m) => (m.index ?? 0) + m[0].length));
+  const apply = last(APPLY_WORDS);
+  const site = last(WEBSITE_WORDS);
+  if (apply < 0 && site < 0) return null;
+  return apply > site ? "APPLY_ONLINE" : "OFFICIAL_WEBSITE";
+}
+
+/**
+ * Every address in the text, cleaned, typed and judged, one per address:
+ * http(s) addresses, and government sites written without "https://"
+ * ("Official Website btsc.bihar.gov.in"), as copied articles often give them.
+ */
 export function linksInText(text: string, organizationId: string): FoundLink[] {
   const out = new Map<string, FoundLink>();
-  for (const m of text.matchAll(/https?:\/\/[^\s<>"')\]]+/gi)) {
-    const raw = m[0].replace(/[.,;:]+$/, "");
+  const found: Array<{ raw: string; index: number; bare?: string }> = [
+    ...[...text.matchAll(/https?:\/\/[^\s<>"')\]]+/gi)].map((m) => ({ raw: m[0], index: m.index ?? 0 })),
+    ...[...text.matchAll(/(?<![\w./:@-])((?:[a-z0-9-]+\.)+(?:gov|nic)\.in)(\/[^\s<>"')\]]*)?/gi)].map((m) => ({ raw: `https://${m[0]}`, index: m.index ?? 0, bare: m[0] })),
+  ].sort((x, y) => x.index - y.index);
+  for (const m of found) {
+    const raw = m.raw.replace(/[.,;:]+$/, "");
     const url = cleanUrl(raw);
     if (!url || out.has(url)) continue;
     const origin = originFor(organizationId, hostOf(url));
@@ -75,14 +97,16 @@ export function linksInText(text: string, organizationId: string): FoundLink[] {
       type = origin.purposes.includes("application") && !HELP_FILE.test(new URL(url).pathname) ? "APPLY_ONLINE" : "OTHER";
     }
     if (type === "OFFICIAL_NOTIFICATION" && HELP_FILE.test(new URL(url).pathname)) type = "OTHER";
-    const at = m.index ?? 0;
+    const at = m.index;
+    const label = labelBefore(text, at);
+    if (label && (type === "OFFICIAL_WEBSITE" || type === "OTHER")) type = label;
     out.set(url, {
       type,
       label: LABEL[type] ?? "Link",
       url,
       official: (origin.role === "AUTHORITY" || origin.role === "PARTNER") && flags.every((f) => f === "tracking removed"),
       flags,
-      context: text.slice(Math.max(0, at - 80), at + raw.length + 40).replace(/\s+/g, " ").trim(),
+      context: text.slice(Math.max(0, at - 80), at + (m.bare ?? raw).length + 40).replace(/\s+/g, " ").trim(),
     });
   }
   return [...out.values()];

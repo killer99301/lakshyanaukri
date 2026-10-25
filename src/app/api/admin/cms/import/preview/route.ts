@@ -52,7 +52,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (method === "upload") {
       const file = form.get(String(s.file ?? ""));
       if (!(file instanceof File)) return NextResponse.json({ error: "A file is missing" }, { status: 400 });
-      if (file.size > MAX_UPLOAD_BYTES) return NextResponse.json({ error: "A PDF is larger than 4 MB" }, { status: 413 });
+      if (file.size > MAX_UPLOAD_BYTES) return NextResponse.json({ error: "A file is larger than 4 MB" }, { status: 413 });
       bytes = Buffer.from(await file.arrayBuffer());
     }
     const date = str(s.documentDate);

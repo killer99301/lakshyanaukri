@@ -37,6 +37,7 @@ import {
   updateLifecycleStatusOverride,
   updateLinks,
   updateHowToApply,
+  updateConditions,
   updateClassification,
   updateExamStages,
   updateExamPattern,
@@ -191,6 +192,9 @@ export function routeFieldUpdate(
   if (fieldPath === "howToApply") {
     return updateHowToApply(record, newField.value, adminId, reason);
   }
+  if (fieldPath === "conditions") {
+    return updateConditions(record, newField.value, adminId, reason);
+  }
 
   if (fieldPath === "classification") {
     return updateClassification(record, newField.value, adminId, reason);
@@ -207,7 +211,7 @@ export function routeFieldUpdate(
 
   throw new Error(
     `Unknown or unroutable fieldPath: "${fieldPath}". ` +
-      `Known blocks: eligibility, age, selection, examPattern, syllabus, vacancies.breakdown, vacancies.total, links, howToApply, examStages, classification, lifecycle.statusOverride. ` +
+      `Known blocks: eligibility, age, selection, examPattern, syllabus, vacancies.breakdown, vacancies.total, links, howToApply, conditions, examStages, classification, lifecycle.statusOverride. ` +
       `Namespace prefixes: identity., dates., financial.`,
   );
 }
