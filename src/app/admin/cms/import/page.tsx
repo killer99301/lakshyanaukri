@@ -303,7 +303,7 @@ function Importer() {
 
       <SwitchPanel on={on} onChange={setOn} />
 
-      {on === false ? null : applied ? (
+      {on === null ? <div style={{ color: C.muted, fontSize: 13 }}>Checking the importer switch…</div> : on === false ? null : applied ? (
         <div data-import-applied style={{ ...PANEL, padding: 18, color: C.text, fontSize: 14, lineHeight: 1.6 }}>
           <div style={{ fontWeight: 700, color: C.green }}>{applied.replayed ? "This import was already applied." : "Applied."} Nothing is published.</div>
           <div style={{ color: C.muted, fontSize: 13 }}>Open the job and work through “Check before publishing”: every critical field needs a person’s check against the official document.</div>

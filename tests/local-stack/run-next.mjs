@@ -12,6 +12,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const root = process.cwd();
 const cert = join(root, "tests", "local-stack", ".tmp", "cert.pem");
@@ -37,6 +38,12 @@ const env = {
   ADMIN_OTP_HMAC_KEY: "local-test-hmac-key-not-a-secret",
 };
 if (process.argv.includes("--no-gemini")) env.GEMINI_API_KEY = "";
+// --fake-ai: AI requests are answered by tests/local-stack/fake-ai.mjs inside
+// the server, quoting the source; no key, no network. Test runs only.
+if (process.argv.includes("--fake-ai")) {
+  env.GEMINI_API_KEY = "fake-local-only";
+  env.NODE_OPTIONS = `${env.NODE_OPTIONS ?? ""} --import ${pathToFileURL(join(root, "tests", "local-stack", "fake-ai.mjs")).href}`.trim();
+}
 
 // Test modes: run a test file with the same isolated environment. The local
 // certificate has to be trusted from process start, which is why tests that
