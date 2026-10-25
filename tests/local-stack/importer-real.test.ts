@@ -282,6 +282,10 @@ function fakeGemini(prompt: string): J {
   const sscJob = await apply(ssc, [...ticked(ssc), get(ssc, "dates.applicationCloseDate", "2026-07-04")!.id]);
   const sscPdf = sources(ssc)[0];
   check("the last date is checked against the PDF", !!(await verify(sscJob.recruitmentId, "dates.applicationCloseDate", sscPdf.id, "Last date and time for receipt of online applications: 04-07-2026 (23:00)", 1)));
+  const sscFields = (await checks(sscJob.recruitmentId)).fields;
+  check("editor badges: the checked last date is VERIFIED, the PDF's fee is SUPPORTED, the CMS status stays Pending",
+    sscFields["dates.applicationCloseDate"] === "VERIFIED" && sscFields["financial.feeGeneral"] === "SUPPORTED"
+    && (await getRecruitmentById(sscJob.recruitmentId))!.dates.applicationCloseDate?.status === "PENDING", sscFields);
   check("research cannot support a check", /confirmed or attested/.test(await refused(() => verify(sscJob.recruitmentId, "financial.feeGeneral", sources(ssc)[1].id, "Application fee: Rs 100", null)) ?? ""));
 
   // ── 6. A revised notice: the SSC corrigendum extends the last date ──
