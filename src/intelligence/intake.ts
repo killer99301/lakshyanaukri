@@ -855,7 +855,8 @@ function hasPhoneContext(text: string, matchIndex: number): boolean {
 // Tier 1: explicitly labeled advertisement/notification number.
 // The label must immediately precede the code (within ~3 words).
 const PLAIN_TEXT_ADVT_LABEL_RE =
-  /(?:advertisement|advt\.?|advert\.?|notification)\s+no\.?\s*[:\-]?\s*([A-Z0-9()\-\/\.]{3,30}(?:\/\d{1,4})?)/i;
+  // "no" must end the word: "Advertisement Notification" is not "Advertisement No." + "tification".
+  /(?:advertisement|advt\.?|advert\.?|notification)\s+no(?![a-z])\.?\s*[:\-]?\s*([A-Z0-9()\-\/\.]{3,30}(?:\/\d{1,4})?)/i;
 
 // Tier 2: structurally distinctive government recruitment codes.
 // The format itself is an identifier — no explicit label required.

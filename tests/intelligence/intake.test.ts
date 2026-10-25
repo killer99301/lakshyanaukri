@@ -1755,6 +1755,14 @@ async function testF8G_EXTRACTION_QUALITY() {
       "labeled advt number = XYZ-RECRUIT-2026/01 (got: " + ex.notificationNumber + ")");
   }
 
+  // Case C2: "Advertisement Notification" heading is not a labelled number (LIC HFL batch 10 PDF)
+  {
+    const ex = extractIntakeFields("LICHFL Apprenticeship Program-010- Advertisement Notification\nApplications are invited from fresh graduates", "https://cdn.lichousing.com/notif.pdf",
+      undefined, undefined, "OFFICIAL_PDF");
+    assert("F8G-C2.1", ex.notificationNumber === undefined,
+      "no number from the word Notification (got: " + (ex.notificationNumber ?? "undefined") + ")");
+  }
+
   // Case D: Official PDF vacancy value beats third-party vacancy value
   {
     const stageAUrl = "https://govtjobguru.in/xyz-recruit-2026/";
