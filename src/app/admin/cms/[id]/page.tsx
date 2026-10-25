@@ -976,7 +976,15 @@ function VacancyBreakdownEditor({ record, onSaved }: { record: RecruitmentRecord
             <tbody>
               {rows.map((row, i) => (
                 <tr key={i}>
-                  <td style={cell}>{row.post}</td>
+                  <td style={cell}>
+                    {row.post}
+                    {/* The category split, where one was entered or imported; kept when the row is edited. */}
+                    {row.breakdown && Object.keys(row.breakdown).length > 0 && (
+                      <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
+                        {Object.entries(row.breakdown).filter(([, n]) => typeof n === "number").map(([k, n]) => `${k.length <= 5 ? k.toUpperCase() : k} ${n}`).join(" · ")}
+                      </div>
+                    )}
+                  </td>
                   <td style={cell}>{row.count}</td>
                   <td style={{ ...cell, color: C.muted }}>{row.payScale ?? "—"}</td>
                 </tr>
@@ -1915,7 +1923,7 @@ export default function CmsRecordEditorPage() {
         <ImportChecksPanel record={record} onRecordChange={onFieldSaved} onChecks={setImportChecks} />
         {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
           <div style={{ marginBottom: 12, fontSize: 12 }}>
-            <ImporterLink href={`/admin/cms/import?record=${record.id}`} style={{ color: C.accent, textDecoration: "none" }}>Import into this job from a notice or research →</ImporterLink>
+            <ImporterLink href={`/admin/cms/import?record=${record.id}`} style={{ color: C.accent, textDecoration: "none" }}>Smart intake: fill this job from an article, notice, screenshot or link →</ImporterLink>
           </div>
         )}
 

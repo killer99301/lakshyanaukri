@@ -41,11 +41,11 @@ interface Item {
 }
 interface SourceMeta {
   id: string; label: string; declaredKind: Kind; authenticity: string; originRole: string; method: string; originUrl: string | null;
-  notFound: string[]; refused: Array<{ fieldPath: string; reason: string }>; summary: string | null;
+  notFound: string[]; refused: Array<{ fieldPath: string; reason: string }>; summary: string | null; articleSkipped?: string;
 }
 interface Preview {
   importId: string;
-  proposal: { items: Item[]; replacedInImport: Array<{ fieldPath: string; value: unknown; by: string }>; meta: { sources: SourceMeta[]; duplicates: Array<{ id: string; title: string; reason: string }> } };
+  proposal: { items: Item[]; replacedInImport: Array<{ fieldPath: string; value: unknown; by: string }>; warnings?: string[]; meta: { sources: SourceMeta[]; duplicates: Array<{ id: string; title: string; reason: string }> } };
 }
 
 const KIND_LABELS: Record<Kind, string> = {
@@ -144,7 +144,7 @@ function SourceEditor({ s, onChange, onRemove, subject }: { s: SourceDraft; onCh
         <label><span style={labelStyle}>How it comes in</span>
           <select value={s.method} onChange={(e) => onChange({ ...s, method: e.target.value as Method })} style={inputStyle}>
             <option value="paste">Paste the text</option>
-            <option value="upload">Upload a PDF</option>
+            <option value="upload">Upload a PDF, photo or screenshot</option>
             <option value="url">Address — the server fetches it</option>
           </select>
         </label>
@@ -163,12 +163,16 @@ function SourceEditor({ s, onChange, onRemove, subject }: { s: SourceDraft; onCh
       )}
       {s.method === "upload" && (
         <div style={{ display: "grid", gap: 6 }}>
-          <input type="file" accept="application/pdf" onChange={(e) => onChange({ ...s, file: e.target.files?.[0] ?? null, scanText: "" })} style={{ color: C.text, fontSize: 12 }} />
-          <span style={{ fontSize: 11, color: C.muted }}>
-            Up to 4 MB. A scan without a text layer needs reading first:{" "}
-            <button onClick={() => { void readScan(); }} disabled={!s.file || reading} style={{ ...quietBtn, padding: "2px 8px" }}>{reading ? "Reading…" : "Read the scan"}</button>
-            {s.scanText && <span style={{ color: C.green }}> — read ({s.scanText.length.toLocaleString("en-IN")} characters)</span>}
-          </span>
+          <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(e) => onChange({ ...s, file: e.target.files?.[0] ?? null, scanText: "" })} style={{ color: C.text, fontSize: 12 }} />
+          {s.file && s.file.type.startsWith("image/") ? (
+            <span style={{ fontSize: 11, color: C.muted }}>Up to 4 MB. The AI writes out what the image shows when you make the preview; compare every value with the image before checking it.</span>
+          ) : (
+            <span style={{ fontSize: 11, color: C.muted }}>
+              Up to 4 MB. A scan without a text layer needs reading first:{" "}
+              <button onClick={() => { void readScan(); }} disabled={!s.file || reading} style={{ ...quietBtn, padding: "2px 8px" }}>{reading ? "Reading…" : "Read the scan"}</button>
+              {s.scanText && <span style={{ color: C.green }}> — read ({s.scanText.length.toLocaleString("en-IN")} characters)</span>}
+            </span>
+          )}
           {readErr && <span role="alert" style={{ color: C.red, fontSize: 12 }}>{readErr}</span>}
         </div>
       )}
@@ -293,9 +297,12 @@ function Importer() {
     <div style={{ maxWidth: 1100 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5ff", margin: 0 }}>{recordId ? "Import into this job" : "Import a job"}</h1>
-          <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>
-            Add the official notice and any research, preview what each says, tick what to keep. Every value is saved as Pending; the job cannot be published until you check its critical fields.
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5ff", margin: 0 }}>{recordId ? "Smart intake into this job" : "Smart intake"}</h1>
+          <div style={{ fontSize: 13, color: C.muted, marginTop: 4, maxWidth: 760, lineHeight: 1.5 }}>
+            Paste a whole article or ChatGPT answer, upload the notice PDF or a screenshot, or give an address. Every section of the job is filled from what they say; you tick what to keep. Values are saved as Pending, and the job cannot be published until you check its critical fields against the official notice. AI Assist and manual entry work as before.
+          </div>
+          <div data-import-retention style={{ fontSize: 11, color: C.muted, marginTop: 6, maxWidth: 760, lineHeight: 1.5 }}>
+            Kept: the text of each source, its fingerprint (SHA-256), size, pages and address. Not kept: the original PDF or image file, so keep your own copy if you may need it again.
           </div>
         </div>
         <Link href={recordId ? `/admin/cms/${recordId}` : "/admin/cms"} style={{ color: C.accent, fontSize: 13, textDecoration: "none" }}>← {recordId ? "Back to the job" : "All jobs"}</Link>
@@ -357,6 +364,12 @@ function Importer() {
             <div data-import-preview style={{ ...PANEL, padding: 16, display: "grid", gap: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#c7d2e6" }}>Preview — nothing is saved yet</div>
 
+              {(preview.proposal.warnings ?? []).length > 0 && (
+                <div data-import-warnings role="alert" style={{ border: `1px solid ${C.amber}66`, background: `${C.amber}12`, borderRadius: 8, padding: 10, fontSize: 12, color: C.text, display: "grid", gap: 4 }}>
+                  {(preview.proposal.warnings ?? []).map((w) => <div key={w}>⚠ {w}</div>)}
+                </div>
+              )}
+
               <div style={{ display: "grid", gap: 8 }}>
                 {preview.proposal.meta.sources.map((s) => (
                   <div key={s.id} style={{ fontSize: 12, color: C.text, lineHeight: 1.5 }}>
@@ -364,6 +377,7 @@ function Importer() {
                     {s.label}
                     {s.notFound.length > 0 && <div style={{ color: C.muted }}>Not found in it: {s.notFound.join(", ")}</div>}
                     {s.refused.length > 0 && <div style={{ color: C.amber }}>Left out: {s.refused.map((r) => `${r.fieldPath} (${r.reason})`).join("; ")}</div>}
+                    {s.articleSkipped && <div style={{ color: C.amber }}>The whole-text reading did not run: {s.articleSkipped}</div>}
                   </div>
                 ))}
               </div>

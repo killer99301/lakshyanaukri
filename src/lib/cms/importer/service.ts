@@ -254,7 +254,8 @@ export async function previewImport(opts: {
       mode: opts.mode,
       newJob: opts.newJob ?? null,
       sources: sources.map((s) => ({ ...s.summary, method: s.retrieval.method, originUrl: s.retrieval.originUrl,
-        notFound: s.reading.notFound, refused: s.reading.refused, summary: s.reading.summary })),
+        notFound: s.reading.notFound, refused: s.reading.refused, summary: s.reading.summary,
+        ...(s.reading.articleSkipped ? { articleSkipped: s.reading.articleSkipped } : {}) })),
       duplicates,
     },
   };
