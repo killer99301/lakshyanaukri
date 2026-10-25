@@ -1769,6 +1769,10 @@ async function testF8G_EXTRACTION_QUALITY() {
       undefined, undefined, "OFFICIAL_PDF");
     assert("F8G-C3.1", ex.applicationCloseDate !== "2026-07-05",
       "fee payment date not taken as the last date (got: " + (ex.applicationCloseDate ?? "undefined") + ")");
+    const dashed = extractIntakeFields("Online Application Begins - 25-09-2026\nLast Date to Apply Online - 24-10-2026", "https://btsc.bihar.gov.in/notice.pdf",
+      undefined, undefined, "OFFICIAL_PDF");
+    assert("F8G-C3.2", dashed.applicationCloseDate === "2026-10-24",
+      "a dashed date in a table row is read as the last date (got: " + (dashed.applicationCloseDate ?? "undefined") + ")");
   }
 
   // Case D: Official PDF vacancy value beats third-party vacancy value

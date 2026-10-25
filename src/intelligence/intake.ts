@@ -920,7 +920,8 @@ export function extractApplicationDates(text: string): {
     // Char limit 45: real table labels are ≤38 chars after the keyword; the SPE eligibility
     // clause ("last date for receipt of online application i.e. on or before …") runs 52+ chars
     // before its date even after whitespace collapsing — safely excluded.
-    /(?:last\s+date|closing\s+date|close\s+date|deadline)\b[^\d\n]{0,45}(\d{1,2}[./]\d{1,2}[./]20\d{2})/i,
+    // Dashes too ("Last Date to Apply Online - 24-10-2026"), as the opening-date pattern allows.
+    /(?:last\s+date|closing\s+date|close\s+date|deadline)\b[^\d\n]{0,45}(\d{1,2}[./-]\d{1,2}[./-]20\d{2})/i,
     /applications?\s+close[^:\n]{0,20}?:\s*(.{5,30}?(?:\d{4}))/i,
     // Requires application/registration context before "before/upto" — extra guard against
     // eligibility clauses even when no "last date" label is present.

@@ -199,7 +199,9 @@ function Importer() {
     : [newSource("OFFICIAL_NOTIFICATION", "upload"), newSource("RESEARCH", "paste")]);
   const pickFound = (f: FoundJob) => {
     const kind: Kind = !f.official ? "RESEARCH" : /\.pdf(\?|$)/i.test(f.url) ? "OFFICIAL_NOTIFICATION" : "OFFICIAL_PAGE";
-    setNewJob((n) => ({ ...n, title: f.title.slice(0, 160) }));
+    // "BTSC FSO Recruitment 2026 Notification Out For 105 Posts, Apply Online" → "BTSC FSO Recruitment 2026"
+    const title = f.title.replace(/\s+(notification\s+)?out\b.*$/i, "").replace(/,.*$/, "").trim() || f.title;
+    setNewJob((n) => ({ ...n, title: title.slice(0, 160) }));
     setSources([{ ...newSource(kind, "url"), url: f.url }, newSource("OFFICIAL_NOTIFICATION", "upload")]);
     setPreview(null);
     document.querySelector("[data-import-job]")?.scrollIntoView({ block: "start" });

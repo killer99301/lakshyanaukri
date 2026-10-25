@@ -71,13 +71,17 @@ export function robotsAllows(robots: string, path: string, agent = AGENT): boole
 const UPDATE_WORDS = /extended|extension|postponed|rescheduled|admit card|hall ticket|result|answer key|cut ?off|merit list|exam date|city intimation|corrigendum|revised/i;
 const STOP = new Set(["the", "and", "for", "of", "in", "out", "to", "on", "a", "check", "apply", "online", "notification", "recruitment", "vacancy", "vacancies", "posts", "post", "pdf", "link", "details", "now", "download", "form", "last", "date", "at", "with", "new"]);
 /** A title's words, without years and filler; plus the initials of each run of words ("food safety officer" → "fso"). */
+// Words most job titles share: they make initials ("food safety officer" →
+// "fso") but do not count as a match on their own.
+const GENERIC = new Set(["officer", "officers", "assistant", "junior", "senior", "exam", "examination", "manager", "grade", "group"]);
+
 function words(s: string): { words: Set<string>; all: Set<string> } {
   const list = s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((t) => t.length > 1 && !STOP.has(t) && !/^20\d{2}$/.test(t));
-  const all = new Set(list);
+  const all = new Set(list.filter((t) => !GENERIC.has(t)));
   for (let i = 0; i < list.length; i++) {
     for (let n = 2; n <= 4 && i + n <= list.length; n++) all.add(list.slice(i, i + n).map((w) => w[0]).join(""));
   }
-  return { words: new Set(list), all };
+  return { words: new Set(list.filter((t) => !GENERIC.has(t))), all };
 }
 
 /** Jobs whose titles share the year and most of their words (or their initials) with the announcement. */

@@ -73,4 +73,7 @@ test("ID04 similar titles need the same year and most of their words", () => {
   const jobs = [{ id: "a", title: "SSC CGL 2026" }, { id: "b", title: "SSC CGL 2025" }, { id: "c", title: "SSC CHSL 2026" }];
   assert.deepEqual(similarJobs("SSC CGL 2026 Notification Out, Apply Online", jobs).map((j) => j.id), ["a"]);
   assert.deepEqual(similarJobs("RRB NTPC 2026 Notification", jobs), []);
+  const btsc = [{ id: "fso", title: "BTSC Food Safety Officer Recruitment 2026" }];
+  assert.deepEqual(similarJobs("BTSC FSO Recruitment 2026 Notification Out For 105 Posts", btsc).map((j) => j.id), ["fso"]);
+  assert.deepEqual(similarJobs("BTSC Touring Veterinary Officer Recruitment 2026 Out, Apply Online for 787 Vacancies", btsc), [], "same body, another post");
 });
