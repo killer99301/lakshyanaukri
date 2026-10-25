@@ -32,7 +32,7 @@ import { AgeEditor } from "./AgeEditor";
 import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { LiveChangesPanel } from "./LiveChangesPanel";
-import { ImportChecksPanel } from "./ImportChecksPanel";
+import { ImportChecksPanel, type ImportCheckState } from "./ImportChecksPanel";
 import { ImporterLink } from "../import/ImporterLink";
 import { TakeDownControl, TakenDownBanner } from "./SiteVisibility";
 import { currentValue, restorable, sameAsNow } from "@/lib/cms/restore-value";
@@ -1158,29 +1158,33 @@ const STATE_INFO: Record<string, { label: string; note: string }> = {
 // ─── Publish checklist ────────────────────────────────────
 
 /** Every value still marked Pending, with the section that holds it. */
-function pendingValues(record: RecruitmentRecord): Array<{ label: string; section: string }> {
+// Fields a person has checked in "Check before publishing" are left out.
+function pendingValues(record: RecruitmentRecord, checked: string[] = []): Array<{ label: string; section: string }> {
   type Field = { value: unknown; status?: string } | null | undefined;
   const dates = record.dates as unknown as Record<string, Field>;
-  const all: Array<{ label: string; section: string; field: Field }> = [
-    { label: "Notification number", section: "Identity", field: record.identity.notificationNumber },
-    ...DATE_FIELDS.map(({ key, label }) => ({ label, section: "Dates", field: dates[key] })),
-    { label: "Total vacancies", section: "Vacancies", field: record.vacancies.total },
-    { label: "Vacancies by post", section: "Vacancies", field: record.vacancies.breakdown },
-    { label: "Fee (General / OBC)", section: "Financial", field: record.financial.feeGeneral },
-    { label: "Fee (SC / ST / PwD)", section: "Financial", field: record.financial.feeSCST },
-    { label: "Pay scale", section: "Financial", field: record.financial.payScale },
-    { label: "Eligibility", section: "Eligibility", field: record.eligibility },
-    { label: "Age limit", section: "Age", field: record.age },
-    { label: "Selection process", section: "Selection", field: record.selection },
-    { label: "Exam pattern", section: "Exam Pattern", field: record.examPattern },
-    { label: "Syllabus", section: "Syllabus", field: record.syllabus },
+  const all: Array<{ label: string; section: string; path: string; field: Field }> = [
+    { label: "Notification number", section: "Identity", path: "identity.notificationNumber", field: record.identity.notificationNumber },
+    ...DATE_FIELDS.map(({ key, label }) => ({ label, section: "Dates", path: `dates.${key}`, field: dates[key] })),
+    { label: "Total vacancies", section: "Vacancies", path: "vacancies.total", field: record.vacancies.total },
+    { label: "Vacancies by post", section: "Vacancies", path: "vacancies.breakdown", field: record.vacancies.breakdown },
+    { label: "Fee (General / OBC)", section: "Financial", path: "financial.feeGeneral", field: record.financial.feeGeneral },
+    { label: "Fee (SC / ST / PwD)", section: "Financial", path: "financial.feeSCST", field: record.financial.feeSCST },
+    { label: "Pay scale", section: "Financial", path: "financial.payScale", field: record.financial.payScale },
+    { label: "Eligibility", section: "Eligibility", path: "eligibility", field: record.eligibility },
+    { label: "Age limit", section: "Age", path: "age", field: record.age },
+    { label: "Selection process", section: "Selection", path: "selection", field: record.selection },
+    { label: "Exam pattern", section: "Exam Pattern", path: "examPattern", field: record.examPattern },
+    { label: "Syllabus", section: "Syllabus", path: "syllabus", field: record.syllabus },
   ];
-  return all.filter(({ field }) => field && typeof field === "object" && hasValue(field) && field.status === "PENDING").map(({ label, section }) => ({ label, section }));
+  return all
+    .filter(({ field, path }) => field && typeof field === "object" && hasValue(field) && field.status === "PENDING" && !checked.includes(path))
+    .map(({ label, section }) => ({ label, section }));
 }
 
 // Shown on drafts and on live jobs. On a live job it is a reading of what the
 // public page still lacks; nothing changes until Edit Record and a new publish.
-function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJump: (section: string) => void }) {
+function PublishChecklist({ record, onJump, importChecks }: { record: RecruitmentRecord; onJump: (section: string) => void; importChecks: ImportCheckState }) {
+  const importToCheck = importChecks.toCheck;
   const live = record.draftState === "PUBLISHED";
   const items: Array<{ label: string; section: string; done: boolean; required?: boolean }> = [
     { label: "Official link",    section: "Links",        done: record.links.some((l) => l.official), required: true },
@@ -1194,8 +1198,9 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
     { label: "Listing details",  section: "Identity",     done: sectionFill(record, "Identity") === "filled" },
   ];
   const done = items.filter((i) => i.done).length;
-  const blocked = !items[0].done;
-  const pendingList = pendingValues(record);
+  // An imported job also waits for its critical fields to be checked (panel above).
+  const blocked = !items[0].done || importToCheck > 0;
+  const pendingList = pendingValues(record, importChecks.checked);
   const pending = pendingList.length;
   const pct = Math.round((done / items.length) * 100);
   // Values that contradict each other. Today in India, the site's working day.
@@ -1208,6 +1213,7 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
         <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
           {live
             ? done === items.length ? `${record.takenDown ? "Off the website" : "Live"} — nothing is missing` : `${record.takenDown ? "Off the website" : "Live"} — ${items.length - done} detail${items.length - done === 1 ? " is" : "s are"} still empty on the public page`
+            : importToCheck > 0 ? `Not ready to publish yet — ${importToCheck} imported field${importToCheck === 1 ? "" : "s"} to check above`
             : blocked ? "Not ready to publish yet" : done === items.length ? "Ready to publish" : "Can be published — some details are still empty"}
         </div>
         <div style={{ fontSize: 12, color: C.muted }}>{done} of {items.length} filled</div>
@@ -1235,7 +1241,7 @@ function PublishChecklist({ record, onJump }: { record: RecruitmentRecord; onJum
           </button>
         ))}
       </div>
-      {blocked && !live && (
+      {!items[0].done && !live && (
         <div style={{ fontSize: 12, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>
           Publishing needs at least one link marked official. Open <b style={{ color: C.text }}>Links</b>, or run AI Assist and click “Add as official link”.
         </div>
@@ -1296,6 +1302,8 @@ export default function CmsRecordEditorPage() {
   // job going live the first time, no for a republish.
   const [announceChoice, setAnnounceChoice] = useState<boolean | null>(null);
   const [reverting, setReverting] = useState(false);
+  const [importChecks, setImportChecks] = useState<ImportCheckState>({ toCheck: 0, checked: [] });
+  const importToCheck = importChecks.toCheck;
   const [revertErr, setRevertErr] = useState<string | null>(null);
   const [showAddUpdate, setShowAddUpdate] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -1867,7 +1875,9 @@ export default function CmsRecordEditorPage() {
             {record.identity.organizationName} ·{" "}
             {record.takenDown
               ? "Off the website: visitors cannot see it"
-              : editingLive ? "The public still sees the last published version until you publish again" : STATE_INFO[record.draftState]?.note}
+              : editingLive ? "The public still sees the last published version until you publish again"
+                : record.draftState === "APPROVED" && importToCheck > 0 ? "Approved — not yet public; imported fields still need checking"
+                : STATE_INFO[record.draftState]?.note}
             {(record.draftState === "PUBLISHED" || editingLive) && !record.takenDown && (
               <>
                 {" · "}
@@ -1902,7 +1912,7 @@ export default function CmsRecordEditorPage() {
         <LiveChangesPanel record={record} onJump={jumpTo} />
 
         {/* Imported jobs only: a person's check on every critical field. */}
-        <ImportChecksPanel record={record} onRecordChange={onFieldSaved} />
+        <ImportChecksPanel record={record} onRecordChange={onFieldSaved} onChecks={setImportChecks} />
         {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
           <div style={{ marginBottom: 12, fontSize: 12 }}>
             <ImporterLink href={`/admin/cms/import?record=${record.id}`} style={{ color: C.accent, textDecoration: "none" }}>Import into this job from a notice or research →</ImporterLink>
@@ -1910,7 +1920,7 @@ export default function CmsRecordEditorPage() {
         )}
 
         {record.draftState !== "ARCHIVED" && (
-          <PublishChecklist record={record} onJump={jumpTo} />
+          <PublishChecklist record={record} onJump={jumpTo} importChecks={importChecks} />
         )}
 
         <UpdateCheckPanel record={record} onRecordChange={onFieldSaved} />

@@ -114,7 +114,18 @@ function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel }: {
   );
 }
 
-export function ImportChecksPanel({ record, onRecordChange }: { record: RecruitmentRecord; onRecordChange: (r: RecruitmentRecord) => void }) {
+export interface ImportCheckState { toCheck: number; checked: string[] }
+const checkState = (c: Checks): ImportCheckState => ({
+  toCheck: c.imported && !c.ok ? c.rows.filter((r) => !(r.cls === "VERIFIED" || r.cls === "NOT_APPLICABLE" || (r.cls === "NOT_STATED" && r.tier === "B"))).length : 0,
+  checked: c.imported ? c.rows.filter((r) => r.cls === "VERIFIED").map((r) => r.fieldPath) : [],
+});
+
+export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
+  record: RecruitmentRecord;
+  onRecordChange: (r: RecruitmentRecord) => void;
+  /** How many imported fields still need a person's check, and which are checked. */
+  onChecks?: (s: ImportCheckState) => void;
+}) {
   const [checks, setChecks] = useState<Checks | null>(null);
   const [open, setOpen] = useState<{ path: string; kind: Kind } | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -122,17 +133,17 @@ export function ImportChecksPanel({ record, onRecordChange }: { record: Recruitm
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/cms/records/${record.id}/checks`);
-    if (res.ok) setChecks(await res.json());
-  }, [record.id]);
+    if (res.ok) { const d: Checks = await res.json(); setChecks(d); onChecks?.(checkState(d)); }
+  }, [record.id, onChecks]);
   // Reload whenever the job changes (any save can reopen a field).
   useEffect(() => {
     let alive = true;
     fetch(`/api/admin/cms/records/${record.id}/checks`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive && d) setChecks(d); })
+      .then((d) => { if (alive && d) { setChecks(d); onChecks?.(checkState(d)); } })
       .catch(() => {});
     return () => { alive = false; };
-  }, [record.id, record.recordRevision, record.updatedAt]);
+  }, [record.id, record.recordRevision, record.updatedAt, onChecks]);
 
   const refresh = async () => {
     setOpen(null);
@@ -151,7 +162,9 @@ export function ImportChecksPanel({ record, onRecordChange }: { record: Recruitm
   const blockers = checks.rows.filter((r) => !(r.cls === "VERIFIED" || r.cls === "NOT_APPLICABLE" || (r.cls === "NOT_STATED" && r.tier === "B")));
 
   return (
-    <section data-import-checks aria-label="Check before publishing" style={{ ...PANEL, padding: "14px 18px", marginBottom: 16, fontSize: 12, color: C.text }}>
+    // Typing here is not an edit of the job (each check is sent by its own
+    // button), so it must not set off the page's "not saved" warning.
+    <section data-import-checks aria-label="Check before publishing" onInput={(e) => e.stopPropagation()} style={{ ...PANEL, padding: "14px 18px", marginBottom: 16, fontSize: 12, color: C.text }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontSize: 14, fontWeight: 700 }}>
           {checks.ok ? "Checked — ready to publish" : `Check before publishing — ${blockers.length} field${blockers.length === 1 ? "" : "s"} to go`}
