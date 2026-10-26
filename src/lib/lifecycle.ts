@@ -443,7 +443,7 @@ export function getProvenanceSummary(opp: Opportunity): ProvenanceSummary {
   // against the official notification. Not "Verified": some details may be
   // recorded as not stated in the notice.
   const status = provenance.keyDetailsChecked
-    ? { label: "Key details checked against official notification", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+    ? { label: "Key details checked against official sources", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" }
     : statusMap[provenance.status] ?? statusMap.NOT_VERIFIED;
 
   const lastVerifiedDate = formatDate(provenance.lastVerifiedAt);

@@ -1208,87 +1208,121 @@ function PublishChecklist({ record, onJump, importChecks }: { record: Recruitmen
     { label: "Listing details",  section: "Identity",     done: sectionFill(record, "Identity") === "filled" },
   ];
   const done = items.filter((i) => i.done).length;
+  const missing = items.filter((i) => !i.done);
   // An imported job also waits for its critical fields to be checked (panel above).
   const blocked = !items[0].done || importToCheck > 0;
   const pendingList = pendingValues(record, importChecks.checked);
   const pending = pendingList.length;
-  const pct = Math.round((done / items.length) * 100);
   // Values that contradict each other. Today in India, the site's working day.
   const [today] = useState(() => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10));
   const checks = prepublishChecks(record, today);
+  const contradictions = checks.filter((c) => c.level === "contradiction");
+  const advice = checks.filter((c) => c.level !== "contradiction");
+  // Up front: what stops publishing, what is empty, and contradictions. The
+  // full list, Pending values and the softer advice sit behind "Details".
+  const [showDetails, setShowDetails] = useState(false);
+  const where = live ? (record.takenDown ? "Off the website" : "Live") : null;
+
+  const chip = (label: string, color: string, onClick: () => void, title: string, strong = false) => (
+    <button
+      key={label}
+      onClick={onClick}
+      title={title}
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 999, fontSize: 12, cursor: "pointer", background: color + "14", color, border: `1px solid ${color}55`, fontWeight: strong ? 700 : 500 }}
+    >
+      {label}
+    </button>
+  );
+  const line = (text: React.ReactNode, color: string) => (
+    <div style={{ fontSize: 12, color, marginTop: 8, lineHeight: 1.5 }}>{text}</div>
+  );
 
   return (
-    <div style={{ ...PANEL, padding: "16px 18px", marginBottom: 16 }}>
+    <div style={{ ...PANEL, padding: "14px 18px", marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
-          {live
-            ? done === items.length ? `${record.takenDown ? "Off the website" : "Live"} — nothing is missing` : `${record.takenDown ? "Off the website" : "Live"} — ${items.length - done} detail${items.length - done === 1 ? " is" : "s are"} still empty on the public page`
-            : importToCheck > 0 ? `Not ready to publish yet — ${importToCheck} imported field${importToCheck === 1 ? "" : "s"} to check above`
-            : blocked ? "Not ready to publish yet" : done === items.length ? "Ready to publish" : "Can be published — some details are still empty"}
+        <div style={{ fontSize: 14, fontWeight: 700, color: blocked && !live ? C.amber : C.text }}>
+          {where
+            ? missing.length === 0 ? `${where} — nothing is missing` : `${where} — ${missing.length} detail${missing.length === 1 ? " is" : "s are"} still empty on the public page`
+            : blocked ? "Not ready to publish yet" : missing.length === 0 ? "Ready to publish" : "Can be published — some details are still empty"}
         </div>
-        <div style={{ fontSize: 12, color: C.muted }}>{done} of {items.length} filled</div>
+        <button onClick={() => setShowDetails((x) => !x)} style={{ background: "none", border: "none", color: C.muted, fontSize: 12, cursor: "pointer", padding: 0 }}>
+          {done} of {items.length} filled · {showDetails ? "Hide details" : "Details"}
+        </button>
       </div>
-      <div style={{ height: 6, background: "#070b16", borderRadius: 999, marginTop: 10, overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: blocked ? "linear-gradient(90deg, #f59e0b, #f97316)" : "linear-gradient(90deg, #22c55e, #22d3ee)", boxShadow: blocked ? "0 0 12px rgba(249,115,22,0.55)" : "0 0 12px rgba(34,211,238,0.5)", borderRadius: 999, transition: "width 0.3s" }} />
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
-        {items.map((i) => (
-          <button
-            key={i.label}
-            onClick={() => onJump(i.section)}
-            title={i.done ? "Filled — click to open" : "Empty — click to fill"}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "4px 10px", borderRadius: 999, fontSize: 12, cursor: "pointer",
-              background: i.done ? C.green + "14" : i.required ? C.red + "18" : "transparent",
-              color: i.done ? C.green : i.required ? C.red : C.muted,
-              border: `1px solid ${i.done ? C.green + "44" : i.required ? C.red + "66" : C.border}`,
-              fontWeight: i.done ? 500 : 600,
-            }}
-          >
-            <span aria-hidden>{i.done ? "✓" : "○"}</span>
-            {i.label}{i.required && !i.done ? " (required)" : ""}
-          </button>
-        ))}
-      </div>
-      {!items[0].done && !live && (
-        <div style={{ fontSize: 12, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>
-          Publishing needs at least one link marked official. Open <b style={{ color: C.text }}>Links</b>, or run AI Assist and click “Add as official link”.
+
+      {/* What stops publishing. Always shown. */}
+      {!live && !items[0].done && line(
+        <>
+          <b style={{ color: C.red }}>Needed to publish:</b> a link marked official. Open{" "}
+          <button onClick={() => onJump("Links")} style={{ background: "none", border: "none", padding: 0, color: C.accent, cursor: "pointer", fontSize: 12 }}>Links</button>, or run AI Assist and click “Add as official link”.
+        </>, C.text)}
+      {!live && importToCheck > 0 && line(
+        <><b style={{ color: C.red }}>Needed to publish:</b> {importToCheck} imported key detail{importToCheck === 1 ? "" : "s"} to check in “Check before publishing” above.</>, C.text)}
+
+      {/* Empty details: only the empty ones, each opens its section. */}
+      {missing.filter((i) => !i.required).length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginTop: 10 }}>
+          <span style={{ fontSize: 12, color: C.muted }}>Still empty:</span>
+          {missing.filter((i) => !i.required).map((i) => chip(i.label, C.muted, () => onJump(i.section), "Empty — click to fill"))}
         </div>
       )}
-      {pending > 0 && (
-        <div style={{ fontSize: 12, color: C.amber, marginTop: 8, lineHeight: 1.5 }}>
-          {pending} value{pending === 1 ? " is" : "s are"} marked Pending — check {pending === 1 ? "it" : "them"} against the official notification{live ? ". Click Edit Record to change anything." : " before publishing."}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-            {pendingList.map((p) => (
-              <button
-                key={p.label}
-                onClick={() => onJump(p.section)}
-                title="Pending: a value has been entered but not yet checked against the official notification."
-                style={{ background: "rgba(210,153,34,0.1)", border: "1px solid rgba(210,153,34,0.35)", color: C.amber, cursor: "pointer", fontSize: 11, padding: "2px 8px", borderRadius: 999 }}
-              >
-                {p.label}
-              </button>
+
+      {/* Values that contradict each other are always shown. */}
+      {contradictions.map((c, i) => (
+        <button
+          key={`x${i}`}
+          onClick={() => onJump(c.section)}
+          title="Opens the section where this can be fixed"
+          style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "3px 0", marginTop: i === 0 ? 8 : 0, cursor: "pointer", fontSize: 12, lineHeight: 1.5, color: C.red }}
+        >
+          ✕ {c.text}
+        </button>
+      ))}
+
+      {/* The quieter lines, as one summary each until "Details" is open. */}
+      {!showDetails && (pending > 0 || advice.length > 0) && line(
+        [
+          pending > 0 ? `${pending} value${pending === 1 ? " is" : "s are"} still Pending` : null,
+          advice.length > 0 ? `${advice.length} thing${advice.length === 1 ? "" : "s"} to look at (advice only)` : null,
+        ].filter(Boolean).join(" · "), C.amber)}
+
+      {showDetails && (
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}`, display: "grid", gap: 10 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {items.map((i) => chip(
+              `${i.done ? "✓" : "○"} ${i.label}${i.required && !i.done ? " (required)" : ""}`,
+              i.done ? C.green : i.required ? C.red : C.muted,
+              () => onJump(i.section),
+              i.done ? "Filled — click to open" : "Empty — click to fill",
+              i.required && !i.done,
             ))}
           </div>
-        </div>
-      )}
-      {checks.length > 0 && (
-        <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: checks.some((c) => c.level === "contradiction") ? C.red : C.amber }}>
-            {checks.length} thing{checks.length === 1 ? "" : "s"} to look at{live ? "" : " before publishing"}
-            <span style={{ fontWeight: 400, color: C.muted }}> — advice only, publishing is not blocked</span>
-          </div>
-          {checks.map((c, i) => (
-            <button
-              key={i}
-              onClick={() => onJump(c.section)}
-              title="Opens the section where this can be fixed"
-              style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "3px 0", cursor: "pointer", fontSize: 12, lineHeight: 1.5, color: c.level === "contradiction" ? C.red : C.text }}
-            >
-              {c.level === "contradiction" ? "✕ " : "• "}{c.text}
-            </button>
-          ))}
+          {pending > 0 && (
+            <div style={{ fontSize: 12, color: C.amber, lineHeight: 1.5 }}>
+              {pending} value{pending === 1 ? " is" : "s are"} marked Pending — check {pending === 1 ? "it" : "them"} against the official notification{live ? ". Click Edit Record to change anything." : " before publishing."}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                {pendingList.map((p) => chip(p.label, C.amber, () => onJump(p.section), "Pending: a value has been entered but not yet checked against the official notification."))}
+              </div>
+            </div>
+          )}
+          {advice.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.amber }}>
+                {advice.length} thing{advice.length === 1 ? "" : "s"} to look at{live ? "" : " before publishing"}
+                <span style={{ fontWeight: 400, color: C.muted }}> — advice only, publishing is not blocked</span>
+              </div>
+              {advice.map((c, i) => (
+                <button
+                  key={i}
+                  onClick={() => onJump(c.section)}
+                  title="Opens the section where this can be fixed"
+                  style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "3px 0", cursor: "pointer", fontSize: 12, lineHeight: 1.5, color: C.text }}
+                >
+                  • {c.text}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
