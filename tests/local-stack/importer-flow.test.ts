@@ -151,6 +151,15 @@ function fakeGemini(prompt: string): J {
   let checks = await r.json() as { imported: boolean; ok: boolean; rows: Array<J>; retrievals: Array<J> };
   const row = (f: string) => checks.rows.find((x) => x.fieldPath === f)!;
   check("imported, not ok; last date SUPPORTED, vacancies MISSING", checks.imported && !checks.ok && row("dates.applicationCloseDate").cls === "SUPPORTED" && row("vacancies.total").cls === "MISSING", checks.rows.map((x) => `${x.fieldPath}:${x.cls}`));
+  const approvals = () => count("SELECT count(*)::int AS n FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type = 'RECORD_APPROVED'", [jobId]);
+  const approvalsBefore = await approvals();
+  r = await publish.POST(req(`/api/admin/cms/records/${jobId}/publish`, "POST", { announce: false, approveFirst: true }), ctx("id", jobId));
+  d = await r.json() as J;
+  check("Approve & Publish on the unchecked job → refused with the same list", r.status === 422 && d.code === "IMPORT_CHECKS_PENDING" && (d.blockers as Array<J>).some((b) => b.fieldPath === "dates.applicationCloseDate"), d);
+  check("…and the job is still a DRAFT, never approved, nothing published",
+    (await pg.query("SELECT draft_state FROM recruitments WHERE id = $1", [jobId])).rows[0].draft_state === "DRAFT"
+    && await approvals() === approvalsBefore
+    && await count("SELECT count(*)::int AS n FROM published_recruitments WHERE recruitment_id = $1", [jobId]) === 0);
   await approve.POST(req(`/api/admin/cms/records/${jobId}/approve`, "POST"), ctx("id", jobId));
   r = await publish.POST(req(`/api/admin/cms/records/${jobId}/publish`, "POST", { announce: false }), ctx("id", jobId));
   d = await r.json() as J;
@@ -238,6 +247,34 @@ function fakeGemini(prompt: string): J {
   check("published with Pending values and no decisions", r.status === 200);
   const plainSnap = (await pg.query("SELECT snapshot FROM published_recruitments WHERE recruitment_id = $1 ORDER BY published_at DESC LIMIT 1", [plainId])).rows[0]?.snapshot as J;
   check("…and keeps its usual public badge", plainSnap?.keyDetailsChecked === undefined && getProvenanceSummary(snapshotToGovernmentRecruitment(plainSnap as never) as never).statusLabel !== "Key details checked against official notification");
+
+  section("Approve & Publish in one request, for a job that was never imported");
+  const plainNew = async (title: string, links: unknown[]) => {
+    const res = await records.POST(req("/api/admin/cms/records", "POST", { organizationId: "ibps", organizationName: "IBPS", govType: "Central Govt", title, recruitmentYear: 2026, forceCreate: true }));
+    const pid = ((await res.json()) as { record: { id: string } }).record.id;
+    if (links.length > 0) await fields.PATCH(req(`/api/admin/cms/records/${pid}/fields`, "PATCH", { fieldPath: "links", field: pend(links), clientRevision: (await pg.query("SELECT record_revision FROM recruitments WHERE id = $1", [pid])).rows[0].record_revision }), ctx("id", pid));
+    return pid;
+  };
+  const stateOf = async (pid: string) => (await pg.query("SELECT draft_state FROM recruitments WHERE id = $1", [pid])).rows[0].draft_state as string;
+  const plain2 = await plainNew("TEST RECORD IBPS Clerk 2026", [{ type: "OFFICIAL_WEBSITE", label: "IBPS", url: "https://www.ibps.in/", official: true }]);
+  r = await publish.POST(req(`/api/admin/cms/records/${plain2}/publish`, "POST", { announce: false, approveFirst: true }), ctx("id", plain2));
+  d = await r.json() as J;
+  check("a DRAFT with an official link → approved and published in one request", r.status === 200 && (d.record as J).draftState === "PUBLISHED" && await stateOf(plain2) === "PUBLISHED", d);
+  check("…with its approval and publication both in the history",
+    await count("SELECT count(*)::int AS n FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type IN ('RECORD_APPROVED', 'RECORD_PUBLISHED')", [plain2]) === 2);
+  const plain3 = await plainNew("TEST RECORD IBPS SO 2026", []);
+  r = await publish.POST(req(`/api/admin/cms/records/${plain3}/publish`, "POST", { announce: false, approveFirst: true }), ctx("id", plain3));
+  d = await r.json() as J;
+  check("a DRAFT with no official source → refused before approving, still a DRAFT", r.status === 422 && d.code === "MISSING_OFFICIAL_EVIDENCE" && await stateOf(plain3) === "DRAFT"
+    && await count("SELECT count(*)::int AS n FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type = 'RECORD_APPROVED'", [plain3]) === 0, d);
+  r = await publish.POST(req(`/api/admin/cms/records/${plain3}/publish`, "POST", { announce: false }), ctx("id", plain3));
+  check("without approveFirst a DRAFT is refused as before (409)", r.status === 409);
+  const { persistApprovalWithdrawn } = await import("@/lib/cms/repository");
+  const adminRow = (await pg.query("SELECT id FROM admins LIMIT 1")).rows[0].id as string;
+  await pg.query("UPDATE recruitments SET draft_state = 'APPROVED' WHERE id = $1", [plain3]);
+  check("withdrawing an approval → DRAFT with an APPROVAL_WITHDRAWN row", await persistApprovalWithdrawn(plain3, adminRow, "test") && await stateOf(plain3) === "DRAFT"
+    && await count("SELECT count(*)::int AS n FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type = 'APPROVAL_WITHDRAWN'", [plain3]) === 1);
+  check("withdrawing on a job that is not APPROVED changes nothing", !(await persistApprovalWithdrawn(plain2, adminRow, "test")) && await stateOf(plain2) === "PUBLISHED");
 
   section("Corrigendum into the existing job: only the last date changes");
   await pg.query("UPDATE recruitments SET draft_state = 'DRAFT' WHERE id = $1", [jobId]);

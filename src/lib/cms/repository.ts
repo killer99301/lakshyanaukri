@@ -530,6 +530,38 @@ export async function persistApproval(
   return saved;
 }
 
+/** Audit event for an approval undone because the publish that followed it failed. */
+export const APPROVAL_WITHDRAWN_EVENT = "APPROVAL_WITHDRAWN";
+
+/**
+ * Undo an approval made a moment ago by Approve & Publish when the publish
+ * itself then failed, so the job is not left looking Approved but not live.
+ * APPROVED → DRAFT with an audit row, in one statement. Returns false if the
+ * record is no longer APPROVED (someone else moved it on); nothing changes then.
+ */
+export async function persistApprovalWithdrawn(
+  recordId: string,
+  adminId: string,
+  reason: string,
+): Promise<boolean> {
+  const rows = await sql`
+    WITH updated AS (
+      UPDATE recruitments SET
+        draft_state = 'DRAFT',
+        updated_at  = now(),
+        updated_by  = ${adminId}
+      WHERE id = ${recordId}
+        AND draft_state = 'APPROVED'
+      RETURNING id
+    )
+    INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+    SELECT id, ${adminId}, ${APPROVAL_WITHDRAWN_EVENT}, ${JSON.stringify({ via: "approve-and-publish", reason })}
+    FROM updated
+    RETURNING recruitment_id
+  `;
+  return rows.length > 0;
+}
+
 /**
  * Store a published snapshot and transition record to PUBLISHED.
  * The snapshot (PublishedRecruitment) must be built by the caller via projectToPublished().

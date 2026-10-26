@@ -1474,25 +1474,24 @@ export default function CmsRecordEditorPage() {
     setPublishingSeq(true);
     setPublishSeqErr(null);
     try {
-      if (record.draftState === "DRAFT") {
-        const approveRes = await fetch(`/api/admin/cms/records/${id}/approve`, { method: "POST" });
-        const approveData = await approveRes.json();
-        if (!approveRes.ok) {
-          setPublishSeqErr(approveData.error ?? `Approve failed: HTTP ${approveRes.status}`);
-          return;
-        }
-        setRecord(approveData.record);
-      }
+      // A draft is approved and published in one request: the server checks
+      // everything publishing needs before approving, and undoes the approval
+      // if the publish still fails, so a refusal leaves the job a draft.
       const announce = announceChoice ?? !record.publishedAt;
       setPublishNote(null);
       const publishRes = await fetch(`/api/admin/cms/records/${id}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ announce }),
+        body: JSON.stringify({ announce, approveFirst: record.draftState === "DRAFT" }),
       });
       const publishData = await publishRes.json();
       if (!publishRes.ok) {
-        setPublishSeqErr(publishData.error ?? `Publish failed: HTTP ${publishRes.status}`);
+        setPublishSeqErr(
+          (publishData.error ?? `Publish failed: HTTP ${publishRes.status}`)
+            + (publishData.approvalWithdrawn ? " The job is still a draft." : ""),
+        );
+        // The status shown must be the job's real one after a refusal.
+        void loadRecord();
         return;
       }
       setRecord(publishData.record);

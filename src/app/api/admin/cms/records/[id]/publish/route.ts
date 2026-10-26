@@ -13,6 +13,12 @@
 //   4. Call persistPublication() — atomic DB write
 //   5. Return updated record
 //
+// Approve & Publish ({ approveFirst: true } on a DRAFT): the approval checks
+// and every publish check above run on the draft first; only when all pass
+// is it approved, then published. If the publish still fails after the
+// approval, the approval is withdrawn (back to DRAFT, audited), so a failed
+// publish never leaves a job Approved but not live.
+//
 // CSRF: validateOrigin required.
 // ═══════════════════════════════════════════════════════════
 
@@ -22,8 +28,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
-import { getRecruitmentById, persistPublication, PUT_BACK_EVENT } from "@/lib/cms/repository";
+import {
+  getRecruitmentById, persistApproval, persistApprovalWithdrawn, persistPublication, PUT_BACK_EVENT, StateConflictError,
+} from "@/lib/cms/repository";
+import { approveRecord } from "@/lib/cms/record-ops";
 import { projectToPublished, PROJECTION_VERSION } from "@/lib/cms/projector";
+import type { RecruitmentRecord } from "@/types/recruitment-record";
 import { sql } from "@/lib/db";
 import { buildJobAnnouncement, sendToChannel, type AnnouncementResult } from "@/lib/telegram";
 import { CHANNEL_POST_EVENT, REPEAT_WINDOW_HOURS, decideChannelPost, messageHash, newsLine } from "@/lib/cms/channel-post";
@@ -45,82 +55,68 @@ export async function POST(
 
   // { announce: true | false } says whether to post to the Telegram channel.
   // Without it, a first publish posts and a republish does not.
+  // { approveFirst: true } is Approve & Publish (see the header).
   let requested: boolean | undefined;
+  let approveFirst = false;
   try {
-    const body = (await request.json()) as { announce?: unknown };
+    const body = (await request.json()) as { announce?: unknown; approveFirst?: unknown };
     if (typeof body?.announce === "boolean") requested = body.announce;
+    approveFirst = body?.approveFirst === true;
   } catch { /* no body: the defaults apply */ }
 
-  const record = await getRecruitmentById(id);
+  let record = await getRecruitmentById(id);
   if (!record) {
     return NextResponse.json({ error: "Record not found" }, { status: 404 });
   }
 
-  if (record.draftState !== "APPROVED") {
+  const approving = approveFirst && record.draftState === "DRAFT";
+  if (!approving && record.draftState !== "APPROVED") {
     return NextResponse.json(
       { error: `Cannot publish: record is in state ${record.draftState} (must be APPROVED)` },
       { status: 409 },
     );
   }
 
-  // ── Official evidence hard gate ──────────────────────────
-  // At least one official evidence source OR one official link required.
-  const hasOfficialLink = record.links.some((l) => l.official);
-
-  let hasOfficialEvidence = false;
-  if (!hasOfficialLink) {
-    const evidenceRows = await sql`
-      SELECT 1 FROM recruitment_evidence
-      WHERE recruitment_id = ${id}
-        AND source_type IN ('OFFICIAL_NOTIFICATION', 'OFFICIAL_CORRIGENDUM', 'OFFICIAL_EXAM_NOTICE')
-      LIMIT 1
-    `;
-    hasOfficialEvidence = evidenceRows.length > 0;
-  }
-
-  if (!hasOfficialLink && !hasOfficialEvidence) {
-    return NextResponse.json(
-      {
-        error:
-          "Cannot publish yet: add at least one link marked Official (for example the official notification) in the Links section.",
-        code: "MISSING_OFFICIAL_EVIDENCE",
-      },
-      { status: 422 },
-    );
-  }
-
-  // ── Imported jobs: every critical field checked by a person ──
-  // Jobs that were never imported skip this and publish exactly as before.
-  const gate = await publishGateFor(record);
-  if (!gate.ok) {
-    return NextResponse.json(
-      {
-        error: `Check these before publishing: ${gate.blockers.map((b) => b.label).join(", ")}.`,
-        code: "IMPORT_CHECKS_PENDING",
-        blockers: gate.blockers.map((b) => ({ fieldPath: b.fieldPath, label: b.label, class: b.cls, reason: b.reason })),
-      },
-      { status: 422 },
-    );
-  }
-
-  // ── Project ───────────────────────────────────────────────
-  let snapshot: ReturnType<typeof projectToPublished>;
-  try {
-    snapshot = projectToPublished(record);
-    if (gate.gated) {
-      const words = (cls: string) => Object.fromEntries(gate.verdicts
-        .filter((v) => v.cls === cls)
-        .map((v) => [v.fieldPath, v.publicNote ?? ""]));
-      // The gate passed (it refused above otherwise): say so on the public page.
-      snapshot = { ...snapshot, notApplicable: words("NOT_APPLICABLE"), notStated: words("NOT_STATED"), keyDetailsChecked: gate.ok };
+  // ── Approve & Publish: everything is checked before the approval ──
+  if (approving) {
+    try {
+      approveRecord(record, auth.adminId);
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : String(err), code: "APPROVAL_CHECKS" },
+        { status: 422 },
+      );
     }
-  } catch (err) {
-    console.error("[CMS] projection failed", err);
-    return NextResponse.json(
-      { error: `Projection failed: ${String(err)}` },
-      { status: 500 },
-    );
+    const preflight = await checkPublishable({ ...record, draftState: "APPROVED" });
+    if (!preflight.ok) return preflight.response;
+    try {
+      record = await persistApproval(record, auth.adminId);
+    } catch (err) {
+      if (err instanceof StateConflictError) {
+        return NextResponse.json({ error: err.message }, { status: 409 });
+      }
+      console.error("[CMS] approve before publish failed", err);
+      return NextResponse.json({ error: "Failed to approve record" }, { status: 500 });
+    }
   }
+
+  // After an approval made here, any failure below withdraws it.
+  const withdraw = async (reason: string): Promise<{ approvalWithdrawn?: true }> => {
+    if (!approving) return {};
+    try {
+      if (await persistApprovalWithdrawn(id, auth.adminId, reason)) return { approvalWithdrawn: true };
+    } catch (err) {
+      console.error("[CMS] publish failed and the approval could not be withdrawn", err instanceof Error ? err.message : "error");
+    }
+    return {};
+  };
+
+  const ready = await checkPublishable(record);
+  if (!ready.ok) {
+    const body = { ...(await ready.response.json()), ...(await withdraw("publish checks failed")) };
+    return NextResponse.json(body, { status: ready.response.status });
+  }
+  const { snapshot } = ready;
 
   // ── Persist ───────────────────────────────────────────────
   try {
@@ -190,6 +186,81 @@ export async function POST(
       return NextResponse.json({ error: "Record is no longer in APPROVED state" }, { status: 409 });
     }
     console.error("[CMS] persistPublication failed", err);
-    return NextResponse.json({ error: "Failed to publish record" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to publish record", ...(await withdraw("publish failed")) }, { status: 500 });
+  }
+}
+
+/**
+ * Every check a publish needs, and the snapshot it would store: an official
+ * source, the import gate for imported jobs, and the projection. Nothing is
+ * written. The record must be APPROVED (or, for the Approve & Publish
+ * preflight, a DRAFT presented as APPROVED).
+ */
+async function checkPublishable(
+  record: RecruitmentRecord,
+): Promise<{ ok: true; snapshot: ReturnType<typeof projectToPublished> } | { ok: false; response: NextResponse }> {
+  // ── Official evidence hard gate ──────────────────────────
+  // At least one official evidence source OR one official link required.
+  const hasOfficialLink = record.links.some((l) => l.official);
+
+  let hasOfficialEvidence = false;
+  if (!hasOfficialLink) {
+    const evidenceRows = await sql`
+      SELECT 1 FROM recruitment_evidence
+      WHERE recruitment_id = ${record.id}
+        AND source_type IN ('OFFICIAL_NOTIFICATION', 'OFFICIAL_CORRIGENDUM', 'OFFICIAL_EXAM_NOTICE')
+      LIMIT 1
+    `;
+    hasOfficialEvidence = evidenceRows.length > 0;
+  }
+
+  if (!hasOfficialLink && !hasOfficialEvidence) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          error:
+            "Cannot publish yet: add at least one link marked Official (for example the official notification) in the Links section.",
+          code: "MISSING_OFFICIAL_EVIDENCE",
+        },
+        { status: 422 },
+      ),
+    };
+  }
+
+  // ── Imported jobs: every critical field checked by a person ──
+  // Jobs that were never imported skip this and publish exactly as before.
+  const gate = await publishGateFor(record);
+  if (!gate.ok) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          error: `Check these before publishing: ${gate.blockers.map((b) => b.label).join(", ")}.`,
+          code: "IMPORT_CHECKS_PENDING",
+          blockers: gate.blockers.map((b) => ({ fieldPath: b.fieldPath, label: b.label, class: b.cls, reason: b.reason })),
+        },
+        { status: 422 },
+      ),
+    };
+  }
+
+  // ── Project ───────────────────────────────────────────────
+  try {
+    let snapshot = projectToPublished(record);
+    if (gate.gated) {
+      const words = (cls: string) => Object.fromEntries(gate.verdicts
+        .filter((v) => v.cls === cls)
+        .map((v) => [v.fieldPath, v.publicNote ?? ""]));
+      // The gate passed (it refused above otherwise): say so on the public page.
+      snapshot = { ...snapshot, notApplicable: words("NOT_APPLICABLE"), notStated: words("NOT_STATED"), keyDetailsChecked: gate.ok };
+    }
+    return { ok: true, snapshot };
+  } catch (err) {
+    console.error("[CMS] projection failed", err);
+    return {
+      ok: false,
+      response: NextResponse.json({ error: `Projection failed: ${String(err)}` }, { status: 500 }),
+    };
   }
 }
