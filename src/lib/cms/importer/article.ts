@@ -21,7 +21,13 @@ import type {
   AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, CmsSelectionStage, ExamPatternPaper, SelectionStageType, SyllabusSubject,
 } from "@/types/recruitment-record";
 
-export const ARTICLE_MAX_CHARS = 60_000;
+// The whole notice is read, up to Smart intake's own limit on a source's text
+// (MAX_TEXT_CHARS): long official notices keep their vacancy tables in an
+// annexure near the end (IBPS: pages 44-53 of 76). A long text gets a longer
+// answer and more time; the preview route allows 60 s.
+export const ARTICLE_MAX_CHARS = 200_000;
+const LONG_TEXT_CHARS = 60_000;
+const READ_TIMEOUT_MS = 50_000;
 const MAX_ITEMS = 40;
 
 export interface ArticleReading {
@@ -44,7 +50,7 @@ Return one JSON object with any of:
 - "notificationNumber": { "value": as written, e.g. "29/2026", "quote" }
 - "dates": { "<name>": { "value": "YYYY-MM-DD", "quote" } } for: applicationOpenDate, applicationCloseDate, feePaymentCloseDate, correctionWindowEnd, examDate, admitCardDate, interviewDate, resultDate. The date the article was posted is not a recruitment date. A month without a day is not a date.
 - "totalVacancies": { "value": integer, "quote" }
-- "vacancyRows": [ { "post", "count": integer, "quote", "payScale"?: as written, "categories"?: [ { "category": as written, "count": integer, "quote" } ] } ] — one row per post; category-wise counts as given in the text.
+- "vacancyRows": [ { "post", "count": integer, "quote", "payScale"?: as written, "categories"?: [ { "category": as written, "count": integer, "quote" } ] } ] — one row per post; category-wise counts as given in the text go in that post's "categories", never as rows of their own.
 - "feeGeneral": { "value": integer rupees for General/UR/OBC or for everyone when one fee applies to all, "quote" }
 - "feeSCST": { "value": integer rupees, 0 only when the text says exempt/nil, "quote" } — only when the text states the SC/ST fee separately.
 - "payScale": { "value": as written, e.g. "Pay Level 6, Grade Pay Rs 4,200", "quote" }
@@ -116,6 +122,44 @@ function categoryKey(label: string): string | null {
   return null;
 }
 
+// Seats counted inside the other categories, not alongside them.
+const HORIZONTAL = new Set(["women", "exsm", "pwbd"]);
+
+/**
+ * The model sometimes returns one post's category table as one row per
+ * category ("Food Safety Officer 41 (UR)", "Food Safety Officer 11 (EWS)"…).
+ * Rows with the same post where each holds a single category equal to its
+ * count are put back together as one row: the categories become its split,
+ * and its count is their sum (horizontal seats left out of the sum). Rows
+ * that are not like that are left exactly as they are.
+ */
+export function mergeCategoryRows(rows: VacancyRow[]): VacancyRow[] {
+  const key = (post: string) => post.toLowerCase().replace(/\s+/g, " ").trim();
+  const isCategoryRow = (r: VacancyRow) => {
+    const entries = Object.entries(r.breakdown ?? {});
+    return entries.length === 1 && entries[0][1] === r.count;
+  };
+  const groups = new Map<string, VacancyRow[]>();
+  for (const r of rows) groups.set(key(r.post), [...(groups.get(key(r.post)) ?? []), r]);
+  const out: VacancyRow[] = [];
+  const done = new Set<string>();
+  for (const r of rows) {
+    const k = key(r.post);
+    const group = groups.get(k)!;
+    if (group.length < 2 || !group.every(isCategoryRow)) { out.push(r); continue; }
+    if (done.has(k)) continue;
+    done.add(k);
+    const breakdown: Record<string, number> = {};
+    for (const g of group) Object.assign(breakdown, g.breakdown);
+    const count = Object.entries(breakdown).filter(([c]) => !HORIZONTAL.has(c)).reduce((sum, [, n]) => sum + (n as number), 0);
+    const merged: VacancyRow = { post: group[0].post, count, breakdown: breakdown as VacancyRow["breakdown"] };
+    const pay = group.find((g) => g.payScale)?.payScale;
+    if (pay) merged.payScale = pay;
+    out.push(merged);
+  }
+  return out;
+}
+
 /** Turns the model's answer into checked values; pure, so it is tested without a model. */
 export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skipped"> {
   const { inText, numbersIn } = makeChecker(text);
@@ -180,7 +224,7 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
     rows.push(row);
     rowQuote ||= r.quote as string;
   }
-  if (rows.length > 0) keep("vacancies.breakdown", rows, rowQuote);
+  if (rows.length > 0) keep("vacancies.breakdown", mergeCategoryRows(rows), rowQuote);
 
   for (const [key, path] of [["feeGeneral", "financial.feeGeneral"], ["feeSCST", "financial.feeSCST"]] as const) {
     const f = obj(raw[key]);
@@ -321,7 +365,11 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
 /** One request for the whole text. Never throws. */
 export async function readArticle(opts: { text: string; subject: string; apiKey: string | undefined; fetchFn?: typeof fetch }): Promise<ArticleReading> {
   if (opts.text.trim().length < 100) return { values: [], refused: [], skipped: "too little text to read" };
-  const answer = await callAiJson({ prompt: buildArticlePrompt(opts.text, opts.subject), apiKey: opts.apiKey, fetchFn: opts.fetchFn, maxOutputTokens: 8192, feature: "import" });
+  const long = opts.text.length > LONG_TEXT_CHARS;
+  const answer = await callAiJson({
+    prompt: buildArticlePrompt(opts.text, opts.subject), apiKey: opts.apiKey, fetchFn: opts.fetchFn, feature: "import",
+    maxOutputTokens: long ? 16_384 : 8192, timeoutMs: READ_TIMEOUT_MS,
+  });
   if (!answer.ok) return { values: [], refused: [], skipped: answer.reason };
   return judgeArticle(answer.data, opts.text);
 }

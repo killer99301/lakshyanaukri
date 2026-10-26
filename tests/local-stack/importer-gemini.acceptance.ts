@@ -181,6 +181,12 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     note(`sections found: ${[...paths].sort().join(", ")}`);
     check("IBPS: exam stages found", paths.has("examStages"));
     check("IBPS: exam pattern found", paths.has("examPattern"));
+    // The vacancies are bank by bank in Annexure I, past the first 60,000 characters.
+    const vac = val(ibps.items, "vacancies.breakdown")[0] as Array<{ post: string; count: number; breakdown?: Record<string, number> }> | undefined;
+    note(`IBPS vacancy rows: ${JSON.stringify(vac ?? null).slice(0, 400)}`);
+    check("IBPS: vacancies from the annexure found", Array.isArray(vac) && vac.length > 0, vac);
+    check("IBPS: dates 1 to 21 Sep 2026 and fees 850 / 175", has(ibps.items, "dates.applicationOpenDate", "2026-09-01") && has(ibps.items, "dates.applicationCloseDate", "2026-09-21")
+      && has(ibps.items, "financial.feeGeneral", 850) && has(ibps.items, "financial.feeSCST", 175));
   }
 
   writeFileSync(join(OUT, "all.json"), scrub(JSON.stringify(results, null, 2)));

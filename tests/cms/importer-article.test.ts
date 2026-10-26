@@ -7,7 +7,7 @@
 // wording is the test's own.
 
 import { suite, test, assert } from "../intelligence/suite";
-import { dateInQuote, judgeArticle } from "@/lib/cms/importer/article";
+import { buildArticlePrompt, dateInQuote, judgeArticle, mergeCategoryRows } from "@/lib/cms/importer/article";
 import { linksInText } from "@/lib/cms/importer/links";
 import { buildProposal, type RetrievalSummary } from "@/lib/cms/importer/proposal";
 
@@ -188,4 +188,57 @@ test("IA09 a passed last date is flagged and kept; research-only and missing lin
   assert.ok(p.warnings.some((w) => /official notification link/.test(w)));
   assert.ok(p.warnings.some((w) => /official apply link/.test(w)));
   assert.ok(p.warnings.some((w) => /Every source here is research/.test(w)));
+});
+
+suite("Category tables and long notices");
+test("IA10 one post's category table returned as one row per category is put back into one row", () => {
+  const rows = [
+    { post: "Food Safety Officer", count: 41, breakdown: { ur: 41 } },
+    { post: "Food Safety Officer", count: 11, breakdown: { ews: 11 } },
+    { post: "Food Safety Officer", count: 17, breakdown: { sc: 17 } },
+    { post: "Food Safety Officer", count: 2, breakdown: { st: 2 } },
+    { post: "food safety officer", count: 18, breakdown: { "Extremely Backward Class (EBC)": 18 } },
+    { post: "Food Safety Officer", count: 12, breakdown: { "Backward Class (BC)": 12 } },
+    { post: "Food Safety Officer", count: 4, breakdown: { "Backward Class Women": 4 } },
+  ] as never;
+  const out = mergeCategoryRows(rows);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].post, "Food Safety Officer");
+  assert.equal(out[0].count, 105, "Backward Class Women is its own column in Bihar, so it counts");
+  assert.deepEqual(out[0].breakdown, { ur: 41, ews: 11, sc: 17, st: 2, "Extremely Backward Class (EBC)": 18, "Backward Class (BC)": 12, "Backward Class Women": 4 });
+});
+test("IA11 horizontal seats are not added to the total; ordinary rows are left alone", () => {
+  const split = mergeCategoryRows([
+    { post: "Clerk", count: 60, breakdown: { ur: 60 } },
+    { post: "Clerk", count: 40, breakdown: { obc: 40 } },
+    { post: "Clerk", count: 30, breakdown: { women: 30 } },
+  ] as never);
+  assert.equal(split[0].count, 100);
+  assert.equal((split[0].breakdown as Record<string, number>).women, 30);
+  const normal = [
+    { post: "Assistant", count: 50, breakdown: { ur: 25, obc: 25 } },
+    { post: "Assistant", count: 6 },
+    { post: "Steno", count: 4, breakdown: { ur: 4 } },
+    { post: "Driver", count: 3, payScale: "Level 2" },
+  ] as never;
+  assert.deepEqual(mergeCategoryRows(normal), normal, "two Assistant rows that are not one-category rows stay as given; a lone one-category row stays");
+});
+test("IA12 judging a split answer keeps every quoted number and returns one row", () => {
+  const text = "Category-Wise Vacancy Details\nUnreserved (UR) 41\nScheduled Caste (SC) 17\nTotal 58 Food Safety Officer posts";
+  const raw = { vacancyRows: [
+    { post: "Food Safety Officer", count: 41, quote: "Unreserved (UR) 41", categories: [{ category: "Unreserved (UR)", count: 41, quote: "Unreserved (UR) 41" }] },
+    { post: "Food Safety Officer", count: 17, quote: "Scheduled Caste (SC) 17", categories: [{ category: "Scheduled Caste (SC)", count: 17, quote: "Scheduled Caste (SC) 17" }] },
+  ] };
+  const r = judgeArticle(raw, text);
+  const rows = r.values.find((v) => v.fieldPath === "vacancies.breakdown")?.value as Array<{ count: number; breakdown: Record<string, number> }>;
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].count, 58);
+  assert.deepEqual(rows[0].breakdown, { ur: 41, sc: 17 });
+});
+test("IA13 a long notice is sent whole: an annexure past 60,000 characters reaches the model", () => {
+  const annexure = "ANNEXURE I VACANCIES UNDER CRP RRBs XV Grand Total 13217";
+  const text = "Main notice text. ".repeat(10_000) + annexure;
+  assert.ok(text.length > 150_000);
+  assert.ok(buildArticlePrompt(text, "IBPS RRB CRP-XV").includes(annexure));
+  assert.ok(!buildArticlePrompt("x".repeat(250_000), "s").includes("x".repeat(200_001)), "still capped at Smart intake's own limit");
 });

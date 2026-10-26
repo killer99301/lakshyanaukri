@@ -682,6 +682,8 @@ export async function callAiJson(opts: {
   maxOutputTokens?: number;
   /** Which feature the request is counted under. */
   feature?: AiFeature;
+  /** Longer than the usual 30 s only for one reading of a whole long notice. */
+  timeoutMs?: number;
 }): Promise<AiJsonAnswer> {
   if (!opts.apiKey) return { ok: false, reason: "AI extraction not configured" };
 
@@ -692,7 +694,7 @@ export async function callAiJson(opts: {
   const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${opts.apiKey}`;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? AI_TIMEOUT_MS);
   let status = 0;
 
   try {
