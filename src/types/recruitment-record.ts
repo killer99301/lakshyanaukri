@@ -14,6 +14,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { AgeRelaxation, ExamStage, PostAgeRange, VacancyRow, Provenance, UpdateRecord, DateCertainty } from "@/types";
+import type { VacancyTable } from "@/lib/vacancy-table";
 
 // ─── Core State ───────────────────────────────────────────
 
@@ -56,6 +57,18 @@ export interface ProvenanceField<T> {
   conflict: boolean;
   machineValue?: T;
   manuallyEdited: boolean;
+  /** Set when the value was worked out by code from another field (the vacancy table), not entered. */
+  derived?: DerivedFrom;
+}
+
+export interface DerivedFrom {
+  from: "vacancies.table";
+  basis: "STATED" | "ENTERED" | "CALCULATED";
+  /** False when an input row is not reported, has no figure, or a column's place is undecided. */
+  complete: boolean;
+  method: string;
+  /** Fingerprint of the inputs; changes whenever a row it depends on changes. */
+  fingerprint: string;
 }
 
 // ─── Evidence ─────────────────────────────────────────────
@@ -330,6 +343,12 @@ export interface RecruitmentDates {
 export interface VacancyInformation {
   total?: ProvenanceField<number | null>;
   breakdown?: ProvenanceField<VacancyRow[]>;  // BLOCK — fieldPath "vacancies.breakdown"
+  /**
+   * BLOCK — fieldPath "vacancies.table". The figures as the notice prints them
+   * (any dimensions). When present, total and breakdown are worked out from it
+   * on every save and cannot be edited on their own.
+   */
+  table?: ProvenanceField<VacancyTable>;
 }
 
 export interface FinancialInformation {

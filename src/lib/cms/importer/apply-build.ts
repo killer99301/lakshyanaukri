@@ -14,6 +14,7 @@ import { routeFieldUpdate } from "@/lib/cms/field-update-router";
 import { buildAiField } from "@/lib/cms/ai-assist-apply";
 import { comparable, type Proposal, type ProposalItem } from "@/lib/cms/importer/proposal";
 import { valueHash } from "@/lib/cms/importer/evidence-text";
+import { fieldDef } from "@/lib/cms/importer/fields";
 import { fieldValue, recordColumns } from "@/lib/cms/importer/repository";
 
 export interface ApplyPayload {
@@ -99,6 +100,11 @@ export function buildApplyPayload(input: {
   const reason = `Imported (${input.sourceLabel})`;
 
   const pushRevision = (fieldPath: string, field: ProvenanceField<unknown>) => {
+    // A job with a vacancy table works its total and breakdown out from the
+    // table; an imported figure for them is refused with a reason, not saved.
+    if ((fieldPath === "vacancies.total" || fieldPath === "vacancies.breakdown") && record.vacancies.table?.value) {
+      throw new ApplySelectionError(`${fieldDef(fieldPath).label}: this job has a vacancy table, so its vacancies are calculated from it. Untick this value and enter the figures in the table.`);
+    }
     const result = routeFieldUpdate(record, fieldPath, field, input.adminId, reason);
     record = result.record;
     revisions.push({ id: result.revision.id, fieldPath, oldValue: result.revision.oldValue ?? null, newValue: result.revision.newValue ?? null, reason });

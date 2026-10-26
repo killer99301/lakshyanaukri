@@ -81,7 +81,8 @@ export interface VacancyTable {
 
 export interface Figure {
   value: number;
-  basis: "STATED" | "CALCULATED";
+  /** STATED: printed in a document; ENTERED: typed with no page or document behind it; CALCULATED: worked out here. */
+  basis: "STATED" | "ENTERED" | "CALCULATED";
   /** False when a row it depends on is not reported, has no figure, or a column's place is undecided. */
   complete: boolean;
   /** How it was obtained, in words. */
@@ -94,7 +95,7 @@ export interface Figure {
 
 export type IssueCode =
   | "DUPLICATE_ROW" | "MISSING_DIMENSION" | "BAD_FIGURE" | "ROW_TOTAL_MISMATCH" | "HORIZONTAL_EXCEEDS_TOTAL"
-  | "NOT_REPORTED" | "NO_FIGURE" | "UNDETERMINED_COLUMN" | "STATED_TOTAL_MISMATCH" | "NO_SOURCE";
+  | "NOT_REPORTED" | "NO_FIGURE" | "UNDETERMINED_COLUMN" | "STATED_TOTAL_MISMATCH" | "NO_SOURCE" | "FIGURES_NOT_IN_LINE";
 
 export interface TableIssue {
   code: IssueCode;
@@ -138,7 +139,16 @@ export function initialCategoryKind(key: string): CategoryKind {
   return STANDARD_VERTICAL.has(key.toLowerCase()) ? "VERTICAL" : "UNDETERMINED";
 }
 
-const isCount = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n) && n >= 0;
+/** The largest figure accepted for one row or column, as for the post-wise breakdown. */
+export const MAX_FIGURE = 1_000_000;
+const isCount = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= MAX_FIGURE;
+
+/**
+ * A row is backed by a document when it names the page it came from or the
+ * stored source it was read from. A typed or pasted line alone is not evidence.
+ */
+export const hasEvidence = (r: Pick<VacancyTableRow, "source">): boolean =>
+  !!r.source && (r.source.page != null || !!r.source.retrievalId);
 
 /** Stable JSON: object keys sorted, so the same table always gives the same text. */
 function canonical(v: unknown): string {
@@ -185,6 +195,13 @@ function inferFromPrintedTotals(rows: VacancyTableRow[], vertical: string[], und
   return fits.length === 1 ? fits[0] : null;
 }
 
+/** A figure taken as given: printed in a document when a page or source backs it, otherwise entered by hand. */
+function printedOrEntered(source: SourceRef): Pick<Figure, "basis" | "method"> {
+  return source && (source.page != null || !!source.retrievalId)
+    ? { basis: "STATED", method: `printed in the notice${source.page != null ? ` (page ${source.page})` : ""}` }
+    : { basis: "ENTERED", method: "entered by hand" };
+}
+
 // ─── Analysis ─────────────────────────────────────────────
 
 export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
@@ -214,6 +231,7 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
   }
 
   // Row checks.
+  const columnName = (key: string) => key === "total" ? "the total" : categories.find((c) => c.key === key)?.label ?? key;
   const seen = new Map<string, string>();
   for (const r of table.rows) {
     const missing = dims.filter((d) => !(r.at[d.key] ?? "").trim());
@@ -221,11 +239,22 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
     const k = atKey(r.at, dims);
     if (seen.has(k)) issues.push({ code: "DUPLICATE_ROW", severity: "ERROR", message: `The same row appears twice: ${dims.map((d) => r.at[d.key]).join(", ")}.`, rowIds: [seen.get(k)!, r.id] });
     else seen.set(k, r.id);
-    if (!r.source || (!r.source.line?.trim() && r.source.page == null)) issues.push({ code: "NO_SOURCE", severity: "ERROR", message: `No page or printed line for ${dims.map((d) => r.at[d.key]).join(", ")}.`, rowIds: [r.id] });
+    if (!hasEvidence(r)) issues.push({ code: "NO_SOURCE", severity: "WARNING", message: `${dims.map((d) => r.at[d.key]).join(", ")}: entered by hand, with no page of a document behind it.`, rowIds: [r.id] });
     if (r.status === "NOT_REPORTED") { issues.push({ code: "NOT_REPORTED", severity: "WARNING", message: `${dims.map((d) => r.at[d.key]).join(", ")}: not reported in the notice.`, rowIds: [r.id], group: r.at[groupDim] }); continue; }
     if (r.status === "NO_FIGURE") { issues.push({ code: "NO_FIGURE", severity: "WARNING", message: `${dims.map((d) => r.at[d.key]).join(", ")}: printed with no figure.`, rowIds: [r.id], group: r.at[groupDim] }); continue; }
     const bad = [...(r.total !== undefined ? [["total", r.total] as const] : []), ...Object.entries(r.cells)].filter(([, n]) => !isCount(n));
-    if (bad.length > 0) { issues.push({ code: "BAD_FIGURE", severity: "ERROR", message: `${dims.map((d) => r.at[d.key]).join(", ")}: ${bad.map(([k]) => k).join(", ")} is not a whole number.`, rowIds: [r.id] }); continue; }
+    if (bad.length > 0) { issues.push({ code: "BAD_FIGURE", severity: "ERROR", message: `${dims.map((d) => r.at[d.key]).join(", ")}: ${bad.map(([k]) => columnName(k)).join(", ")} is not a whole number up to ${MAX_FIGURE.toLocaleString("en-IN")}.`, rowIds: [r.id] }); continue; }
+    // A row backed by a page must have its figures in the line it was read
+    // from; a figure typed over it afterwards no longer matches the notice.
+    if (hasEvidence(r) && r.source.line.trim()) {
+      const printed: string[] = r.source.line.replace(/(\d),(\d)/g, "$1$2").match(/\d+/g) ?? [];
+      const figures = [...(isCount(r.total) ? [r.total] : []), ...Object.values(r.cells).filter(isCount)];
+      const missing = figures.filter((n) => !printed.includes(String(n)));
+      if (missing.length > 0) {
+        issues.push({ code: "FIGURES_NOT_IN_LINE", severity: "WARNING", rowIds: [r.id], group: r.at[groupDim],
+          message: `${dims.map((d) => r.at[d.key]).join(", ")}: ${missing.slice(0, 4).join(", ")}${missing.length > 4 ? ` and ${missing.length - 4} more` : ""} ${missing.length === 1 ? "is" : "are"} not in the line this row was read from${r.source.page != null ? ` (page ${r.source.page})` : ""}; check it against the notice.` });
+      }
+    }
     const hasVertical = vertical.some((key) => isCount(r.cells[key]));
     if (isCount(r.total) && hasVertical && undeterminedInUse.length === 0) {
       const s = sumOf(r.cells, vertical);
@@ -280,14 +309,14 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
     const stated = statedFor({ [groupDim]: name });
     let total: Figure | null = calculated;
     if (stated && isCount(stated.total)) {
-      total = { value: stated.total, basis: "STATED", complete: true, method: `printed in the notice${stated.source.page != null ? ` (page ${stated.source.page})` : ""}`, inputs: [], fingerprint: fingerprintOf(stated) };
+      total = { value: stated.total, ...printedOrEntered(stated.source), complete: true, inputs: [], fingerprint: fingerprintOf(stated) };
       if (calculated && calculated.complete && calculated.value !== stated.total) {
         issues.push({ code: "STATED_TOTAL_MISMATCH", severity: "ERROR", group: name,
-          message: `${name}: the notice prints ${stated.total}, its rows add up to ${calculated.value}. Decide which is right.` });
+          message: `${name}: ${hasEvidence(stated) ? "the notice prints" : "the total entered by hand is"} ${stated.total}, its rows add up to ${calculated.value}. Decide which is right.` });
       }
     } else if (rows.length === 1 && rows[0].status === "STATED" && isCount(rows[0].total)) {
       // A single printed row is itself the notice's figure.
-      total = { value: rows[0].total, basis: "STATED", complete: true, method: `printed in the notice${rows[0].source.page != null ? ` (page ${rows[0].source.page})` : ""}`, inputs: [rows[0].id], fingerprint: fp };
+      total = { value: rows[0].total, ...printedOrEntered(rows[0].source), complete: true, inputs: [rows[0].id], fingerprint: fp };
     }
 
     // Category sums: only when every counted, reported row gives that column.
@@ -318,7 +347,7 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
   const parts = groups.map((g) => g.total);
   if (parts.length > 0 && parts.every((p) => p !== null)) {
     const value = parts.reduce((s, p) => s + p!.value, 0);
-    grandTotal = { value, basis: groups.length === 1 && parts[0]!.basis === "STATED" ? "STATED" : "CALCULATED",
+    grandTotal = { value, basis: groups.length === 1 ? parts[0]!.basis : "CALCULATED",
       complete: parts.every((p) => p!.complete),
       method: groups.length === 1 ? parts[0]!.method : `sum of ${groups.length} post totals`,
       inputs: groups.flatMap((g) => g.total!.inputs), fingerprint: fingerprintOf(parts.map((p) => p!.fingerprint)) };
@@ -326,15 +355,18 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
   if (statedGrand && isCount(statedGrand.total)) {
     if (grandTotal && grandTotal.complete && grandTotal.value !== statedGrand.total) {
       issues.push({ code: "STATED_TOTAL_MISMATCH", severity: "ERROR",
-        message: `The notice prints a grand total of ${statedGrand.total}; the figures add up to ${grandTotal.value}. Decide which is right.` });
+        message: `${hasEvidence(statedGrand) ? "The notice prints a grand total of" : "The grand total entered by hand is"} ${statedGrand.total}; the figures add up to ${grandTotal.value}. Decide which is right.` });
     }
-    grandTotal = { value: statedGrand.total, basis: "STATED", complete: true, method: `printed in the notice${statedGrand.source.page != null ? ` (page ${statedGrand.source.page})` : ""}`, inputs: [], fingerprint: fingerprintOf(statedGrand) };
+    grandTotal = { value: statedGrand.total, ...printedOrEntered(statedGrand.source), complete: true, inputs: [], fingerprint: fingerprintOf(statedGrand) };
   }
 
   return { categories, groups, grandTotal, issues, fingerprint: fingerprintOf({ table }) };
 }
 
 // ─── What the rest of the site reads ──────────────────────
+
+/** Keys the existing breakdown and public table already know by name. */
+const STANDARD_KEYS = new Set(["ur", "ews", "obc", "sc", "st", "women", "exsm"]);
 
 export interface DerivedVacancies {
   /** For vacancies.total: the grand total, with how it was obtained. */
@@ -358,8 +390,9 @@ export function deriveVacancies(table: VacancyTable): DerivedVacancies {
       const f = g.categories[c.key];
       if (!f || !f.complete) continue;
       if (c.partOf === "pwbd") pwbd[c.key.replace(/^pwbd[_-]?/i, "")] = f.value;
-      // "General" is the unreserved category: the breakdown's usual key is ur.
-      else split[/^(general|gen)$/i.test(c.key) ? "ur" : c.key] = f.value;
+      // The breakdown's usual keys stay (General is unreserved: ur); any other
+      // column is listed under the notice's own name, which pages show as is.
+      else split[/^(general|gen)$/i.test(c.key) ? "ur" : STANDARD_KEYS.has(c.key) ? c.key : c.label] = f.value;
     }
     if (Object.keys(pwbd).length > 0) split.pwbd = pwbd;
     const row: VacancyRow & { basis: Figure["basis"]; complete: boolean; method: string } = {
@@ -369,6 +402,95 @@ export function deriveVacancies(table: VacancyTable): DerivedVacancies {
     return row;
   });
   return { total: a.grandTotal, breakdown };
+}
+
+// ─── Shape (what the server accepts) ──────────────────────
+
+const ROW_STATUSES: RowStatus[] = ["STATED", "NIL", "NOT_REPORTED", "NO_FIGURE"];
+const KINDS: CategoryKind[] = ["VERTICAL", "HORIZONTAL", "UNDETERMINED"];
+const KEY = /^[A-Za-z0-9][A-Za-z0-9 _()./&+-]{0,59}$/;
+export const MAX_TABLE_ROWS = 2000;
+
+/**
+ * Problems with the table's structure, in words; empty when it can be saved.
+ * The figures themselves are judged by analyseVacancyTable, not here: a table
+ * with gaps or conflicts can be saved, it just says so.
+ */
+export function vacancyTableShapeErrors(t: unknown): string[] {
+  const errors: string[] = [];
+  const v = t as Partial<VacancyTable> | null;
+  if (!v || typeof v !== "object") return ["the vacancy table is missing"];
+  if (!Array.isArray(v.dimensions) || v.dimensions.length === 0) errors.push("the table needs at least one dimension (for example Post)");
+  if (!Array.isArray(v.categories)) errors.push("categories must be a list");
+  if (!Array.isArray(v.rows)) errors.push("rows must be a list");
+  if (!Array.isArray(v.statedTotals)) errors.push("statedTotals must be a list");
+  if (errors.length > 0) return errors;
+  const dims = v.dimensions!, cats = v.categories!, rows = v.rows!;
+  const dimKeys = new Set<string>();
+  for (const d of dims) {
+    if (!d || typeof d.key !== "string" || !KEY.test(d.key) || typeof d.label !== "string" || !d.label.trim()) errors.push(`dimension ${JSON.stringify(d?.key)} needs a key and a label`);
+    else if (dimKeys.has(d.key)) errors.push(`dimension "${d.key}" appears twice`);
+    else dimKeys.add(d.key);
+  }
+  const catKeys = new Set<string>();
+  for (const c of cats) {
+    if (!c || typeof c.key !== "string" || !KEY.test(c.key) || typeof c.label !== "string" || !c.label.trim()) { errors.push(`category ${JSON.stringify(c?.key)} needs a key and a label`); continue; }
+    if (catKeys.has(c.key)) errors.push(`category "${c.label}" appears twice`);
+    catKeys.add(c.key);
+    if (!KINDS.includes(c.kind)) errors.push(`category "${c.label}" has an unknown kind`);
+    // Only the standard reservations are vertical without a reason; anything
+    // else placed inside or outside the total says how that was established.
+    if (c.kind !== "UNDETERMINED" && initialCategoryKind(c.key) !== c.kind && !(c.established && c.established.note?.trim())) {
+      errors.push(`category "${c.label}": say how it is known whether these seats are part of the total`);
+    }
+  }
+  if (rows.length > MAX_TABLE_ROWS) errors.push(`at most ${MAX_TABLE_ROWS} rows`);
+  const ids = new Set<string>();
+  for (const r of rows) {
+    if (!r || typeof r.id !== "string" || !r.id) { errors.push("a row has no id"); continue; }
+    if (ids.has(r.id)) errors.push(`row id "${r.id}" appears twice`);
+    ids.add(r.id);
+    if (!ROW_STATUSES.includes(r.status)) errors.push(`row "${r.id}" has an unknown status`);
+    if (!r.at || typeof r.at !== "object" || Object.keys(r.at).some((k) => !dimKeys.has(k))) errors.push(`row "${r.id}" names a dimension the table does not have`);
+    if (!r.cells || typeof r.cells !== "object" || Object.keys(r.cells).some((k) => !catKeys.has(k))) errors.push(`row "${r.id}" has a figure for a category the table does not have`);
+    if (!r.source || typeof r.source !== "object" || typeof r.source.line !== "string") errors.push(`row "${r.id}" has no source`);
+  }
+  return errors.slice(0, 20);
+}
+
+/**
+ * A table made from a record's existing total and one-row-per-post
+ * breakdown, so a job entered the old way can be moved to the table without
+ * retyping. Nothing is invented: rows keep their figures and are marked as
+ * entered by hand; a total with no rows becomes the table's printed total.
+ */
+export function tableFromLegacy(total: number | null | undefined, rows: VacancyRow[] | null | undefined): VacancyTable {
+  const categories: VacancyCategory[] = [];
+  const addCat = (key: string, label: string, partOf?: string) => {
+    if (categories.some((c) => c.key === key)) return;
+    categories.push({ key, label, kind: initialCategoryKind(key), ...(partOf ? { partOf } : {}) });
+  };
+  const LABELS: Record<string, string> = { ur: "UR", ews: "EWS", obc: "OBC", sc: "SC", st: "ST", women: "Women", exsm: "Ex-Servicemen" };
+  const tableRows: VacancyTableRow[] = (rows ?? []).map((r, i) => {
+    const cells: Record<string, number> = {};
+    for (const [k, v] of Object.entries((r.breakdown ?? {}) as Record<string, unknown>)) {
+      if (k === "pwbd" && v && typeof v === "object") {
+        for (const [part, n] of Object.entries(v as Record<string, unknown>)) if (isCount(n)) { addCat(`pwbd_${part}`, `PwBD ${part.toUpperCase()}`, "pwbd"); cells[`pwbd_${part}`] = n; }
+      } else if (k === "other" && v && typeof v === "object") {
+        for (const [name, n] of Object.entries(v as Record<string, unknown>)) if (isCount(n) && KEY.test(name)) { addCat(name, name); cells[name] = n; }
+      } else if (isCount(v) && KEY.test(k)) { addCat(k, LABELS[k] ?? k); cells[k] = v; }
+    }
+    return {
+      id: `r${i + 1}`, at: { post: r.post }, status: r.count === 0 ? "NIL" : "STATED", total: r.count, cells,
+      source: { retrievalId: null, page: null, line: "from the earlier post-wise breakdown" },
+    };
+  });
+  // The earlier total is kept when there are no rows, or when the rows do not
+  // add up to it: then it is a conflict to decide, never silently dropped.
+  const rowSum = tableRows.reduce((s, r) => s + (r.total ?? 0), 0);
+  const statedTotals: StatedTotal[] = isCount(total) && (tableRows.length === 0 || rowSum !== total)
+    ? [{ at: {}, total, source: { retrievalId: null, page: null, line: "from the earlier Total Vacancies" } }] : [];
+  return { dimensions: [{ key: "post", label: "Post" }], categories, rows: tableRows, statedTotals };
 }
 
 // ─── Tier B: may a calculated total count as checked? ─────
@@ -388,8 +510,9 @@ export function calculatedTotalReady(
   const reasons: string[] = [];
   if (!a.grandTotal) reasons.push("there is no total to check");
   else if (a.grandTotal.basis === "STATED") reasons.push("the total is printed in the notice; check it as usual");
+  else if (a.grandTotal.basis === "ENTERED") reasons.push("the total was entered by hand, with no page of a document behind it");
   if (a.grandTotal && !a.grandTotal.complete) reasons.push("the total is incomplete");
-  for (const code of ["NO_SOURCE", "NOT_REPORTED", "NO_FIGURE", "DUPLICATE_ROW", "MISSING_DIMENSION", "BAD_FIGURE", "UNDETERMINED_COLUMN", "ROW_TOTAL_MISMATCH", "STATED_TOTAL_MISMATCH", "HORIZONTAL_EXCEEDS_TOTAL"] as IssueCode[]) {
+  for (const code of ["NO_SOURCE", "FIGURES_NOT_IN_LINE", "NOT_REPORTED", "NO_FIGURE", "DUPLICATE_ROW", "MISSING_DIMENSION", "BAD_FIGURE", "UNDETERMINED_COLUMN", "ROW_TOTAL_MISMATCH", "STATED_TOTAL_MISMATCH", "HORIZONTAL_EXCEEDS_TOTAL"] as IssueCode[]) {
     const n = a.issues.filter((i) => i.code === code).length;
     if (n > 0) reasons.push(`${n} × ${code.toLowerCase().replace(/_/g, " ")}`);
   }

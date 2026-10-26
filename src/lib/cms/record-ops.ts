@@ -41,6 +41,7 @@ import type {
 
 import type { AgeRelaxation, PostAgeRange, VacancyRow } from "@/types";
 import { validateProvenanceField, validateRecord } from "@/lib/cms/validation";
+import { deriveVacancies, fingerprintOf, vacancyTableShapeErrors, type VacancyTable } from "@/lib/vacancy-table";
 
 // ─── Type helpers ──────────────────────────────────────────
 
@@ -246,6 +247,15 @@ export function checkApprovalReadiness(record: RecruitmentRecord): ApprovalReadi
 export interface FieldUpdateResult {
   record: RecruitmentRecord;
   revision: FieldRevision;
+  /** Fields worked out from the edited one (the vacancy table's total and breakdown), saved with it. */
+  extraRevisions?: FieldRevision[];
+}
+
+/** Refuses a direct edit of a figure that is worked out from the vacancy table. */
+function refuseIfDerived(record: RecruitmentRecord, fieldPath: string): void {
+  if (record.vacancies.table?.value) {
+    throw new Error(`${fieldPath} is not an editable field while the job has a vacancy table: it is calculated from the table. Edit the table instead.`);
+  }
 }
 
 // ── Namespace field update (individual ProvenanceField) ───
@@ -330,6 +340,7 @@ export function updateVacancyTotal(
   reason?: string,
 ): FieldUpdateResult {
   const fieldPath = "vacancies.total";
+  refuseIfDerived(record, fieldPath);
 
   const errors = validateProvenanceField(newField, fieldPath);
   if (errors.length > 0) {
@@ -369,6 +380,7 @@ export function updateVacancyBreakdown(
   reason?: string,
 ): FieldUpdateResult {
   const fieldPath = "vacancies.breakdown";
+  refuseIfDerived(record, fieldPath);
 
   const errors = validateProvenanceField(newField, fieldPath);
   if (errors.length > 0) {
@@ -391,6 +403,82 @@ export function updateVacancyBreakdown(
   );
 
   return { record: updated, revision };
+}
+
+/**
+ * Save the vacancy table (fieldPath "vacancies.table") and, in the same save,
+ * the total and post-wise breakdown worked out from it. Each of the two gets
+ * its own revision when it changes, and also when the rows behind it change
+ * without changing the figure (its fingerprint), so any check of it reopens.
+ * A null value removes the table: total and breakdown keep their figures and
+ * become ordinary fields again.
+ */
+export function updateVacancyTable(
+  record: RecruitmentRecord,
+  newField: ProvenanceField<VacancyTable | null>,
+  adminId: string,
+  reason?: string,
+): FieldUpdateResult {
+  const fieldPath = "vacancies.table";
+  const updated = cloneRecord(record);
+  updated.updatedAt = now();
+  updated.updatedBy = adminId;
+  const extraRevisions: FieldRevision[] = [];
+  const DERIVED_REASON = "Calculated from the vacancy table";
+
+  if (newField.value === null) {
+    if (!record.vacancies.table) throw new Error("vacancies.table: there is no vacancy table to remove");
+    const plain = <T,>(f: ProvenanceField<T> | undefined) => {
+      if (!f) return f;
+      const { derived: _derived, ...rest } = f;
+      void _derived;
+      return { ...rest, manuallyEdited: true };
+    };
+    updated.vacancies = { ...record.vacancies, table: undefined, total: plain(record.vacancies.total), breakdown: plain(record.vacancies.breakdown) };
+    delete updated.vacancies.table;
+    for (const key of ["total", "breakdown"] as const) {
+      if (record.vacancies[key]?.derived) {
+        extraRevisions.push(buildFieldRevision(record.id, `vacancies.${key}`, record.vacancies[key], updated.vacancies[key], adminId, "The vacancy table was removed; kept as entered"));
+      }
+    }
+    return { record: updated, revision: buildFieldRevision(record.id, fieldPath, record.vacancies.table, null, adminId, reason), extraRevisions };
+  }
+
+  const shape = vacancyTableShapeErrors(newField.value);
+  if (shape.length > 0) throw new Error(`vacancies.table invariant: ${shape.join("; ")}`);
+  const errors = validateProvenanceField(newField, fieldPath);
+  if (errors.length > 0) throw new Error(errors.map((e) => e.message).join("; "));
+  const tableField = newField as ProvenanceField<VacancyTable>;
+
+  const d = deriveVacancies(tableField.value!);
+  const status = tableField.status === "NOT_SPECIFIED" ? "PENDING" : tableField.status;
+  const total: ProvenanceField<number | null> | undefined = d.total
+    ? { value: d.total.value, status, evidenceIds: [], conflict: false, manuallyEdited: false,
+        derived: { from: "vacancies.table", basis: d.total.basis, complete: d.total.complete, method: d.total.method, fingerprint: d.total.fingerprint } }
+    : undefined;
+  const fp = d.breakdown.length ? fingerprintOf(d.breakdown) : "";
+  const breakdown: ProvenanceField<VacancyRow[]> | undefined = d.breakdown.length
+    // Built by code from checked rows, so stored as calculated: the hand-entry
+    // cleaner would drop the PwBD parts and refuse a post with no seats.
+    ? { value: d.breakdown.map(({ post, count, breakdown: split, payScale }) => ({ post, count, ...(split ? { breakdown: split } : {}), ...(payScale ? { payScale } : {}) })),
+        status, evidenceIds: [], conflict: false, manuallyEdited: false,
+        derived: { from: "vacancies.table", basis: d.breakdown.every((r) => r.basis === "STATED") ? "STATED" : d.breakdown.some((r) => r.basis === "ENTERED") ? "ENTERED" : "CALCULATED",
+                   complete: d.breakdown.every((r) => r.complete), method: "one row per post, from the vacancy table", fingerprint: fp } }
+    : undefined;
+
+  updated.vacancies = { ...record.vacancies, table: tableField, total, breakdown };
+  if (!total) delete updated.vacancies.total;
+  if (!breakdown) delete updated.vacancies.breakdown;
+  // A derived field changed when its figure, or anything it was worked out from, changed.
+  const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  for (const key of ["total", "breakdown"] as const) {
+    const before = record.vacancies[key] as ProvenanceField<unknown> | undefined;
+    const after = updated.vacancies[key] as ProvenanceField<unknown> | undefined;
+    if (!same(before?.value, after?.value) || !same(before?.derived, after?.derived)) {
+      extraRevisions.push(buildFieldRevision(record.id, `vacancies.${key}`, before, after, adminId, DERIVED_REASON));
+    }
+  }
+  return { record: updated, revision: buildFieldRevision(record.id, fieldPath, record.vacancies.table, tableField, adminId, reason), extraRevisions };
 }
 
 /**

@@ -29,6 +29,7 @@ import { aiAssistReason, buildAiField, describeAiValue } from "@/lib/cms/ai-assi
 import { ExamStagesEditor } from "./ExamStagesEditor";
 import { ExamPatternEditor, SyllabusEditor } from "./PatternSyllabusEditors";
 import { AgeEditor } from "./AgeEditor";
+import { VacancyTableEditor } from "./VacancyTableEditor";
 import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { LiveChangesPanel } from "./LiveChangesPanel";
@@ -2328,24 +2329,40 @@ export default function CmsRecordEditorPage() {
         {/* ── Vacancies ── */}
         {activeSection === "Vacancies" && (
           <Section title="Vacancies">
-            <EditableField
-              label="Total Vacancies"
-              fieldPath="vacancies.total"
-              field={record.vacancies.total as ProvenanceField<unknown> | undefined}
-              recordId={id}
-              recordRevision={record.recordRevision}
-              onSaved={onFieldSaved}
-              inputType="number"
-              placeholder="e.g. 1000"
-            />
-            <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
-                Breakdown
-                {record.vacancies.breakdown && <Badge status={record.vacancies.breakdown.status} />}
-                <ImportVerdictBadge fieldPath="vacancies.breakdown" />
+            {record.vacancies.table?.value ? (
+              // With a vacancy table, the total and the post-wise breakdown are
+              // worked out from it; they are shown here, not edited on their own.
+              <div data-derived-vacancies style={{ fontSize: 12, color: C.muted, marginBottom: 12, lineHeight: 1.6 }}>
+                Total Vacancies and the post-wise breakdown are calculated from the table below
+                {record.vacancies.total && <Badge status={record.vacancies.total.status} />}
+                <ImportVerdictBadge fieldPath="vacancies.total" />
+                {record.vacancies.total?.derived && !record.vacancies.total.derived.complete && (
+                  <span style={{ color: C.amber }}> — the total is incomplete</span>
+                )}
               </div>
-              <VacancyBreakdownEditor record={record} onSaved={onFieldSaved} />
-            </div>
+            ) : (
+              <>
+                <EditableField
+                  label="Total Vacancies"
+                  fieldPath="vacancies.total"
+                  field={record.vacancies.total as ProvenanceField<unknown> | undefined}
+                  recordId={id}
+                  recordRevision={record.recordRevision}
+                  onSaved={onFieldSaved}
+                  inputType="number"
+                  placeholder="e.g. 1000"
+                />
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+                    Breakdown
+                    {record.vacancies.breakdown && <Badge status={record.vacancies.breakdown.status} />}
+                    <ImportVerdictBadge fieldPath="vacancies.breakdown" />
+                  </div>
+                  <VacancyBreakdownEditor record={record} onSaved={onFieldSaved} />
+                </div>
+              </>
+            )}
+            <VacancyTableEditor record={record} onSaved={onFieldSaved} />
           </Section>
         )}
 

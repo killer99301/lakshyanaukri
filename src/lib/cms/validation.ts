@@ -326,6 +326,9 @@ function validateVacanciesBlock(vacancies: VacancyInformation): ValidationError[
   if (vacancies.breakdown) {
     errors.push(...validateProvenanceField(vacancies.breakdown, "vacancies.breakdown"));
   }
+  if (vacancies.table) {
+    errors.push(...validateProvenanceField(vacancies.table, "vacancies.table"));
+  }
   return errors;
 }
 

@@ -8,7 +8,7 @@
 
 import { suite, test, assert } from "../intelligence/suite";
 import {
-  analyseVacancyTable, calculatedTotalReady, deriveVacancies, fingerprintOf, initialCategoryKind,
+  analyseVacancyTable, calculatedTotalReady, deriveVacancies, fingerprintOf, initialCategoryKind, tableFromLegacy,
   type VacancyCategory, type VacancyTable, type VacancyTableRow,
 } from "@/lib/vacancy-table";
 import { vacancyCategoryTable } from "@/lib/vacancy-categories";
@@ -53,9 +53,10 @@ const ibpsTable = (rows: VacancyTableRow[], categories = ibpsCategories()): Vaca
 const reportedTotals = (rows: VacancyTableRow[]) => rows.filter((r) => r.status !== "NOT_REPORTED").reduce((s, r) => s + (r.total ?? 0), 0);
 /** Tripura's figures as a corrigendum might give them (made up for the test; the notice says NR). */
 const tripuraReported = (rows: VacancyTableRow[]) => rows.map((r) => r.at.bank.startsWith("TRIPURA")
-  ? { ...r, status: "STATED" as const, total: 10, cells: { sc: 2, st: 3, obc: 1, ews: 1, general: 3, pwbd_hi: 0, pwbd_oc: 1, pwbd_vi: 0, pwbd_id: 0 } } : r);
+  ? { ...r, status: "STATED" as const, total: 10, cells: { sc: 2, st: 3, obc: 1, ews: 1, general: 3, pwbd_hi: 0, pwbd_oc: 1, pwbd_vi: 0, pwbd_id: 0 },
+      source: { retrievalId: "corrigendum", page: 2, line: "25 TRIPURA TRIPURA GRAMIN BANK 2 3 1 1 3 10 0 1 0 0" } } : r);
 
-const BTSC_LINE = "Unreserved (UR) 41 … Backward Class Women 4 Total 105";
+const BTSC_LINE = "Unreserved (UR) 41 EWS 11 SC 17 ST 2 EBC 18 BC 12 Backward Class Women 4 Total 105";
 const btscTable = (extra: Record<string, number> = {}, extraCats: VacancyCategory[] = []): VacancyTable => ({
   dimensions: [{ key: "post", label: "Post" }],
   categories: [
@@ -65,7 +66,7 @@ const btscTable = (extra: Record<string, number> = {}, extraCats: VacancyCategor
     { key: "bcw", label: "Backward Class Women", kind: initialCategoryKind("bcw") }, ...extraCats,
   ],
   rows: [{ id: "fso", at: { post: "Food Safety Officer" }, status: "STATED", total: 105,
-    cells: { ur: 41, ews: 11, sc: 17, st: 2, ebc: 18, bc: 12, bcw: 4, ...extra }, source: { retrievalId: "btsc-article", page: null, line: BTSC_LINE } }],
+    cells: { ur: 41, ews: 11, sc: 17, st: 2, ebc: 18, bc: 12, bcw: 4, ...extra }, source: { retrievalId: "btsc-article", page: null, line: BTSC_LINE + Object.entries(extra).map(([k, n]) => ` ${k} ${n}`).join("") } }],
   statedTotals: [],
 });
 
@@ -240,6 +241,12 @@ test("VT14 only a complete, conflict-free, evidenced, checked and reproducible c
     "editing a row reopens the check");
   assert.ok(calculatedTotalReady(btscTable(), { tableChecked: true }).reasons.some((r) => /printed in the notice/.test(r)), "a printed total follows the usual checks");
 });
+test("VT15b a figure typed over a row read from the notice is flagged, and keeps the total from counting as checked", () => {
+  const typedOver = ibpsTable(tripuraReported(officerI()).map((r) => r.at.bank.startsWith("BIHAR") ? { ...r, total: 395, cells: { ...r.cells, general: 161 } } : r));
+  const i = analyseVacancyTable(typedOver).issues.find((x) => x.code === "FIGURES_NOT_IN_LINE")!;
+  assert.match(i.message, /BIHAR GRAMIN BANK: 395, 161 are not in the line this row was read from \(page 47\)/);
+  assert.ok(calculatedTotalReady(typedOver, { tableChecked: true }).reasons.some((r) => /figures not in line/.test(r)));
+});
 test("VT15 the fingerprint follows the figures, not the order of keys", () => {
   assert.equal(fingerprintOf({ a: 1, b: [1, 2] }), fingerprintOf({ b: [1, 2], a: 1 }));
   assert.notEqual(fingerprintOf({ a: 1 }), fingerprintOf({ a: 2 }));
@@ -274,4 +281,19 @@ test("VT18 a plain one-row post (a walk-in) derives exactly what the old shape h
   assert.deepEqual(d.breakdown.map(({ post, count }) => ({ post, count })), [{ post: "Senior Resident", count: 12 }]);
   assert.equal(d.total!.value, 12);
   assert.equal(d.total!.basis, "STATED");
+});
+
+suite("Moving a job entered the old way to a table");
+test("VT19 rows keep their figures and say they were entered by hand; a total the rows do not reach is kept as a conflict", () => {
+  const t = tableFromLegacy(9100, [{ post: "MTS", count: 8000, breakdown: { ur: 4000, sc: 1200, st: 600, obc: 1600, ews: 600 } }, { post: "Havaldar", count: 1000 }]);
+  const a = analyseVacancyTable(t);
+  assert.deepEqual(a.groups.map((g) => [g.name, g.total!.value, g.total!.basis]), [["MTS", 8000, "ENTERED"], ["Havaldar", 1000, "ENTERED"]], "never 'printed in the notice'");
+  assert.equal(a.grandTotal!.value, 9100);
+  assert.equal(a.grandTotal!.basis, "ENTERED");
+  assert.ok(a.issues.some((i) => i.code === "STATED_TOTAL_MISMATCH" && /9100.*9000/.test(i.message)), "the earlier 9,100 is not dropped");
+  assert.equal(a.issues.filter((i) => i.code === "NO_SOURCE").length, 2);
+  const same = analyseVacancyTable(tableFromLegacy(9000, [{ post: "MTS", count: 8000 }, { post: "Havaldar", count: 1000 }]));
+  assert.ok(!same.issues.some((i) => i.code === "STATED_TOTAL_MISMATCH") && same.grandTotal!.value === 9000);
+  assert.equal(analyseVacancyTable(tableFromLegacy(500, [])).grandTotal!.value, 500, "a total with no rows is kept");
+  assert.ok(calculatedTotalReady(t, { tableChecked: true }).reasons.some((r) => /entered by hand/.test(r)));
 });

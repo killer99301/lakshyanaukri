@@ -419,6 +419,11 @@ export async function persistFieldUpdate(
   clientRevision: string,
 ): Promise<{ record: RecruitmentRecord; revision: FieldRevision }> {
   const { record, revision } = result;
+  // The edited field's revision first, then those of fields worked out from it.
+  const revisions = [revision, ...(result.extraRevisions ?? [])].map((r) => ({
+    id: r.id, recruitment_id: r.recruitmentId, field_path: r.fieldPath, revised_by: r.revisedBy, revised_at: r.revisedAt,
+    old_value: r.oldValue === undefined ? null : r.oldValue, new_value: r.newValue === undefined ? null : r.newValue, reason: r.reason ?? null,
+  }));
 
   const validation = validateRecord(record);
   if (!validation.valid) {
@@ -465,16 +470,12 @@ export async function persistFieldUpdate(
     )
     INSERT INTO field_revisions
       (id, recruitment_id, field_path, revised_by, revised_at, old_value, new_value, reason)
-    SELECT
-      ${revision.id},
-      ${revision.recruitmentId},
-      ${revision.fieldPath},
-      ${revision.revisedBy},
-      ${revision.revisedAt},
-      ${revision.oldValue !== undefined ? JSON.stringify(revision.oldValue) : null},
-      ${revision.newValue !== undefined ? JSON.stringify(revision.newValue) : null},
-      ${revision.reason ?? null}
+    SELECT r.id, r.recruitment_id, r.field_path, r.revised_by, r.revised_at, r.old_value, r.new_value, r.reason
     FROM updated
+    CROSS JOIN jsonb_to_recordset(${JSON.stringify(revisions)}::jsonb) AS r(
+      id UUID, recruitment_id UUID, field_path TEXT, revised_by UUID, revised_at TIMESTAMPTZ,
+      old_value JSONB, new_value JSONB, reason TEXT
+    )
     RETURNING recruitment_id
   `;
 

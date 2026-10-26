@@ -24,12 +24,14 @@ import type {
 } from "@/types/recruitment-record";
 
 import type { VacancyRow } from "@/types";
+import type { VacancyTable } from "@/lib/vacancy-table";
 
 import {
   updateIdentityField,
   updateDateField,
   updateVacancyTotal,
   updateVacancyBreakdown,
+  updateVacancyTable,
   updateEligibility,
   updateAge,
   updateSelection,
@@ -55,6 +57,7 @@ const BLOCK_PATHS = new Set([
   "syllabus",
   "vacancies.breakdown",
   "vacancies.total",
+  "vacancies.table",
 ]);
 
 export function isBlockPath(fieldPath: string): boolean {
@@ -102,6 +105,15 @@ export function routeFieldUpdate(
     return updateSelection(
       record,
       newField as ProvenanceField<CmsSelectionInformation>,
+      adminId,
+      reason,
+    );
+  }
+
+  if (fieldPath === "vacancies.table") {
+    return updateVacancyTable(
+      record,
+      newField as ProvenanceField<VacancyTable | null>,
       adminId,
       reason,
     );
@@ -211,7 +223,7 @@ export function routeFieldUpdate(
 
   throw new Error(
     `Unknown or unroutable fieldPath: "${fieldPath}". ` +
-      `Known blocks: eligibility, age, selection, examPattern, syllabus, vacancies.breakdown, vacancies.total, links, howToApply, conditions, examStages, classification, lifecycle.statusOverride. ` +
+      `Known blocks: eligibility, age, selection, examPattern, syllabus, vacancies.breakdown, vacancies.total, vacancies.table, links, howToApply, conditions, examStages, classification, lifecycle.statusOverride. ` +
       `Namespace prefixes: identity., dates., financial.`,
   );
 }
