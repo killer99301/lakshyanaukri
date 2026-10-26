@@ -335,6 +335,13 @@ export async function POST(
       continue;
     }
 
+    // A job with a vacancy table works its total and breakdown out from it:
+    // a figure read here is not a competing value, only a note.
+    if ((fieldPath === "vacancies.total" || fieldPath === "vacancies.breakdown") && record.vacancies.table?.value) {
+      notFound.push(`${label} (this job has a vacancy table: add the figures there)`);
+      continue;
+    }
+
     const currentField = readField(record, fieldPath);
 
     if (isEmpty(currentField)) {

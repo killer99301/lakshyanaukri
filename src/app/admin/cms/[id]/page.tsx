@@ -1176,8 +1176,14 @@ function pendingValues(record: RecruitmentRecord, checked: string[] = []): Array
   const all: Array<{ label: string; section: string; path: string; field: Field }> = [
     { label: "Notification number", section: "Identity", path: "identity.notificationNumber", field: record.identity.notificationNumber },
     ...DATE_FIELDS.map(({ key, label }) => ({ label, section: "Dates", path: `dates.${key}`, field: dates[key] })),
-    { label: "Total vacancies", section: "Vacancies", path: "vacancies.total", field: record.vacancies.total },
-    { label: "Vacancies by post", section: "Vacancies", path: "vacancies.breakdown", field: record.vacancies.breakdown },
+    // With a vacancy table, the total and breakdown are calculated from it:
+    // the table is what gets checked.
+    ...(record.vacancies.table?.value
+      ? [{ label: "Vacancy table", section: "Vacancies", path: "vacancies.table", field: record.vacancies.table as Field }]
+      : [
+          { label: "Total vacancies", section: "Vacancies", path: "vacancies.total", field: record.vacancies.total },
+          { label: "Vacancies by post", section: "Vacancies", path: "vacancies.breakdown", field: record.vacancies.breakdown },
+        ]),
     { label: "Fee (General / OBC)", section: "Financial", path: "financial.feeGeneral", field: record.financial.feeGeneral },
     { label: "Fee (SC / ST / PwD)", section: "Financial", path: "financial.feeSCST", field: record.financial.feeSCST },
     { label: "Pay scale", section: "Financial", path: "financial.payScale", field: record.financial.payScale },

@@ -36,7 +36,7 @@ export function buildJobAnnouncement(snapshot: PublishedRecruitmentSnapshot, kin
   if (kind === "UPDATED" && news) lines.push(`What's new: <b>${escapeHtml(news)}</b>`);
   lines.push("");
   if (typeof snapshot.vacancies.total === "number" && snapshot.vacancies.total > 0) {
-    lines.push(`Posts: <b>${snapshot.vacancies.total.toLocaleString("en-IN")}</b>`);
+    lines.push(`Posts: <b>${snapshot.vacancies.totalComplete === false ? "at least " : ""}${snapshot.vacancies.total.toLocaleString("en-IN")}</b>`);
   }
   if (snapshot.classification.qualification) {
     lines.push(`Qualification: <b>${escapeHtml(snapshot.classification.qualification)}</b>`);

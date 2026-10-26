@@ -160,8 +160,9 @@ export function snapshotToGovernmentRecruitment(
     govType,
     notificationNumber: snapshot.notificationNumber ?? "",
     totalVacancies:   snapshot.vacancies.total ?? 0,
+    // An incomplete total (a bank or city not reported) is never shown as the whole.
     vacanciesDisplay: snapshot.vacancies.total !== null
-      ? `${snapshot.vacancies.total.toLocaleString("en-IN")} Posts`
+      ? `${snapshot.vacancies.totalComplete === false ? "At least " : ""}${snapshot.vacancies.total.toLocaleString("en-IN")} Posts`
       : snapshot.notStated && "vacancies.total" in snapshot.notStated
         ? "Not stated in the notice"
         : "Vacancies TBC",
@@ -177,6 +178,11 @@ export function snapshotToGovernmentRecruitment(
 
     examStages,
     vacancyBreakdown,
+    ...(snapshot.vacancies.table ? {
+      vacancyTable: snapshot.vacancies.table,
+      ...(snapshot.vacancies.totalComplete !== undefined ? { vacancyTotalComplete: snapshot.vacancies.totalComplete } : {}),
+      ...(snapshot.vacancies.totalBasis ? { vacancyTotalBasis: snapshot.vacancies.totalBasis } : {}),
+    } : {}),
     fee: feeRows.length > 0
       ? { rows: feeRows, modes: snapshot.financial.paymentModes }
       : undefined,

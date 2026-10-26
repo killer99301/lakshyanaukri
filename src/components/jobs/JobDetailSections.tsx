@@ -20,6 +20,7 @@ import { NewBadge } from "@/components/common/NewBadge";
 import { resolveDocumentAccess } from "@/lib/documents";
 import { formatDate } from "@/lib/utils";
 import { vacancyCategoryTable } from "@/lib/vacancy-categories";
+import { VacancyTableSection } from "@/components/jobs/VacancyTableSection";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
 import { RecruitmentTimeline } from "@/components/jobs/RecruitmentTimeline";
 import { ExamPatternSection, SyllabusSection } from "@/components/jobs/ExamPatternSyllabus";
@@ -35,6 +36,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
   const isIntern = job.type === "internship";
   const vacancyText = getVacancyDisplay(job);
   const categoryTable = job.type === "government" ? vacancyCategoryTable(job.vacancyBreakdown) : null;
+  const vacancyTable = job.type === "government" ? job.vacancyTable : undefined;
 
   return (
     <div className="space-y-8">
@@ -365,7 +367,10 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
           <span className="text-base font-black text-purple-700">{vacancyText}</span>
         </div>
 
-        {isGov && job.vacancyBreakdown && job.vacancyBreakdown.length > 0 && (
+        {/* A job with a vacancy table: a summary per post, the detail folded. */}
+        {vacancyTable && <VacancyTableSection table={vacancyTable} />}
+
+        {isGov && !vacancyTable && job.vacancyBreakdown && job.vacancyBreakdown.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
@@ -388,7 +393,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
           </div>
         )}
 
-        {isGov && categoryTable && (
+        {isGov && !vacancyTable && categoryTable && (
           <div className="space-y-2">
             <h3 className="text-sm font-extrabold text-[#0F172A]">Category-wise vacancies</h3>
             <div className="overflow-x-auto">

@@ -280,6 +280,14 @@ export interface GovernmentRecruitment extends BaseOpportunity {
   examStages: ExamStage[];
 
   vacancyBreakdown?: VacancyRow[];
+  /**
+   * The notice's own vacancy figures (by post, bank, state…), when the job
+   * has a vacancy table; the page shows a summary and folds the detail.
+   */
+  vacancyTable?: import("@/lib/vacancy-table").VacancyTable;
+  /** With a table: false when the total is only "at least" (a part not reported). */
+  vacancyTotalComplete?: boolean;
+  vacancyTotalBasis?: "STATED" | "ENTERED" | "CALCULATED";
   fee?: { rows: FeeRow[]; modes: string[] };
   /** Pay level or salary for the whole recruitment, as the notice states it. */
   payScale?: string;

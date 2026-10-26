@@ -243,6 +243,17 @@ export async function previewImport(opts: {
     today: new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10),
   });
 
+  // A job with a vacancy table works its total and breakdown out from the
+  // table: a figure for them is shown for reference, never ticked to save.
+  if (record?.vacancies.table?.value) {
+    for (const item of proposal.items) {
+      if (item.fieldPath === "vacancies.total" || item.fieldPath === "vacancies.breakdown") {
+        item.defaultTicked = false;
+        item.flags = [...item.flags, "this job has a vacancy table: add the figures there"];
+      }
+    }
+  }
+
   // Keys for the duplicate lock and check of a new job.
   let identityKey: string | null = null;
   let orgYearKey: string | null = null;

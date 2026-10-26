@@ -17,6 +17,7 @@
 
 import type { RecruitmentRecord, ProvenanceField } from "@/types/recruitment-record";
 import type { ExamStage } from "@/types";
+import type { VacancyTable } from "@/lib/vacancy-table";
 
 export const PROJECTION_VERSION = "1.0";
 
@@ -59,6 +60,12 @@ export interface PublishedRecruitmentSnapshot {
   vacancies: {
     total: number | null;
     breakdown: unknown[] | null;
+    /** The notice's own figures, when the job has a vacancy table (absent otherwise and on older snapshots). */
+    table?: VacancyTable;
+    /** For a table: false when the total is "at least" (a row not reported or without a figure). */
+    totalComplete?: boolean;
+    /** For a table: how the total was obtained. */
+    totalBasis?: "STATED" | "ENTERED" | "CALCULATED";
   };
   financial: {
     feeGeneral: number | null;
@@ -136,6 +143,14 @@ function buildSnapshot(record: RecruitmentRecord): PublishedRecruitmentSnapshot 
     vacancies: {
       total:     pv(record.vacancies.total),
       breakdown: pv(record.vacancies.breakdown) ?? null,
+      // Only jobs with a vacancy table carry these, so older pages are unchanged.
+      ...(record.vacancies.table?.value ? {
+        table: record.vacancies.table.value,
+        ...(record.vacancies.total?.derived ? {
+          totalComplete: record.vacancies.total.derived.complete,
+          totalBasis: record.vacancies.total.derived.basis,
+        } : {}),
+      } : {}),
     },
 
     financial: {

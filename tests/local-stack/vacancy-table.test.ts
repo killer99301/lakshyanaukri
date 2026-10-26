@@ -165,6 +165,32 @@ type J = Record<string, unknown>;
   check("opened for editing again", rv.status === 200);
   void approve;
 
+  section("Publishing an incomplete total, and a legacy job");
+  await patch(job, "vacancies.table", ibps, "back to the notice as printed");
+  await patch(job, "links", [{ type: "OFFICIAL_WEBSITE", label: "IBPS", url: "https://www.ibps.in/", official: true }]);
+  const pubI = await publish.POST(req(`/api/admin/cms/records/${job}/publish`, "POST", { announce: false, approveFirst: true }), ctx(job));
+  check("the IBPS job publishes", pubI.status === 200, await pubI.clone().json());
+  const snapI = (await pg.query("SELECT snapshot FROM published_recruitments WHERE recruitment_id = $1 ORDER BY published_at DESC LIMIT 1", [job])).rows[0].snapshot as { vacancies: J };
+  check("the snapshot carries the table and says the total is incomplete and calculated",
+    (snapI.vacancies.table as VacancyTable | undefined)?.rows.length === 28 && snapI.vacancies.totalComplete === false && snapI.vacancies.totalBasis === "CALCULATED", snapI.vacancies.totalComplete);
+  const jobI = snapshotToGovernmentRecruitment(snapI as never);
+  check("cards and the header box say 'At least'", jobI.vacanciesDisplay === `At least ${ibpsReported.toLocaleString("en-IN")} Posts` && jobI.totalVacancies === ibpsReported, jobI.vacanciesDisplay);
+  check("the page gets the table", jobI.vacancyTable?.rows.length === 28 && jobI.vacancyTotalComplete === false);
+  await patch(legacy, "links", [{ type: "OFFICIAL_WEBSITE", label: "SSC", url: "https://ssc.gov.in/", official: true }]);
+  const pubL = await publish.POST(req(`/api/admin/cms/records/${legacy}/publish`, "POST", { announce: false, approveFirst: true }), ctx(legacy));
+  const snapL = (await pg.query("SELECT snapshot FROM published_recruitments WHERE recruitment_id = $1 ORDER BY published_at DESC LIMIT 1", [legacy])).rows[0].snapshot as { vacancies: J };
+  check("a legacy job's snapshot has exactly the old vacancy keys", pubL.status === 200 && JSON.stringify(Object.keys(snapL.vacancies).sort()) === '["breakdown","total"]', Object.keys(snapL.vacancies));
+  const jobL = snapshotToGovernmentRecruitment(snapL as never);
+  check("…and the old wording", jobL.vacanciesDisplay === "9,000 Posts" && jobL.vacancyTable === undefined, jobL.vacanciesDisplay);
+
+  section("Smart intake's preview does not offer figures for a table job");
+  const service = await import("@/lib/cms/importer/service");
+  const text = "BTSC Food Safety Officer Recruitment 2026. Total Vacancies 120. Apply online from 25 September 2026 to 24 October 2026 on btsc.bihar.gov.in for the Food Safety Officer post.";
+  const prev = await service.previewImport({ adminId, mode: "EXISTING", recruitmentId: btscJob, sources: [{ declaredKind: "RESEARCH", method: "paste", text }], apiKey: undefined });
+  const vacItems = prev.proposal.items.filter((i) => i.fieldPath.startsWith("vacancies."));
+  check("the preview read a vacancy figure", vacItems.length > 0, prev.proposal.items.map((i) => i.fieldPath));
+  check("any vacancy figure it read is shown unticked, with the reason", vacItems.every((i) => !i.defaultTicked && i.flags.some((f) => /vacancy table/.test(f))), vacItems.map((i) => [i.fieldPath, i.defaultTicked, i.flags]));
+
   section("Stopping the table");
   out = await patch(walkin, "vacancies.table", null, "Removed the vacancy table");
   v = await vac(walkin);
