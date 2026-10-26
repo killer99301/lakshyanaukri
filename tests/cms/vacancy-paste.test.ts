@@ -38,8 +38,11 @@ test("VP02 a sheet of state, city and one figure column (LIC Table E): the figur
   assert.equal(b.rows.length, 12);
   assert.deepEqual(b.dimensions.map((d) => d.key), ["post", "state", "city"]);
   const ananthapur = b.rows.find((r) => r.at.city === "Ananthapur")!;
-  assert.equal(ananthapur.status, "NO_FIGURE", "a blank stays a blank");
+  assert.equal(ananthapur.status, "STATED");
+  assert.equal(ananthapur.total, 1);
   assert.equal(ananthapur.source.page, 6);
+  const blank = buildRows(readPasted("State\tCity\tNumber of Vacancies\nAssam\tDispur\t\nAssam\tGuwahati\t3"), roles, { idPrefix: "x", constants: [{ key: "post", label: "Post", value: "Apprentice" }] });
+  assert.equal(blank.rows[0].status, "NO_FIGURE", "a blank cell (made-up example) stays a blank, never 0");
 });
 test("VP03 NR, blanks, dashes, zeros and Indian thousands separators", () => {
   const text = "Bank\tSC\tST\tTotal\nA Bank\tNR\tNR\tNR\nB Bank\t-\t–\t\nC Bank\t0\t0\t0\nD Bank\t1,200\t300\t1,500\nE Bank\t12a\t3\t15";

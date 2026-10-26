@@ -66,12 +66,17 @@ test("PV02 every bank reported: the split, PwBD 'of which' and never added", () 
 });
 
 suite("LIC HFL Table E: state and city");
-test("PV03 the notice's 232; the one city without a figure is named; 181 cities folded", () => {
+test("PV03 the notice's 232, complete; 181 cities folded", () => {
   const t = text(render(lic));
   assert.match(t, /The total is as printed in the notification\./);
-  assert.match(t, /1 city listed without a figure \(Andhra Pradesh, Ananthapur\)/);
   assert.match(t, /Show state and city-wise vacancies \(181 cities\)/);
-  assert.match(t, /Apprentice 232 /, "the only post shows the notice's total, not a lower sum");
+  assert.match(t, /Apprentice 232 /);
+  assert.ok(!t.includes("At least") && !t.includes("without a figure") && !t.includes("add up to"), "nothing missing to explain");
+});
+test("PV03b made-up variant: one city without a figure is named, the card keeps the printed 232 and says what the rows add up to", () => {
+  const t = text(render({ ...lic, rows: lic.rows.map((r) => r.at.city === "Ananthapur" ? { ...r, status: "NO_FIGURE" as const, total: undefined } : r) }));
+  assert.match(t, /1 city listed without a figure \(Andhra Pradesh, Ananthapur\)/);
+  assert.match(t, /Apprentice 232 /);
   assert.match(t, /The 180 cities listed with figures add up to 231\./);
   assert.ok(!t.includes("At least"));
 });

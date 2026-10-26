@@ -126,14 +126,14 @@ type J = Record<string, unknown>;
   check("a column placed outside the total without saying how that is known → refused", out.status === 422 || out.status === 400, out);
   check("…with the reason", /how it is known/.test(String(out.data.error)), out.data.error);
 
-  section("LIC HFL Table E: 181 cities, Ananthapur without a figure");
+  section("LIC HFL Table E: 181 cities adding up to the printed 232");
   const licJob = await create("lic-hfl", "TEST RECORD LIC HFL Apprentice 2026");
   out = await patch(licJob, "vacancies.table", lic, "Pasted Table E");
   v = await vac(licJob);
   check("saved with 181 rows", out.status === 200 && v.table?.value?.rows.length === 181, out.data);
   check("Total Vacancies is the notice's printed 232", v.total?.value === 232 && v.total.derived?.basis === "STATED");
-  check("the post row is the 231 the cities add up to, marked incomplete", v.breakdown?.value?.[0].count === 231 && v.breakdown.derived?.complete === false, v.breakdown);
-  check("Ananthapur stays a row with no figure", v.table!.value!.rows.find((r) => r.at.city === "Ananthapur")?.status === "NO_FIGURE");
+  check("the post row is the 232 the cities add up to, complete", v.breakdown?.value?.[0].count === 232 && v.breakdown.derived?.complete === true, v.breakdown);
+  check("Ananthapur has its printed figure, 1", v.table!.value!.rows.find((r) => r.at.city === "Ananthapur")?.total === 1);
 
   section("BTSC FSO: one post, category-wise");
   const btscJob = await create("btsc", "TEST RECORD BTSC FSO 2026");

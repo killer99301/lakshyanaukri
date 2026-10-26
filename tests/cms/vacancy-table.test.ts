@@ -172,19 +172,25 @@ test("VT07 an extra women column of 37 on the same row: the printed 105 shows it
 // ── LIC HFL: state × city ─────────────────────────────────
 
 suite("LIC HFL Table E: state × city");
-test("VT08 181 cities, one printed without a figure; the notice's 232 is used and the gap is flagged", () => {
+test("VT08 181 cities add up to the notice's printed Grand Total of 232, with nothing missing", () => {
   const a = analyseVacancyTable(licTable());
   const g = a.groups[0];
   assert.equal(g.rowIds.length, 181);
-  assert.equal(g.noFigure, 1);
-  assert.equal(g.calculatedTotal, 231, "the rows with a figure");
-  assert.equal(g.total!.basis, "CALCULATED");
-  assert.equal(g.total!.complete, false);
+  assert.equal(g.noFigure, 0);
+  assert.equal(g.calculatedTotal, 232);
+  assert.equal(g.total!.complete, true);
   assert.equal(a.grandTotal!.value, 232);
   assert.equal(a.grandTotal!.basis, "STATED");
+  assert.deepEqual(a.issues, [], "the rows agree with the printed total; Jammu And Kashmir, wrapped over two lines, is one row");
+});
+test("VT08b made-up variant: one city printed with no figure → 231 of the printed 232, incomplete, flagged", () => {
+  const t = licTable();
+  const a = analyseVacancyTable({ ...t, rows: t.rows.map((r) => r.at.city === "Ananthapur" ? { ...r, status: "NO_FIGURE" as const, total: undefined } : r) });
+  assert.equal(a.groups[0].calculatedTotal, 231);
+  assert.equal(a.groups[0].total!.complete, false);
+  assert.equal(a.grandTotal!.value, 232);
   assert.ok(a.issues.some((i) => i.code === "NO_FIGURE" && /Ananthapur/.test(i.message)));
   assert.ok(!a.issues.some((i) => i.code === "STATED_TOTAL_MISMATCH"), "an incomplete sum is not a contradiction");
-  assert.ok(!a.issues.some((i) => i.code === "DUPLICATE_ROW"), "Jammu And Kashmir, wrapped over two lines, is one row");
 });
 
 // ── Problems the checks must catch ────────────────────────
