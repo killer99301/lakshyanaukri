@@ -341,6 +341,69 @@ export async function createRecruitmentChecked(
   return { record };
 }
 
+/** The draft's own identity, used for the draft-promotion locks and duplicate rule. */
+export interface DraftIdentity {
+  draftId: string;
+  organizationId: string | null;
+  recruitmentYear: number | null;
+  /** Normalised notification number (normalizeNotifNum), or null. */
+  identityKey: string | null;
+}
+
+/**
+ * The intelligence-draft promotion path: lock the draft, the organisation +
+ * year and the notification number, check that the draft was not already
+ * promoted, check for duplicates and insert, all in one database call
+ * (cms_create_job_from_draft). Same locks as an import and a manual create,
+ * so none of the three can race another past the duplicate check.
+ */
+export async function createRecruitmentFromDraftChecked(
+  params: CreateRecruitmentParams,
+  draft: DraftIdentity,
+  force: boolean,
+): Promise<
+  | { record: RecruitmentRecord }
+  | { existing: { id: string; slug: string } }
+  | { duplicates: JobDuplicate[] }
+> {
+  const { slug, identity, provenance, adminId } = params;
+  const job = {
+    slug,
+    identity,
+    dates: params.dates ?? {},
+    vacancies: params.vacancies ?? {},
+    financial: params.financial ?? {},
+    eligibility: params.eligibility ?? null,
+    age: params.age ?? null,
+    selection: params.selection ?? null,
+    exam_stages: params.examStages ?? null,
+    how_to_apply: params.howToApply ?? null,
+    lifecycle: { status: "DRAFT", conflicts: [], events: [] },
+    provenance,
+    links: params.links ?? [],
+    documents: params.documents ?? [],
+    updates: params.updates ?? [],
+    classification: params.classification ?? null,
+    organization_name: identity.organizationName ?? null,
+    title_text: identity.title.value ?? null,
+    gov_type: identity.govType ?? null,
+  };
+  const rows = await sql`
+    SELECT public.cms_create_job_from_draft(
+      ${JSON.stringify(job)}::jsonb, ${draft.draftId}, ${draft.organizationId}, ${draft.recruitmentYear}::int,
+      ${draft.identityKey}, ${force}, ${adminId}::uuid
+    ) AS result
+  `;
+  const result = (typeof rows[0].result === "string" ? JSON.parse(rows[0].result) : rows[0].result) as {
+    id?: string; existing?: { id: string; slug: string }; duplicates?: JobDuplicate[];
+  };
+  if (result.existing) return { existing: { id: String(result.existing.id), slug: String(result.existing.slug) } };
+  if (result.duplicates) return { duplicates: result.duplicates };
+  const record = await getRecruitmentById(String(result.id));
+  if (!record) throw new Error(`Record ${result.id} not found after creation`);
+  return { record };
+}
+
 /**
  * Persist a field update (new record state + FieldRevision) atomically.
  *

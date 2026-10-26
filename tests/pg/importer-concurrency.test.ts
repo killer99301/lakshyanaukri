@@ -150,6 +150,31 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     check("the import waited and was refused as DUPLICATE", r4.b.code !== 0 && /DUPLICATE/.test(r4.b.err), r4.b.err);
     check("one bpsc job", await one(`SELECT count(*) FROM recruitments WHERE organization_id = 'bpsc'`) === "1");
 
+    section("The same intelligence draft promoted by two sessions at once");
+    const fromDraft = (slug: string, draftId: string, org: string | null, year: number | null, key: string | null, force = false) => {
+      const job = { ...recordJson(slug, org ?? "UNKNOWN", year ?? 2026, key ?? undefined), provenance: { sourceDraftId: draftId } };
+      const q = (v: string | null) => (v === null ? "NULL" : `'${v}'`);
+      return `SELECT public.cms_create_job_from_draft(${lit(job)}, '${draftId}', ${q(org)}, ${year ?? "NULL"}, ${q(key)}, ${force}, '${admin}')`;
+    };
+    const draftA = randomUUID();
+    const r6 = await race(fromDraft("draft-a1", draftA, "nabard", 2026, null), fromDraft("draft-a2", draftA, "nabard", 2026, null, true));
+    check("first promotion created the job", r6.a.code === 0 && /"id"/.test(r6.a.out), r6.a.err);
+    check("second waited and got the first job back as existing, even with create anyway", r6.b.code === 0 && /"existing"/.test(r6.b.out) && r6.waited >= 900, { waited: r6.waited, out: r6.b.out });
+    check("one job for that draft", await one(`SELECT count(*) FROM recruitments WHERE provenance->>'sourceDraftId' = '${draftA}'`) === "1");
+
+    section("A draft promotion racing an import of the same notification");
+    const impD = await newImport("ADVT 9/2026", "sbi:2026");
+    const r7 = await race(fromDraft("sbi-draft", randomUUID(), "sbi", 2026, "ADVT 9/2026"), applyCall(impD, recordJson("sbi-import", "sbi", 2026, "ADVT 9/2026")));
+    check("the promotion went first", r7.a.code === 0 && /"id"/.test(r7.a.out), r7.a.err);
+    check("the import waited and was refused as DUPLICATE", r7.b.code !== 0 && /DUPLICATE/.test(r7.b.err) && r7.waited >= 900, { waited: r7.waited, err: r7.b.err });
+    check("one sbi job", await one(`SELECT count(*) FROM recruitments WHERE organization_id = 'sbi'`) === "1");
+
+    section("A manual create racing a draft promotion of the same organisation and year");
+    const r8 = await race(manual("rbi-manual").replace(/'upsc'/g, "'rbi'"), fromDraft("rbi-draft", randomUUID(), "rbi", 2027, null));
+    check("manual create went first", r8.a.code === 0 && /"id"/.test(r8.a.out), r8.a.err);
+    check("the promotion waited and got the duplicate warning, nothing inserted", r8.b.code === 0 && /"duplicates"/.test(r8.b.out) && r8.waited >= 900, { waited: r8.waited, out: r8.b.out });
+    check("one rbi job", await one(`SELECT count(*) FROM recruitments WHERE organization_id = 'rbi'`) === "1");
+
     section("Two sessions revoking the same decision at once");
     const job = await one(`SELECT id FROM recruitments WHERE slug = 'same-import'`);
     const src = await one(`INSERT INTO recruitment_sources (content_sha256, content_kind, byte_size, page_count, text) VALUES ('${"a".repeat(64)}', 'PDF', 10, 1, 't') RETURNING id`);

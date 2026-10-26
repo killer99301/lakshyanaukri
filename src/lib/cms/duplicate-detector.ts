@@ -85,6 +85,28 @@ function rowToCandidate(
 }
 
 /**
+ * The display details of a job the locked duplicate check
+ * (cms_create_job_from_draft) matched, in the shape the intelligence
+ * review page shows. Null if the job has gone since.
+ */
+export async function getDuplicateCandidate(
+  id: string,
+  matchReason: "notification_number" | "org_year",
+): Promise<DuplicateCandidate | null> {
+  const { sql } = await import("@/lib/db");
+  const rows = await sql`
+    SELECT
+      id, slug, draft_state, organization_id, organization_name,
+      identity->'notificationNumber'->>'value' AS notification_number,
+      (identity->>'recruitmentYear')::int       AS recruitment_year,
+      identity->'title'->>'value'               AS title
+    FROM recruitments
+    WHERE id = ${id}::uuid
+  `;
+  return rows.length > 0 ? rowToCandidate(rows[0] as Record<string, unknown>, matchReason) : null;
+}
+
+/**
  * Queries the CMS for a potential duplicate of the given draft.
  *
  * Returns null when no duplicate is found; returns a DuplicateCandidate

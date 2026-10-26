@@ -410,6 +410,65 @@ BEGIN
 END
 $fn$;
 
+-- ─── Job from an intelligence draft: lock, check and insert in one call ─
+--
+-- Used by the from-draft route instead of its separate checks and insert.
+-- It locks the draft (promoting one draft twice at once makes one job), then
+-- the organisation + year and, when the draft has one, the notification
+-- number: the same locks, in the same order, as an import takes. Returns
+-- {"existing": {id, slug}} when the draft was already promoted;
+-- {"duplicates": [...]} without inserting when there are matches and p_force
+-- is false; otherwise {"id": …}. The match rule is cms_job_duplicates, the
+-- rule duplicate-detector.ts already used. p_org_id and p_year are the
+-- draft's own values and may be NULL; the job's organisation comes from p_job.
+
+CREATE OR REPLACE FUNCTION public.cms_create_job_from_draft(
+  p_job JSONB, p_draft_id TEXT, p_org_id TEXT, p_year INTEGER, p_identity_key TEXT, p_force BOOLEAN, p_admin_id UUID
+) RETURNS JSONB
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog, pg_temp AS $fn$
+DECLARE dups JSONB; rid UUID; ex_id UUID; ex_slug TEXT;
+BEGIN
+  IF p_draft_id IS NULL OR p_draft_id = '' THEN
+    RAISE EXCEPTION 'DRAFT_REQUIRED' USING ERRCODE = 'P0001';
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('job-draft:' || p_draft_id, 0));
+  SELECT id, slug INTO ex_id, ex_slug FROM public.recruitments
+    WHERE provenance->>'sourceDraftId' = p_draft_id LIMIT 1;
+  IF FOUND THEN
+    RETURN jsonb_build_object('existing', jsonb_build_object('id', ex_id, 'slug', ex_slug));
+  END IF;
+  IF coalesce(p_org_id, '') <> '' AND p_year IS NOT NULL THEN
+    PERFORM pg_advisory_xact_lock(hashtextextended('job-org-year:' || p_org_id || ':' || p_year::text, 0));
+  END IF;
+  IF p_identity_key IS NOT NULL THEN
+    PERFORM pg_advisory_xact_lock(hashtextextended('job-id:' || p_identity_key, 0));
+  END IF;
+  dups := public.cms_job_duplicates(p_identity_key, nullif(p_org_id, ''), p_year);
+  IF jsonb_array_length(dups) > 0 AND NOT coalesce(p_force, false) THEN
+    RETURN jsonb_build_object('duplicates', dups);
+  END IF;
+  INSERT INTO public.recruitments (
+    slug, identity, dates, vacancies, financial, eligibility, age, selection,
+    exam_stages, how_to_apply, lifecycle, provenance, links, documents, updates,
+    classification, organization_id, organization_name, title_text, gov_type,
+    created_by, updated_by
+  ) VALUES (
+    p_job->>'slug', p_job->'identity', p_job->'dates', p_job->'vacancies', p_job->'financial',
+    p_job->'eligibility', p_job->'age', p_job->'selection', p_job->'exam_stages', p_job->'how_to_apply',
+    p_job->'lifecycle', p_job->'provenance', coalesce(p_job->'links', '[]'::jsonb),
+    coalesce(p_job->'documents', '[]'::jsonb), coalesce(p_job->'updates', '[]'::jsonb),
+    p_job->'classification', p_job->'identity'->>'organizationId', p_job->>'organization_name',
+    p_job->>'title_text', p_job->>'gov_type', p_admin_id, p_admin_id
+  ) RETURNING id INTO rid;
+  IF jsonb_array_length(dups) > 0 THEN
+    INSERT INTO public.recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+    VALUES (rid, p_admin_id, 'DUPLICATE_OVERRIDE',
+            jsonb_build_object('via', 'from-draft', 'draftId', p_draft_id, 'matches', dups));
+  END IF;
+  RETURN jsonb_build_object('id', rid);
+END
+$fn$;
+
 -- ─── Whether the new record holds a proposal item's value ─────
 
 CREATE OR REPLACE FUNCTION public.cms_import_item_holds(p_record JSONB, p_item JSONB)
@@ -593,3 +652,4 @@ $fn$;
 
 REVOKE ALL ON FUNCTION public.cms_apply_import(UUID, UUID, TEXT[], JSONB, JSONB) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cms_create_job_checked(JSONB, TEXT, INTEGER, BOOLEAN, UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.cms_create_job_from_draft(JSONB, TEXT, TEXT, INTEGER, TEXT, BOOLEAN, UUID) FROM PUBLIC;

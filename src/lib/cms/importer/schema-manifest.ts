@@ -52,6 +52,7 @@ export const IMPORTER_OBJECTS = {
   ] as Array<[string, string]>,
   functions: [
     "cms_apply_import", "cms_import_item_holds", "cms_job_duplicates", "cms_create_job_checked",
+    "cms_create_job_from_draft",
     "cms_importer_refuse_change", "cms_importer_check_retrieval", "cms_importer_check_supersession",
     "cms_importer_check_claim", "cms_importer_guard_import",
   ],

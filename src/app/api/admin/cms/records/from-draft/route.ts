@@ -16,10 +16,11 @@
 //
 // Contract:
 //   - Load draft snapshot from intelligence_drafts
-//   - Check idempotency (sourceDraftId)
-//   - Check for CMS duplicate (notification number or org+year fallback)
 //   - Map FieldValue<T> → ProvenanceField<T> via promoter.ts
-//   - Create RecruitmentRecord in DRAFT state
+//   - In one locked database call (cms_create_job_from_draft): check
+//     idempotency (sourceDraftId), check for a CMS duplicate (notification
+//     number or org+year fallback) and create the RecruitmentRecord in DRAFT
+//     state with its links; "create anyway" over a match is audited
 //   - Never delete the intelligence draft
 //   - Return { recordId, slug, alreadyExisted } on success
 //   - Return { duplicate } when duplicate found and forceCreate is not set
@@ -33,9 +34,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { sql } from "@/lib/db";
-import { createRecruitment } from "@/lib/cms/repository";
+import { createRecruitmentFromDraftChecked } from "@/lib/cms/repository";
 import { promoteDraft } from "@/lib/cms/promoter";
-import { findCmsDuplicate } from "@/lib/cms/duplicate-detector";
+import { getDuplicateCandidate, normalizeNotifNum } from "@/lib/cms/duplicate-detector";
 import type { RecruitmentIntelligenceDraft } from "@/intelligence/draft-types";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -72,55 +73,48 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const draftRow = draftRows[0];
   const draft = draftRow.snapshot as RecruitmentIntelligenceDraft;
 
-  // ── Idempotency check ────────────────────────────────────
-  // If a CMS record already exists with provenance.sourceDraftId = this draft,
-  // return it without creating a duplicate.
-  const existingRows = await sql`
-    SELECT id, slug FROM recruitments
-    WHERE provenance->>'sourceDraftId' = ${draftId}
-    LIMIT 1
-  `;
-
-  if (existingRows.length > 0) {
-    const existing = existingRows[0];
-    return NextResponse.json({
-      recordId:       existing.id as string,
-      slug:           existing.slug as string,
-      alreadyExisted: true,
-    });
-  }
-
-  // ── Duplicate check (Phase E) ────────────────────────────
-  // Skip when the admin explicitly confirmed they want a new record.
-  if (!forceCreate) {
-    const duplicate = await findCmsDuplicate(draft);
-    if (duplicate) {
-      return NextResponse.json({ duplicate }, { status: 200 });
-    }
-  }
-
   // ── Promote ───────────────────────────────────────────────
+  // The idempotency check (provenance.sourceDraftId), the duplicate check
+  // (Phase E rule; skipped when the admin confirmed with forceCreate) and the
+  // insert run in one locked database call, so two promotions of the same
+  // draft, or a promotion racing an import or a manual create of the same
+  // job, cannot both get past the checks.
   try {
     const fields = promoteDraft({ draft, adminId: auth.adminId });
+    const year = draft.identity.recruitmentYear?.value;
 
-    const record = await createRecruitment({
+    const created = await createRecruitmentFromDraftChecked({
       slug:       fields.slug,
       identity:   fields.identity,
       dates:      fields.dates,
       vacancies:  fields.vacancies,
       financial:  fields.financial,
       provenance: fields.provenance,
+      links:      fields.links,
       adminId:    auth.adminId,
-    });
+    }, {
+      draftId,
+      organizationId:  draft.identity.organizationId?.value ?? null,
+      recruitmentYear: typeof year === "number" ? year : null,
+      identityKey:     normalizeNotifNum(draft.identity.notificationNumber?.value ?? undefined) ?? null,
+    }, forceCreate);
 
-    // Patch in links — createRecruitment starts with [] links; update inline
-    if (fields.links.length > 0) {
-      await sql`
-        UPDATE recruitments
-        SET links = ${JSON.stringify(fields.links)}
-        WHERE id = ${record.id}
-      `;
+    if ("existing" in created) {
+      return NextResponse.json({
+        recordId:       created.existing.id,
+        slug:           created.existing.slug,
+        alreadyExisted: true,
+      });
     }
+
+    if ("duplicates" in created) {
+      // A notification-number match is shown before an organisation + year one.
+      const first = created.duplicates.find((d) => d.reason === "notification_number") ?? created.duplicates[0];
+      const duplicate = await getDuplicateCandidate(first.id, first.reason);
+      return NextResponse.json({ duplicate: duplicate ?? { ...first, matchReason: first.reason } }, { status: 200 });
+    }
+
+    const record = created.record;
 
     // Persist evidence rows from intelligence sources into recruitment_evidence.
     // Each IntelligenceSource → one row; FieldEvidence.extractedText values
