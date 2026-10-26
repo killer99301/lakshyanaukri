@@ -37,6 +37,7 @@ export const FIELD_DEFS: Record<string, FieldDef> = {
   "dates.resultDate":             { label: "Result date", purpose: "exam" },
   "vacancies.total":              { label: "Total vacancies", purpose: "recruitment_rules", tier: "B" },
   "vacancies.breakdown":          { label: "Vacancy breakdown", purpose: "recruitment_rules" },
+  "vacancies.table":              { label: "Vacancy table", purpose: "recruitment_rules" },
   "financial.feeGeneral":         { label: "Fee (General / OBC)", purpose: "fee_payment", tier: "B" },
   "financial.feeSCST":            { label: "Fee (SC / ST / PwBD)", purpose: "fee_payment", tier: "B" },
   "financial.payScale":           { label: "Pay scale / stipend", purpose: "recruitment_rules" },

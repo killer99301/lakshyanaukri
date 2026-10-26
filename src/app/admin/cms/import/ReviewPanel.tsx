@@ -8,6 +8,8 @@
 
 import Link from "next/link";
 import { C, PANEL, badge, inputStyle, primaryBtn, quietBtn, readableDates, showValue } from "./ui";
+import { VacancyTableReview, type VacancyTableNote } from "./VacancyTableReview";
+import { analyseVacancyTable, type VacancyTable } from "@/lib/vacancy-table";
 
 export interface ReviewItem {
   id: string; kind: "FIELD" | "LINK"; fieldPath: string; label: string; value: unknown;
@@ -18,7 +20,16 @@ export interface ReviewItem {
 export interface ReviewSource {
   id: string; label: string; declaredKind: string; authenticity: string;
   notFound: string[]; refused: Array<{ fieldPath: string; reason: string }>; articleSkipped?: string;
+  vacancyTables?: VacancyTableNote | null;
 }
+
+/** A vacancy table in one line, for "Replaces:" (the full table is shown above it). */
+const tableInBrief = (v: unknown) => {
+  const t = v as VacancyTable | undefined;
+  if (!t?.rows) return "—";
+  const total = analyseVacancyTable(t).grandTotal;
+  return `the job's table: ${t.rows.length} rows${total ? `, ${total.complete ? "" : "at least "}${total.value.toLocaleString("en-IN")} vacancies` : ""}`;
+};
 
 const SECTIONS: Array<{ name: string; match: (p: string) => boolean }> = [
   { name: "Basic information", match: (p) => p.startsWith("identity.") },
@@ -73,7 +84,9 @@ export function ReviewPanel(props: {
   const sections = SECTIONS
     .map((s) => ({ ...s, items: items.filter((i) => s.match(i.fieldPath)) }))
     .filter((s) => s.items.length > 0);
-  const vacancies = items.find((i) => i.fieldPath === "vacancies.total")?.value;
+  const tableItem = items.find((i) => i.fieldPath === "vacancies.table");
+  const tableTotal = tableItem ? analyseVacancyTable(tableItem.value as VacancyTable).grandTotal : null;
+  const vacancies = tableTotal?.value ?? items.find((i) => i.fieldPath === "vacancies.total")?.value;
   const conflicts = new Set(items.filter((i) => i.conflict).map((i) => i.fieldPath)).size;
   const passed = items.filter((i) => i.flags.some((f) => /has passed/.test(f)));
   const sourceById = new Map(sources.map((s) => [s.id, s]));
@@ -98,7 +111,7 @@ export function ReviewPanel(props: {
           <button onClick={props.onBack} disabled={props.busy} style={{ ...quietBtn, color: C.muted, borderColor: C.border }}>← Change the sources</button>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
-          {typeof vacancies === "number" && <span style={badge(C.accent)}>{vacancies.toLocaleString("en-IN")} vacancies</span>}
+          {typeof vacancies === "number" && <span style={badge(C.accent)}>{tableTotal && !tableTotal.complete ? "at least " : ""}{vacancies.toLocaleString("en-IN")} vacancies</span>}
           <span style={badge(C.accent)}>{sections.length} section{sections.length === 1 ? "" : "s"} found</span>
           {sources.map((s) => {
             const look = SOURCE_LOOK[s.authenticity] ?? SOURCE_LOOK.UNCONFIRMED;
@@ -121,7 +134,7 @@ export function ReviewPanel(props: {
         )}
         {props.replaced.length > 0 && (
           <div style={{ fontSize: 12, color: C.muted }}>
-            Replaced by the corrigendum: {props.replaced.map((r) => `${r.fieldPath} was ${showValue(r.value, r.fieldPath)}`).join("; ")}
+            Replaced by the corrigendum: {props.replaced.map((r) => `${r.fieldPath} was ${r.fieldPath === "vacancies.table" ? tableInBrief(r.value) : showValue(r.value, r.fieldPath)}`).join("; ")}
           </div>
         )}
         <div data-tick-meaning style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
@@ -151,11 +164,13 @@ export function ReviewPanel(props: {
                       <input type="checkbox" aria-label={`Save ${i.label} as Pending`} checked={ticked.has(i.id)} onChange={() => props.onToggle(i)} style={{ marginTop: 3 }} />
                       <div style={{ color: C.muted, fontSize: 12, paddingTop: 1 }}>{i.label}</div>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ color: C.text, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{showValue(i.value, i.fieldPath)}</div>
+                        {i.fieldPath === "vacancies.table"
+                          ? <VacancyTableReview table={i.value as VacancyTable} note={sourceById.get(i.claims[0]?.retrievalId ?? "")?.vacancyTables ?? null} />
+                          : <div style={{ color: C.text, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{showValue(i.value, i.fieldPath)}</div>}
                         {(i.action === "REPLACE" || i.action === "REPLACE_VERIFIED") && (
                           <div style={{ fontSize: 12, color: i.action === "REPLACE_VERIFIED" ? C.red : C.amber, marginTop: 2 }}>
                             {i.action === "REPLACE_VERIFIED" ? "Replaces a checked value: " : "Replaces: "}
-                            <span style={{ color: C.muted }}>{i.current === undefined ? "—" : showValue(i.current, i.fieldPath)}</span>
+                            <span style={{ color: C.muted }}>{i.current === undefined ? "—" : i.fieldPath === "vacancies.table" ? tableInBrief(i.current) : showValue(i.current, i.fieldPath)}</span>
                           </div>
                         )}
                         {i.action === "MATCHES" && <div style={{ fontSize: 11, color: C.muted }}>Same as the job has now — adds this source as evidence.</div>}

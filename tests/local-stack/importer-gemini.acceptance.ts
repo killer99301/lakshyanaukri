@@ -90,6 +90,19 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
   const has = (items: Item[], path: string, want: unknown) => val(items, path).some((v) => JSON.stringify(v) === JSON.stringify(want));
   // Research only: values are ticked to be saved as Pending (the approved design), each one flagged.
   const datesFlaggedResearch = (items: Item[]) => items.filter((i) => i.fieldPath.startsWith("dates.")).every((i) => i.flags.some((f) => /research only/.test(f)));
+  // The vacancy table (stage B1): read by code, totals calculated by code.
+  type Row = { at: Record<string, string>; status: string; total?: number; cells: Record<string, number>; source: { page: number | null; line: string } };
+  const tableOf = (items: Item[]) => val(items, "vacancies.table")[0] as { rows: Row[]; categories: Array<{ key: string; kind: string }> } | undefined;
+  const { analyseVacancyTable } = await import("@/lib/vacancy-table");
+  const tableReport = (name: string, r: { items: Item[]; sources: J[] }) => {
+    const t = tableOf(r.items);
+    const n = (r.sources[0]?.vacancyTables ?? null) as { from?: string; coverage?: { tables: Array<{ title: string; read: boolean; columnsBy?: string }>; unreadLines: unknown[] } } | null;
+    const g = t ? analyseVacancyTable(t as never).grandTotal : null;
+    note(`${name} table: ${t ? `${t.rows.length} rows from ${n?.from}, total ${g ? `${g.complete ? "" : "≥ "}${g.value}` : "—"}` : "none"}; tables ${n?.coverage?.tables.map((x) => `${x.title}:${x.read ? x.columnsBy : "not read"}`).join(" | ") ?? "—"}; unread lines ${n?.coverage?.unreadLines.length ?? 0}`);
+    const competing = r.items.filter((i) => (i.fieldPath === "vacancies.total" || i.fieldPath === "vacancies.breakdown") && i.defaultTicked);
+    if (t) check(`${name}: no separate total or breakdown is ticked against the table`, competing.length === 0, competing.map((i) => i.fieldPath));
+    return { t, g, n };
+  };
 
   // ── 1. BTSC FSO: the complete Adda247 article, pasted as research ──
   const btscText = file("btsc-fso-article.txt").toString("utf8");
@@ -110,6 +123,10 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
       b.ur === 41 && b.ews === 11 && b.sc === 17 && b.st === 2, b);
     check("BTSC: EBC 18, BC 12, Backward Class Women 4 kept under their own names",
       pick(/ebc|extremely/i) === 18 && pick(/^(?!.*(women|extremely|ebc)).*(\bbc\b|backward class)/i) === 12 && pick(/women/i) === 4, b);
+    const bt = tableReport("BTSC", btsc);
+    check("BTSC table: one row of 105 with the full split, from the quoted split",
+      bt.t?.rows.length === 1 && bt.t.rows[0].total === 105 && bt.t.rows[0].cells.ur === 41 && bt.t.rows[0].cells.ews === 11 && bt.t.rows[0].cells.sc === 17 && bt.t.rows[0].cells.st === 2 && bt.n?.from === "split", bt.t?.rows);
+    check("BTSC table: every figure is in the row's evidence lines", !!bt.t && bt.t.rows.every((r) => Object.values(r.cells).concat(r.total ?? []).every((f) => new RegExp(`\\b${f}\\b`).test(r.source.line))));
     check("BTSC: fee ₹100", has(it, "financial.feeGeneral", 100), val(it, "financial.feeGeneral"));
     check("BTSC: warned research only / no official notification", btsc.warnings.length > 0, btsc.warnings);
     check("BTSC: exam date 'To be announced' is not turned into a date", val(it, "dates.examDate").length === 0, val(it, "dates.examDate"));
@@ -127,6 +144,9 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     [{ declaredKind: "OFFICIAL_NOTIFICATION", method: "upload", bytes: licPdf, url: LIC_URL, attestation: `Downloaded from ${LIC_URL} myself on 26 Oct 2026` }]);
   if (lic) {
     const it = lic.items;
+    const lt = tableReport("LIC", lic);
+    check("LIC table: 181 cities read by code, Ananthapur 1, total 232 complete", lt.t?.rows.length === 181 && lt.n?.from === "tables"
+      && lt.t.rows.find((r) => r.at.city === "Ananthapur")?.total === 1 && lt.g?.value === 232 && lt.g.complete, [lt.t?.rows.length, lt.g]);
     check("LIC: applications open 20 Oct 2026", has(it, "dates.applicationOpenDate", "2026-10-20"), val(it, "dates.applicationOpenDate"));
     check("LIC: last date 1 Nov 2026", has(it, "dates.applicationCloseDate", "2026-11-01"), val(it, "dates.applicationCloseDate"));
     check("LIC: 232 apprentices", has(it, "vacancies.total", 232), val(it, "vacancies.total"));
@@ -150,6 +170,9 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
       [{ declaredKind: "OFFICIAL_NOTIFICATION", method: "upload", bytes: scan, text: reading.text, url: LIC_URL, attestation: `Downloaded from ${LIC_URL} myself on 26 Oct 2026` }]);
     if (sc) {
       const age = val(sc.items, "age")[0] as { min?: number; max?: number } | undefined;
+      const st = tableReport("scan", sc);
+      // The AI writes the scan out; any table read from that write-up is checked against it, never assumed.
+      if (st.t) check("scan table: every row's line is in the AI's write-up", st.t.rows.every((r) => reading.text.includes(r.source.line.split("\n").pop()!)));
       check("scan: age 20 to 25", age?.min === 20 && age?.max === 25, age);
       check("scan: 232 apprentices", has(sc.items, "vacancies.total", 232), val(sc.items, "vacancies.total"));
       check("scan: applications open 20 Oct 2026", has(sc.items, "dates.applicationOpenDate", "2026-10-20"), val(sc.items, "dates.applicationOpenDate"));
@@ -184,7 +207,13 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     // The vacancies are bank by bank in Annexure I, past the first 60,000 characters.
     const vac = val(ibps.items, "vacancies.breakdown")[0] as Array<{ post: string; count: number; breakdown?: Record<string, number> }> | undefined;
     note(`IBPS vacancy rows: ${JSON.stringify(vac ?? null).slice(0, 400)}`);
-    check("IBPS: vacancies from the annexure found", Array.isArray(vac) && vac.length > 0, vac);
+    // Since B1 the annexure is read by code into the vacancy table (checked below); the AI's own breakdown is for reference only.
+    check("IBPS: vacancies from the annexure found (the table, or the AI's breakdown)", (Array.isArray(vac) && vac.length > 0) || ibps.items.some((i) => i.fieldPath === "vacancies.table"), vac);
+    const it2 = tableReport("IBPS", ibps);
+    check("IBPS table: 10 tables on pages 46-55 read by code, 280 rows, at least 13,706 (Tripura not reported)",
+      it2.n?.from === "tables" && it2.n.coverage?.tables.length === 10 && it2.n.coverage.tables.every((x) => x.read && x.columnsBy === "CODE")
+      && it2.t?.rows.length === 280 && it2.g?.value === 13706 && it2.g.complete === false, [it2.t?.rows.length, it2.g]);
+    check("IBPS table: General is UR, PwBD counted within", !!it2.t && it2.t.categories.some((c) => c.key === "ur") && it2.t.categories.filter((c) => c.key.startsWith("pwbd")).every((c) => c.kind === "HORIZONTAL"));
     check("IBPS: dates 1 to 21 Sep 2026 and fees 850 / 175", has(ibps.items, "dates.applicationOpenDate", "2026-09-01") && has(ibps.items, "dates.applicationCloseDate", "2026-09-21")
       && has(ibps.items, "financial.feeGeneral", 850) && has(ibps.items, "financial.feeSCST", 175));
   }

@@ -483,7 +483,7 @@ BEGIN
   END IF;
   RETURN coalesce(CASE
     WHEN ns IN ('identity', 'dates', 'financial') AND key <> '' THEN p_record->ns->key->'value' = v
-    WHEN path IN ('vacancies.total', 'vacancies.breakdown') THEN p_record->'vacancies'->key->'value' = v
+    WHEN path IN ('vacancies.total', 'vacancies.breakdown', 'vacancies.table') THEN p_record->'vacancies'->key->'value' = v
     WHEN path IN ('eligibility', 'age', 'selection') THEN p_record->path->'value' = v
     WHEN path = 'examPattern' THEN p_record->'exam_pattern'->'value' = v
     WHEN path = 'syllabus' THEN p_record->'syllabus'->'value' = v

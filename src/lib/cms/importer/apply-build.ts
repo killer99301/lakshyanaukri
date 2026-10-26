@@ -108,10 +108,16 @@ export function buildApplyPayload(input: {
     const result = routeFieldUpdate(record, fieldPath, field, input.adminId, reason);
     record = result.record;
     revisions.push({ id: result.revision.id, fieldPath, oldValue: result.revision.oldValue ?? null, newValue: result.revision.newValue ?? null, reason });
+    // The total and breakdown a vacancy table works out are saved with it, each with its revision.
+    for (const extra of result.extraRevisions ?? []) {
+      revisions.push({ id: extra.id, fieldPath: extra.fieldPath, oldValue: extra.oldValue ?? null, newValue: extra.newValue ?? null, reason: extra.reason ?? reason });
+    }
   };
 
-  // Fields first, then all links in one save of the list.
-  for (const item of chosen.filter((i) => i.kind === "FIELD")) {
+  // Fields first (a vacancy table before anything worked out from it), then
+  // all links in one save of the list.
+  const fieldItems = chosen.filter((i) => i.kind === "FIELD").sort((a, b) => Number(b.fieldPath === "vacancies.table") - Number(a.fieldPath === "vacancies.table"));
+  for (const item of fieldItems) {
     if (item.action !== "MATCHES") pushRevision(item.fieldPath, buildAiField(item.value) as ProvenanceField<unknown>);
   }
   const newLinks = chosen.filter((i) => i.kind === "LINK" && i.action !== "MATCHES").map((i) => i.value as CmsRecruitmentLink);

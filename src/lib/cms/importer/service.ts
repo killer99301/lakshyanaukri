@@ -24,6 +24,7 @@ import { contentHash, valueHash } from "@/lib/cms/importer/evidence-text";
 import { CRITICAL_FIELDS, FIELD_DEFS, fieldDef, revisionPath } from "@/lib/cms/importer/fields";
 import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-domains";
 import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
+import { mergeTables, readVacancyTables, tableFromSplit } from "@/lib/cms/importer/vacancy-tables";
 import {
   applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -221,6 +222,51 @@ export async function previewImport(opts: {
     });
   }
 
+  // Vacancy tables: read from each document's text by code (the AI only for a
+  // heading code cannot match), or built from a quoted category split when the
+  // document prints no table; then brought into the job's own table by row
+  // identity. What was read, merged and left out goes to the preview.
+  const tableNotes = new Map<string, unknown>();
+  for (const s of sources) {
+    const breakdown = s.reading.values.find((v) => v.fieldPath === "vacancies.breakdown");
+    const totalValue = s.reading.values.find((v) => v.fieldPath === "vacancies.total")?.value;
+    const splitRows = Array.isArray(breakdown?.value) ? (breakdown!.value as Array<{ post: string; count: number; breakdown?: Record<string, unknown> }>) : [];
+    const fallbackPost = (splitRows.length === 1 ? splitRows[0].post : null) ?? opts.newJob?.title ?? record?.identity.title.value ?? "All posts";
+    const { table: read, coverage } = s.retrieval.source.text.trim()
+      ? await readVacancyTables(s.retrieval.source.text, { retrievalId: s.retrieval.id, fallbackPost, apiKey: opts.apiKey, fetchFn: opts.fetchFn })
+      : { table: null, coverage: { pages: null, tables: [], unreadLines: [] } };
+    const fromSplit = !read && breakdown
+      ? tableFromSplit(splitRows, typeof totalValue === "number" ? totalValue : null, { retrievalId: s.retrieval.id, page: breakdown.page ?? null, line: breakdown.quote ?? "" }, s.retrieval.source.text)
+      : null;
+    const table = read ?? fromSplit;
+    let note: Record<string, unknown> = { coverage, from: read ? "tables" : fromSplit ? "split" : null };
+    if (table) {
+      // Rows a re-issued notice no longer lists are removed only when every
+      // table and line of it was read: a line that was not read may be one of them.
+      const coverageComplete = coverage.tables.every((t) => t.read) && coverage.unreadLines.length === 0;
+      const corrigendum = s.input.declaredKind === "OFFICIAL_CORRIGENDUM";
+      const existingTable = record?.vacancies.table?.value ?? null;
+      const merged = mergeTables(existingTable, table, corrigendum || !coverageComplete);
+      const removalsHeld = !corrigendum && !coverageComplete && existingTable ? mergeTables(existingTable, table, false).diff.removed.length : 0;
+      const stored = editorValue("vacancies.table", merged.table);
+      if (stored.ok) {
+        const first = table.rows[0]?.source;
+        s.reading.values.push({ fieldPath: "vacancies.table", value: stored.value, quote: first?.line.split("\n").pop() ?? "", page: first?.page ?? null });
+      } else {
+        s.reading.refused.push({ fieldPath: "vacancies.table", reason: `the editor would refuse it: ${stored.reason}` });
+      }
+      const brief = (r: { at: Record<string, string>; status: string; total?: number; source: { page: number | null } }) => ({ at: r.at, status: r.status, total: r.total ?? null, page: r.source.page });
+      note = { ...note, problems: merged.problems, removalsHeld, diff: {
+        added: merged.diff.added.length, changed: merged.diff.changed.length, removed: merged.diff.removed.length, same: merged.diff.same,
+        untouchedPosts: merged.diff.untouchedPosts,
+        addedRows: merged.diff.added.slice(0, 60).map(brief),
+        changedRows: merged.diff.changed.slice(0, 60).map((c) => ({ before: brief(c.before), after: brief(c.after) })),
+        removedRows: merged.diff.removed.slice(0, 60).map(brief),
+      } };
+    }
+    tableNotes.set(s.retrieval.id, note);
+  }
+
   // What the job holds now (for an existing job), and its earlier claims.
   let verifiedPaths = new Set<string>();
   let existing: Array<{ id: string; fieldPath: string; value: unknown; superseded: boolean }> = [];
@@ -243,15 +289,25 @@ export async function previewImport(opts: {
     today: new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10),
   });
 
-  // A job with a vacancy table works its total and breakdown out from the
-  // table: a figure for them is shown for reference, never ticked to save.
-  if (record?.vacancies.table?.value) {
+  // A job with a vacancy table, or a vacancy table in this import, works its
+  // total and breakdown out from the table: a figure read for them separately
+  // is shown for reference, never ticked to save.
+  const tableOffered = proposal.items.some((i) => i.fieldPath === "vacancies.table");
+  if (record?.vacancies.table?.value || tableOffered) {
     for (const item of proposal.items) {
       if (item.fieldPath === "vacancies.total" || item.fieldPath === "vacancies.breakdown") {
         item.defaultTicked = false;
-        item.flags = [...item.flags, "this job has a vacancy table: add the figures there"];
+        item.flags = [...item.flags, tableOffered ? "worked out from the vacancy table below when it is saved" : "this job has a vacancy table: add the figures there"];
       }
     }
+  }
+  // Tables found but not read, and lines in a table that were not read, are said.
+  for (const s of sources) {
+    const note = tableNotes.get(s.retrieval.id) as { coverage?: { tables: Array<{ title: string; pages: number[]; read: boolean; why?: string }>; unreadLines: unknown[] } } | undefined;
+    for (const t of note?.coverage?.tables.filter((x) => !x.read) ?? []) {
+      proposal.warnings.push(`A vacancy table${t.title ? ` (“${t.title}”)` : ""} on page ${t.pages.join(", ") || "?"} was not read: ${t.why}. Its rows are not in this preview; enter them in the editor's vacancy table.`);
+    }
+    if (note?.coverage?.unreadLines.length) proposal.warnings.push(`${note.coverage.unreadLines.length} line(s) inside a vacancy table could not be read as rows; check them in the preview.`);
   }
 
   // Keys for the duplicate lock and check of a new job.
@@ -275,7 +331,8 @@ export async function previewImport(opts: {
       newJob: opts.newJob ?? null,
       sources: sources.map((s) => ({ ...s.summary, method: s.retrieval.method, originUrl: s.retrieval.originUrl,
         notFound: s.reading.notFound, refused: s.reading.refused, summary: s.reading.summary,
-        ...(s.reading.articleSkipped ? { articleSkipped: s.reading.articleSkipped } : {}) })),
+        ...(s.reading.articleSkipped ? { articleSkipped: s.reading.articleSkipped } : {}),
+        vacancyTables: tableNotes.get(s.retrieval.id) ?? null })),
       duplicates,
     },
   };
