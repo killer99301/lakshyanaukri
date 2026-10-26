@@ -19,6 +19,7 @@ import { getVacancyDisplay, getStageCertainty, getCategoryLabel, isFreshUpdate, 
 import { NewBadge } from "@/components/common/NewBadge";
 import { resolveDocumentAccess } from "@/lib/documents";
 import { formatDate } from "@/lib/utils";
+import { vacancyCategoryTable } from "@/lib/vacancy-categories";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
 import { RecruitmentTimeline } from "@/components/jobs/RecruitmentTimeline";
 import { ExamPatternSection, SyllabusSection } from "@/components/jobs/ExamPatternSyllabus";
@@ -33,6 +34,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
   const isPriv = job.type === "private";
   const isIntern = job.type === "internship";
   const vacancyText = getVacancyDisplay(job);
+  const categoryTable = job.type === "government" ? vacancyCategoryTable(job.vacancyBreakdown) : null;
 
   return (
     <div className="space-y-8">
@@ -383,6 +385,39 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {isGov && categoryTable && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-extrabold text-[#0F172A]">Category-wise vacancies</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-[#475569] border-b border-slate-200">
+                    <th className="py-3 px-4 font-extrabold">Post Name</th>
+                    {categoryTable.columns.map((c) => (
+                      <th key={c.key} className={`py-3 px-3 font-extrabold text-center ${c.label.length > 12 ? "min-w-[6.5rem]" : "whitespace-nowrap"}`}>{c.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {categoryTable.rows.map((r, i) => (
+                    <tr key={i} className="text-[#0F172A] font-semibold hover:bg-slate-50/50">
+                      <td className="py-3.5 px-4 font-extrabold text-[#0F172A] min-w-[10rem]">{r.post}</td>
+                      {r.cells.map((n, j) => (
+                        <td key={j} className="py-3.5 px-3 text-center tabular-nums">{n === null ? <span className="text-slate-400">–</span> : n.toLocaleString("en-IN")}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] font-medium text-slate-500">
+              {categoryTable.hasHorizontal
+                ? "Women, Ex-Servicemen and PwBD seats are often counted within the category numbers. – means not given. Please check the official notification."
+                : "– means not given. Please check the official notification."}
+            </p>
           </div>
         )}
       </section>
