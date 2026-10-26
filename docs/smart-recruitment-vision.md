@@ -247,13 +247,23 @@ IBPS CRP RRBs-XV, LIC HFL batch 10, BTSC FSO 29/2026, SSC CGL 2026 and its corri
 2026, BPSC 72nd CCE, an RRB zone-wise notice, a state police district-wise notice, a university
 teaching notice, an apprenticeship, a walk-in, and one scanned Hindi notice.
 
-## 10. Decisions for you
+## 10. Decisions (approved 26 Oct 2026, with two safeguards)
 
-1. **Not-reported banks:** show the total as "at least N" with the count of banks not reported,
-   and keep it out of Tier B until you decide? (Proposed: yes.)
-2. **Horizontal columns:** PwBD, ESM and women shown as "of which", never added. (Proposed: yes.)
-3. **Calculated total and the gate:** a calculated, complete total from a checked table counts as
-   checked for Tier B. (Proposed: yes.)
-4. **Public details:** folded by default, one fold per post. (Proposed: yes.)
+1. **Not-reported banks:** the total is shown as "at least N" with the count not reported, and it
+   does not pass Tier B. Approved.
+2. **Horizontal columns:** shown as "of which" and left out of totals **only where the source
+   establishes the overlap**: the notice says so ("out of which", "included in"), or its own
+   printed row totals equal the sum without that column, or you decide it. A column is never
+   treated as overlapping because of its name; until it is established, totals that depend on it
+   are not complete and the table asks for a decision. Approved with this safeguard.
+3. **Calculated total and the gate:** counts as checked for Tier B only when every input row has
+   its evidence, coverage is complete (no row not reported, missing or duplicated), no conflict is
+   open, and recalculating from the stored rows gives the same result. It always stays marked as
+   calculated, with its method. Approved with this safeguard.
+4. **Public details:** folded by default, one fold per post, with post-wise totals shown. Approved.
 5. **Order of work:** A1 → A2 → A3 → B1 → B2 → C, then D and E. Smart intake stays switched off
-   until A–C pass.
+   until A–C pass. Approved.
+
+Also agreed: the original figures, page references, row evidence and calculation history are kept;
+editing any row reopens every check that depends on it; existing vacancy records, cards, sorting,
+Telegram posts and publishing checks keep working unchanged.
