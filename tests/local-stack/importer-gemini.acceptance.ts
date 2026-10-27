@@ -79,6 +79,12 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
       note(`stages by class: ${(st.value as Array<{ name: string; kind?: string }>).map((s) => `${s.name} [${s.kind ?? "none"}]`).join(" | ")}`);
       check(`${name}: every schedule entry has a class`, (st.value as Array<{ kind?: string }>).every((s) => !!s.kind));
     }
+    // Ages: each post's figures with the page of its own quote, to compare with the notice by hand.
+    for (const a of items.filter((i) => i.fieldPath === "age")) {
+      const v = a.value as { min?: number; max?: number; asOf?: string; categoryMax?: Array<{ category: string; max: number }>; postWise?: Array<{ post: string; min?: number; max?: number; bornFrom?: string; bornTo?: string; asOf?: string; relaxations?: Array<{ category: string; years?: number; text?: string }>; evidence?: Array<{ page?: number | null }> }> };
+      note(`age: overall ${v.min ?? "–"}–${v.max ?? "–"} as on ${v.asOf ?? "–"}${v.categoryMax?.length ? `; printed by category ${v.categoryMax.map((c) => `${c.category} ${c.max}`).join(", ")}` : ""}${a.flags.length ? `; flags: ${a.flags.join(" / ")}` : ""}`);
+      for (const p of v.postWise ?? []) note(`  ${p.post}: ${p.min ?? "–"}–${p.max ?? "–"}, born ${p.bornFrom ?? "–"} to ${p.bornTo ?? "–"}${p.asOf ? `, as on ${p.asOf}` : ""}${p.relaxations?.length ? `, own relaxations ${p.relaxations.map((r) => `${r.category} ${r.years ?? r.text}`).join("; ")}` : ""} (pages ${[...new Set((p.evidence ?? []).map((e) => e.page))].join(",")})`);
+    }
     // Independently of the site's own check: every quote is in the text stored
     // for its source (for an image or scan, the AI's write-up), word for word.
     // A source's own address is recorded with a fixed note, not a quote.

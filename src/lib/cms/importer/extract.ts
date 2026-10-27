@@ -159,6 +159,14 @@ export function combineReading(opts: {
     "Notification Number": "identity.notificationNumber", "Application Opens": "dates.applicationOpenDate", "Application Closes": "dates.applicationCloseDate",
     "Fee Payment Deadline": "dates.feePaymentCloseDate", "Correction Window End": "dates.correctionWindowEnd",
   };
+  // One exception: ages set post by post. The details reader can give only one
+  // range, so where the whole-text reading found each post's own ages (each
+  // checked against its own quote), that reading is the age, not one range.
+  const postWiseAge = article.values.find((v) => v.fieldPath === "age" && ((v.value as { postWise?: unknown[] } | null)?.postWise?.length ?? 0) > 0);
+  if (postWiseAge) {
+    for (let i = values.length - 1; i >= 0; i--) if (values[i].fieldPath === "age") values.splice(i, 1);
+    for (let i = refused.length - 1; i >= 0; i--) if (refused[i].fieldPath === "age") refused.splice(i, 1);
+  }
   const handled = new Set([...values.map((v) => v.fieldPath), ...refused.map((r) => DATE_FLAG_PATHS[r.fieldPath] ?? r.fieldPath)]);
   const filled: string[] = [];
   for (const v of article.values) {

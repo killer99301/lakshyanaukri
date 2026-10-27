@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { AlertTriangle, CheckCircle2, HelpCircle, XCircle } from "lucide-react";
 import type { AgeLimit } from "@/types";
-import { CATEGORY_LABELS, checkAge, describeAge, type AgeVerdict, type CasteCategory } from "@/lib/eligibility";
+import { CATEGORY_LABELS, checkAge, describeAge, limitForPost, type AgeVerdict, type CasteCategory } from "@/lib/eligibility";
 import { cn, formatDate } from "@/lib/utils";
 
 const TONE: Record<AgeVerdict, { box: string; icon: React.ReactNode; title: string }> = {
@@ -57,20 +57,17 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
   if (!ageLimit) return null;
 
   // Where the notice sets ages post by post, the answer is for the chosen
-  // post only — never for the widest range across all of them.
+  // post only, by its own rules (range, cut-off date, relaxations, printed
+  // category maximums) — never for the widest range across all of them.
   const chosen = posts.find((p) => p.post === post);
-  const limit: AgeLimit | null =
-    posts.length === 0
-      ? ageLimit
-      : chosen
-        ? { ...ageLimit, min: chosen.min, max: chosen.max, bornFrom: chosen.bornFrom, bornTo: chosen.bornTo }
-        : null;
+  const limit: AgeLimit | null = posts.length === 0 ? ageLimit : chosen ? limitForPost(ageLimit, chosen) : null;
+  const countedOn = limit?.asOf ?? (posts.length === 0 || posts.every((p) => !p.asOf) ? ageLimit.asOf : undefined);
 
   // A date-of-birth window can be checked on its own; an age range needs the
   // date the notice counts age on. With neither, there is nothing to check.
-  const answerable = (l: { min?: number; max?: number; bornFrom?: string; bornTo?: string }) =>
-    Boolean(l.bornFrom || l.bornTo) || (Boolean(ageLimit.asOf) && (l.min != null || l.max != null));
-  if (!(posts.length > 0 ? posts.some(answerable) : answerable(ageLimit))) return null;
+  const answerable = (l: AgeLimit) =>
+    Boolean(l.bornFrom || l.bornTo) || (Boolean(l.asOf) && (l.min != null || l.max != null || Boolean(l.categoryMax?.length)));
+  if (!(posts.length > 0 ? posts.some((p) => answerable(limitForPost(ageLimit, p))) : answerable(ageLimit))) return null;
 
   const byBirthDate = Boolean(limit && (limit.bornFrom || limit.bornTo));
   const result = dob && limit && answerable(limit) ? checkAge(limit, dob, category, pwbd) : null;
@@ -81,9 +78,11 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
       <div>
         <h3 className="text-sm font-black text-[#0F172A]">Check your age for this recruitment</h3>
         <p className="text-xs font-medium text-[#475569] mt-0.5">
-          {ageLimit.asOf
-            ? `Your age is counted on ${formatDate(ageLimit.asOf)}, the date the notice uses.`
-            : "Your date of birth is compared with the range printed in the notice."}{" "}
+          {countedOn
+            ? `Your age is counted on ${formatDate(countedOn)}, the date the notice uses${chosen?.asOf ? " for this post" : ""}.`
+            : posts.some((p) => p.asOf)
+              ? "Some posts count age on a date of their own; choose a post."
+              : "Your date of birth is compared with the range printed in the notice."}{" "}
           Nothing you enter is saved or sent.
         </p>
       </div>
@@ -127,9 +126,14 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
           {tone.icon}
           <div className="min-w-0 space-y-1">
             <p className="text-sm font-black">{tone.title}</p>
-            {result.age && ageLimit.asOf && (
+            {result.age && limit?.asOf && (
               <p className="text-xs font-semibold">
-                On {formatDate(ageLimit.asOf)} you will be {describeAge(result.age)} old.
+                On {formatDate(limit.asOf)} you will be {describeAge(result.age)} old.
+              </p>
+            )}
+            {result.categoryMax && (
+              <p className="text-xs font-semibold">
+                Upper age printed for {result.categoryMax.category}: {result.categoryMax.max} years.
               </p>
             )}
             {byBirthDate && limit && (
@@ -157,7 +161,7 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
                 notification settles it.
               </p>
             )}
-            {result.verdict === "TOO_OLD" && !result.relaxation && (
+            {result.verdict === "TOO_OLD" && !result.relaxation && !result.categoryMax && (
               <p className="text-xs font-semibold">
                 No relaxation for your category is listed here. Ex-servicemen, women and some other groups may get more; see the notification.
               </p>

@@ -230,6 +230,21 @@ export function buildProposal(input: {
     if (unknown.length) i.flags.push(`not classified as a selection stage or an announcement: ${unknown.join(", ")} — choose in the exam stages editor`);
   }
 
+  // Ages read post by post: a post the eligibility names but no age was read for is said, not given another post's range.
+  // An age row covers an eligibility post when one name's words are all in the other's (plurals evened out):
+  // IBPS's "Officer Scale- II (Manager)" row covers "Officer Scale-II General Banking Officer (Manager)". A post
+  // named so that code cannot tie it to a row ("Law Officer") is flagged: the admin checks it.
+  const words = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1).map((w) => w.replace(/s$/, ""));
+  const within = (a: string, b: string) => words(a).every((w) => words(b).includes(w));
+  const covers = (age: string, post: string) => within(post, age) || within(age, post);
+  const posts = items.filter((i) => i.fieldPath === "eligibility" && Array.isArray(i.value)).flatMap((i) => (i.value as Array<{ post: string }>).map((p) => p.post));
+  for (const i of items) {
+    const ages = (i.value as { postWise?: Array<{ post: string }> } | null)?.postWise;
+    if (i.fieldPath !== "age" || !ages?.length) continue;
+    const missing = [...new Set(posts)].filter((p) => !ages.some((a) => covers(a.post, p)));
+    if (missing.length) i.flags.push(`no age was read for ${missing.map((p) => `“${p}”`).join(", ")} — check the notice; another post's range is not used for it`);
+  }
+
   if (input.today) {
     for (const i of items) {
       if (DEADLINES.includes(i.fieldPath) && typeof i.value === "string" && i.value < input.today) i.flags.push(`this date has passed (today is ${input.today})`);

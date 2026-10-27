@@ -13,7 +13,7 @@
 //   I3: conflict === true ↔ status === "CONFLICTED"
 // ═══════════════════════════════════════════════════════════
 
-import type { AgeRelaxation, ExamStage, PostAgeRange, VacancyRow, Provenance, UpdateRecord, DateCertainty } from "@/types";
+import type { AgeEvidence, AgeRelaxation, CategoryMaxAge, ExamStage, PostAgeRange, VacancyRow, Provenance, UpdateRecord, DateCertainty } from "@/types";
 import type { VacancyTable } from "@/lib/vacancy-table";
 
 // ─── Core State ───────────────────────────────────────────
@@ -176,6 +176,10 @@ export interface AgeCriteria {
   /** Date-of-birth window for the whole recruitment, where the notice gives one. ISO, inclusive. */
   bornFrom?: string;
   bornTo?: string;
+  /** Upper ages printed by category for the whole recruitment ("SC/ST: 42 years"), as printed. */
+  categoryMax?: CategoryMaxAge[];
+  /** Where each overall value was read (post-wise values keep their own in postWise[].evidence). */
+  evidence?: AgeEvidence[];
 }
 
 // ─── RecruitmentPost — block element for eligibility ─────

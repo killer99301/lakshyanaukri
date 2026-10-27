@@ -40,7 +40,7 @@ import type {
   SyllabusSubject,
 } from "@/types/recruitment-record";
 
-import type { AgeRelaxation, PostAgeRange, VacancyRow } from "@/types";
+import type { AgeEvidence, AgeRelaxation, CategoryMaxAge, PostAgeRange, VacancyRow } from "@/types";
 import { validateProvenanceField, validateRecord } from "@/lib/cms/validation";
 import { deriveVacancies, fingerprintOf, vacancyTableShapeErrors, type VacancyTable } from "@/lib/vacancy-table";
 
@@ -834,6 +834,13 @@ const wholeNumber = (v: unknown, max: number): number | undefined =>
 const marksNumber = (v: unknown, max: number): number | undefined =>
   typeof v === "number" && Number.isFinite(v) && v > 0 && v <= max ? Math.round(v * 100) / 100 : undefined;
 
+/** A real date of birth: candidates are born in the 1900s as well as the 2000s (the exam-date check allows only 20xx). */
+const isBirthDate = (v: unknown): v is string => {
+  if (typeof v !== "string" || !/^(19|20)\d{2}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+};
+
 const MIN_AGE = 14;
 const MAX_AGE = 70;
 const ageNumber = (v: unknown): number | undefined =>
@@ -867,7 +874,7 @@ export function cleanAge(value: unknown): AgeCriteria {
     for (const key of ["bornFrom", "bornTo"] as const) {
       const value = raw[key];
       if (value === undefined || value === null || value === "") continue;
-      if (!isIsoDate(value)) throw new Error(`age invariant: ${where} date of birth must be a real date, written YYYY-MM-DD`);
+      if (!isBirthDate(value)) throw new Error(`age invariant: ${where} date of birth must be a real date, written YYYY-MM-DD`);
       out[key] = value;
     }
     if (out.bornFrom && out.bornTo && out.bornFrom > out.bornTo) throw new Error(`age invariant: ${where} earliest date of birth is after the latest`);
@@ -876,24 +883,60 @@ export function cleanAge(value: unknown): AgeCriteria {
 
   const overall = { ...range(v, "the"), ...born(v, "the") };
 
-  let asOf: string | undefined;
-  if (v.asOf !== undefined && v.asOf !== null && v.asOf !== "") {
-    if (!isIsoDate(v.asOf)) throw new Error("age invariant: the cut-off date must be a real date, written YYYY-MM-DD");
-    asOf = v.asOf;
-  }
+  const cutOff = (raw: unknown, where: string): string | undefined => {
+    if (raw === undefined || raw === null || raw === "") return undefined;
+    if (!isIsoDate(raw)) throw new Error(`age invariant: ${where} cut-off date must be a real date, written YYYY-MM-DD`);
+    return raw;
+  };
+  const asOf = cutOff(v.asOf, "the");
 
-  const rawRelax = v.relaxations ?? [];
-  if (!Array.isArray(rawRelax)) throw new Error("age invariant: relaxations must be a list");
-  if (rawRelax.length > 30) throw new Error("age invariant: at most 30 relaxation rows");
-  const relaxations: AgeRelaxation[] = rawRelax.map((raw, i) => {
-    const r = (raw ?? {}) as Record<string, unknown>;
-    const category = tidy(r.category, 120);
-    if (!category) throw new Error(`age invariant: relaxation ${i + 1} needs a category`);
-    const years = typeof r.years === "number" && Number.isInteger(r.years) && r.years > 0 && r.years <= 40 ? r.years : undefined;
-    const text = tidy(r.text, 160);
-    if (years === undefined && !text) throw new Error(`age invariant: relaxation "${category}" needs a number of years or a short note`);
-    return { category, ...(years !== undefined ? { years } : {}), ...(text ? { text } : {}) };
-  });
+  const relaxationList = (raw: unknown, where: string): AgeRelaxation[] => {
+    const list = raw ?? [];
+    if (!Array.isArray(list)) throw new Error(`age invariant: ${where}relaxations must be a list`);
+    if (list.length > 30) throw new Error(`age invariant: at most 30 relaxation rows${where ? ` for ${where.trim()}` : ""}`);
+    return list.map((item, i) => {
+      const r = (item ?? {}) as Record<string, unknown>;
+      const category = tidy(r.category, 120);
+      if (!category) throw new Error(`age invariant: ${where}relaxation ${i + 1} needs a category`);
+      const years = typeof r.years === "number" && Number.isInteger(r.years) && r.years > 0 && r.years <= 40 ? r.years : undefined;
+      const text = tidy(r.text, 160);
+      if (years === undefined && !text) throw new Error(`age invariant: ${where}relaxation "${category}" needs a number of years or a short note`);
+      return { category, ...(years !== undefined ? { years } : {}), ...(text ? { text } : {}) };
+    });
+  };
+  const relaxations = relaxationList(v.relaxations, "");
+
+  // Upper ages printed by category: kept exactly as printed, never worked out.
+  const categoryMaxList = (raw: unknown, where: string): CategoryMaxAge[] => {
+    if (raw === undefined || raw === null) return [];
+    if (!Array.isArray(raw)) throw new Error(`age invariant: ${where}category maximums must be a list`);
+    if (raw.length > 30) throw new Error(`age invariant: at most 30 category maximums${where ? ` for ${where.trim()}` : ""}`);
+    return raw.map((item, i) => {
+      const r = (item ?? {}) as Record<string, unknown>;
+      const category = tidy(r.category, 120);
+      if (!category) throw new Error(`age invariant: ${where}category maximum ${i + 1} needs a category`);
+      const max = ageNumber(r.max);
+      if (max === undefined) throw new Error(`age invariant: ${where}maximum age for "${category}" must be a whole number between ${MIN_AGE} and ${MAX_AGE}`);
+      return { category, max };
+    });
+  };
+  const categoryMax = categoryMaxList(v.categoryMax, "");
+
+  // The notice's words behind each value; kept as given, bounded.
+  const evidenceList = (raw: unknown): AgeEvidence[] => {
+    if (!Array.isArray(raw)) return [];
+    return raw.slice(0, 40).flatMap((item) => {
+      const r = (item ?? {}) as Record<string, unknown>;
+      const about = tidy(r.about, 120);
+      const quote = tidy(r.quote, 600);
+      if (!about || !quote) return [];
+      const value = typeof r.value === "string" ? r.value.slice(0, 120) : "";
+      const page = typeof r.page === "number" && Number.isInteger(r.page) && r.page > 0 ? r.page : null;
+      const retrievalId = tidy(r.retrievalId, 80);
+      return [{ about, value, quote, page, ...(retrievalId ? { retrievalId } : {}) }];
+    });
+  };
+  const evidence = evidenceList(v.evidence);
 
   const rawPosts = v.postWise ?? [];
   if (!Array.isArray(rawPosts)) throw new Error("age invariant: post-wise ages must be a list");
@@ -906,14 +949,29 @@ export function cleanAge(value: unknown): AgeCriteria {
     if (ages.min === undefined && ages.max === undefined && !ages.bornFrom && !ages.bornTo) {
       throw new Error(`age invariant: "${post}" needs a minimum or maximum age, or a date-of-birth range`);
     }
-    return { post, ...ages };
+    const postAsOf = cutOff(r.asOf, `"${post}"`);
+    const postRelax = r.relaxations === undefined ? [] : relaxationList(r.relaxations, `"${post}" `);
+    const postMax = categoryMaxList(r.categoryMax, `"${post}" `);
+    const postEvidence = evidenceList(r.evidence);
+    return {
+      post, ...ages,
+      ...(postAsOf ? { asOf: postAsOf } : {}),
+      ...(postRelax.length ? { relaxations: postRelax } : {}),
+      ...(postMax.length ? { categoryMax: postMax } : {}),
+      ...(postEvidence.length ? { evidence: postEvidence } : {}),
+    };
   });
 
-  if (overall.min === undefined && overall.max === undefined && !overall.bornFrom && !overall.bornTo && postWise.length === 0) {
+  if (overall.min === undefined && overall.max === undefined && !overall.bornFrom && !overall.bornTo && postWise.length === 0 && categoryMax.length === 0) {
     throw new Error("age invariant: enter a minimum or maximum age, a date-of-birth range, or the ages post by post");
   }
 
-  return { ...overall, ...(asOf ? { asOf } : {}), relaxations, ...(postWise.length ? { postWise } : {}) };
+  return {
+    ...overall, ...(asOf ? { asOf } : {}), relaxations,
+    ...(categoryMax.length ? { categoryMax } : {}),
+    ...(postWise.length ? { postWise } : {}),
+    ...(evidence.length ? { evidence } : {}),
+  };
 }
 
 /** Post-wise vacancy rows: a post name and a whole number each. Nothing is summed or inferred. */

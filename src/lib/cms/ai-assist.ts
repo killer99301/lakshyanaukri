@@ -726,7 +726,8 @@ export async function callAiJson(opts: {
     return { ok: true, data: data as Record<string, unknown> };
   } catch {
     await recordAiFailure(feature);
-    return { ok: false, reason: feeFailureMessage(status) };
+    // A request stopped at its time limit has no HTTP status: say so, rather than "unavailable".
+    return { ok: false, reason: controller.signal.aborted ? "AI took too long to answer" : feeFailureMessage(status) };
   } finally {
     clearTimeout(timer);
   }

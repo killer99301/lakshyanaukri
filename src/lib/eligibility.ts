@@ -12,7 +12,7 @@
 //   - a visitor who has completed the upper age but not the next birthday is
 //     told to check the notice, because notices word this two different ways
 
-import type { AgeLimit, AgeRelaxation } from "@/types";
+import type { AgeLimit, AgeRelaxation, CategoryMaxAge, PostAgeRange } from "@/types";
 
 export type CasteCategory = "GEN" | "EWS" | "OBC" | "SC" | "ST";
 
@@ -98,6 +98,49 @@ export function findRelaxation(
   return rows.find((r) => !DISABILITY.test(r.category) && forCategory(r));
 }
 
+/**
+ * The upper age printed for this visitor's category, if the record has one
+ * row that clearly applies. Rows for other grounds (women, ex-servicemen…)
+ * are not used, and two rows that disagree are no answer: nothing is chosen.
+ */
+export function findCategoryMax(
+  rows: CategoryMaxAge[] | undefined,
+  category: CasteCategory,
+  pwbd: boolean,
+): CategoryMaxAge | undefined {
+  const usable = (rows ?? []).filter((r) => !OTHER_GROUNDS.test(r.category));
+  const forCategory = (r: CategoryMaxAge) => CATEGORY_PATTERNS[category].test(r.category);
+  const found = pwbd
+    ? (() => {
+        const disability = usable.filter((r) => DISABILITY.test(r.category));
+        const own = disability.filter(forCategory);
+        return own.length ? own : disability.filter((r) => !namesAnyCategory(r.category));
+      })()
+    : usable.filter((r) => !DISABILITY.test(r.category) && forCategory(r));
+  return new Set(found.map((r) => r.max)).size === 1 ? found[0] : undefined;
+}
+
+const sameCategory = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * The age limit for one post of a recruitment that sets ages post by post:
+ * the post's own range or date-of-birth window, its own cut-off date if it
+ * has one, and the recruitment's relaxations with the post's own added (a
+ * post row replaces the recruitment's row for the same category). Category
+ * maximums are the post's own only: one printed for the recruitment as a
+ * whole is not assumed to hold for every post.
+ */
+export function limitForPost(limit: AgeLimit, post: PostAgeRange): AgeLimit {
+  const own = post.relaxations ?? [];
+  const relaxation = [...(limit.relaxation ?? []).filter((r) => !own.some((o) => sameCategory(o.category, r.category))), ...own];
+  return {
+    min: post.min, max: post.max, bornFrom: post.bornFrom, bornTo: post.bornTo,
+    asOf: post.asOf ?? limit.asOf,
+    ...(relaxation.length ? { relaxation } : {}),
+    ...(post.categoryMax?.length ? { categoryMax: post.categoryMax } : {}),
+  };
+}
+
 export type AgeVerdict =
   | "WITHIN"            // inside the printed limits
   | "WITHIN_RELAXED"    // inside only because of a printed relaxation
@@ -109,9 +152,11 @@ export type AgeVerdict =
 export interface AgeCheck {
   verdict: AgeVerdict;
   age?: ExactAge;
-  /** Upper limit after the relaxation, when one was used. */
+  /** Upper limit after the relaxation, or as printed for the category, when one was used. */
   effectiveMax?: number;
   relaxation?: AgeRelaxation;
+  /** The upper age printed for the visitor's category, when that was used. */
+  categoryMax?: CategoryMaxAge;
   /** Why there is no answer, for UNKNOWN. */
   reason?: string;
 }
@@ -148,7 +193,7 @@ function checkBornWindow(limit: AgeLimit, dobIso: string, category: CasteCategor
 
 export function checkAge(limit: AgeLimit | undefined, dobIso: string, category: CasteCategory, pwbd: boolean): AgeCheck {
   if (limit && (limit.bornFrom || limit.bornTo)) return checkBornWindow(limit, dobIso, category, pwbd);
-  if (!limit || (limit.min == null && limit.max == null)) {
+  if (!limit || (limit.min == null && limit.max == null && !limit.categoryMax?.length)) {
     return { verdict: "UNKNOWN", reason: "The age limit for this recruitment is not on record yet." };
   }
   if (!limit.asOf) {
@@ -160,7 +205,21 @@ export function checkAge(limit: AgeLimit | undefined, dobIso: string, category: 
   }
 
   if (limit.min != null && age.years < limit.min) return { verdict: "TOO_YOUNG", age };
-  if (limit.max == null) return { verdict: "WITHIN", age };
+
+  // An upper age printed for the visitor's own category is used as printed:
+  // nothing is added to it and nothing is worked out from it.
+  const printed = findCategoryMax(limit.categoryMax, category, pwbd);
+  if (printed) {
+    const over = limit.max != null && printed.max > limit.max;
+    if (age.years < printed.max) return { verdict: over ? "WITHIN_RELAXED" : "WITHIN", age, categoryMax: printed, effectiveMax: printed.max };
+    if (age.years === printed.max) return { verdict: "CHECK_NOTICE", age, categoryMax: printed, effectiveMax: printed.max };
+    return { verdict: "TOO_OLD", age, categoryMax: printed, effectiveMax: printed.max };
+  }
+  if (limit.max == null) {
+    return limit.categoryMax?.length
+      ? { verdict: "UNKNOWN", age, reason: "The notice prints upper ages by category, and none on record clearly matches yours. Check the notification." }
+      : { verdict: "WITHIN", age };
+  }
 
   // "18 to 27 as on 1 June" is printed by SSC, RRB, UPSC, IBPS and most others
   // as a date-of-birth range that stops one day short of the 27th birthday: the

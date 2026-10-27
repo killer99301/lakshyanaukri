@@ -18,7 +18,8 @@ export function hasPageMarkers(text: string): boolean {
   return MARKER.test(text);
 }
 
-const squash = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+// Typographic quotes and dashes evened out as the quote checks do, so a quote that passed them is found on its page.
+const squash = (s: string) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/\s+/g, " ").trim().toLowerCase();
 
 /**
  * The page a quote is on, by the reader's page markers: the number in the

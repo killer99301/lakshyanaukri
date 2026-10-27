@@ -480,7 +480,10 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#475569]">Age Range</span>
                   <span className="text-sm font-black text-[#EA580C]">
-                    {job.ageLimit.min != null && job.ageLimit.max != null
+                    {/* Ages set post by post: no one range stands for every post. */}
+                    {job.ageLimit.postWise?.length
+                      ? "Differs by post"
+                      : job.ageLimit.min != null && job.ageLimit.max != null
                       ? `${job.ageLimit.min} to ${job.ageLimit.max} Years`
                       : job.ageLimit.max != null
                         ? `Up to ${job.ageLimit.max} Years`
@@ -498,18 +501,44 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                     Calculated as of: {formatDate(job.ageLimit.asOf)}
                   </p>
                 )}
+                {!job.ageLimit.postWise?.length && job.ageLimit.categoryMax && job.ageLimit.categoryMax.length > 0 && (
+                  <div className="pt-2 border-t border-slate-200">
+                    <span className="text-[11px] font-bold text-slate-600 block mb-1">Upper age by category:</span>
+                    <ul className="space-y-1">
+                      {job.ageLimit.categoryMax.map((c, i) => (
+                        <li key={i} className="text-[11px] font-medium text-[#475569] flex items-baseline justify-between gap-3">
+                          <span className="min-w-0 [overflow-wrap:anywhere]">{c.category}</span>
+                          <span className="font-bold text-[#0F172A] whitespace-nowrap tabular-nums">{c.max} years</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {job.ageLimit.postWise && job.ageLimit.postWise.length > 0 && (
                   <div className="pt-2 border-t border-slate-200">
                     <span className="text-[11px] font-bold text-slate-600 block mb-1">Age by post:</span>
                     <ul className="space-y-1">
                       {job.ageLimit.postWise.map((p, i) => (
-                        <li key={i} className="text-[11px] font-medium text-[#475569] flex items-baseline justify-between gap-3">
-                          <span className="min-w-0 [overflow-wrap:anywhere]">{p.post}</span>
-                          <span className="font-bold text-[#0F172A] whitespace-nowrap tabular-nums">
-                            {p.bornFrom || p.bornTo
-                              ? `Born ${p.bornFrom ? formatDate(p.bornFrom) : "any date"} to ${p.bornTo ? formatDate(p.bornTo) : "any date"}`
-                              : p.min != null && p.max != null ? `${p.min} to ${p.max}` : p.max != null ? `Up to ${p.max}` : `${p.min} and above`}
-                          </span>
+                        <li key={i} className="text-[11px] font-medium text-[#475569]">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="min-w-0 [overflow-wrap:anywhere]">{p.post}</span>
+                            <span className="font-bold text-[#0F172A] whitespace-nowrap tabular-nums">
+                              {p.min == null && p.max == null
+                                ? `Born ${p.bornFrom ? formatDate(p.bornFrom) : "any date"} to ${p.bornTo ? formatDate(p.bornTo) : "any date"}`
+                                : p.min != null && p.max != null ? `${p.min} to ${p.max}` : p.max != null ? `Up to ${p.max}` : `${p.min} and above`}
+                            </span>
+                          </div>
+                          {/* What the notice sets for this post alone: its birth dates, cut-off date, upper ages by category, relaxations. */}
+                          {(p.min != null || p.max != null) && (p.bornFrom || p.bornTo) && (
+                            <p className="text-[10px] text-slate-500">Born {p.bornFrom ? formatDate(p.bornFrom) : "any date"} to {p.bornTo ? formatDate(p.bornTo) : "any date"}, both included</p>
+                          )}
+                          {p.asOf && <p className="text-[10px] text-slate-500">Age counted on {formatDate(p.asOf)}</p>}
+                          {p.categoryMax && p.categoryMax.length > 0 && (
+                            <p className="text-[10px] text-slate-500">Upper age: {p.categoryMax.map((c) => `${c.category} ${c.max}`).join(", ")}</p>
+                          )}
+                          {p.relaxations && p.relaxations.length > 0 && (
+                            <p className="text-[10px] text-slate-500">For this post also: {p.relaxations.map((r) => `${r.category}${r.years != null ? ` +${r.years} years` : ""}${r.text ? ` ${r.text}` : ""}`).join("; ")}</p>
+                          )}
                         </li>
                       ))}
                     </ul>

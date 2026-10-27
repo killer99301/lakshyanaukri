@@ -20,7 +20,7 @@
 // and it only ever says a job is ruled out when the record plainly says so.
 
 import type { AgeLimit, Opportunity, Qualification } from "@/types";
-import { checkAge, type AgeCheck, type CasteCategory } from "@/lib/eligibility";
+import { checkAge, limitForPost, type AgeCheck, type CasteCategory } from "@/lib/eligibility";
 
 export interface FinderInput {
   dobIso: string;
@@ -127,7 +127,12 @@ function ageNote(check: AgeCheck): FinderPart {
     case "WITHIN":
       return { verdict: "OK", note: "Your age is within the limit." };
     case "WITHIN_RELAXED":
-      return { verdict: "OK", note: `Your age is within the limit with the ${check.relaxation?.years}-year relaxation for your category.` };
+      return {
+        verdict: "OK",
+        note: check.categoryMax
+          ? `Your age is within the upper age of ${check.categoryMax.max} printed for your category.`
+          : `Your age is within the limit with the ${check.relaxation?.years}-year relaxation for your category.`,
+      };
     case "CHECK_NOTICE":
       return { verdict: "CHECK", note: "You have reached the upper age limit; most notices count that as over the limit." };
     case "TOO_YOUNG":
@@ -146,12 +151,10 @@ export function ageFor(limit: AgeLimit | undefined, input: FinderInput): FinderP
   const posts = limit.postWise ?? [];
   if (posts.length === 0) return ageNote(checkAge(limit, input.dobIso, input.category, input.pwbd));
 
+  // Each post by its own rules: its range, its cut-off date, its relaxations and printed maximums.
   const checks = posts.map((post) => ({
     post: post.post,
-    check: checkAge(
-      { min: post.min, max: post.max, bornFrom: post.bornFrom, bornTo: post.bornTo, asOf: limit.asOf, relaxation: limit.relaxation },
-      input.dobIso, input.category, input.pwbd,
-    ),
+    check: checkAge(limitForPost(limit, post), input.dobIso, input.category, input.pwbd),
   }));
   const inside = checks.filter((c) => INSIDE.has(c.check.verdict));
   if (inside.length > 0) {

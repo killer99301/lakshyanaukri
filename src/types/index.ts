@@ -188,7 +188,27 @@ export interface AgeRelaxation {
   text?: string;
 }
 
+/** An upper age printed for one category ("OBC: 33 years"). As printed: never worked out from a relaxation. */
+export interface CategoryMaxAge {
+  category: string;
+  max: number;
+}
+
+/**
+ * The notice's own words behind one age value. `about` names the value
+ * ("max", "bornFrom", "asOf", "relaxation: OBC", "categoryMax: SC"); `value`
+ * is what it said when read, so a later hand edit of that value drops it.
+ */
+export interface AgeEvidence {
+  about: string;
+  value: string;
+  quote: string;
+  page?: number | null;
+  retrievalId?: string;
+}
+
 // The age range for one post, where a notice sets them post by post.
+// Every field added after 2026-10-28 is optional: older rows read as before.
 export interface PostAgeRange {
   post: string;
   min?: number;
@@ -196,6 +216,14 @@ export interface PostAgeRange {
   /** Some notices give a date-of-birth window instead of ages. ISO dates, both inclusive. */
   bornFrom?: string;
   bornTo?: string;
+  /** The date this post's age is counted on, when it differs from the recruitment's. */
+  asOf?: string;
+  /** Relaxations for this post: added to the recruitment's, replacing a row for the same category. */
+  relaxations?: AgeRelaxation[];
+  /** Upper ages printed for this post by category. */
+  categoryMax?: CategoryMaxAge[];
+  /** Where each of this post's values was read. */
+  evidence?: AgeEvidence[];
 }
 
 export interface AgeLimit {
@@ -203,6 +231,8 @@ export interface AgeLimit {
   max?: number;
   asOf?: string;                  // ISO cutoff date; optional — not always stated
   relaxation?: AgeRelaxation[];
+  /** Upper ages printed by category, for the whole recruitment (not used when ages are set post by post). */
+  categoryMax?: CategoryMaxAge[];
   postWise?: PostAgeRange[];
   /** Date-of-birth window for the whole recruitment, where the notice gives one. ISO, inclusive. */
   bornFrom?: string;

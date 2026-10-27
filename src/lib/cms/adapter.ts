@@ -43,6 +43,7 @@ function ageCriteriaToAgeLimit(age: AgeCriteria): AgeLimit {
     max:       age.max,
     asOf:      age.asOf,
     relaxation: relaxation.length > 0 ? relaxation : undefined,
+    categoryMax: age.categoryMax && age.categoryMax.length > 0 ? age.categoryMax : undefined,
     postWise:  age.postWise && age.postWise.length > 0 ? age.postWise : undefined,
     bornFrom:  age.bornFrom,
     bornTo:    age.bornTo,

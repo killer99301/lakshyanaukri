@@ -114,11 +114,21 @@ test("IA02 the category table becomes the breakdown, in the editor's flat form",
     ur: 41, ews: 11, sc: 17, st: 2, "Extremely Backward Class (EBC)": 18, "Backward Class (BC)": 12, "Backward Class Women": 4,
   } }]);
 });
-test("IA03 category-wise maximum ages become relaxations over the general limit", () => {
-  assert.deepEqual(value("age") as unknown, { min: 21, max: 37, asOf: "2026-08-01", relaxations: [
-    { category: "Unreserved (Female)", years: 3, text: "up to 40 years" },
-    { category: "SC / ST", years: 5, text: "up to 42 years" },
+test("IA03 category-wise maximum ages are kept as printed: no relaxation years and no general maximum worked out from them", () => {
+  const age = value("age") as unknown as Record<string, unknown>;
+  assert.deepEqual({ ...age, evidence: undefined }, { min: 21, asOf: "2026-08-01", relaxations: [], evidence: undefined, categoryMax: [
+    { category: "Unreserved (Male)", max: 37 },
+    { category: "Unreserved (Female)", max: 40 },
+    { category: "SC / ST", max: 42 },
   ] });
+  // Each value with the notice's own words behind it.
+  assert.deepEqual((age.evidence as Array<{ about: string; value: string; quote: string }>).map((e) => [e.about, e.value, e.quote]), [
+    ["min", "21", "the minimum age is 21 years as on 1 August 2026"],
+    ["asOf", "2026-08-01", "the minimum age is 21 years as on 1 August 2026"],
+    ["categoryMax: Unreserved (Male)", "37", "Unreserved (Male)\t37 years"],
+    ["categoryMax: Unreserved (Female)", "40", "Unreserved (Female)\t40 years"],
+    ["categoryMax: SC / ST", "42", "Scheduled Caste / Scheduled Tribe (Male and Female)\t42 years"],
+  ]);
 });
 test("IA04 stages, pattern, syllabus, steps and notes keep only words from the text", () => {
   const sel = value("selection") as unknown as { stages: Array<{ name: string; description?: string; type: string }> };

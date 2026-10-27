@@ -643,3 +643,114 @@ unchanged. Stage C and B2.6 are not started.
   - intelligence 12/13 and lint 7 / 26 (baselines).
   - The first run caught BR08, which expected a stage without a class; it
     now expects SELECTION.
+
+---
+
+## Post-wise age limits (done)
+
+- **Model.** All new fields are optional, so older records read as before.
+  - Each post (`PostAgeRange`) can have its own `asOf`, `relaxations`,
+    `categoryMax` (upper ages printed by category) and `evidence`. Evidence
+    is one entry per value: what it is about, its value, the quote and the
+    page.
+  - The whole age (`AgeCriteria`) gains `categoryMax` and `evidence`.
+  - The save validates every new field.
+- **Fixed on the way:** the save refused any date of birth before 2000. It
+  reused the exam-date check, which only accepts 20xx. Every IBPS window
+  hit this.
+- **Nothing is worked out:**
+  - When ages differ by post, no overall range is invented.
+  - Category maximums are kept as printed.
+  - The earlier reader derived relaxation years from printed category
+    maximums and took the general maximum as the lowest of them. That is
+    removed, and test IA03 now pins the new behaviour.
+  - A "maximum age" below 14 (for example SC/ST 5) is relaxation years and
+    is refused as such.
+- **Smart intake:**
+  - **Reading:** the whole-text reading reads ages post by post. Each figure
+    must be in that post's own quote, and the quote must name the post. A
+    birth date must be written in the quote. A post's own cut-off date,
+    relaxations and printed maximums each need their own quote.
+  - **Refusals:** anything that fails is listed under "Left out", with why.
+  - **Merge:** a post-wise reading takes the age field from the
+    single-range details reader, which can hold only one range.
+  - **Flags:** an eligibility post that no age row covers is flagged on the
+    age item. A row covers a post when one name's words contain the
+    other's.
+  - **Page lookup:** finding a quote's page now evens out curly quotes and
+    dashes the same way the quote check does.
+- **Public pages:**
+  - **Age box:** shows "Differs by post" instead of the widest range. Each
+    post shows its own date-of-birth window, cut-off date, printed upper
+    ages and post-only relaxations.
+  - **Checker:**
+    - Uses the chosen post's own rules: its range, its date, the
+      recruitment's relaxations with the post's own rows replacing the
+      same category, and its own printed maximums only.
+    - A printed category maximum is used as printed. Rows for women,
+      ex-servicemen and similar groups are not used for others, and rows
+      that disagree give no answer.
+    - The "eligible jobs" finder uses the same rules.
+- **Editor:**
+  - Three new line inputs: a post's own cut-off date; post-only
+    relaxations; upper ages by category ("All | OBC | 33" or
+    "Post | OBC | 33"), with a warning never to add relaxation years to
+    make one.
+  - It lists where each value was read. On save it keeps a value's quote
+    only while that value is unchanged.
+- **Also:**
+  - A timed-out AI request now says "AI took too long to answer". It used
+    to say "AI service unavailable", which hid the cause during this work.
+  - That one-line change is in the shared `callAiJson`. Every retry rule
+    already recognises the wording.
+
+### Results
+- **`tests/cms/post-ages.test.ts`: 12/12.**
+  - The real IBPS age table: four posts from page 7, no overall range.
+  - A figure not in its quote; a quote naming another post.
+  - A post's own date, relaxation and maximum, each with its quote.
+  - The missing-post flag, using the model's real IBPS post names.
+  - New fields saved; older ages save back unchanged.
+  - The checker never uses the widest range (born 1 Mar 1995: too old for
+    Scale-I, inside for Scale-II).
+  - Post relaxations merged, and the post's date used.
+  - BTSC printed maximums, including the women's row not applied to a
+    general candidate.
+  - Relaxation years refused as an "upper age".
+  - The page of a quote with a straightened curly quote.
+- **Real Gemini (`importer-gemini.acceptance.ts`, four runs):**
+  - The final run passed 52/52. All four IBPS posts were read with min,
+    max and both birth dates, each from page 7.
+  - Earlier runs found the problems fixed above:
+    - the merge dropping the post-wise age;
+    - SC/ST "5" taken as an upper age;
+    - the missing page;
+    - a false missing-post flag for the Scale-II specialist posts.
+  - Some IBPS posts are named without their scale (for example "Law
+    Officer"). Code cannot tie those to an age row, so they are flagged
+    for the admin.
+  - In runs 1–3 the LIC whole-text reading hit its 50 s limit while the
+    service was slow. The same reading took 5–9 s when probed directly and
+    15 s in run 4. It was reported, not hidden.
+- **Browser (local test copy):** the editor and the public checker were
+  tested together.
+  - Saved four IBPS posts, common relaxations, an Office Assistant OBC
+    relaxation, a Scale-I cut-off date and a Scale-III SC/ST maximum. The
+    stored value is exactly what was typed.
+  - The preview shows "Differs by post" and each post's own rules.
+  - The checker gave:
+    - Office Assistant, OBC, aged 29: within, with an upper limit of 32
+      from the post's own relaxation;
+    - Office Assistant, General, aged 36: over (the widest range's 40 not
+      used);
+    - Scale-I: age counted on the post's own 1 Oct date;
+    - Scale-III, SC, aged 44: within, using the printed 46.
+  - Evidence shown in the editor; changing Scale-II's maximum by hand
+    dropped only that value's quote.
+  - No console errors.
+- **Regression:**
+  - 20 local-stack suites pass; `cms:test` 47/47 suites; intake 332/332;
+    PostgreSQL 35/35; `tsc` clean;
+  - production build passes; the cache test is 31/31;
+  - intelligence 12/13 (baseline). Lint is back to the 7 / 26 baseline
+    after one new apostrophe error was fixed.

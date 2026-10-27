@@ -17,7 +17,7 @@ import { callAiJson } from "@/lib/cms/ai-assist";
 import { pageOf } from "@/lib/cms/importer/evidence-text";
 import { classifyStageName } from "@/lib/exam-stage-kind";
 import type { ExtractedValue } from "@/lib/cms/importer/proposal";
-import type { ExamStage, VacancyRow, AgeRelaxation } from "@/types";
+import type { ExamStage, VacancyRow, AgeRelaxation, AgeEvidence, PostAgeRange } from "@/types";
 import type {
   AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, CmsSelectionStage, ExamPatternPaper, SelectionStageType, SyllabusSubject,
 } from "@/types/recruitment-record";
@@ -58,7 +58,7 @@ Return one JSON object with any of:
 - "feeGeneral": { "value": integer rupees for General/UR/OBC or for everyone when one fee applies to all, "quote" }
 - "feeSCST": { "value": integer rupees, 0 only when the text says exempt/nil, "quote" } — only when the text states the SC/ST fee separately.
 - "payScale": { "value": as written, e.g. "Pay Level 6, Grade Pay Rs 4,200", "quote" }
-- "age": { "min"?: integer, "max"?: integer for General/UR men, "asOf"?: "YYYY-MM-DD", "quote", "categoryMax"?: [ { "category", "max": integer, "quote" } ] }
+- "age": { "min"?: integer, "max"?: integer for General/UR men — only when one range applies to every post, "asOf"?: "YYYY-MM-DD", "quote", "categoryMax"?: [ { "category", "max": integer, "quote" } ] — upper ages printed by category, "postWise"?: [ { "post": the post's name as printed, "min"?: integer, "max"?: integer, "bornFrom"?: "YYYY-MM-DD", "bornTo"?: "YYYY-MM-DD" — the date-of-birth range printed for the post, "quote": the post's own line(s) with its name and figures, "asOf"?: { "value": "YYYY-MM-DD", "quote" } — only when this post's age is counted on a date of its own, "relaxations"?: [ { "category", "years"?: integer, "text"?: as written, "quote" } ] — relaxations printed for this post only, "categoryMax"?: [ { "category", "max": integer, "quote" } ] — upper ages printed for this post } ] — when the notice sets ages post by post: one item per post, as printed; never a range worked out across posts }
 - "eligibility": [ { "post", "qualifications": [ each copied from the text ], "quote" } ]
 - "selectionStages": [ { "name", "type": one of WRITTEN, CBT, INTERVIEW, SKILL_TEST, DOCUMENT_VERIFICATION, PHYSICAL, OTHER, "description"?: copied from the text, "quote" } ] in order.
 - "examStages": [ { "name", "date"?: "YYYY-MM-DD" or null when not announced, "dateText"?: as written, e.g. "To be announced", "quote" } ] — each entry of the schedule after applying, in the notice's order: examinations, interviews and document verification, and also call-letter or admit-card downloads, results and training, each as its own entry with its name as printed. Not the notification, the application or registration window, the fee payment or document deadlines: those dates are read separately. Include an entry from a schedule or "important dates" table whose date is only a month or "to be announced": then "date" is null and "dateText" is the month or words as written.
@@ -120,6 +120,8 @@ const DATE_EVENT: Record<(typeof DATE_KEYS)[number], RegExp> = {
 };
 /** The editor's limit on an exam stage's name. */
 const STAGE_NAME_MAX = 80;
+/** The editor's lowest age: a smaller "maximum age" is relaxation years, not an age. */
+const MIN_PRINTED_AGE = 14;
 const STAGE_TYPES: SelectionStageType[] = ["WRITTEN", "CBT", "INTERVIEW", "SKILL_TEST", "DOCUMENT_VERIFICATION", "PHYSICAL", "OTHER"];
 
 /**
@@ -262,27 +264,95 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
   }
 
   const age = obj(raw.age);
-  if (age && quoted("age", age.quote)) {
-    const q = age.quote as string;
+  if (age && (inText(age.quote) || arr(age.postWise).length > 0)) {
+    const q = inText(age.quote) ? age.quote : "";
+    const evidence = (about: string, value: unknown, quote: string): AgeEvidence => ({ about, value: String(value), quote, page: pageOf(text, quote) });
     const min = int(age.min);
-    let max = int(age.max);
+    const max = int(age.max);
     const asOf = str(age.asOf, 10);
-    const limits = arr(age.categoryMax)
+    // Upper ages printed by category: kept as printed, nothing worked out from them.
+    // A figure too small to be an age ("SC/ST: 5 years") is a relaxation, not an upper age: left out, and said.
+    const printedMax = (list: unknown) => arr(list)
       .map((c) => ({ category: str(c.category, 100), max: int(c.max), quote: c.quote }))
-      .filter((c): c is { category: string; max: number; quote: string } => !!c.category && c.max !== undefined && inText(c.quote) && numbersIn(String(c.max), c.quote as string));
-    if (max === undefined && limits.length > 0) max = Math.min(...limits.map((c) => c.max));
-    const stated = [min, max].filter((n): n is number => n !== undefined);
-    if (stated.length > 0 && stated.every((n) => numbersIn(String(n), [q, ...limits.map((c) => c.quote)].join(" ")))) {
-      const relaxations: AgeRelaxation[] = limits
-        .filter((c) => max !== undefined && c.max !== max)
-        .map((c) => ({ category: c.category, years: c.max - max!, text: `up to ${c.max} years` }));
-      const value: AgeCriteria = { relaxations };
-      if (min !== undefined) value.min = min;
-      if (max !== undefined) value.max = max;
-      if (asOf && dateInQuote(asOf, q)) value.asOf = asOf;
-      keep("age", value, q);
+      .filter((c): c is { category: string; max: number; quote: string } => {
+        if (!c.category || c.max === undefined || !inText(c.quote) || !numbersIn(String(c.max), c.quote as string)) return false;
+        if (c.max < MIN_PRINTED_AGE) { refuse("age", `"${c.category}: ${c.max}" is a number of years of relaxation, not an upper age; not taken as one`); return false; }
+        return true;
+      });
+    const limits = printedMax(age.categoryMax);
+    const value: AgeCriteria = { relaxations: [] };
+    const overallEvidence: AgeEvidence[] = [];
+    for (const [key, n] of [["min", min], ["max", max]] as const) {
+      if (n === undefined) continue;
+      if (q && numbersIn(String(n), q)) { value[key] = n; overallEvidence.push(evidence(key, n, q)); }
+      else refuse("age", `the ${key === "min" ? "minimum" : "maximum"} age ${n} is not in its quote`);
+    }
+    if (asOf && q && dateInQuote(asOf, q)) { value.asOf = asOf; overallEvidence.push(evidence("asOf", asOf, q)); }
+    if (limits.length) {
+      value.categoryMax = limits.map((c) => ({ category: c.category, max: c.max }));
+      overallEvidence.push(...limits.map((c) => evidence(`categoryMax: ${c.category}`, c.max, c.quote)));
+    }
+
+    // Ages post by post: each post's figures from its own quote, each with its own evidence.
+    const postWise: PostAgeRange[] = [];
+    const words = (s: string) => norm(s).split(/[^a-z0-9]+/).filter(Boolean);
+    for (const p of arr(age.postWise)) {
+      const post = str(p.post, 160);
+      if (!post) continue;
+      const pq = p.quote;
+      // The quote must be the notice's words and name the post, so its figures belong to it.
+      if (!inText(pq) || !words(post).every((w) => words(pq as string).includes(w))) {
+        refuse("age", `post "${post}": its quote is not in the text or does not name the post; its ages are not read`);
+        continue;
+      }
+      const row: PostAgeRange = { post };
+      const ev: AgeEvidence[] = [evidence("post", post, pq as string)];
+      for (const [key, n] of [["min", int(p.min)], ["max", int(p.max)]] as const) {
+        if (n === undefined) continue;
+        if (numbersIn(String(n), pq as string)) { row[key] = n; ev.push(evidence(key, n, pq as string)); }
+        else refuse("age", `post "${post}": the ${key === "min" ? "minimum" : "maximum"} age ${n} is not in its quote`);
+      }
+      for (const key of ["bornFrom", "bornTo"] as const) {
+        const d = str(p[key], 10);
+        if (!d) continue;
+        if (dateInQuote(d, pq as string)) { row[key] = d; ev.push(evidence(key, d, pq as string)); }
+        else refuse("age", `post "${post}": the date of birth ${d} is not in its quote`);
+      }
+      if (row.min === undefined && row.max === undefined && !row.bornFrom && !row.bornTo) {
+        refuse("age", `post "${post}": no age or date of birth could be read; not read`);
+        continue;
+      }
+      const own = obj(p.asOf);
+      const ownDate = own ? str(own.value, 10) : undefined;
+      if (own && ownDate && inText(own.quote) && dateInQuote(ownDate, own.quote as string)) { row.asOf = ownDate; ev.push(evidence("asOf", ownDate, own.quote as string)); }
+      const relax: AgeRelaxation[] = [];
+      for (const r of arr(p.relaxations)) {
+        const category = str(r.category, 120);
+        const years = int(r.years);
+        const written = str(r.text, 160);
+        if (!category || !inText(r.quote)) continue;
+        if (years !== undefined && !numbersIn(String(years), r.quote as string)) { refuse("age", `post "${post}": the ${category} relaxation of ${years} years is not in its quote`); continue; }
+        if (written && !inText(written)) continue;
+        if (years === undefined && !written) continue;
+        relax.push({ category, ...(years !== undefined ? { years } : {}), ...(written ? { text: written } : {}) });
+        ev.push(evidence(`relaxation: ${category}`, years !== undefined ? years : written, r.quote as string));
+      }
+      if (relax.length) row.relaxations = relax;
+      const ownMax = printedMax(p.categoryMax);
+      if (ownMax.length) {
+        row.categoryMax = ownMax.map((c) => ({ category: c.category, max: c.max }));
+        ev.push(...ownMax.map((c) => evidence(`categoryMax: ${c.category}`, c.max, c.quote)));
+      }
+      row.evidence = ev;
+      postWise.push(row);
+    }
+    if (postWise.length) value.postWise = postWise;
+    if (overallEvidence.length) value.evidence = overallEvidence;
+
+    if (value.min !== undefined || value.max !== undefined || value.categoryMax?.length || postWise.length) {
+      keep("age", value, q || (postWise[0].evidence![0].quote));
     } else refuse("age", "the age limits are not in the quotes");
-  }
+  } else if (age) refuse("age", "the quote is not in the text");
 
   const posts: CmsRecruitmentPost[] = [];
   let eligQuote = "";
