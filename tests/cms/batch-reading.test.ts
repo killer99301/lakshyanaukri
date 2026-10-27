@@ -185,7 +185,7 @@ test("BR07 a date's quote must name its event: a signature date or a result dead
 test("BR08 a schedule step with only a month is a stage, its month kept as written, not turned into a date", () => {
   const text = "Online Examination – Preliminary (Officers/OA) November / December, 2026";
   const r = judgeArticle({ examStages: [{ name: "Online Examination – Preliminary", date: null, dateText: "November / December, 2026", quote: text }] }, text);
-  assert.deepEqual(r.values[0].value, [{ name: "Online Examination – Preliminary", order: 1, status: "NOT_DECLARED", certainty: "TBA", notes: "November / December, 2026" }]);
+  assert.deepEqual(r.values[0].value, [{ name: "Online Examination – Preliminary", order: 1, kind: "SELECTION", status: "NOT_DECLARED", certainty: "TBA", notes: "November / December, 2026" }]);
 });
 
 test("BR09 a stage name too long for the editor is left out, and said; the other stages are kept", () => {

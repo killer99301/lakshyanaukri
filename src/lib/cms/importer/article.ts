@@ -15,6 +15,7 @@
 
 import { callAiJson } from "@/lib/cms/ai-assist";
 import { pageOf } from "@/lib/cms/importer/evidence-text";
+import { classifyStageName } from "@/lib/exam-stage-kind";
 import type { ExtractedValue } from "@/lib/cms/importer/proposal";
 import type { ExamStage, VacancyRow, AgeRelaxation } from "@/types";
 import type {
@@ -60,7 +61,7 @@ Return one JSON object with any of:
 - "age": { "min"?: integer, "max"?: integer for General/UR men, "asOf"?: "YYYY-MM-DD", "quote", "categoryMax"?: [ { "category", "max": integer, "quote" } ] }
 - "eligibility": [ { "post", "qualifications": [ each copied from the text ], "quote" } ]
 - "selectionStages": [ { "name", "type": one of WRITTEN, CBT, INTERVIEW, SKILL_TEST, DOCUMENT_VERIFICATION, PHYSICAL, OTHER, "description"?: copied from the text, "quote" } ] in order.
-- "examStages": [ { "name", "date"?: "YYYY-MM-DD" or null when not announced, "dateText"?: as written, e.g. "To be announced", "quote" } ] — each examination, interview or document-verification step after applying (not registration, downloads, results or training), including such a step in a schedule or "important dates" table whose date is only a month or "to be announced": then "date" is null and "dateText" is the month or words as written.
+- "examStages": [ { "name", "date"?: "YYYY-MM-DD" or null when not announced, "dateText"?: as written, e.g. "To be announced", "quote" } ] — each entry of the schedule after applying, in the notice's order: examinations, interviews and document verification, and also call-letter or admit-card downloads, results and training, each as its own entry with its name as printed. Not the notification, the application or registration window, the fee payment or document deadlines: those dates are read separately. Include an entry from a schedule or "important dates" table whose date is only a month or "to be announced": then "date" is null and "dateText" is the month or words as written.
 - "examPattern": [ { "name": paper name, "durationMinutes"?: integer, "totalQuestions"?: integer, "totalMarks"?: integer, "sections": [ { "subject", "questions"?: integer, "marks"?: integer } ], "note"?: copied, "quote" } ]
 - "syllabus": [ { "subject", "topics": [ each copied from the text ], "paper"?: name, "quote" } ]
 - "howToApply": [ { "step": copied from the text, "quote" } ] in order.
@@ -323,6 +324,8 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
     const dated = !!date && dateInQuote(date, s.quote as string);
     const stage: ExamStage = {
       name, order: examStages.length + 1,
+      // Selection stage or announcement, by code from the printed name; UNCLASSIFIED is shown to the admin to decide.
+      kind: classifyStageName(name),
       status: dated ? "SCHEDULED" : "NOT_DECLARED",
       certainty: dated ? (/tentative|likely|expected/i.test(s.quote as string) ? "TENTATIVE" : "CONFIRMED") : "TBA",
     };

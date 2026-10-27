@@ -15,6 +15,7 @@ import type {
   UpdateRecord,
 } from "@/types";
 import { formatDate } from "@/lib/utils";
+import { isSelectionStage } from "@/lib/exam-stage-kind";
 
 // ─── Date Helpers ────────────────────────────────────────
 
@@ -96,8 +97,9 @@ export function getStageCertainty(stage: ExamStage): DateCertainty {
  * the furthest stage reached.
  */
 export function currentExamStage(stages: ExamStage[], now: Date): ExamStage | undefined {
+  // Call letters, results and training are announcements, not the exam itself.
   const activeStages = stages
-    .filter((s) => s.status !== "NOT_DECLARED")
+    .filter((s) => isSelectionStage(s) && s.status !== "NOT_DECLARED")
     .sort((a, b) => a.order - b.order);
   const ahead = activeStages.find(
     (s) => (s.status === "SCHEDULED" || s.status === "ADMIT_CARD_OUT") && s.dateIso && diffCalendarDays(now, new Date(s.dateIso)) >= 0,
@@ -109,7 +111,8 @@ export function currentExamStage(stages: ExamStage[], now: Date): ExamStage | un
  * Get a human-readable summary of the current exam status.
  * Derives from the ordered examStages array.
  */
-export function getCurrentExamSummary(stages: ExamStage[], now: Date): string {
+export function getCurrentExamSummary(allStages: ExamStage[], now: Date): string {
+  const stages = allStages.filter(isSelectionStage);
   if (stages.length === 0) return "To be announced";
 
   const latest = currentExamStage(stages, now);
@@ -241,7 +244,7 @@ export interface StatusBadgeInfo {
 export function deriveStatusBadge(opp: Opportunity, now: Date): StatusBadgeInfo {
   // 1. Exam postponed (government only)
   if (opp.type === "government") {
-    const hasPostponedStage = opp.examStages.some((s) => s.status === "POSTPONED");
+    const hasPostponedStage = opp.examStages.some((s) => isSelectionStage(s) && s.status === "POSTPONED");
     if (hasPostponedStage) {
       return {
         label: "Exam Postponed",

@@ -12,6 +12,7 @@
 
 import type { ExamStage, Opportunity } from "@/types";
 import { formatDate } from "@/lib/utils";
+import { isMilestone } from "@/lib/exam-stage-kind";
 
 export type TimelineState =
   | "done"       // happened
@@ -32,7 +33,8 @@ export interface TimelineEvent {
   tentative: boolean;
   /** Extra line, e.g. "Admit card released" or the stage's note. */
   note?: string;
-  kind: "application" | "stage";
+  /** "milestone": a call letter, result or training date, not a selection stage. */
+  kind: "application" | "stage" | "milestone";
 }
 
 const isIso = (v: string | undefined): v is string => !!v && /^\d{4}-\d{2}-\d{2}/.test(v);
@@ -94,7 +96,7 @@ export function buildTimeline(job: Opportunity, now: Date): TimelineEvent[] {
       state,
       tentative: !postponed && stage.certainty === "TENTATIVE",
       note: STAGE_NOTES[stage.status] ?? stage.notes,
-      kind: "stage",
+      kind: isMilestone(stage) ? "milestone" : "stage",
     });
   }
 

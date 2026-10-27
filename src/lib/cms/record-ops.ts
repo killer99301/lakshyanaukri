@@ -16,7 +16,8 @@
 
 import { randomUUID } from "node:crypto";
 
-import type { ExamStage } from "@/types";
+import type { ExamStage, ExamStageKind } from "@/types";
+import { EXAM_STAGE_KINDS } from "@/lib/exam-stage-kind";
 
 import type {
   RecruitmentRecord,
@@ -1042,7 +1043,8 @@ export const EXAM_STAGE_STATUSES = [
   "NOT_DECLARED", "SCHEDULED", "ADMIT_CARD_OUT", "POSTPONED", "CONDUCTED", "RESULT_DECLARED",
 ] as const;
 export const EXAM_STAGE_CERTAINTIES = ["CONFIRMED", "TENTATIVE", "POSTPONED", "TBA"] as const;
-const MAX_EXAM_STAGES = 12;
+// Room for the announcements kept beside the selection stages (call letters, results, training).
+const MAX_EXAM_STAGES = 20;
 
 const isIsoDate = (v: unknown): v is string => {
   if (typeof v !== "string" || !/^20\d{2}-\d{2}-\d{2}$/.test(v)) return false;
@@ -1099,6 +1101,11 @@ export function updateExamStages(
       throw new Error(`examStages invariant: stage ${i + 1} is scheduled, so it needs a date`);
     }
 
+    if (s.kind !== undefined && s.kind !== null && s.kind !== "" && !(EXAM_STAGE_KINDS as readonly unknown[]).includes(s.kind)) {
+      throw new Error(`examStages invariant: stage ${i + 1} has an unknown kind`);
+    }
+    const kind = typeof s.kind === "string" && s.kind ? (s.kind as ExamStageKind) : undefined;
+
     const noticeUrl = text(s.noticeUrl, 500, "notice link", i);
     if (noticeUrl && !isHttpUrl(noticeUrl)) {
       throw new Error(`examStages invariant: stage ${i + 1} notice link must be a valid http(s) URL`);
@@ -1114,6 +1121,7 @@ export function updateExamStages(
       ...(text(s.dateProvenance, 120, "date source", i) ? { dateProvenance: text(s.dateProvenance, 120, "date source", i) } : {}),
       ...(noticeUrl ? { noticeUrl } : {}),
       ...(text(s.notes, 200, "note", i) ? { notes: text(s.notes, 200, "note", i) } : {}),
+      ...(kind ? { kind } : {}),
     };
   });
 

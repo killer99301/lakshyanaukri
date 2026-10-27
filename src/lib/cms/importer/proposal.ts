@@ -223,6 +223,13 @@ export function buildProposal(input: {
 
   items.sort((a, b) => a.fieldPath.localeCompare(b.fieldPath) || a.id.localeCompare(b.id));
 
+  // A schedule entry whose name no rule recognises is not guessed: the admin chooses its class.
+  for (const i of items) {
+    if (i.fieldPath !== "examStages" || !Array.isArray(i.value)) continue;
+    const unknown = (i.value as Array<{ name: string; kind?: string }>).filter((s) => s.kind === "UNCLASSIFIED").map((s) => `“${s.name}”`);
+    if (unknown.length) i.flags.push(`not classified as a selection stage or an announcement: ${unknown.join(", ")} — choose in the exam stages editor`);
+  }
+
   if (input.today) {
     for (const i of items) {
       if (DEADLINES.includes(i.fieldPath) && typeof i.value === "string" && i.value < input.today) i.flags.push(`this date has passed (today is ${input.today})`);

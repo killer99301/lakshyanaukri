@@ -3,6 +3,8 @@
 
 import type React from "react";
 import { describeAiValue } from "@/lib/cms/ai-assist-apply";
+import { STAGE_KIND_LABEL } from "@/lib/exam-stage-kind";
+import type { ExamStageKind } from "@/types";
 
 export const C = {
   bg: "#070b16",
@@ -62,8 +64,9 @@ export function showValue(value: unknown, fieldPath?: string): string {
   }
   // Exam stages: name, then the date or what the notice says instead.
   if (fieldPath === "examStages" && Array.isArray(value)) {
-    return (value as Array<{ name: string; dateIso?: string; dateDisplay?: string; notes?: string; certainty?: string }>)
-      .map((s, i) => `${i + 1}. ${s.name} — ${s.dateIso ?? s.dateDisplay ?? s.notes ?? "date not announced"}${s.certainty === "TENTATIVE" ? " (tentative)" : ""}`).join("\n");
+    // Each entry's class, set by code from its name: an unrecognised one says so.
+    return (value as Array<{ name: string; dateIso?: string; dateDisplay?: string; notes?: string; certainty?: string; kind?: ExamStageKind }>)
+      .map((s, i) => `${i + 1}. ${s.name} — ${s.dateIso ?? s.dateDisplay ?? s.notes ?? "date not announced"}${s.certainty === "TENTATIVE" ? " (tentative)" : ""}${s.kind ? ` [${s.kind === "UNCLASSIFIED" ? "not classified — check" : STAGE_KIND_LABEL[s.kind].toLowerCase()}]` : ""}`).join("\n");
   }
   // Vacancy rows with their category split.
   if (fieldPath === "vacancies.breakdown" && Array.isArray(value)) {

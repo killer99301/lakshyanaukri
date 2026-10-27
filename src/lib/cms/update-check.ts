@@ -16,6 +16,7 @@
 import type { RecruitmentRecord, CmsRecruitmentLink, RecruitmentLinkType } from "@/types/recruitment-record";
 import type { DateCertainty, ExamStage, ExamStageStatus } from "@/types";
 import { formatDate } from "@/lib/utils";
+import { classifyStageName } from "@/lib/exam-stage-kind";
 
 // ─── What can be proposed ─────────────────────────────────
 
@@ -385,7 +386,8 @@ export function savesFor(record: RecruitmentRecord, accepted: UpdateProposal[]):
       const change = p.stage!;
       let stage = stages.find((s) => s.name === change.name);
       if (!stage) {
-        stage = { name: change.name, order: stages.reduce((n, s) => Math.max(n, s.order), 0) + 1, status: change.status ?? "NOT_DECLARED" };
+        // A new entry is classed by code from its name, like an imported one.
+        stage = { name: change.name, order: stages.reduce((n, s) => Math.max(n, s.order), 0) + 1, status: change.status ?? "NOT_DECLARED", kind: classifyStageName(change.name) };
         stages.push(stage);
       }
       if (change.status) stage.status = change.status;

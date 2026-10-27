@@ -120,6 +120,14 @@ export type DateCertainty =
   | "POSTPONED"
   | "TBA";
 
+/**
+ * What a schedule entry is: a step that selects candidates, or an
+ * announcement around them. Set by code from the printed name
+ * (src/lib/exam-stage-kind.ts) and editable by the admin. UNCLASSIFIED: no
+ * rule matched, so the admin is asked.
+ */
+export type ExamStageKind = "SELECTION" | "ADMIT_CARD" | "RESULT" | "TRAINING" | "DOCUMENT" | "OTHER_MILESTONE" | "UNCLASSIFIED";
+
 export interface ExamStage {
   name: string;                   // "Preliminary Exam", "CBT-1", "Mains", "Interview"
   order: number;                  // 1, 2, 3...
@@ -130,6 +138,8 @@ export interface ExamStage {
   dateProvenance?: string;        // "BPSC Examination Calendar (14 Aug 2026)" or "Official Exam Notice"
   noticeUrl?: string;             // official notice for this specific stage
   notes?: string;                 // "City slip available from 5 Mar"
+  /** Absent on records stored before 2026-10-28: read as a selection stage, exactly as before. */
+  kind?: ExamStageKind;
 }
 
 // ─── Vacancy, Fee, Age, Ecosystem ───────────────────────

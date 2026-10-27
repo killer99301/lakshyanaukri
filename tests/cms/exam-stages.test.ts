@@ -91,7 +91,7 @@ test("ES03 bad status, date, link, lengths and counts are rejected", () => {
   assert.throws(() => updateExamStages(record, [{ ...ok, dateIso: "2026-02-30" }], ADMIN), /real date/);
   assert.throws(() => updateExamStages(record, [{ ...ok, noticeUrl: "javascript:alert(1)" }], ADMIN), /valid http/);
   assert.throws(() => updateExamStages(record, [{ ...ok, notes: "x".repeat(201) }], ADMIN), /200 characters/);
-  assert.throws(() => updateExamStages(record, Array(13).fill(ok), ADMIN), /at most 12/);
+  assert.throws(() => updateExamStages(record, Array(21).fill(ok), ADMIN), /at most 20/);
   assert.equal(updateExamStages(record, [], ADMIN).record.examStages!.length, 0);
 });
 

@@ -552,3 +552,94 @@ unchanged. Stage C and B2.6 are not started.
   - `tsc` clean;
   - intelligence 12/13 and lint 7 / 26, the same baseline failures as
     before.
+
+---
+
+## Selection stages and recruitment milestones (done)
+
+- **Model:** `ExamStage.kind` (optional) is one of SELECTION, ADMIT_CARD,
+  RESULT, TRAINING, DOCUMENT, OTHER_MILESTONE or UNCLASSIFIED. A stored
+  stage without one is a selection stage, exactly as before.
+- **Classified by code** from the printed name (`src/lib/exam-stage-kind.ts`),
+  never by the AI:
+  - Milestone rules are tried before selection words, so "Download of call
+    letters for online examination" is a call letter, not an exam.
+  - A name no rule recognises is UNCLASSIFIED. Examples: "PET" alone, which
+    means pre-exam training in banking and physical efficiency test in
+    police notices; "Counselling".
+- **Smart intake:**
+  - The whole-text reading now keeps call letters, results and training as
+    schedule entries. Application-window dates are still read only into the
+    date fields.
+  - Each entry gets its class.
+  - The review shows each entry's class. An unclassified entry is flagged:
+    "choose in the exam stages editor".
+- **Editor:**
+  - A "What it is" selector on each stage. A new stage's class follows its
+    name until the admin picks one.
+  - Unclassified entries are marked, with a note above the list.
+  - The pre-publish check warns about an unclassified entry.
+  - Note: the import review ticks items but does not edit values, so the
+    class is corrected in the editor, where every imported value is
+    checked.
+- **Public pages:**
+  - **"Exam schedule" box, card badge, status badge, "Exam Postponed":**
+    selection stages only (unclassified counts as selection). A call letter
+    or training dated before the exam is not shown as the next exam.
+  - **Dates table:** "Selection stages", then "Other announcements", each in
+    the notice's order. A record with no milestone renders as one list,
+    unchanged.
+  - **Timeline:** keeps every announcement, marked `milestone`. "What's next"
+    is still the nearest dated event, and its fallbacks use selection
+    stages only.
+- **Other changes:**
+  - The update check classes a new stage it adds.
+  - The stage limit was raised from 12 to 20, to make room for the
+    announcements.
+
+### Results
+- **`tests/cms/stage-kinds.test.ts`: 12/12.** It covers:
+  - the nine IBPS entries;
+  - LIC, SSC, BTSC and police names;
+  - the real model's LIC and BTSC names;
+  - unclassified names;
+  - the next exam with training and call letters dated first;
+  - a postponed result vs a postponed exam;
+  - announcements only;
+  - grouping;
+  - a legacy record unchanged (same array, same order, same summary);
+  - timeline kinds;
+  - save, refuse unknown, 20 stages;
+  - Smart intake classes and the flag;
+  - the pre-publish warning.
+- **Real Gemini, three runs** of `importer-gemini.acceptance.ts` (52/52,
+  52/52, 51/52):
+  - IBPS: all nine entries classed as in the notice in every run (3
+    training, admit-card or result announcements; 3 selection; 3 more
+    announcements).
+  - LIC and BTSC: classed right after two rule fixes:
+    - an application or fee step is an announcement even when it names
+      the exam;
+    - a documents deadline is DOCUMENT, while "document verification"
+      stays a selection stage.
+  - Run 3 failed only "IBPS: exam pattern found": the known pattern
+    variance, for the pattern stage.
+  - Run 3 also shows model variance in the list itself:
+    - IBPS gained "Preliminary Exam" and "Main Exam" from the pattern pages,
+      both classed as selection;
+    - LIC's PDF reading left out document verification.
+    The admin sees and edits both.
+- **Browser (local test copy):**
+  - "Download of call letters - Preliminary" was classed "Admit card / call
+    letter" as it was typed.
+  - "Counselling" was flagged and then reclassified.
+  - The draft preview shows "Selection stages" (Online Examination, 22 Nov
+    2026) and "Other announcements".
+  - The exam-schedule box shows the exam, not the call letter.
+  - A style warning the dev overlay showed for the selector was fixed.
+- **Regression:**
+  - 20 local-stack suites pass; `cms:test` 46/46 suites; intake 332/332;
+    PostgreSQL 35/35; `tsc` clean;
+  - intelligence 12/13 and lint 7 / 26 (baselines).
+  - The first run caught BR08, which expected a stage without a class; it
+    now expects SELECTION.

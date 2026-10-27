@@ -19,6 +19,7 @@ import { getVacancyDisplay, getStageCertainty, getCategoryLabel, isFreshUpdate, 
 import { NewBadge } from "@/components/common/NewBadge";
 import { resolveDocumentAccess } from "@/lib/documents";
 import { formatDate } from "@/lib/utils";
+import { stageGroups } from "@/lib/exam-stage-kind";
 import { vacancyCategoryTable } from "@/lib/vacancy-categories";
 import { VacancyTableSection } from "@/components/jobs/VacancyTableSection";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
@@ -256,7 +257,15 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                 </tr>
               )}
               {isGov && job.examStages && job.examStages.length > 0 && (
-                job.examStages.map((stage) => {
+                // Selection stages, then call letters, results and training under their own heading.
+                // A record with no milestones renders as one list, as before.
+                stageGroups(job.examStages).flatMap((group) => [
+                  group.title ? (
+                    <tr key={`group-${group.title}`} className="bg-slate-50">
+                      <td colSpan={2} className="py-2 px-4 text-[11px] font-black uppercase tracking-wider text-[#475569]">{group.title}</td>
+                    </tr>
+                  ) : null,
+                  ...group.stages.map((stage) => {
                   const certainty = getStageCertainty(stage);
                   const isTentative = certainty === "TENTATIVE";
                   const isPostponed = certainty === "POSTPONED" || stage.status === "POSTPONED";
@@ -346,7 +355,8 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                       </td>
                     </tr>
                   );
-                })
+                  }),
+                ])
               )}
             </tbody>
           </table>

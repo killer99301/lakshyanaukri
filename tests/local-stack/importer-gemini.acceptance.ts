@@ -74,6 +74,11 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
       if ((s.notFound as string[] | undefined)?.length) note(`not found: ${(s.notFound as string[]).join(", ")}`);
     }
     for (const w of proposal.warnings) note(`warning: ${w}`);
+    // Each schedule entry with the class code gave it, to compare with the notice by hand.
+    for (const st of items.filter((i) => i.fieldPath === "examStages")) {
+      note(`stages by class: ${(st.value as Array<{ name: string; kind?: string }>).map((s) => `${s.name} [${s.kind ?? "none"}]`).join(" | ")}`);
+      check(`${name}: every schedule entry has a class`, (st.value as Array<{ kind?: string }>).every((s) => !!s.kind));
+    }
     // Independently of the site's own check: every quote is in the text stored
     // for its source (for an image or scan, the AI's write-up), word for word.
     // A source's own address is recorded with a fixed note, not a quote.

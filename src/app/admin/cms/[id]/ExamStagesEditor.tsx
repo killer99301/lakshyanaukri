@@ -14,7 +14,8 @@
 
 import { useState } from "react";
 import { SmartDateInput } from "../../SmartDateInput";
-import type { ExamStage, ExamStageStatus, DateCertainty } from "@/types";
+import type { ExamStage, ExamStageStatus, DateCertainty, ExamStageKind } from "@/types";
+import { EXAM_STAGE_KINDS, STAGE_KIND_LABEL, classifyStageName } from "@/lib/exam-stage-kind";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
 import { InfoTip } from "../InfoTip";
 
@@ -42,9 +43,13 @@ interface Draft {
   notes: string;
   noticeUrl: string;
   dateProvenance: string;
+  /** "" = not set (a stage stored before classes existed: counted as a selection stage). */
+  kind: "" | ExamStageKind;
+  /** The admin chose the class; otherwise a new stage's class follows its name. */
+  kindChosen: boolean;
 }
 
-const EMPTY: Draft = { name: "", status: "NOT_DECLARED", dateIso: "", dateDisplay: "", certainty: "", notes: "", noticeUrl: "", dateProvenance: "" };
+const EMPTY: Draft = { name: "", status: "NOT_DECLARED", dateIso: "", dateDisplay: "", certainty: "", notes: "", noticeUrl: "", dateProvenance: "", kind: "", kindChosen: false };
 
 const toDraft = (s: ExamStage): Draft => ({
   name: s.name,
@@ -55,6 +60,8 @@ const toDraft = (s: ExamStage): Draft => ({
   notes: s.notes ?? "",
   noticeUrl: s.noticeUrl ?? "",
   dateProvenance: s.dateProvenance ?? "",
+  kind: s.kind ?? "",
+  kindChosen: true,
 });
 
 /** What is sent to the server for one stage. Order is set by the server from the list position. */
@@ -72,6 +79,7 @@ function toPayload(d: Draft): Record<string, unknown> {
     notes: d.notes || undefined,
     noticeUrl: d.noticeUrl || undefined,
     dateProvenance: d.dateProvenance || undefined,
+    kind: d.kind || undefined,
   };
 }
 
@@ -103,7 +111,13 @@ export function ExamStagesEditor({
   const wasPublic = Boolean(record.publishedAt);
 
   const selectionStages = record.selection?.value?.stages ?? [];
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => {
+    const next = { ...d, [key]: value };
+    // A new stage's class follows its name until the admin picks one.
+    if (key === "name" && !d.kindChosen) next.kind = String(value).trim() ? classifyStageName(String(value)) : "";
+    return next;
+  });
+  const unclassified = stages.filter((s) => s.kind === "UNCLASSIFIED");
   const hasDate = Boolean(draft.dateIso || draft.dateDisplay.trim());
 
   async function save(next: Array<Record<string, unknown>>, reason: string): Promise<boolean> {
@@ -158,6 +172,11 @@ export function ExamStagesEditor({
                   <span style={{ fontSize: 11, fontWeight: 700, color: st.color, border: `1px solid ${st.color}55`, background: `${st.color}18`, padding: "1px 8px", borderRadius: 999 }}>
                     {st.label}
                   </span>
+                  {s.kind && s.kind !== "SELECTION" && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: s.kind === "UNCLASSIFIED" ? C.amber : C.muted, border: `1px solid ${s.kind === "UNCLASSIFIED" ? C.amber : C.border}`, padding: "1px 8px", borderRadius: 999 }}>
+                      {s.kind === "UNCLASSIFIED" ? "Not classified — choose" : STAGE_KIND_LABEL[s.kind]}
+                    </span>
+                  )}
                   <span style={{ marginLeft: "auto", fontSize: 13, color: date ? C.text : C.muted, fontWeight: 600 }}>
                     {date ?? "No date"}
                     {date && s.certainty === "TENTATIVE" && <span style={{ color: C.amber, fontWeight: 500 }}> · tentative</span>}
@@ -194,6 +213,13 @@ export function ExamStagesEditor({
         </div>
       )}
 
+      {unclassified.length > 0 && (
+        <div role="status" style={{ color: C.amber, fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>
+          {unclassified.length === 1 ? "One entry is" : `${unclassified.length} entries are`} not classified ({unclassified.map((s) => `“${s.name}”`).join(", ")}).
+          Edit {unclassified.length === 1 ? "it" : "each"} and choose whether it is a selection stage or an announcement. Until then it is shown as a selection stage.
+        </div>
+      )}
+
       {!editable ? (
         <div style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
           Stages can be edited while the record is a draft. Click “Edit Record” first.
@@ -209,7 +235,7 @@ export function ExamStagesEditor({
           {stages.length === 0 && selectionStages.length > 0 && (
             <button
               disabled={saving}
-              onClick={() => { void save(selectionStages.map((s) => ({ name: s.name, status: "NOT_DECLARED" })), "Started exam stages from the selection process"); }}
+              onClick={() => { void save(selectionStages.map((s) => ({ name: s.name, status: "NOT_DECLARED", kind: "SELECTION" })), "Started exam stages from the selection process"); }}
               style={{ padding: "6px 14px", background: "none", color: C.accent, border: `1px solid ${C.accent}55`, borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
               title="Creates one stage per selection step, with no dates"
             >
@@ -226,6 +252,14 @@ export function ExamStagesEditor({
             <div style={{ flex: 2, minWidth: 200 }}>
               <label style={label} htmlFor="stage-name">Stage name</label>
               <input id="stage-name" style={input} value={draft.name} onChange={(e) => set("name", e.target.value)} placeholder="Tier-I Exam, Skill Test, Document Verification…" />
+            </div>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <label style={label} htmlFor="stage-kind">What it is</label>
+              <select id="stage-kind" style={{ ...input, ...(draft.kind === "UNCLASSIFIED" ? { border: `1px solid ${C.amber}` } : {}) }} value={draft.kind}
+                onChange={(e) => setDraft((d) => ({ ...d, kind: e.target.value as Draft["kind"], kindChosen: true }))}>
+                {draft.kind === "" && <option value="">Not set: counted as a selection stage</option>}
+                {EXAM_STAGE_KINDS.map((k) => <option key={k} value={k}>{k === "UNCLASSIFIED" ? "Not classified (choose)" : STAGE_KIND_LABEL[k]}</option>)}
+              </select>
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
               <label style={label} htmlFor="stage-status">Where it stands<InfoTip id="Where it stands" /></label>

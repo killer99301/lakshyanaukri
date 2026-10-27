@@ -58,6 +58,9 @@ export function prepublishChecks(record: RecruitmentRecord, todayIso: string): P
     if (stage.status === "SCHEDULED" && !stage.dateIso && !stage.dateDisplay) {
       add("warning", "Exam Stages", `“${stage.name}” is marked scheduled but has no date.`);
     }
+    if (stage.kind === "UNCLASSIFIED") {
+      add("warning", "Exam Stages", `“${stage.name}” is not classified as a selection stage or an announcement. It shows as a selection stage until you choose.`);
+    }
   }
 
   // ── Vacancies ──
