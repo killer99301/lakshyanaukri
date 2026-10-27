@@ -424,7 +424,8 @@ export async function startJob(opts: { adminId: string; jobId: string; confirm: 
 /** A reading that failed for a reason worth another try (not a missing key or the daily allowance). */
 const RETRYABLE = /unavailable|incomplete|took too long|rate limit|timed out|aborted|found almost nothing/i;
 const NEARLY_EMPTY = "the AI found almost nothing on this scanned page";
-const CAP_REACHED = /AI limit for the site/i;
+// The site's own daily allowance, or the AI provider's daily quota: the task is not at fault, so it waits.
+const CAP_REACHED = /AI limit for the site|daily request quota is used up/i;
 
 function failureOf(kind: TaskKind, result: unknown): string | null {
   if (kind === "TEXT_BATCH") return (result as ArticleReading).skipped ?? null;
@@ -523,7 +524,7 @@ export async function stepJob(opts: { adminId: string; jobId: string; apiKey: st
     await sql`UPDATE recruitment_import_jobs SET ai_sent = ai_sent + ${paced.stats.sent}, ai_retried = ai_retried + ${paced.stats.retried},
                 ai_failed = ai_failed + ${paced.stats.failed}, updated_at = now(),
                 state = CASE WHEN ${capReached} AND state = 'READING' THEN 'PAUSED' ELSE state END,
-                state_note = CASE WHEN ${capReached} AND state = 'READING' THEN 'Today''s AI allowance is used up. Resume tomorrow, or when the allowance is raised.' ELSE state_note END
+                state_note = CASE WHEN ${capReached} AND state = 'READING' THEN 'Today''s AI allowance (the site''s, or the AI provider''s daily quota) is used up. Resume when it resets, or when the allowance is raised.' ELSE state_note END
               WHERE job_id = ${opts.jobId}`;
   }
 

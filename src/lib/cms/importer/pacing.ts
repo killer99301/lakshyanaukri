@@ -11,7 +11,10 @@
 //     starts its request, and its timeout, only once it has a place, so
 //     waiting never uses up a request's time.
 //   - A resending fetch: a request refused for load (429, 500, 502, 503,
-//     504) is sent again, at most `retries` times, after a growing wait.
+//     504) is sent again, at most `retries` times, after a growing wait, or
+//     after the wait the provider asks for when that is short. A 429 for
+//     the provider's DAILY quota is never resent: nothing sent today can
+//     succeed, and every resend would only use more of the day.
 //     Every resend is counted against the daily allowance first, like any
 //     request, and each refused attempt is counted as a failure. Once the
 //     allowance is used up nothing is resent.
@@ -20,6 +23,7 @@
 // carries the API key.
 
 import { recordAiFailure, reserveAiRequest, type AiFeature } from "@/lib/ai-usage";
+import { readQuotaRefusal } from "@/lib/cms/ai-assist";
 
 export interface PacingStats {
   /** Requests sent, resends included. */
@@ -42,6 +46,8 @@ export interface RetryOptions {
 }
 
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+/** The longest wait the provider may ask for before a resend; a longer one is not waited out inside a request. */
+const MAX_ASKED_WAIT_MS = 30_000;
 
 /** A fetch that resends a request refused for load; with what it did. */
 export function retryingFetch(base: typeof fetch, opts: RetryOptions = {}): { fetch: typeof fetch; stats: PacingStats } {
@@ -66,9 +72,12 @@ export function retryingFetch(base: typeof fetch, opts: RetryOptions = {}): { fe
       if (response.ok) return response;
       stats.failed++;
       if (!RETRYABLE.has(response.status) || attempt >= retries || init?.signal?.aborted) return response;
+      const quota = response.status === 429 ? readQuotaRefusal(await response.clone().text().catch(() => "")) : null;
+      if (quota?.perDay) return response; // the day's quota is used up: no resend
       // This attempt was refused (and may have used quota): counted, then resent after a wait.
       await recordFailure(feature);
-      await sleep(backoff[Math.min(attempt, backoff.length - 1)]);
+      const asked = quota?.retryAfterMs !== undefined && quota.retryAfterMs <= MAX_ASKED_WAIT_MS ? quota.retryAfterMs + 500 : undefined;
+      await sleep(asked ?? backoff[Math.min(attempt, backoff.length - 1)]);
       if (init?.signal?.aborted) return response;
       if (!(await reserve(feature)).allowed) return response; // the daily allowance is used up: no resend
       stats.retried++;

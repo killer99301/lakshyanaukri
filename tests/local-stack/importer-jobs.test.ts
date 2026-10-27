@@ -47,7 +47,7 @@ if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf
     79: { lines: ["Download of admit cards from 05.11.2026"], tables: [{ title: "", continues: true, columns: [], rows: [["Kerala", "Kochi", "NR"]] }] },
   };
   /** A stand-in model: page batches answer from what their pages say; the section readers find nothing. */
-  let behaviour: (first: number, call: number) => "ok" | "503" | "hang" = () => "ok";
+  let behaviour: (first: number, call: number) => "ok" | "503" | "hang" | "daily-quota" = () => "ok";
   /** Batches whose answer the stand-in cuts off (not whole JSON), as a model does when an answer runs too long (B2.5). */
   let cutOff: (first: number, last: number) => boolean = () => false;
   const calls = new Map<number, number>();
@@ -72,6 +72,8 @@ if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf
     calls.set(first, n);
     const how = behaviour(first, n);
     if (how === "503") return new Response("{}", { status: 503 });
+    // The provider's daily quota, as Gemini refuses it (observed 2026-10-28).
+    if (how === "daily-quota") return new Response(JSON.stringify({ error: { code: 429, details: [{ violations: [{ quotaId: "GenerateRequestsPerDayPerProjectPerModel-FreeTier", quotaValue: "500" }] }, { retryDelay: "44763s" }] } }), { status: 429 });
     if (how === "hang") await new Promise<void>((r) => { release = r; });
     const t = prompt.slice(prompt.indexOf("TEXT:"));
     const out: Record<string, unknown> = {};
@@ -203,6 +205,21 @@ if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf
   check("a page still cut off alone is failed, with why; the reading is never called complete", cp2.state === "PAUSED" && !cp2.complete
     && cp2.failedTasks.length === 1 && cp2.failedTasks[0].first === 9 && /incomplete/i.test(cp2.failedTasks[0].reason ?? ""), { state: cp2.state, failed: cp2.failedTasks, tasks: cp2.tasks });
   cutOff = () => false;
+
+  section("The AI provider's daily quota used up: the reading waits, nothing fails or is resent");
+  calls.clear();
+  behaviour = () => "daily-quota";
+  const { jobId: quotaJob } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD provider quota", "quota-job"), sources: [source] });
+  for (const p of pieces) await upload(quotaJob, p);
+  await jobs.startJob({ adminId, jobId: quotaJob, confirm: true });
+  const qj = await run(quotaJob, 10); // steps until a page batch is refused and the reading stops
+  const qTasks = await q("SELECT status, attempts FROM recruitment_import_job_tasks WHERE job_id = $1 AND kind = 'TEXT_BATCH'", [quotaJob]);
+  check("the reading pauses, saying the provider's daily quota is used up", qj.state === "PAUSED" && /AI provider's daily quota/.test(qj.stateNote ?? ""), qj.stateNote);
+  check("no task failed or used up a try; each batch was sent once, not resent", qj.tasks.failed === 0 && qTasks.every((t) => t.status === "PENDING" && Number(t.attempts) === 0) && [...calls.values()].every((n) => n === 1), { tasks: qj.tasks, qTasks, calls: [...calls.entries()] });
+  behaviour = () => "ok";
+  await jobs.resumeJob({ adminId, jobId: quotaJob });
+  const qDone = await run(quotaJob, 60);
+  check("when the quota is back, the same reading resumes and finishes complete", qDone.state === "DONE" && qDone.complete, qDone.stateNote);
 
   section("Pause, resume, the daily allowance");
   const { jobId: paused } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD pause", "pause-job"), sources: [source] });

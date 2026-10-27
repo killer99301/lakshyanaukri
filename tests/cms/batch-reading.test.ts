@@ -263,3 +263,32 @@ test("BR13 a short notice read in one request whose answer is cut off is read ag
   assert.equal(r.values.find((v) => v.fieldPath === "financial.feeGeneral")?.page, 4);
   assert.equal(r.skipped, undefined);
 });
+
+// A 429 as Gemini sends it (quota fields as observed on 2026-10-28; the message text is never shown).
+const quota429 = (quotaId: string, delay: string, value = "500") => new Response(JSON.stringify({ error: { code: 429, status: "RESOURCE_EXHAUSTED", details: [
+  { "@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{ quotaId, quotaValue: value }] },
+  { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: delay },
+] } }), { status: 429 });
+
+test("PC04 a refusal for the provider's DAILY quota is not resent, and is said as such (not \"wait a minute\")", async () => {
+  let sent = 0;
+  const base = (async () => { sent++; return quota429("GenerateRequestsPerDayPerProjectPerModel-FreeTier", "44763s"); }) as unknown as typeof fetch;
+  const p = retryingFetch(base, { sleep: async () => {}, reserve: async () => ({ allowed: true }), recordFailure: async () => {} });
+  assert.equal((await p.fetch("https://x/", {})).status, 429);
+  assert.equal(sent, 1, "no resend: nothing sent today can succeed");
+  const r = await readArticleInBatches({ text: notice(3, {}), subject: "x", apiKey: "test-key", fetchFn: p.fetch });
+  assert.match(r.skipped ?? "", /^The AI provider's daily request quota is used up \(500 requests a day on this key\); it resets in about 12 hours\./);
+  assert.equal(sent, 2, "the reading tried once; the batch was not tried again either");
+});
+test("PC05 a per-minute 429 is resent after the wait the provider asks for, when that is short; a long one falls back to the usual waits", async () => {
+  const waits: number[] = [];
+  const replies = [quota429("GenerateRequestsPerMinutePerProjectPerModel-FreeTier", "7s", "15"), new Response("{}", { status: 200 })];
+  const p = retryingFetch((async () => replies.shift()!) as unknown as typeof fetch, { backoffMs: [5_000, 12_000], sleep: async (ms) => { waits.push(ms); }, reserve: async () => ({ allowed: true }), recordFailure: async () => {} });
+  assert.equal((await p.fetch("https://x/", {})).status, 200);
+  assert.deepEqual(waits, [7_500]);
+  const waits2: number[] = [];
+  const replies2 = [quota429("GenerateRequestsPerMinutePerProjectPerModel-FreeTier", "95s", "15"), new Response("{}", { status: 200 })];
+  const p2 = retryingFetch((async () => replies2.shift()!) as unknown as typeof fetch, { backoffMs: [5_000, 12_000], sleep: async (ms) => { waits2.push(ms); }, reserve: async () => ({ allowed: true }), recordFailure: async () => {} });
+  await p2.fetch("https://x/", {});
+  assert.deepEqual(waits2, [5_000]);
+});

@@ -459,6 +459,31 @@ export function resolveFeeMaxOutputTokens(envValue: string | undefined): number 
   return Number.isInteger(n) && n > 0 ? n : FEE_MAX_OUTPUT_TOKENS;
 }
 
+/** Starts every message for a refusal under the AI provider's daily quota; reading jobs pause on it. */
+export const PROVIDER_DAILY_QUOTA = "The AI provider's daily request quota is used up";
+
+/**
+ * What a 429 says about the quota it hit: per day (no resend helps today) or
+ * per minute, and the wait the provider asks for. Only these fields are read;
+ * nothing of the provider's text is shown.
+ */
+export function readQuotaRefusal(body: string): { perDay: boolean; retryAfterMs?: number; limit?: number } | null {
+  const quotaId = /"quotaId"\s*:\s*"([^"]+)"/.exec(body)?.[1];
+  const delay = /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(body)?.[1];
+  const limit = /"quotaValue"\s*:\s*"(\d+)"/.exec(body)?.[1];
+  if (!quotaId && !delay) return null;
+  return {
+    perDay: /per\s*day/i.test(quotaId ?? "") || /PerDay/.test(quotaId ?? ""),
+    ...(delay ? { retryAfterMs: Math.round(Number(delay) * 1000) } : {}),
+    ...(limit ? { limit: Number(limit) } : {}),
+  };
+}
+
+export function providerDailyQuotaMessage(q: { retryAfterMs?: number; limit?: number }): string {
+  const hours = q.retryAfterMs ? Math.max(1, Math.round(q.retryAfterMs / 3_600_000)) : null;
+  return `${PROVIDER_DAILY_QUOTA}${q.limit ? ` (${q.limit} requests a day on this key)` : ""}${hours ? `; it resets in about ${hours} hour${hours === 1 ? "" : "s"}` : ""}. Try again then.`;
+}
+
 // Built from the HTTP status only. Provider error text can embed the request
 // URL, which carries the API key, so it is never surfaced.
 export function feeFailureMessage(httpStatus: number): string {
@@ -715,7 +740,9 @@ export async function callAiJson(opts: {
     status = response.status;
     if (!response.ok) {
       await recordAiFailure(feature);
-      return { ok: false, reason: feeFailureMessage(status) };
+      // A refusal for the provider's daily quota is said as such: waiting a minute does not help.
+      const quota = status === 429 ? readQuotaRefusal(await response.text().catch(() => "")) : null;
+      return { ok: false, reason: quota?.perDay ? providerDailyQuotaMessage(quota) : feeFailureMessage(status) };
     }
 
     const body = (await response.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
