@@ -14,11 +14,17 @@ import { C, PANEL, badge, primaryBtn, quietBtn } from "./ui";
 /** One piece a little under the server's 4 MB, for the request around it. */
 const PIECE_BYTES = 3.9 * 1024 * 1024;
 const PIECE_PAGES = 40;
+/** How long opening a reading may take before the panel says so and offers to try again. */
+const OPEN_TIMEOUT_MS = 30_000;
 
 export interface JobProgress {
   jobId: string; state: "UPLOADING" | "READING" | "PAUSED" | "FINISHING" | "DONE" | "CANCELLED" | "FAILED"; stateNote: string | null; importId: string | null; title: string | null;
   sources: Array<{ no: number; kind: "pdf" | "text"; fileName: string; sha256: string; pages: number; uploadedPages: number; noTextPages: number[];
-    unavailable: Array<{ first: number; last: number; reason: string }>; textPages: number; processedPages: number }>;
+    unavailable: Array<{ first: number; last: number; reason: string }>; textPages: number; processedPages: number;
+    /** Scanned pages: those whose own image is uploaded, and those read from it by the AI. */
+    scanImages: number[]; scanRead: number[];
+    /** Scanned pages where the AI found almost nothing, twice: to be checked against the page. */
+    scanSuspect: number[] }>;
   tasks: { total: number; done: number; running: number; pending: number; failed: number };
   failedTasks: Array<{ sourceNo: number; kind: string; first: number | null; last: number | null; reason: string }>;
   ai: { estimate: number | null; sent: number; retried: number; failed: number };
@@ -34,6 +40,8 @@ const post = async (url: string, body: unknown) => {
   return d;
 };
 const range = (a: number | null, b: number | null) => (a === null ? "the whole text" : a === b ? `page ${a}` : `pages ${a}–${b}`);
+/** Pages this browser can still send: never uploaded, or a scanned page whose own image is not uploaded. */
+const sendable = (u: { reason: string }) => u.reason === "not uploaded" || u.reason === "scanned page: its image is not uploaded";
 const STATE_WORDS: Record<JobProgress["state"], string> = {
   UPLOADING: "Uploading", READING: "Reading", PAUSED: "Paused", FINISHING: "Building the preview", DONE: "Finished", CANCELLED: "Cancelled", FAILED: "Failed",
 };
@@ -81,14 +89,47 @@ export function ReadingJobPanel(props: {
     if (uploadingRef.current) return;
     uploadingRef.current = true;
     try {
-      const { openPdf, splitPdf } = await import("@/lib/cms/importer/pdf-split");
+      const { openPdf, splitPdf, onePage } = await import("@/lib/cms/importer/pdf-split");
+      /** Sends a form, three tries; returns the server's answer or throws with the pages it was for. */
+      const send = async (fields: Record<string, string>, bytes: Uint8Array, name: string, what: string) => {
+        let last: unknown = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            const f = new FormData();
+            for (const [k, v] of Object.entries(fields)) f.set(k, v);
+            f.set("file", new Blob([bytes as unknown as ArrayBuffer], { type: "application/pdf" }), name);
+            const res = await fetch(`/api/admin/cms/import/jobs/${jobId}/parts`, { method: "POST", body: f });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
+            return d as { noTextPages?: number[] };
+          } catch (e) {
+            last = e;
+            await new Promise((r) => setTimeout(r, 2000 * attempt));
+          }
+        }
+        throw new Error(`${what} could not be sent (${last instanceof Error ? last.message : "network"}). Send the rest again.`);
+      };
       for (const s of progress.sources.filter((x) => x.kind === "pdf")) {
-        const missing = s.unavailable;
-        if (missing.length === 0) continue;
+        // Pieces not uploaded (or unreadable), and scanned pages whose own image is not uploaded.
+        const pieceMissing = s.unavailable.filter((u) => !u.reason.startsWith("scanned page:"));
+        const scanMissing = s.unavailable.filter((u) => u.reason === "scanned page: its image is not uploaded").map((u) => u.first);
+        if (pieceMissing.length === 0 && scanMissing.length === 0) continue;
         const file = files.get(s.no);
         if (!file) continue;
         const { doc } = await openPdf(new Uint8Array(await file.arrayBuffer()));
-        const needed = (a: number, b: number) => missing.some((m) => m.first <= b && m.last >= a);
+        /** A scanned page as its own one-page PDF, to be read from its image; never shrunk when too large. */
+        const sendScan = async (n: number) => {
+          if (!alive.current) return;
+          setSending(`${s.fileName}: sending scanned page ${n} of ${s.pages}`);
+          const bytes = await onePage(doc, n);
+          if (bytes.byteLength > PIECE_BYTES) {
+            await post(`/api/admin/cms/import/jobs/${jobId}/parts`, { sourceNo: s.no, scanPage: n, reason: `page ${n} alone is ${(bytes.byteLength / 1024 / 1024).toFixed(1)} MB, over the 4 MB a page may be` });
+            return;
+          }
+          await send({ sourceNo: String(s.no), scanPage: String(n) }, bytes, `page-${n}.pdf`, `scanned page ${n}`);
+        };
+        const needed = (a: number, b: number) => pieceMissing.some((m) => m.first <= b && m.last >= a);
+        const sentScans = new Set<number>();
         for await (const piece of splitPdf(doc, { maxBytes: PIECE_BYTES, maxPages: PIECE_PAGES })) {
           if (!alive.current) return;
           if (!needed(piece.first, piece.last)) continue;
@@ -97,25 +138,12 @@ export function ReadingJobPanel(props: {
             await post(`/api/admin/cms/import/jobs/${jobId}/parts`, { sourceNo: s.no, first: piece.first, last: piece.last, reason: piece.reason });
             continue;
           }
-          let last: unknown = null;
-          for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-              const f = new FormData();
-              f.set("sourceNo", String(s.no)); f.set("first", String(piece.first)); f.set("last", String(piece.last));
-              f.set("file", new Blob([piece.bytes as unknown as ArrayBuffer], { type: "application/pdf" }), `pages-${piece.first}-${piece.last}.pdf`);
-              const res = await fetch(`/api/admin/cms/import/jobs/${jobId}/parts`, { method: "POST", body: f });
-              const d = await res.json().catch(() => ({}));
-              if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
-              last = null;
-              break;
-            } catch (e) {
-              last = e;
-              await new Promise((r) => setTimeout(r, 2000 * attempt));
-            }
-          }
-          if (last) throw new Error(`${range(piece.first, piece.last)} could not be sent (${last instanceof Error ? last.message : "network"}). Send the rest again.`);
+          const answer = await send({ sourceNo: String(s.no), first: String(piece.first), last: String(piece.last) }, piece.bytes, `pages-${piece.first}-${piece.last}.pdf`, range(piece.first, piece.last));
+          // The server found these pages without text: each goes as its own page, to be read from its image.
+          for (const n of answer.noTextPages ?? []) { await sendScan(n); sentScans.add(n); }
           await refresh();
         }
+        for (const n of scanMissing) if (!sentScans.has(n)) await sendScan(n);
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -151,12 +179,28 @@ export function ReadingJobPanel(props: {
     }
   }, [jobId]);
 
-  // The reading as it stands, on open.
+  // The reading as it stands, on open: within 30 s, or a useful error with a way out; never "Opening…" for ever.
+  const [openTry, setOpenTry] = useState(0);
+  const [slow, setSlow] = useState(false);
   useEffect(() => {
-    fetch(`/api/admin/cms/import/jobs/${jobId}`).then(async (r) => ({ ok: r.ok, status: r.status, d: await r.json().catch(() => ({})) }))
-      .then(({ ok, status, d }) => (ok ? setP(d.progress) : setErr(d.error ?? `HTTP ${status}`)))
-      .catch(() => setErr("The reading could not be opened; reload the page."));
-  }, [jobId]);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), OPEN_TIMEOUT_MS);
+    fetch(`/api/admin/cms/import/jobs/${jobId}`, { signal: ctrl.signal })
+      .then(async (r) => ({ ok: r.ok, status: r.status, d: await r.json().catch(() => ({})) }))
+      .then(({ ok, status, d }) => {
+        if (ok && d?.progress?.state) { setP(d.progress); setErr(null); setSlow(false); }
+        else setErr(ok ? "The server's answer about this reading was incomplete." : d?.error ?? `The reading could not be opened (HTTP ${status}).`);
+      })
+      .catch((e) => {
+        if (ctrl.signal.aborted && openTry % 2 === 0) { setSlow(true); setOpenTry((n) => n + 1); return; } // slow once: try again by itself
+        setSlow(false);
+        setErr(e?.name === "AbortError"
+          ? `The reading did not open within ${(2 * OPEN_TIMEOUT_MS) / 1000} seconds. Nothing is lost: try again.`
+          : "The reading could not be opened: the connection failed. Nothing is lost: try again.");
+      })
+      .finally(() => clearTimeout(timer));
+    return () => { clearTimeout(timer); ctrl.abort(); };
+  }, [jobId, openTry]);
   const onPreviewRef = useRef(onPreview);
   useEffect(() => { onPreviewRef.current = onPreview; }, [onPreview]);
 
@@ -164,7 +208,7 @@ export function ReadingJobPanel(props: {
   useEffect(() => {
     if (!p) return;
     if (p.state === "UPLOADING") {
-      if (p.sources.some((s) => s.kind === "pdf" && s.unavailable.some((u) => u.reason === "not uploaded") && files.has(s.no))) {
+      if (p.sources.some((s) => s.kind === "pdf" && s.unavailable.some(sendable) && files.has(s.no))) {
         const t = setTimeout(() => { void upload(p); }, 0); // after this render, not inside it
         return () => clearTimeout(t);
       }
@@ -195,12 +239,26 @@ export function ReadingJobPanel(props: {
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   };
 
-  if (!p) return <div style={{ ...PANEL, padding: 16, color: C.muted, fontSize: 13 }}>{err ?? "Opening the reading…"}</div>;
+  if (!p) {
+    return (
+      <div data-reading-opening style={{ ...PANEL, padding: 16, color: C.muted, fontSize: 13, display: "grid", gap: 8 }}>
+        {err ? <div role="alert" style={{ color: C.amber }}>{err}</div> : <div>{slow ? "Still opening the reading: the server is slow to answer…" : "Opening the reading…"}</div>}
+        {err && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { setErr(null); setOpenTry((n) => n + 2 - (n % 2)); }} style={quietBtn}>Try again</button>
+            <button onClick={props.onClose} style={quietBtn}>Back to Smart intake</button>
+          </div>
+        )}
+      </div>
+    );
+  }
   const ended = p.state === "DONE" || p.state === "CANCELLED" || p.state === "FAILED";
   const totalPages = p.sources.reduce((n, s) => n + (s.kind === "pdf" ? s.pages : 0), 0);
   const uploaded = p.sources.reduce((n, s) => n + (s.kind === "pdf" ? s.uploadedPages : 0), 0);
   const textPages = p.sources.reduce((n, s) => n + s.textPages, 0);
   const processed = p.sources.reduce((n, s) => n + s.processedPages, 0);
+  const scanned = p.sources.reduce((n, s) => n + s.noTextPages.length, 0);
+  const scanRead = p.sources.reduce((n, s) => n + s.scanRead.length, 0);
   const stateColor = p.state === "DONE" ? (p.complete ? C.green : C.amber) : p.state === "CANCELLED" || p.state === "FAILED" ? C.red : p.state === "PAUSED" ? C.amber : C.accent;
 
   return (
@@ -220,19 +278,23 @@ export function ReadingJobPanel(props: {
         <Stat label="AI requests used" value={`${p.ai.sent}${p.ai.estimate !== null ? ` (about ${p.ai.estimate} expected)` : ""}`} sub={p.ai.retried ? `${p.ai.retried} resent after a refusal for load` : undefined} />
         <Stat label="Today's allowance" value={`${p.allowance.used} of ${p.allowance.cap} used`} />
         <Stat label="Parts of the reading" value={`${p.tasks.done} of ${p.tasks.total} done`} sub={p.tasks.failed ? `${p.tasks.failed} failed` : undefined} />
+        {scanned > 0 && <Stat label="Scanned pages read from the image" value={`${scanRead} of ${scanned}`} sub="AI-read: to be checked against each page" />}
       </div>
       {sending && <div style={{ color: C.muted }}>{sending}…</div>}
       {offline && <div role="status" style={{ color: C.amber }}>The connection dropped. Nothing done is lost; trying again…</div>}
       {p.stateNote && <div style={{ color: p.state === "PAUSED" ? C.amber : C.muted }}>{p.stateNote}</div>}
 
       {/* What is not read */}
-      {p.sources.map((s) => (s.unavailable.length + s.noTextPages.length > 0 || p.failedTasks.some((f) => f.sourceNo === s.no)) && (
+      {p.sources.map((s) => (s.unavailable.length + s.noTextPages.filter((n) => !s.scanRead.includes(n)).length + s.scanSuspect.length > 0 || p.failedTasks.some((f) => f.sourceNo === s.no)) && (
         <div key={s.no} data-reading-missing style={{ border: `1px solid ${C.amber}55`, borderRadius: 8, padding: "8px 10px", display: "grid", gap: 3, fontSize: 12 }}>
           <strong style={{ color: C.amber }}>{s.fileName}: not read</strong>
           {s.unavailable.map((u) => <div key={`u${u.first}`}>{range(u.first, u.last)} — {u.reason}</div>)}
-          {s.noTextPages.length > 0 && <div>pages {s.noTextPages.join(", ")} — no text (scanned); reading them from the image comes next (B2.4)</div>}
-          {p.failedTasks.filter((f) => f.sourceNo === s.no).map((f, i) => <div key={`f${i}`}>{f.kind === "TEXT_BATCH" ? range(f.first, f.last) : f.kind.replace("SECTION_", "section reader: ").toLowerCase()} — failed: {f.reason}</div>)}
-          {p.state === "UPLOADING" && s.kind === "pdf" && s.unavailable.some((u) => u.reason === "not uploaded") && !files.has(s.no) && (
+          {s.noTextPages.filter((n) => !s.scanRead.includes(n) && !s.unavailable.some((u) => u.first <= n && u.last >= n)).length > 0 && (
+            <div>pages {s.noTextPages.filter((n) => !s.scanRead.includes(n) && !s.unavailable.some((u) => u.first <= n && u.last >= n)).join(", ")} — scanned, not read from the image yet</div>
+          )}
+          {s.scanSuspect.length > 0 && <div>scanned {s.scanSuspect.length === 1 ? "page" : "pages"} {s.scanSuspect.join(", ")} — the AI found almost nothing there, twice: check the {s.scanSuspect.length === 1 ? "page" : "pages"}</div>}
+          {p.failedTasks.filter((f) => f.sourceNo === s.no).map((f, i) => <div key={`f${i}`}>{f.kind === "TEXT_BATCH" ? range(f.first, f.last) : f.kind === "SCAN_PAGE" ? `scanned page ${f.first} (read from its image)` : f.kind.replace("SECTION_", "section reader: ").toLowerCase()} — failed: {f.reason}</div>)}
+          {p.state === "UPLOADING" && s.kind === "pdf" && s.unavailable.some(sendable) && !files.has(s.no) && (
             <label style={{ color: C.text }}>Select {s.fileName} again to send the rest: <input type="file" accept="application/pdf" onChange={(e) => { void reselect(s.no, e.target.files?.[0] ?? null); }} /></label>
           )}
         </div>
@@ -262,7 +324,7 @@ export function ReadingJobPanel(props: {
         {p.state === "PAUSED" && p.tasks.failed > 0 && p.tasks.pending === 0 && (
           <button onClick={() => { void act("finish", { acceptFailed: true }); }} style={quietBtn}>Finish without them</button>
         )}
-        {p.state === "UPLOADING" && !sending && p.sources.some((s) => files.has(s.no) && s.unavailable.some((u) => u.reason === "not uploaded")) && <button onClick={() => { setErr(null); void upload(p); }} style={quietBtn}>Send the rest again</button>}
+        {p.state === "UPLOADING" && !sending && p.sources.some((s) => files.has(s.no) && s.unavailable.some(sendable)) && <button onClick={() => { setErr(null); void upload(p); }} style={quietBtn}>Send the rest again</button>}
         {!ended && <button onClick={() => { if (confirm("Cancel this reading? Its uploaded pieces are deleted.")) void act("cancel"); }} style={{ ...quietBtn, color: C.red, borderColor: `${C.red}66` }}>Cancel</button>}
         {ended && p.state !== "DONE" && <button onClick={props.onClose} style={quietBtn}>Start again</button>}
       </div>

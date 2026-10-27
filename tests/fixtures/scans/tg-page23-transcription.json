@@ -1,0 +1,25 @@
+{
+  "note": "Page 23 of a Telangana recruitment notice (three Junior Assistant posts), read off the page image by a person for the B2.4 tests. Figures exactly as printed.",
+  "page": 23,
+  "lines": ["23"],
+  "tables": [
+    {
+      "title": "POST CODE: 14 JUNIOR ASSISTANT IN BC WELFARE HOD, BC WELFARE DEPARTMENT",
+      "continues": false,
+      "columns": ["Cadre of the post", "OC G", "OC W", "EWS G", "EWS W", "BC-A G", "BC-A W", "BC-B G", "BC-B W", "BC-C G", "BC-C W", "BC-D G", "BC-D W", "BC-E G", "BC-E W", "SC G", "SC W", "ST G", "ST W", "PH G", "PH W", "EX-SER G", "EX-SER W", "SPORTS G", "SPORTS W", "TOTAL G", "TOTAL W", "GRAND TOTAL"],
+      "rows": [["State", "-", "01", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "01", "01"]]
+    },
+    {
+      "title": "POST CODE: 15 JUNIOR ASSISTANT IN (HO), MAHATMA JYOTHIBA PHULE TELANGANA BACKWARD CLASSES WELFARE RESIDENTIAL EDUCATIONAL INSTITUTIONS SOCIETY, (BACKWARD CLASSES WELFARE DEPT)",
+      "continues": false,
+      "columns": ["Cadre of the post", "OC G", "OC W", "EWS G", "EWS W", "BC-A G", "BC-A W", "BC-B G", "BC-B W", "BC-C G", "BC-C W", "BC-D G", "BC-D W", "BC-E G", "BC-E W", "SC G", "SC W", "ST G", "ST W", "PH G", "PH W", "EX-SER G", "EX-SER W", "SPORTS G", "SPORTS W", "TOTAL G", "TOTAL W", "GRAND TOTAL"],
+      "rows": [["State", "05", "03", "01", "01", "01", "01", "01", "01", "01", "-", "-", "01", "-", "01", "02", "02", "02", "01", "-", "01 (VH)", "01", "-", "-", "-", "14", "12", "26"]]
+    },
+    {
+      "title": "POST CODE: 16 JUNIOR ASSISTANT IN CHIEF ELECTRICAL INSPECTOR TO GOVERNMENT HOD, ENERGY DEPARTMENT.",
+      "continues": false,
+      "columns": ["Cadre of the post", "OC G", "OC W", "EWS G", "EWS W", "BC-A G", "BC-A W", "BC-B G", "BC-B W", "BC-C G", "BC-C W", "BC-D G", "BC-D W", "BC-E G", "BC-E W", "SC G", "SC W", "ST G", "ST W", "PH G", "PH W", "EX-SER G", "EX-SER W", "SPORTS G", "SPORTS W", "TOTAL G", "TOTAL W", "GRAND TOTAL"],
+      "rows": [["State", "-", "-", "-", "-", "-", "01", "-", "-", "-", "-", "-", "-", "-", "-", "-", "01", "-", "-", "-", "-", "-", "-", "-", "-", "-", "02", "02"]]
+    }
+  ]
+}

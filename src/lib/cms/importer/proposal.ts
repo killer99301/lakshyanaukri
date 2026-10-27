@@ -38,6 +38,8 @@ export interface ExtractedValue {
   quote?: string;
   page?: number | null;
   tableCell?: { page?: number; table?: number; row?: string; column?: string; text: string };
+  /** Read from a scanned page that the AI wrote out from its image (stage B2.4): its quote is the AI's reading, not printed text. */
+  fromImage?: boolean;
 }
 
 export interface SourceExtraction {
@@ -67,6 +69,7 @@ export interface ItemClaim {
   quote?: string;
   page?: number | null;
   tableCell?: ExtractedValue["tableCell"];
+  fromImage?: boolean;
 }
 
 export interface ProposalItem {
@@ -135,7 +138,7 @@ export function buildProposal(input: {
       const perField = groups.get(v.fieldPath) ?? new Map();
       const h = shortHash(v.fieldPath, v.value);
       const g = perField.get(h) ?? { value: v.value, claims: [] };
-      g.claims.push({ retrievalId: ex.retrieval.id, quote: v.quote, page: v.page ?? null, ...(v.tableCell ? { tableCell: v.tableCell } : {}) });
+      g.claims.push({ retrievalId: ex.retrieval.id, quote: v.quote, page: v.page ?? null, ...(v.tableCell ? { tableCell: v.tableCell } : {}), ...(v.fromImage ? { fromImage: true } : {}) });
       perField.set(h, g);
       groups.set(v.fieldPath, perField);
     }
@@ -164,6 +167,7 @@ export function buildProposal(input: {
       else if (!sources.some(eligibleRetrieval)) flags.push("no confirmed official document states this");
       const officialInImport = input.extractions.some((e) => e.retrieval.declaredKind !== "RESEARCH" && eligibleRetrieval(e.retrieval));
       if (officialInImport && !sources.some(eligibleRetrieval)) flags.push("the official document in this import does not state this");
+      if (g.claims.some((c) => c.fromImage)) flags.push("read from a scanned page by AI — check it against the page image");
 
       let action: ItemAction;
       if (!cur || isEmpty(cur.value)) action = "FILL";

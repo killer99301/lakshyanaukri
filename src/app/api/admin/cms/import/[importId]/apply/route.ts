@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { guardImporter } from "@/lib/cms/importer/route-guard";
 import { applyImportFlow, ImportInputError } from "@/lib/cms/importer/service";
+import { dropPageImagesForImport } from "@/lib/cms/importer/jobs";
 import { ImportApplyError } from "@/lib/cms/importer/repository";
 import { ApplySelectionError } from "@/lib/cms/importer/apply-build";
 
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       importId, adminId: guard.adminId, selected, confirmReplaceVerified: body.confirmReplaceVerified === true,
       override: reason ? { reason } : null,
     });
+    await dropPageImagesForImport(importId); // the review is over: its scanned page images are not kept
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof ImportInputError) return NextResponse.json({ error: err.message }, { status: err.status });

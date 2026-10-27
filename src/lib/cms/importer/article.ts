@@ -406,8 +406,12 @@ export async function readArticle(opts: { text: string; subject: string; apiKey:
 export const BATCH_FROM_CHARS = 40_000;
 const BATCH_MAX_CHARS = 30_000;
 const BATCH_MAX_PAGES = 8;
-/** A page with less text than this (after its page mark) has no text layer: a scanned page. */
-const NO_TEXT_CHARS = 40;
+/**
+ * A page with less text than this (after its page mark, spaces aside) has no
+ * text layer: a scanned page. Low on purpose: a short text page ("Grand
+ * Total 232") is still text; only a page number or nothing is "no text".
+ */
+const NO_TEXT_CHARS = 12;
 
 export interface PageText { page: number; text: string }
 export interface ReadingCoverage {
@@ -419,6 +423,8 @@ export interface ReadingCoverage {
   noTextPages: number[];
   /** Pages that never reached the reading (a piece that failed to upload or could not be opened), with why. */
   unavailable?: Array<{ first: number; last: number; reason: string }>;
+  /** Scanned pages where the AI found almost nothing, twice: maybe something printed was missed. */
+  suspectPages?: number[];
 }
 
 /** The text cut into its pages, each ending with its page mark; null without page marks. */

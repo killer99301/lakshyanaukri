@@ -59,7 +59,11 @@ function splitFigures(text: string): { words: string; figures: string[] } {
   return { words: tokens.join(" "), figures };
 }
 
-interface ColumnSpec { key: string; label: string; role: "category" | "total"; partOf?: string }
+export interface ColumnSpec {
+  key: string; label: string; role: "category" | "total"; partOf?: string;
+  /** How the column counts, when the table itself establishes it (a transcribed table whose printed subtotals add it up). */
+  kind?: "VERTICAL" | "HORIZONTAL"; established?: { by: "SOURCE"; note: string };
+}
 
 // Column words in a heading, in printed order. Group headings that only sit
 // over sub-columns (PwBD over HI/OC/VI/ID) are dropped when their parts follow.
@@ -155,7 +159,11 @@ export interface FoundTable {
   columnsBy?: "CODE" | "AI";
   dimensions: VacancyDimension[];
   /** Rows: the words (wrapped lines joined) and the figures, with the printed lines. */
-  rows: Array<{ serial: number | null; words: string; figures: string[]; page: number | null; printed: string }>;
+  rows: Array<{ serial: number | null; words: string; figures: string[]; page: number | null; printed: string;
+    /** A transcribed table's dimension cells by dimension key, as printed (no splitting of words needed). */
+    dimCells?: Record<string, string> }>;
+  /** Written out by the AI from scanned page images (stage B2.4), not read from text. */
+  readBy?: "AI_IMAGE";
   /** "Total" / "Grand Total" lines. */
   totals: Array<{ label: string; figures: string[]; page: number | null; printed: string }>;
   /** Lines inside the table that could not be read as a row. */
@@ -337,7 +345,7 @@ Return JSON: { "columns": [ { "label": the column's name copied exactly from the
 
 export interface CoverageReport {
   pages: number | null;
-  tables: Array<{ title: string; pages: number[]; rows: number; read: boolean; why?: string; columnsBy?: "CODE" | "AI"; columns?: string[] }>;
+  tables: Array<{ title: string; pages: number[]; rows: number; read: boolean; why?: string; columnsBy?: "CODE" | "AI"; columns?: string[]; readBy?: "AI_IMAGE" }>;
   unreadLines: Array<{ page: number | null; text: string }>;
 }
 
@@ -356,7 +364,7 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
   const coverage: Omit<CoverageReport, "pages"> = { tables: [], unreadLines: [] };
   const usable = found.filter((t) => t.columns);
   for (const t of found) {
-    coverage.tables.push({ title: t.title || "(untitled table)", pages: t.pages, rows: t.rows.length, read: !!t.columns,
+    coverage.tables.push({ title: t.title || "(untitled table)", pages: t.pages, rows: t.rows.length, read: !!t.columns, ...(t.readBy ? { readBy: t.readBy } : {}),
       ...(t.columns ? { columnsBy: t.columnsBy ?? "CODE", columns: t.columns.map((c) => c.label) } : { why: `its ${t.figureCount} columns of figures could not be matched to the heading` }) });
     coverage.unreadLines.push(...t.unread.map((l) => ({ page: l.page, text: l.text })));
   }
@@ -373,12 +381,17 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
   for (const t of usable) {
     const outOfWhich = /\b(?:out\s+of\s+which|of\s+which|included)\b/i.test(t.heading);
     for (const c of t.columns!) {
-      if (c.role !== "category" || categories.some((x) => x.key === c.key)) continue;
+      if (c.role !== "category") continue;
+      const had = categories.find((x) => x.key === c.key);
+      // The same column of another table in this notice, where that table establishes how it counts.
+      if (had && had.kind === "UNDETERMINED" && c.kind && c.established) { had.kind = c.kind; had.established = c.established; continue; }
+      if (had) continue;
       const overlapping = outOfWhich && (c.partOf === "pwbd" || c.key === "pwbd" || c.key === "esm" || c.key === "desm");
       categories.push({
-        key: c.key, label: c.label, kind: overlapping ? "HORIZONTAL" : initialCategoryKind(c.key),
+        key: c.key, label: c.label, kind: c.kind ?? (overlapping ? "HORIZONTAL" : initialCategoryKind(c.key)),
         ...(c.partOf ? { partOf: c.partOf } : {}),
-        ...(overlapping ? { established: { by: "SOURCE" as const, note: `the table heading says “out of which”${t.headingPage != null ? ` (page ${t.headingPage})` : ""}` } } : {}),
+        ...(c.established ? { established: c.established }
+          : overlapping ? { established: { by: "SOURCE" as const, note: `the table heading says “out of which”${t.headingPage != null ? ` (page ${t.headingPage})` : ""}` } } : {}),
       });
     }
   }
@@ -402,8 +415,13 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
       const at: Record<string, string> = { post };
       const postDim = t.dimensions.find((d) => d.key === "post");
       let words = r.words;
-      if (postDim && !own.length) { at.post = titleCase(words); words = ""; }
-      if (own[0]?.key === "state" && own.length > 1) {
+      if (r.dimCells) {
+        // A transcribed row's cells are its dimensions, each as printed: no words to split.
+        for (const [k, v] of Object.entries(r.dimCells)) at[k] = k === "post" ? titleCase(v) : v;
+      } else if (postDim && !own.length) { at.post = titleCase(words); words = ""; }
+      if (r.dimCells) {
+        // placed above
+      } else if (own[0]?.key === "state" && own.length > 1) {
         const s = splitState(words);
         if (s) { at.state = s.state; at[own[1].key] = s.rest; } else at[own[1].key] = words;
       } else if (own.length === 1 && own[0].key !== "state") {
@@ -415,20 +433,25 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
       const cells: Record<string, number> = {};
       let total: number | undefined;
       let nr = 0, blank = 0;
+      const unclear: string[] = [];
       t.columns!.forEach((c, ci) => {
         const v = r.figures[ci] ?? "";
+        // Printed, but not made out on the scanned page: never filled in.
+        if (v === "[unclear]") { unclear.push(c.role === "total" ? "total" : c.key); return; }
         if (/^N\.?R\.?$/i.test(v)) { nr++; return; }
         if (/^(?:|-|–|—)$/.test(v)) { blank++; return; }
         const n = Number(v.replace(/,/g, ""));
         if (c.role === "total") total = n; else cells[c.key] = n;
       });
-      const source = { retrievalId: opts.retrievalId, page: r.page, line: r.printed };
+      const source = { retrievalId: opts.retrievalId, page: r.page, line: r.printed, ...(t.readBy ? { readBy: t.readBy } : {}) };
       const id = `t${ti + 1}r${ri + 1}`;
+      const marks = unclear.length ? { unclear } : {};
       if (nr > 0 && nr + blank === t.columns!.length) rows.push({ id, at, status: "NOT_REPORTED", cells: {}, source });
-      else if (blank === t.columns!.length) rows.push({ id, at, status: "NO_FIGURE", cells: {}, source });
+      else if (blank + unclear.length === t.columns!.length) rows.push({ id, at, status: "NO_FIGURE", cells: {}, ...marks, source });
       else {
         const all = [...Object.values(cells), ...(total !== undefined ? [total] : [])];
-        rows.push({ id, at, status: all.every((n) => n === 0) ? "NIL" : "STATED", ...(total !== undefined ? { total } : {}), cells, source });
+        // A row with an unreadable figure is never called nil, even if what was read is all zero.
+        rows.push({ id, at, status: all.every((n) => n === 0) && !unclear.length ? "NIL" : "STATED", ...(total !== undefined ? { total } : {}), cells, ...marks, source });
       }
     });
     for (const tot of t.totals) {
@@ -439,7 +462,7 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
       const cells: Record<string, number> = {};
       t.columns!.forEach((c, i) => { if (c.role === "category" && /^\d[\d,]*$/.test(tot.figures[i] ?? "")) cells[c.key] = Number(tot.figures[i].replace(/,/g, "")); });
       statedTotals.push({ at: grand ? {} : { post }, total: Number(v.replace(/,/g, "")), ...(Object.keys(cells).length ? { cells } : {}),
-        source: { retrievalId: opts.retrievalId, page: tot.page, line: tot.printed } });
+        source: { retrievalId: opts.retrievalId, page: tot.page, line: tot.printed, ...(t.readBy ? { readBy: t.readBy } : {}) } });
     }
   }
   void rowsHavePost;
@@ -447,16 +470,25 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
 }
 
 /** Everything above for one document's text: tables found, columns understood (AI only if needed), one table. */
-export async function readVacancyTables(text: string, opts: { retrievalId: string | null; fallbackPost: string; apiKey: string | undefined; fetchFn?: typeof fetch }): Promise<{ table: VacancyTable | null; coverage: CoverageReport }> {
-  const lines = linesWithPages(text);
-  const found = findVacancyTables(lines);
+export async function readVacancyTables(text: string, opts: {
+  retrievalId: string | null; fallbackPost: string; apiKey: string | undefined; fetchFn?: typeof fetch;
+  /** Scanned pages: their text is the AI's write-up, so they are not read here; their tables come in `extraFound`. */
+  skipPages?: number[];
+  /** Tables transcribed from scanned page images (stage B2.4), already split into columns. */
+  extraFound?: FoundTable[];
+}): Promise<{ table: VacancyTable | null; coverage: CoverageReport }> {
+  const all = linesWithPages(text);
+  const skip = new Set(opts.skipPages ?? []);
+  const lines = skip.size ? all.filter((l) => l.page === null || !skip.has(l.page)) : all;
+  // In page order, so a table that runs on from a text page onto a scanned one stays in order.
+  const found = [...findVacancyTables(lines), ...(opts.extraFound ?? [])].sort((a, b) => (a.pages[0] ?? 0) - (b.pages[0] ?? 0));
   for (const t of found) {
     if (!t.columns) {
       t.columns = await columnsByAi(t, opts);
       if (t.columns) t.columnsBy = "AI";
     }
   }
-  const pages = lines.reduce((m, l) => Math.max(m, l.page ?? 0), 0) || null;
+  const pages = all.reduce((m, l) => Math.max(m, l.page ?? 0), 0) || null;
   const { table, coverage } = buildVacancyTable(found, opts);
   return { table, coverage: { pages, ...coverage } };
 }

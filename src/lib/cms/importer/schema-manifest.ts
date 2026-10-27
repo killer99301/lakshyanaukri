@@ -9,7 +9,7 @@
 type Col = [type: string, nullable: boolean];
 
 const T = "text", U = "uuid", J = "jsonb", TS = "timestamp with time zone", I = "integer", D = "date";
-const V = "character varying", C = "character", B = "bigint", A = "ARRAY", S = "smallint";
+const V = "character varying", C = "character", B = "bigint", A = "ARRAY", S = "smallint", BO = "boolean";
 
 export const IMPORTER_OBJECTS = {
   tables: {
@@ -43,7 +43,11 @@ export const IMPORTER_OBJECTS = {
     recruitment_import_jobs: {
       job_id: [U, false], created_by: [U, false], mode: [V, false], recruitment_id: [U, true], new_job: [J, true], state: [V, false],
       state_note: [T, true], sources: [J, false], estimate: [I, true], ai_sent: [I, false], ai_retried: [I, false], ai_failed: [I, false],
-      import_id: [U, true], created_at: [TS, false], updated_at: [TS, false],
+      scan_reading_added: [BO, false], import_id: [U, true], created_at: [TS, false], updated_at: [TS, false],
+    },
+    recruitment_import_job_pages: {
+      job_id: [U, false], source_no: [S, false], page: [I, false], status: [V, false], reason: [T, true], sha256: [C, true],
+      byte_size: [I, false], pdf_base64: [T, true], uploaded_at: [TS, false],
     },
     recruitment_import_job_parts: {
       job_id: [U, false], source_no: [S, false], first_page: [I, false], last_page: [I, false], status: [V, false], reason: [T, true],

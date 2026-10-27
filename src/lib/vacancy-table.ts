@@ -45,6 +45,13 @@ export interface SourceRef {
   page: number | null;
   /** The row or line as printed, so the figures can be found again. */
   line: string;
+  /**
+   * "AI_IMAGE": the line was written out by the AI from a scanned page's
+   * image (there was no text to read). Its figures are the AI's reading of
+   * a picture: they stay to be checked against the page, whatever the
+   * arithmetic says.
+   */
+  readBy?: "AI_IMAGE";
 }
 
 export type RowStatus = "STATED" | "NIL" | "NOT_REPORTED" | "NO_FIGURE";
@@ -58,6 +65,8 @@ export interface VacancyTableRow {
   total?: number;
   /** Category key → figure, when printed. */
   cells: Record<string, number>;
+  /** Columns ("total" or a category key) printed with a figure the reader could not make out on a scanned page; never filled in. */
+  unclear?: string[];
   source: SourceRef;
 }
 
@@ -95,7 +104,7 @@ export interface Figure {
 
 export type IssueCode =
   | "DUPLICATE_ROW" | "MISSING_DIMENSION" | "BAD_FIGURE" | "ROW_TOTAL_MISMATCH" | "HORIZONTAL_EXCEEDS_TOTAL"
-  | "NOT_REPORTED" | "NO_FIGURE" | "UNDETERMINED_COLUMN" | "STATED_TOTAL_MISMATCH" | "NO_SOURCE" | "FIGURES_NOT_IN_LINE";
+  | "NOT_REPORTED" | "NO_FIGURE" | "UNDETERMINED_COLUMN" | "STATED_TOTAL_MISMATCH" | "NO_SOURCE" | "FIGURES_NOT_IN_LINE" | "UNCLEAR_FIGURE";
 
 export interface TableIssue {
   code: IssueCode;
@@ -241,13 +250,18 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
     else seen.set(k, r.id);
     if (!hasEvidence(r)) issues.push({ code: "NO_SOURCE", severity: "WARNING", message: `${dims.map((d) => r.at[d.key]).join(", ")}: entered by hand, with no page of a document behind it.`, rowIds: [r.id] });
     if (r.status === "NOT_REPORTED") { issues.push({ code: "NOT_REPORTED", severity: "WARNING", message: `${dims.map((d) => r.at[d.key]).join(", ")}: not reported in the notice.`, rowIds: [r.id], group: r.at[groupDim] }); continue; }
+    if (r.unclear?.length) {
+      issues.push({ code: "UNCLEAR_FIGURE", severity: "ERROR", rowIds: [r.id], group: r.at[groupDim],
+        message: `${dims.map((d) => r.at[d.key]).join(", ")}: ${r.unclear.map(columnName).join(", ")} could not be read on the scanned page${r.source.page != null ? ` (page ${r.source.page})` : ""}. Read it on the page and enter it; it is never filled in.` });
+    }
     if (r.status === "NO_FIGURE") { issues.push({ code: "NO_FIGURE", severity: "WARNING", message: `${dims.map((d) => r.at[d.key]).join(", ")}: printed with no figure.`, rowIds: [r.id], group: r.at[groupDim] }); continue; }
     const bad = [...(r.total !== undefined ? [["total", r.total] as const] : []), ...Object.entries(r.cells)].filter(([, n]) => !isCount(n));
     if (bad.length > 0) { issues.push({ code: "BAD_FIGURE", severity: "ERROR", message: `${dims.map((d) => r.at[d.key]).join(", ")}: ${bad.map(([k]) => columnName(k)).join(", ")} is not a whole number up to ${MAX_FIGURE.toLocaleString("en-IN")}.`, rowIds: [r.id] }); continue; }
     // A row backed by a page must have its figures in the line it was read
     // from; a figure typed over it afterwards no longer matches the notice.
     if (hasEvidence(r) && r.source.line.trim()) {
-      const printed: string[] = r.source.line.replace(/(\d),(\d)/g, "$1$2").match(/\d+/g) ?? [];
+      // As numbers: notices print "01" for 1.
+      const printed: string[] = (r.source.line.replace(/(\d),(\d)/g, "$1$2").match(/\d+/g) ?? []).map((d) => String(Number(d)));
       const figures = [...(isCount(r.total) ? [r.total] : []), ...Object.values(r.cells).filter(isCount)];
       const missing = figures.filter((n) => !printed.includes(String(n)));
       if (missing.length > 0) {
@@ -279,6 +293,8 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
     if (r.status === "NIL") return 0;
     if (r.status !== "STATED") return null;
     if (isCount(r.total)) return r.total;
+    // Without a readable total, a row with an unreadable figure cannot be added up.
+    if (r.unclear?.length) return null;
     if (undeterminedInUse.length > 0) return null;
     return vertical.some((k) => isCount(r.cells[k])) ? sumOf(r.cells, vertical) : null;
   };
@@ -454,6 +470,8 @@ export function vacancyTableShapeErrors(t: unknown): string[] {
     if (!r.at || typeof r.at !== "object" || Object.keys(r.at).some((k) => !dimKeys.has(k))) errors.push(`row "${r.id}" names a dimension the table does not have`);
     if (!r.cells || typeof r.cells !== "object" || Object.keys(r.cells).some((k) => !catKeys.has(k))) errors.push(`row "${r.id}" has a figure for a category the table does not have`);
     if (!r.source || typeof r.source !== "object" || typeof r.source.line !== "string") errors.push(`row "${r.id}" has no source`);
+    else if (r.source.readBy !== undefined && r.source.readBy !== "AI_IMAGE") errors.push(`row "${r.id}" says it was read in an unknown way`);
+    if (r.unclear !== undefined && (!Array.isArray(r.unclear) || r.unclear.some((k) => k !== "total" && !catKeys.has(k)))) errors.push(`row "${r.id}" marks an unknown column as unreadable`);
   }
   return errors.slice(0, 20);
 }
@@ -512,10 +530,13 @@ export function calculatedTotalReady(
   else if (a.grandTotal.basis === "STATED") reasons.push("the total is printed in the notice; check it as usual");
   else if (a.grandTotal.basis === "ENTERED") reasons.push("the total was entered by hand, with no page of a document behind it");
   if (a.grandTotal && !a.grandTotal.complete) reasons.push("the total is incomplete");
-  for (const code of ["NO_SOURCE", "FIGURES_NOT_IN_LINE", "NOT_REPORTED", "NO_FIGURE", "DUPLICATE_ROW", "MISSING_DIMENSION", "BAD_FIGURE", "UNDETERMINED_COLUMN", "ROW_TOTAL_MISMATCH", "STATED_TOTAL_MISMATCH", "HORIZONTAL_EXCEEDS_TOTAL"] as IssueCode[]) {
+  for (const code of ["NO_SOURCE", "FIGURES_NOT_IN_LINE", "NOT_REPORTED", "NO_FIGURE", "UNCLEAR_FIGURE", "DUPLICATE_ROW", "MISSING_DIMENSION", "BAD_FIGURE", "UNDETERMINED_COLUMN", "ROW_TOTAL_MISMATCH", "STATED_TOTAL_MISMATCH", "HORIZONTAL_EXCEEDS_TOTAL"] as IssueCode[]) {
     const n = a.issues.filter((i) => i.code === code).length;
     if (n > 0) reasons.push(`${n} × ${code.toLowerCase().replace(/_/g, " ")}`);
   }
+  // Figures the AI read from a picture: their arithmetic agreeing proves nothing about the page.
+  const fromImage = table.rows.filter((r) => r.source?.readBy === "AI_IMAGE").length;
+  if (fromImage > 0 && !opts.tableChecked) reasons.push(`${fromImage} row${fromImage === 1 ? " was" : "s were"} read from scanned page images by AI; check them against the pages`);
   if (!opts.tableChecked) reasons.push("the table has not been checked against the notice");
   if (opts.stored && a.grandTotal && (opts.stored.value !== a.grandTotal.value || opts.stored.fingerprint !== a.grandTotal.fingerprint)) {
     reasons.push("the stored total no longer matches a recalculation from the rows");

@@ -684,6 +684,8 @@ export async function callAiJson(opts: {
   feature?: AiFeature;
   /** Longer than the usual 30 s only for one reading of a whole long notice. */
   timeoutMs?: number;
+  /** A file sent with the prompt (a scanned page as a one-page PDF), which the model reads as an image. */
+  attachment?: { mimeType: string; data: string };
 }): Promise<AiJsonAnswer> {
   if (!opts.apiKey) return { ok: false, reason: "AI extraction not configured" };
 
@@ -702,7 +704,7 @@ export async function callAiJson(opts: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+        contents: [{ role: "user", parts: [{ text: opts.prompt }, ...(opts.attachment ? [{ inline_data: { mime_type: opts.attachment.mimeType, data: opts.attachment.data } }] : [])] }],
         generationConfig: {
           responseMimeType: "application/json",
           maxOutputTokens: opts.maxOutputTokens ?? resolveFeeMaxOutputTokens(process.env.GEMINI_MAX_OUTPUT_TOKENS),

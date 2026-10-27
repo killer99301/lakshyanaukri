@@ -15,14 +15,15 @@
 
 import { readFileSync } from "node:fs";
 import { PDFDocument } from "pdf-lib";
-import { boot, check, note, section, summary } from "./boot";
+import { NextRequest } from "next/server";
+import { boot, check, note, section, summary, ORIGIN } from "./boot";
 
 type Progress = Awaited<ReturnType<typeof import("@/lib/cms/importer/jobs")["jobProgress"]>>;
 const PDF = process.argv[2];
 if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf>"); process.exit(2); }
 
 (async () => {
-  const { pg, adminId } = await boot();
+  const { pg, adminId, token } = await boot();
   const jobs = await import("@/lib/cms/importer/jobs");
   const { openPdf, splitPdf, sha256Hex } = await import("@/lib/cms/importer/pdf-split");
   const { resetMemoryUsage } = await import("@/lib/ai-usage");
@@ -36,14 +37,32 @@ if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf
   for await (const p of splitPdf(doc, { maxBytes: jobs.JOB_LIMITS.partBytes, maxPages: 10 })) if (!("oversized" in p)) pieces.push(p);
   note(`IBPS: ${pages} pages, ${(file.byteLength / 1024 / 1024).toFixed(1)} MB, split into ${pieces.length} pieces of at most 10 pages`);
 
+  /** Answers given in turn for a page, for the "almost nothing found" test; empty otherwise. */
+  let emptyScript: Record<number, unknown[]> = {};
+  const scanCalls = new Map<number, number>();
+  /** What the stand-in "reads" on each scanned page: a table running over three pages, a row repeated at a break, unreadable, zero, NR. */
+  const SCAN_ANSWERS: Record<number, unknown> = {
+    77: { lines: ["Annexure S: vacancies by city"], tables: [{ title: "Annexure S", continues: false, columns: ["State", "City", "Number of Vacancies"], rows: [["Bihar", "Patna", "3"], ["Bihar", "Gaya", "2"]] }] },
+    78: { lines: [], tables: [{ title: "", continues: true, columns: [], rows: [["Bihar", "Gaya", "2"], ["Assam", "Silchar", "[unclear]"], ["Assam", "Guwahati", "0"], ["Assam", "Dima", "Hasao", "1"]] }] },
+    79: { lines: ["Download of admit cards from 05.11.2026"], tables: [{ title: "", continues: true, columns: [], rows: [["Kerala", "Kochi", "NR"]] }] },
+  };
   /** A stand-in model: page batches answer from what their pages say; the section readers find nothing. */
   let behaviour: (first: number, call: number) => "ok" | "503" | "hang" = () => "ok";
   const calls = new Map<number, number>();
   let release: (() => void) | null = null;
   const answer = (data: unknown) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(data) }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
   const fetchFn = (async (_u: unknown, init?: RequestInit) => {
-    const prompt = JSON.parse(String(init?.body)).contents[0].parts[0].text as string;
-    const m = /pages (\d+) to (\d+) of a 76-page notice/.exec(prompt);
+    const body = JSON.parse(String(init?.body));
+    const prompt = body.contents[0].parts[0].text as string;
+    // A scanned page sent as its image: the stand-in "reads" it from a script.
+    if (body.contents[0].parts[1]?.inline_data) {
+      const pm = /page (\d+) of (\d+) of a scanned/.exec(prompt);
+      const pageNo = Number(pm?.[1]);
+      const scripted = emptyScript[pageNo];
+      if (scripted) { const k = scanCalls.get(pageNo) ?? 0; scanCalls.set(pageNo, k + 1); return answer(scripted[Math.min(k, scripted.length - 1)]); }
+      return answer(SCAN_ANSWERS[pageNo] ?? { lines: [], tables: [] });
+    }
+    const m = /pages (\d+) to (\d+) of a \d+-page notice/.exec(prompt);
     if (!m) return answer({});
     const first = Number(m[1]);
     const n = (calls.get(first) ?? 0) + 1;
@@ -57,6 +76,8 @@ if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf
     if (t.includes(stage)) out.examStages = [{ name: "Online Examination – Preliminary (Officers/OA)", date: null, dateText: "November / December, 2026", quote: stage }];
     const rule = "The structure of the Examinations which will be conducted online are as follows:";
     if (t.includes(rule)) out.notes = [{ text: rule, quote: rule }];
+    const admit = "Download of admit cards from 05.11.2026";
+    if (t.includes(admit)) out.dates = { admitCardDate: { value: "2026-11-05", quote: admit } };
     out.howToApply = [{ step: `marker call ${first}.${n}`, quote: `marker call ${first}.${n}` }]; // not in the text: refused, but tells calls apart
     return answer(out);
   }) as unknown as typeof fetch;
@@ -168,28 +189,80 @@ if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf
   process.env.AI_DAILY_CAP = "100000";
   resetMemoryUsage();
 
-  section("Cancel, clean-up, and pages without text");
+  section("Scanned pages: their own images, read by the AI, marked, shown, dropped");
+  behaviour = () => "ok"; // the two-tab test left the stand-in stalling on first calls
+  calls.clear();
   const blank = await PDFDocument.create();
   for (let i = 0; i < 3; i++) blank.addPage([595, 842]);
   const blankBytes = Buffer.from(await blank.save());
-  const { jobId: scans } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD scans", "scan-job"), sources: [{ ...source, pages: pages + 3 }] });
-  for (const p of pieces) await upload(scans, p);
-  const scanPart = await jobs.uploadJobPart({ adminId, jobId: scans, sourceNo: 1, first: pages + 1, last: pages + 3, bytes: blankBytes });
-  check("pages without text are named, and their piece is kept to be read from the image later", scanPart.status === "READ" && scanPart.noTextPages.join() === "77,78,79"
-    && (await q("SELECT count(*)::int AS n FROM recruitment_import_job_parts WHERE job_id = $1 AND pdf_base64 IS NOT NULL", [scans]))[0].n === 1, scanPart);
-  const cancelled = await jobs.cancelJob({ adminId, jobId: scans });
-  check("cancel drops every kept piece; no step works afterwards", cancelled.state === "CANCELLED"
-    && (await q("SELECT count(*)::int AS n FROM recruitment_import_job_parts WHERE job_id = $1 AND pdf_base64 IS NOT NULL", [scans]))[0].n === 0
-    && (await jobs.stepJob({ adminId, jobId: scans, apiKey: "test-key", fetchFn })).state === "CANCELLED");
+  const { onePage } = await import("@/lib/cms/importer/pdf-split");
+  const scanPage = async (jobId: string, n: number) => jobs.uploadScanPage({ adminId, jobId, sourceNo: 1, page: n, bytes: Buffer.from(await onePage(blank, n - pages)) });
+  const kept = async (table: string, jobId: string) => (await q(`SELECT count(*)::int AS n FROM ${table} WHERE job_id = $1 AND pdf_base64 IS NOT NULL`, [jobId]))[0].n as number;
+
   const { jobId: withScans } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD with scans", "scan2-job"), sources: [{ ...source, pages: pages + 3 }] });
   for (const p of pieces) await upload(withScans, p);
-  await jobs.uploadJobPart({ adminId, jobId: withScans, sourceNo: 1, first: pages + 1, last: pages + 3, bytes: blankBytes });
+  const scanPart = await jobs.uploadJobPart({ adminId, jobId: withScans, sourceNo: 1, first: pages + 1, last: pages + 3, bytes: blankBytes });
+  check("pages without text are named; the piece itself is not kept", scanPart.status === "READ" && scanPart.noTextPages.join() === "77,78,79" && await kept("recruitment_import_job_parts", withScans) === 0, scanPart);
+  const before = await jobs.startJob({ adminId, jobId: withScans, confirm: false });
+  check("until each scanned page's own image is uploaded, those pages are missing", before.missing.filter((m) => /image is not uploaded/.test(m.reason)).map((m) => m.first).join() === "77,78,79", before.missing);
+  check("a page that has text, or a PDF of two pages, is refused as a scanned page",
+    /not a scanned page/.test(await limit(() => jobs.uploadScanPage({ adminId, jobId: withScans, sourceNo: 1, page: 5, bytes: Buffer.from(pieces[0].bytes) })))
+    && /one page/.test(await limit(() => jobs.uploadScanPage({ adminId, jobId: withScans, sourceNo: 1, page: 77, bytes: blankBytes }))));
+  for (const n of [77, 78, 79]) await scanPage(withScans, n);
+  const ready2 = await jobs.startJob({ adminId, jobId: withScans, confirm: false });
+  check("with the images in, nothing is missing; the estimate adds one request per scanned page and one for reading what they say", ready2.missing.length === 0 && ready2.scanPages === 3 && ready2.estimate === 13 + 3 + 1 && await kept("recruitment_import_job_pages", withScans) === 3, ready2);
   await jobs.startJob({ adminId, jobId: withScans, confirm: true });
-  const ws = await run(withScans);
+  const ws = await run(withScans, 60);
+  const wsTasks = await q("SELECT kind, first_page, status FROM recruitment_import_job_tasks WHERE job_id = $1 ORDER BY task_no", [withScans]);
+  check("each scanned page was read from its image once, then what they say was read as text (pages 77–79)", wsTasks.filter((t) => t.kind === "SCAN_PAGE" && t.status === "DONE").length === 3
+    && wsTasks.some((t) => t.kind === "TEXT_BATCH" && t.first_page === 77 && t.status === "DONE"), wsTasks);
+  check("every page was read, but a table row the AI split into too many cells was not: said, and never called complete", ws.state === "DONE" && !ws.complete
+    && ws.sources[0].scanRead.join() === "77,78,79" && /1 line\(s\) inside a vacancy table could not be read/.test(ws.stateNote ?? ""), ws);
   const wsImp = await getImport(ws.importId!);
-  check("a reading with scanned pages ends without \"complete\", and the preview says which pages were not read", ws.state === "DONE" && !ws.complete
-    && ((wsImp?.proposal as unknown as { warnings: string[] }).warnings).some((w) => /pages 77, 78, 79 have no text/.test(w)), ws);
-  check("…and its kept piece is dropped once the reading ends", (await q("SELECT count(*)::int AS n FROM recruitment_import_job_parts WHERE job_id = $1 AND pdf_base64 IS NOT NULL", [withScans]))[0].n === 0);
+  const wsProposal = wsImp?.proposal as unknown as { items: Array<{ fieldPath: string; value: unknown; flags: string[]; claims: Array<{ page: number | null; fromImage?: boolean }> }>; meta: { sources: Array<{ pageImages?: { pages: number[] }; vacancyTables: { problems?: string[] } }> } };
+  const scanTable = wsProposal.items.find((i) => i.fieldPath === "vacancies.table")!.value as { rows: Array<{ at: Record<string, string>; status: string; total?: number; unclear?: string[]; source: { page: number; readBy?: string } }> };
+  const fromImg = scanTable.rows.filter((r) => r.source.readBy === "AI_IMAGE");
+  check("the scanned table's rows: Gaya repeated at the page break counted once; unreadable, zero and NR kept apart; all marked AI-read with their pages",
+    fromImg.map((r) => `${r.at.city}:${r.status}:${r.total ?? "-"}:${r.source.page}${r.unclear ? ":unclear" : ""}`).join(" ") === "Patna:STATED:3:77 Gaya:STATED:2:77 Silchar:NO_FIGURE:-:78:unclear Guwahati:NIL:0:78 Kochi:NOT_REPORTED:-:79"
+    && scanTable.rows.length === 280 + 5, fromImg);
+  check("the repeated row is said in the review", (wsProposal.meta.sources[0].vacancyTables.problems ?? []).some((p) => /repeated from the foot of page 77; counted once/.test(p)), wsProposal.meta.sources[0].vacancyTables.problems);
+  const admit = wsProposal.items.find((i) => i.fieldPath === "dates.admitCardDate");
+  check("a date read from a scanned page carries its page and the AI-read mark", admit?.value === "2026-11-05" && admit.claims[0].page === 79 && admit.claims[0].fromImage === true
+    && admit.flags.some((f) => /read from a scanned page by AI/.test(f)), admit);
+  check("the review knows where each scanned page can be seen", wsProposal.meta.sources[0].pageImages?.pages.join() === "77,78,79");
+  check("a scanned page's image is served to its admin only", (await jobs.scanPagePdf({ adminId, jobId: withScans, sourceNo: 1, page: 78 }))?.subarray(0, 5).toString() === "%PDF-"
+    && /not found/.test(await limit(() => jobs.scanPagePdf({ adminId: "00000000-0000-4000-8000-000000000001", jobId: withScans, sourceNo: 1, page: 78 }))));
+  check("the images are kept after the reading ends, for the review", await kept("recruitment_import_job_pages", withScans) === 3);
+  const discard = await import("@/app/api/admin/cms/import/[importId]/discard/route");
+  const switchRoute = await import("@/app/api/admin/cms/import/switch/route");
+  await switchRoute.POST(new NextRequest(`${ORIGIN}/api/admin/cms/import/switch`, { method: "POST", headers: { "content-type": "application/json", origin: ORIGIN, cookie: `admin_sid=${token}` }, body: JSON.stringify({ on: true, confirm: true }) }));
+  const discarded = await discard.POST(new NextRequest(`${ORIGIN}/api/admin/cms/import/${ws.importId}/discard`, { method: "POST", headers: { origin: ORIGIN, cookie: `admin_sid=${token}` } }), { params: Promise.resolve({ importId: ws.importId! }) });
+  check("…and dropped when the preview is discarded", discarded.status === 200 && await kept("recruitment_import_job_pages", withScans) === 0, discarded.status);
+
+  const { jobId: scans } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD scans", "scan-job"), sources: [{ ...source, pages: pages + 3 }] });
+  for (const p of pieces) await upload(scans, p);
+  await jobs.uploadJobPart({ adminId, jobId: scans, sourceNo: 1, first: pages + 1, last: pages + 3, bytes: blankBytes });
+  await scanPage(scans, 77);
+  const cancelled = await jobs.cancelJob({ adminId, jobId: scans });
+  check("cancel drops every kept image; no step works afterwards", cancelled.state === "CANCELLED" && await kept("recruitment_import_job_pages", scans) === 0
+    && (await jobs.stepJob({ adminId, jobId: scans, apiKey: "test-key", fetchFn })).state === "CANCELLED");
+
+  section("A scanned page where the AI finds almost nothing");
+  // Page 77: empty the first time, then a table. Page 78: empty twice. Page 79: blank, says the AI.
+  emptyScript = { 77: [{ lines: ["7"], tables: [] }, SCAN_ANSWERS[77]], 78: [{ lines: [], tables: [] }, { lines: ["8"], tables: [] }], 79: [{ lines: ["9"], tables: [], blank: true }] };
+  const { jobId: thin } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD thin scans", "thin-job"), sources: [{ ...source, pages: pages + 3 }] });
+  for (const p of pieces) await upload(thin, p);
+  await jobs.uploadJobPart({ adminId, jobId: thin, sourceNo: 1, first: pages + 1, last: pages + 3, bytes: blankBytes });
+  for (const n of [77, 78, 79]) await scanPage(thin, n);
+  await jobs.startJob({ adminId, jobId: thin, confirm: true });
+  const th = await run(thin, 60);
+  const thTasks = await q("SELECT first_page, attempts, status, result->>'suspect' AS suspect FROM recruitment_import_job_tasks WHERE job_id = $1 AND kind = 'SCAN_PAGE' ORDER BY first_page", [thin]);
+  check("a page the AI found almost nothing on is read once more; then its table is read", thTasks[0].attempts === 2 && thTasks[0].status === "DONE" && thTasks[0].suspect === null, thTasks);
+  check("a page still almost empty the second time is kept but flagged; a page the AI calls blank is accepted", thTasks[1].suspect === "true" && thTasks[2].attempts === 1 && thTasks[2].suspect === null, thTasks);
+  const thImp = await getImport(th.importId!);
+  check("the reading is not called complete, and the preview says which page to check", th.state === "DONE" && !th.complete && th.sources[0].scanSuspect.join() === "78"
+    && ((thImp?.proposal as unknown as { warnings: string[] }).warnings).some((w) => /on scanned page 78 the AI found almost nothing, twice/.test(w)), th.sources[0]);
+  emptyScript = {};
 
   section("Abandoned readings are cleaned up");
   const { jobId: old } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD abandoned", "old-job"), sources: [{ ...source, pages: 3 }] });

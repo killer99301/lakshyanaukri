@@ -26,6 +26,7 @@ import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-d
 import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
 import { mergeTables, readVacancyTables, tableFromSplit } from "@/lib/cms/importer/vacancy-tables";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
+import { foundTablesFromTranscription, type TranscribedPage } from "@/lib/cms/importer/scan-tables";
 import {
   applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -67,6 +68,7 @@ interface ReadSource {
   retrieval: NewRetrieval;
   summary: RetrievalSummary;
   reading: SourceReading;
+  scan?: ReadInput["scan"];
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -213,6 +215,12 @@ export interface ReadInput {
     sha256?: string; byteSize?: number;
     /** The fingerprint was computed in the admin's browser (a file uploaded in pieces): it can never confirm a match with a server fetch. */
     shaFromBrowser?: boolean };
+  /**
+   * Scanned pages the AI wrote out from their images (stage B2.4): their
+   * tables are read from the transcription, not from the text; `images`
+   * says where each page's image can be seen beside what was read from it.
+   */
+  scan?: { pages: TranscribedPage[]; images?: { jobId: string; sourceNo: number; pages: number[] } };
 }
 
 /**
@@ -261,7 +269,7 @@ export async function assemblePreview(opts: {
                 text: (obtained.kind === "HTML" ? htmlToText(obtained.text) : obtained.text).slice(0, 1_000_000) },
     };
     sources.push({
-      input, retrieval, reading: r.reading,
+      input, retrieval, reading: r.reading, ...(r.scan ? { scan: r.scan } : {}),
       summary: { id: retrieval.id, declaredKind: input.declaredKind, authenticity, originRole: retrieval.originRole,
                  originPurposes: retrieval.originPurposes, label: summaryLabel(retrieval), versionLabel: input.versionLabel, documentDate: input.documentDate },
     });
@@ -277,14 +285,18 @@ export async function assemblePreview(opts: {
     const totalValue = s.reading.values.find((v) => v.fieldPath === "vacancies.total")?.value;
     const splitRows = Array.isArray(breakdown?.value) ? (breakdown!.value as Array<{ post: string; count: number; breakdown?: Record<string, unknown> }>) : [];
     const fallbackPost = (splitRows.length === 1 ? splitRows[0].post : null) ?? opts.newJob?.title ?? record?.identity.title.value ?? "All posts";
+    // Scanned pages: their tables come from what the AI wrote out cell by cell, read by code; those pages are not read again as text.
+    const scanTables = s.scan ? foundTablesFromTranscription(s.scan.pages) : null;
     const { table: read, coverage } = s.retrieval.source.text.trim()
-      ? await readVacancyTables(s.retrieval.source.text, { retrievalId: s.retrieval.id, fallbackPost, apiKey: opts.apiKey, fetchFn: paced.fetch })
+      ? await readVacancyTables(s.retrieval.source.text, { retrievalId: s.retrieval.id, fallbackPost, apiKey: opts.apiKey, fetchFn: paced.fetch,
+          ...(s.scan ? { skipPages: s.scan.pages.map((p) => p.page), extraFound: scanTables!.found } : {}) })
       : { table: null, coverage: { pages: null, tables: [], unreadLines: [] } };
+    if (scanTables) coverage.unreadLines.push(...scanTables.unread.map((l) => ({ page: l.page, text: l.text })));
     const fromSplit = !read && breakdown
       ? tableFromSplit(splitRows, typeof totalValue === "number" ? totalValue : null, { retrievalId: s.retrieval.id, page: breakdown.page ?? null, line: breakdown.quote ?? "" }, s.retrieval.source.text)
       : null;
     const table = read ?? fromSplit;
-    let note: Record<string, unknown> = { coverage, from: read ? "tables" : fromSplit ? "split" : null };
+    let note: Record<string, unknown> = { coverage, from: read ? "tables" : fromSplit ? "split" : null, ...(scanTables?.problems.length ? { problems: scanTables.problems } : {}) };
     if (table) {
       // Rows a re-issued notice no longer lists are removed only when every
       // table and line of it was read: a line that was not read may be one of them.
@@ -301,7 +313,7 @@ export async function assemblePreview(opts: {
         s.reading.refused.push({ fieldPath: "vacancies.table", reason: `the editor would refuse it: ${stored.reason}` });
       }
       const brief = (r: { at: Record<string, string>; status: string; total?: number; source: { page: number | null } }) => ({ at: r.at, status: r.status, total: r.total ?? null, page: r.source.page });
-      note = { ...note, problems: merged.problems, removalsHeld, diff: {
+      note = { ...note, problems: [...(scanTables?.problems ?? []), ...merged.problems], removalsHeld, diff: {
         added: merged.diff.added.length, changed: merged.diff.changed.length, removed: merged.diff.removed.length, same: merged.diff.same,
         untouchedPosts: merged.diff.untouchedPosts,
         addedRows: merged.diff.added.slice(0, 60).map(brief),
@@ -365,6 +377,9 @@ export async function assemblePreview(opts: {
     for (const u of cov.unavailable ?? []) {
       proposal.warnings.push(`${s.summary.label}: ${u.first === u.last ? `page ${u.first}` : `pages ${u.first}–${u.last}`} of ${cov.pages} ${u.reason === "not uploaded" ? "were not uploaded" : `could not be read (${u.reason})`}. What those pages state is missing from this preview.`);
     }
+    if (cov.suspectPages?.length) {
+      proposal.warnings.push(`${s.summary.label}: on scanned ${cov.suspectPages.length === 1 ? "page" : "pages"} ${cov.suspectPages.join(", ")} the AI found almost nothing, twice. Something printed there may be missing from this preview: check the ${cov.suspectPages.length === 1 ? "page" : "pages"}.`);
+    }
     if (cov.noTextPages.length > 0) {
       proposal.warnings.push(`${s.summary.label}: pages ${cov.noTextPages.join(", ")} have no text (scanned pages); they were not read.`);
     }
@@ -392,7 +407,8 @@ export async function assemblePreview(opts: {
       sources: sources.map((s) => ({ ...s.summary, method: s.retrieval.method, originUrl: s.retrieval.originUrl,
         notFound: s.reading.notFound, refused: s.reading.refused, summary: s.reading.summary,
         ...(s.reading.articleSkipped ? { articleSkipped: s.reading.articleSkipped } : {}),
-        vacancyTables: tableNotes.get(s.retrieval.id) ?? null, reading: s.reading.readingCoverage ?? null })),
+        vacancyTables: tableNotes.get(s.retrieval.id) ?? null, reading: s.reading.readingCoverage ?? null,
+        ...(s.scan?.images ? { pageImages: s.scan.images } : {}) })),
       duplicates,
       aiRequests: { ...paced.stats },
     },

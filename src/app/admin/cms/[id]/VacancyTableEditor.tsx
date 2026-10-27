@@ -448,17 +448,19 @@ export function VacancyTableEditor({ record, onSaved }: { record: RecruitmentRec
                           {cats.map((c) => (
                             <td key={c.key} style={cell}>
                               <input aria-label={c.label} inputMode="numeric" maxLength={7} disabled={!editable || off} value={r.cells[c.key] ?? ""} style={{ ...input, width: 60, textAlign: "right" }}
-                                onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); const { [c.key]: _old, ...rest } = r.cells; void _old; updateRow(r.id, { cells: v === "" ? rest : { ...rest, [c.key]: Number(v) } }); }} />
+                                onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); const { [c.key]: _old, ...rest } = r.cells; void _old; updateRow(r.id, { cells: v === "" ? rest : { ...rest, [c.key]: Number(v) }, ...(v && r.unclear ? { unclear: r.unclear.filter((k) => k !== c.key) } : {}) }); }} />
                             </td>
                           ))}
                           <td style={cell}>
                             <input aria-label="Total" inputMode="numeric" maxLength={7} disabled={!editable || off} value={r.total ?? ""} style={{ ...input, width: 70, textAlign: "right", fontWeight: 600 }}
-                              onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateRow(r.id, v === "" ? { total: undefined } : { total: Number(v) }); }} />
+                              onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateRow(r.id, v === "" ? { total: undefined } : { total: Number(v), ...(r.unclear ? { unclear: r.unclear.filter((k) => k !== "total") } : {}) }); }} />
                           </td>
                           <td style={{ ...cell, whiteSpace: "nowrap" }}>
                             <input aria-label="Page" inputMode="numeric" disabled={!editable} value={r.source.page ?? ""} placeholder="page" style={{ ...input, width: 54 }}
                               onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateRow(r.id, { source: { ...r.source, page: v ? Number(v) : null } }); }} />
                             {!hasEvidence(r) && <span style={chip(C.amber)} title="No page of a document behind these figures">entered by hand</span>}
+                            {r.source.readBy === "AI_IMAGE" && <span style={chip(C.amber)} title="This page had no text: the AI wrote this row out from the page image. Check every figure against the page.">AI-read from image</span>}
+                            {r.unclear?.length ? <span style={chip(C.red)} title="Printed, but not made out on the scanned page; never filled in">unreadable: {r.unclear.join(", ")}</span> : null}
                             {r.source.line && <button onClick={() => setSourceOf(sourceOf === r.id ? null : r.id)} style={{ ...quiet, border: "none", padding: "0 4px" }} title={r.source.line}>line</button>}
                           </td>
                           <td style={cell}>

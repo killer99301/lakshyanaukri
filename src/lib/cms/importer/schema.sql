@@ -678,6 +678,8 @@ CREATE TABLE IF NOT EXISTS recruitment_import_jobs (
   ai_sent     INTEGER      NOT NULL DEFAULT 0,
   ai_retried  INTEGER      NOT NULL DEFAULT 0,
   ai_failed   INTEGER      NOT NULL DEFAULT 0,
+  -- Scanned pages written out (stage B2.4): the reading of their text is added once, after them.
+  scan_reading_added BOOLEAN NOT NULL DEFAULT false,
   import_id   UUID         REFERENCES recruitment_imports(import_id),
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
@@ -715,7 +717,7 @@ CREATE TABLE IF NOT EXISTS recruitment_import_job_tasks (
   job_id      UUID         NOT NULL REFERENCES recruitment_import_jobs(job_id) ON DELETE CASCADE,
   task_no     INTEGER      NOT NULL,
   source_no   SMALLINT     NOT NULL,
-  kind        VARCHAR(16)  NOT NULL CHECK (kind IN ('TEXT_BATCH', 'SECTION_AI', 'SECTION_DETAILS', 'SECTION_PATTERN')),
+  kind        VARCHAR(16)  NOT NULL CHECK (kind IN ('TEXT_BATCH', 'SECTION_AI', 'SECTION_DETAILS', 'SECTION_PATTERN', 'SCAN_PAGE')),
   first_page  INTEGER,
   last_page   INTEGER,
   status      VARCHAR(8)   NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'RUNNING', 'DONE', 'FAILED')),
@@ -730,4 +732,23 @@ CREATE TABLE IF NOT EXISTS recruitment_import_job_tasks (
   CHECK ((status = 'RUNNING') = (lease_owner IS NOT NULL AND lease_until IS NOT NULL)),
   CHECK (status <> 'DONE' OR result IS NOT NULL),
   CHECK (status <> 'FAILED' OR reason IS NOT NULL)
+);
+
+-- One scanned page (no text) as its own one-page PDF, split in the browser
+-- (stage B2.4). The AI reads it as an image; the review shows it beside the
+-- table read from it. Kept until the preview is saved or discarded (or 7
+-- days), then dropped; dropped at once when the reading is cancelled.
+CREATE TABLE IF NOT EXISTS recruitment_import_job_pages (
+  job_id      UUID         NOT NULL REFERENCES recruitment_import_jobs(job_id) ON DELETE CASCADE,
+  source_no   SMALLINT     NOT NULL,
+  page        INTEGER      NOT NULL,
+  status      VARCHAR(8)   NOT NULL CHECK (status IN ('UPLOADED', 'FAILED')),
+  reason      TEXT,
+  sha256      CHAR(64),
+  byte_size   INTEGER      NOT NULL DEFAULT 0,
+  pdf_base64  TEXT,
+  uploaded_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  PRIMARY KEY (job_id, source_no, page),
+  CHECK (page >= 1),
+  CHECK (status = 'UPLOADED' OR reason IS NOT NULL)
 );

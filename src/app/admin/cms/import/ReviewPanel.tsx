@@ -9,12 +9,13 @@
 import Link from "next/link";
 import { C, PANEL, badge, inputStyle, primaryBtn, quietBtn, readableDates, showValue } from "./ui";
 import { VacancyTableReview, type VacancyTableNote } from "./VacancyTableReview";
+import { ScanPageImage } from "./ScanPage";
 import { analyseVacancyTable, type VacancyTable } from "@/lib/vacancy-table";
 import type { ReadingCoverage } from "@/lib/cms/importer/article";
 
 export interface ReviewItem {
   id: string; kind: "FIELD" | "LINK"; fieldPath: string; label: string; value: unknown;
-  claims: Array<{ retrievalId: string; page?: number | null; quote?: string | null }>;
+  claims: Array<{ retrievalId: string; page?: number | null; quote?: string | null; fromImage?: boolean }>;
   action: "FILL" | "MATCHES" | "REPLACE" | "REPLACE_VERIFIED"; conflict: boolean;
   defaultTicked: boolean; flags: string[]; current?: unknown;
 }
@@ -24,7 +25,13 @@ export interface ReviewSource {
   vacancyTables?: VacancyTableNote | null;
   /** Which pages the whole-text reading read (stage B2.2). */
   reading?: ReadingCoverage | null;
+  /** Scanned pages whose images are kept for this review (stage B2.4). */
+  pageImages?: { jobId: string; sourceNo: number; pages: number[] } | null;
 }
+
+/** Where a source's scanned page image can be seen, while it is kept. */
+const pageImageUrlOf = (src: ReviewSource | undefined) => (page: number): string | null =>
+  src?.pageImages && src.pageImages.pages.includes(page) ? `/api/admin/cms/import/jobs/${src.pageImages.jobId}/pages/${src.pageImages.sourceNo}/${page}` : null;
 
 /** "pages 1–76 read in 10 batches", and what was not read. */
 function readingInWords(r: ReadingCoverage): { read: string; unread: string[] } {
@@ -37,6 +44,7 @@ function readingInWords(r: ReadingCoverage): { read: string; unread: string[] } 
     ...r.batches.filter((b) => b.status !== "read").map((b) => `${range(b)}: not read — ${b.reason ?? "unknown"}`),
     ...(r.unavailable ?? []).map((u) => `${range(u)}: not read — ${u.reason}`),
     ...(r.noTextPages.length ? [`pages ${r.noTextPages.join(", ")}: no text (scanned)`] : []),
+    ...(r.suspectPages?.length ? [`scanned pages ${r.suspectPages.join(", ")}: the AI found almost nothing there, twice; check them`] : []),
   ] };
 }
 
@@ -184,7 +192,8 @@ export function ReviewPanel(props: {
                       <div style={{ color: C.muted, fontSize: 12, paddingTop: 1 }}>{i.label}</div>
                       <div style={{ minWidth: 0 }}>
                         {i.fieldPath === "vacancies.table"
-                          ? <VacancyTableReview table={i.value as VacancyTable} note={sourceById.get(i.claims[0]?.retrievalId ?? "")?.vacancyTables ?? null} />
+                          ? <VacancyTableReview table={i.value as VacancyTable} note={sourceById.get(i.claims[0]?.retrievalId ?? "")?.vacancyTables ?? null}
+                              pageImageUrl={pageImageUrlOf(sourceById.get(i.claims[0]?.retrievalId ?? ""))} />
                           : <div style={{ color: C.text, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{showValue(i.value, i.fieldPath)}</div>}
                         {(i.action === "REPLACE" || i.action === "REPLACE_VERIFIED") && (
                           <div style={{ fontSize: 12, color: i.action === "REPLACE_VERIFIED" ? C.red : C.amber, marginTop: 2 }}>
@@ -196,12 +205,22 @@ export function ReviewPanel(props: {
                         {ownFlags(i).map((f) => <div key={f} style={{ fontSize: 12, color: C.amber, marginTop: 2 }}>⚠ {f}</div>)}
                         <details style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
                           <summary style={{ cursor: "pointer" }}>View evidence</summary>
-                          {i.claims.map((c, n) => (
-                            <div key={n} style={{ marginTop: 4 }}>
-                              <span style={{ color: C.text }}>{sourceById.get(c.retrievalId)?.label ?? "source"}</span>{c.page ? `, page ${c.page}` : ""}
-                              {c.quote && <div style={{ fontStyle: "italic", overflowWrap: "anywhere" }}>“{c.quote.slice(0, 300)}”</div>}
-                            </div>
-                          ))}
+                          {i.claims.map((c, n) => {
+                            const imageUrl = c.fromImage && c.page ? pageImageUrlOf(sourceById.get(c.retrievalId))(c.page) : null;
+                            return (
+                              <div key={n} style={{ marginTop: 4 }}>
+                                <span style={{ color: C.text }}>{sourceById.get(c.retrievalId)?.label ?? "source"}</span>{c.page ? `, page ${c.page}` : ""}
+                                {c.fromImage && <span style={{ ...badge(C.orange), marginLeft: 6 }}>AI-read from the page image</span>}
+                                {c.quote && <div style={{ fontStyle: "italic", overflowWrap: "anywhere" }}>“{c.quote.slice(0, 300)}”</div>}
+                                {imageUrl && c.page && (
+                                  <details style={{ marginTop: 2 }}>
+                                    <summary style={{ cursor: "pointer" }}>See page {c.page} as scanned</summary>
+                                    <ScanPageImage url={imageUrl} page={c.page} />
+                                  </details>
+                                )}
+                              </div>
+                            );
+                          })}
                         </details>
                       </div>
                     </div>

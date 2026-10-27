@@ -1,0 +1,123 @@
+// ═══════════════════════════════════════════════════════════
+// Scanned pages with the REAL Gemini model (stage B2.4 acceptance, by hand)
+// ═══════════════════════════════════════════════════════════
+//
+// Not part of any automatic suite: it needs the test key and the network,
+// and the model's reading varies from run to run. Runs the whole reading
+// pipeline on the in-memory test database (never Neon): each PDF split with
+// pdf-lib as the browser splits it, scanned pages sent as their own pages,
+// steps until the preview is built. Then compares with readings a person
+// made: LIC HFL Table E (181 cities, Ananthapur 1, 232) and the Telangana
+// page 23 (posts 14, 15, 16: 1, 26, 2).
+//
+//   npx tsx --env-file=.env.local --tsconfig tsconfig.json tests/local-stack/importer-scans.acceptance.ts <sources dir> <out dir>
+//
+// <sources dir> holds lic-tableE-scan.pdf (LIC pages 5-9 as images only),
+// lic-mixed.pdf (LIC pages 1-4 and 10 as text, 5-9 as images) and
+// tg-page23-scan.pdf (the Telangana page as an image). The key is never printed.
+
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { boot, check, note, section, summary } from "./boot";
+
+const [SRC, OUT] = process.argv.slice(2);
+const KEY = process.env.GEMINI_API_KEY ?? "";
+if (!SRC || !OUT) { console.error("usage: … <sources dir> <out dir>"); process.exit(2); }
+if (KEY.length < 20) { console.error("GEMINI_API_KEY is not set (expected in .env.local)"); process.exit(2); }
+if (!/@localhost\//.test(process.env.DATABASE_URL ?? "")) { console.error("Refusing to run: DATABASE_URL is not the local test database."); process.exit(2); }
+const scrub = (s: string) => (KEY ? s.split(KEY).join("<key>") : s);
+mkdirSync(OUT, { recursive: true });
+
+type Row = { at: Record<string, string>; status: string; total?: number; cells: Record<string, number>; unclear?: string[]; source: { page: number | null; readBy?: string } };
+
+(async () => {
+  const { adminId } = await boot();
+  const jobs = await import("@/lib/cms/importer/jobs");
+  const { openPdf, splitPdf, onePage, sha256Hex } = await import("@/lib/cms/importer/pdf-split");
+  const { getImport } = await import("@/lib/cms/importer/repository");
+  const { analyseVacancyTable } = await import("@/lib/vacancy-table");
+  const { LIC_TABLE_E_ROWS } = await import("../fixtures/vacancy-tables");
+  note(`model: ${process.env.GEMINI_MODEL}`);
+
+  /** The whole reading, as the browser and the step route do it; returns the preview. */
+  async function read(name: string, file: string, title: string, org: string) {
+    section(name);
+    const bytes = new Uint8Array(readFileSync(join(SRC, file)));
+    const { doc, pages } = await openPdf(bytes);
+    const { jobId } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: { organizationId: org, organizationName: org.toUpperCase(), recruitmentYear: 2026, title, govType: "PSU" } as never,
+      sources: [{ declaredKind: "OFFICIAL_NOTIFICATION", fileName: file, pages, byteSize: bytes.byteLength, sha256: await sha256Hex(bytes) }] });
+    for await (const piece of splitPdf(doc, { maxBytes: 3.9 * 1024 * 1024, maxPages: 40 })) {
+      if ("oversized" in piece) { await jobs.recordFailedPart({ adminId, jobId, sourceNo: 1, first: piece.first, last: piece.last, reason: piece.reason }); continue; }
+      const r = await jobs.uploadJobPart({ adminId, jobId, sourceNo: 1, first: piece.first, last: piece.last, bytes: Buffer.from(piece.bytes) });
+      for (const n of r.noTextPages) await jobs.uploadScanPage({ adminId, jobId, sourceNo: 1, page: n, bytes: Buffer.from(await onePage(doc, n)) });
+    }
+    const est = await jobs.startJob({ adminId, jobId, confirm: true });
+    note(`${pages} pages, ${est.scanPages} scanned; about ${est.estimate} requests`);
+    const t0 = Date.now();
+    let p = await jobs.jobProgress({ adminId, jobId });
+    for (let i = 0; i < 80 && (p.state === "READING" || p.state === "FINISHING"); i++) p = await jobs.stepJob({ adminId, jobId, apiKey: KEY });
+    note(`${p.state}${p.complete ? ", complete" : ""} in ${Math.round((Date.now() - t0) / 1000)} s; ${p.ai.sent} requests (${p.ai.retried} resent); failed: ${p.failedTasks.map((f) => `${f.kind} ${f.first}: ${scrub(f.reason)}`).join("; ") || "none"}`);
+    if (!p.importId) { check(`${name}: preview built`, false, p.stateNote); return null; }
+    const imp = await getImport(p.importId);
+    const proposal = imp!.proposal as unknown as { items: Array<{ fieldPath: string; value: unknown; flags: string[]; claims: Array<{ page: number | null; fromImage?: boolean }> }>; warnings: string[];
+      meta: { sources: Array<{ vacancyTables: { problems?: string[] }; pageImages?: { pages: number[] } }> } };
+    writeFileSync(join(OUT, `${name}.json`), scrub(JSON.stringify({ progress: p, proposal }, null, 1)));
+    const table = proposal.items.find((i) => i.fieldPath === "vacancies.table")?.value as { rows: Row[] } | undefined;
+    const problems = proposal.meta.sources[0].vacancyTables?.problems ?? [];
+    if (problems.length) note(`problems: ${problems.join(" | ")}`);
+    return { p, proposal, table, problems };
+  }
+
+  /** `offset`: the file's page number is the notice's page minus this (the scan-only file starts at the notice's page 5). */
+  const licCheck = (name: string, r: Awaited<ReturnType<typeof read>>, offset: number) => {
+    if (!r?.table) { check(`${name}: a vacancy table`, false); return; }
+    const an = analyseVacancyTable(r.table as never);
+    let ok = 0; const bad: string[] = [];
+    for (const want of LIC_TABLE_E_ROWS) {
+      const got = r.table.rows.find((x) => (x.at.city ?? "").toLowerCase() === want.city.toLowerCase());
+      if (got && got.total === want.n && got.source.page === want.page - offset) ok++; else bad.push(`${want.city} p${want.page - offset}: want ${want.n}, got ${got?.total ?? got?.status} p${got?.source.page}`);
+    }
+    note(`against the person-checked rows: ${ok}/181${bad.length ? ` — ${bad.slice(0, 6).join("; ")}` : ""}`);
+    check(`${name}: 181 cities, each with its figure and page as a person read them`, ok === 181, bad.slice(0, 10));
+    check(`${name}: Ananthapur 1`, r.table.rows.find((x) => x.at.city === "Ananthapur")?.total === 1);
+    check(`${name}: Total Vacancies 232, complete`, an.grandTotal?.value === 232 && an.grandTotal.complete, an.grandTotal);
+    check(`${name}: every Table E row marked as read from the image by AI`, r.table.rows.filter((x) => x.at.city).every((x) => x.source.readBy === "AI_IMAGE"));
+    const images = r.proposal.meta.sources[0].pageImages?.pages ?? [];
+    note(`page images kept for the review: ${images.join(", ")}`);
+    check(`${name}: the page images of Table E are there to compare`, [5, 6, 7, 8, 9].every((n) => images.includes(n - offset)), images);
+  };
+
+  licCheck("lic-scan", await read("lic-scan", "lic-tableE-scan.pdf", "TEST RECORD LIC scan", "lic-scan"), 4);
+  const mixed = await read("lic-mixed", "lic-mixed.pdf", "TEST RECORD LIC mixed", "lic-mixed");
+  licCheck("lic-mixed", mixed, 0);
+  if (mixed) {
+    const dates = mixed.proposal.items.filter((i) => i.fieldPath.startsWith("dates."));
+    check("lic-mixed: values from the text pages are not marked as AI-read from an image", dates.length > 0 && dates.some((d) => d.claims.some((c) => !c.fromImage)), dates.map((d) => [d.fieldPath, d.claims.map((c) => [c.page, c.fromImage])]));
+  }
+
+  const tg = await read("tg-page23", "tg-page23-scan.pdf", "TEST RECORD Telangana junior assistants", "tg-ja");
+  if (tg?.table) {
+    const an = analyseVacancyTable(tg.table as never);
+    const want: Array<[string, number]> = [["14", 1], ["15", 26], ["16", 2]];
+    const got = an.groups.map((g) => [/POST CODE:?\s*(\d+)/i.exec(g.name)?.[1] ?? g.name, g.total?.value] as [string, number | undefined]);
+    note(`posts: ${got.map(([c, v]) => `${c}=${v}`).join(", ")}; total ${an.grandTotal?.value} ${an.grandTotal?.complete ? "complete" : "incomplete"}`);
+    check("tg-page23: posts 14, 15, 16 with totals 1, 26, 2", JSON.stringify(got) === JSON.stringify(want), got);
+    const truth = JSON.parse(readFileSync("tests/fixtures/scans/tg-page23-transcription.json", "utf8")) as { tables: Array<{ rows: string[][]; columns: string[] }> };
+    const cellsWrong: string[] = [];
+    truth.tables.forEach((t, ti) => {
+      const row = tg.table!.rows.find((r) => new RegExp(`POST CODE:?\\s*${14 + ti}\\b`, "i").test(r.at.post));
+      t.columns.forEach((c, ci) => {
+        if (ci === 0 || /total/i.test(c)) return;
+        const printed = t.rows[0][ci];
+        const key = c.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+        const v = row?.cells[key];
+        const expected = /^\d/.test(printed) ? Number(printed.replace(/\D.*$/, "")) : undefined;
+        if (v !== expected) cellsWrong.push(`post ${14 + ti} ${c}: printed ${printed}, read ${v ?? "-"}`);
+      });
+    });
+    note(`cells read differently from the page: ${cellsWrong.length ? cellsWrong.join("; ") : "none"}`);
+    check("tg-page23: every category cell as printed (a person's reading)", cellsWrong.length === 0, cellsWrong);
+    check("tg-page23: every row marked as read from the image by AI", tg.table.rows.every((r) => r.source.readBy === "AI_IMAGE"));
+  }
+  summary();
+})().catch((e) => { console.error("HARNESS ERROR:", scrub(e instanceof Error ? e.stack ?? e.message : String(e))); process.exit(1); });

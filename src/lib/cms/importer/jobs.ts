@@ -28,6 +28,7 @@ import {
 } from "@/lib/cms/importer/article";
 import { combineReading, readSectionPart, skippedSection, type SectionOutcomes, type SectionPart } from "@/lib/cms/importer/extract";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
+import { nearlyEmpty, pageText, transcribePage, type TranscribedPage } from "@/lib/cms/importer/scan-tables";
 import type { DeclaredKind } from "@/lib/cms/importer/proposal";
 import {
   ImportInputError, MAX_SOURCES, MAX_TEXT_CHARS, assemblePreview, finishSourceReading, resolveTarget,
@@ -75,10 +76,10 @@ export interface JobSourceInput {
 interface JobSource extends Omit<JobSourceInput, "pastedText"> { no: number; kind: "pdf" | "text" }
 
 type JobState = "UPLOADING" | "READING" | "PAUSED" | "FINISHING" | "DONE" | "CANCELLED" | "FAILED";
-type TaskKind = "TEXT_BATCH" | "SECTION_AI" | "SECTION_DETAILS" | "SECTION_PATTERN";
+type TaskKind = "TEXT_BATCH" | "SECTION_AI" | "SECTION_DETAILS" | "SECTION_PATTERN" | "SCAN_PAGE";
 type J = Record<string, unknown>;
 
-const SECTION_OF: Record<Exclude<TaskKind, "TEXT_BATCH">, SectionPart> = { SECTION_AI: "ai", SECTION_DETAILS: "details", SECTION_PATTERN: "pattern" };
+const SECTION_OF: Record<Exclude<TaskKind, "TEXT_BATCH" | "SCAN_PAGE">, SectionPart> = { SECTION_AI: "ai", SECTION_DETAILS: "details", SECTION_PATTERN: "pattern" };
 
 // ─── Reading the job's rows (always the asking admin's own) ──
 
@@ -109,10 +110,16 @@ function sourceText(parts: Awaited<ReturnType<typeof partsOf>>, sourceNo: number
 }
 
 /** Page ranges of a source that are not in any piece read: never uploaded, or uploaded and unreadable. */
-function unavailableOf(source: JobSource, parts: Awaited<ReturnType<typeof partsOf>>): Array<{ first: number; last: number; reason: string }> {
+function unavailableOf(source: JobSource, parts: Awaited<ReturnType<typeof partsOf>>, scans: Awaited<ReturnType<typeof scanPagesOf>> = []): Array<{ first: number; last: number; reason: string }> {
   const out: Array<{ first: number; last: number; reason: string }> = [];
   const mine = parts.filter((p) => p.sourceNo === source.no);
   for (const p of mine.filter((x) => x.status === "FAILED")) out.push({ first: p.first, last: p.last, reason: p.reason ?? "could not be read" });
+  // A scanned page is read from its own image: without one, it cannot be read.
+  for (const n of mine.filter((x) => x.status === "READ").flatMap((x) => x.noTextPages)) {
+    const s = scans.find((x) => x.sourceNo === source.no && x.page === n);
+    if (s?.status === "UPLOADED") continue;
+    out.push({ first: n, last: n, reason: s?.status === "FAILED" ? `scanned page: ${s.reason}` : "scanned page: its image is not uploaded" });
+  }
   const covered = new Set<number>();
   for (const p of mine) for (let n = p.first; n <= p.last; n++) covered.add(n);
   let start: number | null = null;
@@ -212,10 +219,10 @@ export async function uploadJobPart(opts: { adminId: string; jobId: string; sour
   const pdf = await extractPdfFromBuffer(opts.bytes);
   const expected = last - first + 1;
   if (!pdf.ok) {
-    // No text at all: every page is a scan, kept for reading from the image.
+    // No text at all: every page is a scan; the browser sends each one as its own page to be read from the image.
     if (/text is empty/i.test(pdf.error ?? "")) {
       const pages = Array.from({ length: expected }, (_, i) => first + i);
-      return save("READ", { text: pages.map((n) => `-- ${n} of ${source.pages} --`).join("\n"), noText: pages, keep: true });
+      return save("READ", { text: pages.map((n) => `-- ${n} of ${source.pages} --`).join("\n"), noText: pages });
     }
     return save("FAILED", { reason: "the piece could not be opened (damaged or encrypted)" });
   }
@@ -223,7 +230,70 @@ export async function uploadJobPart(opts: { adminId: string; jobId: string; sour
   const text = renumberPages(pdf.text ?? "", first, source.pages);
   const pages = pagesOf(text) ?? [];
   const noText = Array.from({ length: expected }, (_, i) => first + i).filter((n) => !pages.some((p) => p.page === n && pageHasText(p)));
-  return save("READ", { text, noText, keep: noText.length > 0 });
+  return save("READ", { text, noText });
+}
+
+// ─── Scanned pages: each as its own one-page PDF (stage B2.4) ──
+
+async function scanPagesOf(jobId: string) {
+  const rows = await sql`SELECT source_no, page, status, reason, byte_size, (pdf_base64 IS NOT NULL) AS kept FROM recruitment_import_job_pages WHERE job_id = ${jobId} ORDER BY source_no, page`;
+  return rows.map((r) => ({ sourceNo: Number(r.source_no), page: Number(r.page), status: String(r.status) as "UPLOADED" | "FAILED", reason: (r.reason as string | null) ?? null, kept: r.kept === true }));
+}
+
+/** Pages a PDF has, counted from its page objects (a one-page PDF has exactly one). */
+const pdfPageCount = (bytes: Buffer) => (bytes.toString("latin1").match(/\/Type\s*\/Page(?![s\w])/g) ?? []).length;
+
+/**
+ * A scanned page (one the server found no text on) as its own one-page PDF,
+ * split in the browser. Kept to be read from its image, and to be shown
+ * beside what was read from it. Sent again, it replaces the earlier one.
+ */
+export async function uploadScanPage(opts: { adminId: string; jobId: string; sourceNo: number; page: number; bytes: Buffer }) {
+  const job = await ownJob(opts.jobId, opts.adminId);
+  if (job.state !== "UPLOADING") throw new JobError("This reading is no longer taking pages", 409);
+  const parts = await partsOf(opts.jobId);
+  if (!parts.some((p) => p.sourceNo === opts.sourceNo && p.status === "READ" && p.noTextPages.includes(opts.page))) throw new JobError(`Page ${opts.page} is not a scanned page of this reading`);
+  if (opts.bytes.byteLength > JOB_LIMITS.partBytes) throw new JobError(`A page is at most ${JOB_LIMITS.partBytes / 1024 / 1024} MB`, 413);
+  if (opts.bytes.subarray(0, 5).toString("latin1") !== "%PDF-" || pdfPageCount(opts.bytes) !== 1) throw new JobError("A scanned page must come as a PDF of that one page");
+  await sql`INSERT INTO recruitment_import_job_pages (job_id, source_no, page, status, sha256, byte_size, pdf_base64)
+            VALUES (${opts.jobId}, ${opts.sourceNo}, ${opts.page}, 'UPLOADED', ${contentHash(opts.bytes)}, ${opts.bytes.byteLength}, ${opts.bytes.toString("base64")})
+            ON CONFLICT (job_id, source_no, page) DO UPDATE SET status = 'UPLOADED', reason = NULL, sha256 = EXCLUDED.sha256, byte_size = EXCLUDED.byte_size,
+              pdf_base64 = EXCLUDED.pdf_base64, uploaded_at = now()`;
+  await sql`UPDATE recruitment_import_jobs SET updated_at = now() WHERE job_id = ${opts.jobId}`;
+  return { status: "UPLOADED" as const, page: opts.page };
+}
+
+/** A scanned page the browser could not send (over the size limit on its own), recorded with why. */
+export async function recordFailedScanPage(opts: { adminId: string; jobId: string; sourceNo: number; page: number; reason: string }) {
+  const job = await ownJob(opts.jobId, opts.adminId);
+  if (job.state !== "UPLOADING") throw new JobError("This reading is no longer taking pages", 409);
+  await sql`INSERT INTO recruitment_import_job_pages (job_id, source_no, page, status, reason)
+            VALUES (${opts.jobId}, ${opts.sourceNo}, ${opts.page}, 'FAILED', ${opts.reason.slice(0, 300)})
+            ON CONFLICT (job_id, source_no, page) DO UPDATE SET status = 'FAILED', reason = EXCLUDED.reason, pdf_base64 = NULL, uploaded_at = now()`;
+}
+
+/** A scanned page's one-page PDF, to show beside what was read from it (the admin's own readings only). */
+export async function scanPagePdf(opts: { adminId: string; jobId: string; sourceNo: number; page: number }): Promise<Buffer | null> {
+  await ownJob(opts.jobId, opts.adminId);
+  const rows = await sql`SELECT pdf_base64 FROM recruitment_import_job_pages WHERE job_id = ${opts.jobId} AND source_no = ${opts.sourceNo} AND page = ${opts.page} AND pdf_base64 IS NOT NULL`;
+  return rows.length ? Buffer.from(String(rows[0].pdf_base64), "base64") : null;
+}
+
+/** What the AI wrote out from each scanned page read so far. */
+async function transcriptionsOf(jobId: string): Promise<Array<{ sourceNo: number; page: TranscribedPage; suspect: boolean }>> {
+  const rows = await sql`SELECT source_no, result FROM recruitment_import_job_tasks WHERE job_id = ${jobId} AND kind = 'SCAN_PAGE' AND status = 'DONE' ORDER BY first_page`;
+  return rows.map((r) => {
+    const res = (typeof r.result === "string" ? JSON.parse(r.result) : r.result) as { page: TranscribedPage; suspect?: boolean };
+    return { sourceNo: Number(r.source_no), page: res.page, suspect: res.suspect === true };
+  });
+}
+
+/** The source's text with each scanned page read so far replaced by what the AI wrote out from its image. */
+function readingText(parts: Awaited<ReturnType<typeof partsOf>>, transcribed: Array<{ sourceNo: number; page: TranscribedPage }>, source: JobSource): string {
+  const text = sourceText(parts, source.no);
+  const mine = new Map(transcribed.filter((t) => t.sourceNo === source.no).map((t) => [t.page.page, pageText(t.page, source.pages)]));
+  if (mine.size === 0) return text;
+  return (pagesOf(text) ?? []).map((p) => mine.get(p.page) ?? p.text.trim()).join("\n");
 }
 
 /** A piece the browser could not send (one page over the size limit, or pages it could not split), recorded with why. */
@@ -244,18 +314,58 @@ async function allowanceLeft(): Promise<{ used: number; cap: number }> {
   return { used: today?.total ?? 0, cap: resolveDailyCap() };
 }
 
-function plannedTasks(sources: JobSource[], parts: Awaited<ReturnType<typeof partsOf>>) {
-  const tasks: Array<{ sourceNo: number; kind: TaskKind; first: number | null; last: number | null }> = [];
+type PlannedTask = { sourceNo: number; kind: TaskKind; first: number | null; last: number | null };
+
+/**
+ * The first round of tasks: the text pages (the section readers and page
+ * batches), and one task per scanned page with its image, which the AI
+ * writes out. What the scanned pages say is read in a second round, added
+ * once they are written out (`scanReadingTasks`); `later` estimates it.
+ */
+function plannedTasks(sources: JobSource[], parts: Awaited<ReturnType<typeof partsOf>>, scans: Awaited<ReturnType<typeof scanPagesOf>>) {
+  const tasks: PlannedTask[] = [];
+  let later = 0;
   for (const s of sources) {
     const text = sourceText(parts, s.no);
     const pageList = pagesOf(text);
     const hasText = pageList ? pageList.some(pageHasText) : text.trim().length >= 100;
-    if (!hasText) continue; // nothing to read with text (B2.4 reads scanned pages)
-    for (const kind of ["SECTION_AI", "SECTION_DETAILS", "SECTION_PATTERN"] as const) tasks.push({ sourceNo: s.no, kind, first: null, last: null });
-    if (pageList && text.length > BATCH_FROM_CHARS) for (const b of pageBatches(pageList)) tasks.push({ sourceNo: s.no, kind: "TEXT_BATCH", first: b.first, last: b.last });
-    else tasks.push({ sourceNo: s.no, kind: "TEXT_BATCH", first: null, last: null });
+    const scanned = scans.filter((x) => x.sourceNo === s.no && x.status === "UPLOADED").map((x) => x.page);
+    if (hasText) {
+      for (const kind of ["SECTION_AI", "SECTION_DETAILS", "SECTION_PATTERN"] as const) tasks.push({ sourceNo: s.no, kind, first: null, last: null });
+      if (pageList && text.length > BATCH_FROM_CHARS) for (const b of pageBatches(pageList)) tasks.push({ sourceNo: s.no, kind: "TEXT_BATCH", first: b.first, last: b.last });
+      else tasks.push({ sourceNo: s.no, kind: "TEXT_BATCH", first: null, last: null });
+    }
+    for (const n of scanned) tasks.push({ sourceNo: s.no, kind: "SCAN_PAGE", first: n, last: n });
+    if (scanned.length > 0) later += Math.ceil(scanned.length / 8) + (hasText ? 0 : 3);
+  }
+  return { tasks, later };
+}
+
+/**
+ * The second round, once the scanned pages are written out: their text read
+ * in page batches like any text, and, for a document with no text pages, the
+ * section readers over what was written out.
+ */
+function scanReadingTasks(sources: JobSource[], transcribed: Array<{ sourceNo: number; page: TranscribedPage }>, firstRound: J[]): PlannedTask[] {
+  const tasks: PlannedTask[] = [];
+  for (const s of sources) {
+    const mine = transcribed.filter((t) => t.sourceNo === s.no).sort((a, b) => a.page.page - b.page.page);
+    if (mine.length === 0) continue;
+    const scanText = mine.map((t) => pageText(t.page, s.pages)).join("\n");
+    if (!firstRound.some((t) => Number(t.source_no) === s.no && String(t.kind).startsWith("SECTION_"))) {
+      for (const kind of ["SECTION_AI", "SECTION_DETAILS", "SECTION_PATTERN"] as const) tasks.push({ sourceNo: s.no, kind, first: null, last: null });
+    }
+    for (const b of pageBatches(pagesOf(scanText) ?? [])) tasks.push({ sourceNo: s.no, kind: "TEXT_BATCH", first: b.first, last: b.last });
   }
   return tasks;
+}
+
+async function insertTasks(jobId: string, tasks: PlannedTask[], firstNo: number) {
+  if (tasks.length === 0) return;
+  await sql`INSERT INTO recruitment_import_job_tasks (job_id, task_no, source_no, kind, first_page, last_page)
+            SELECT ${jobId}, t.n, t.s, t.k, t.f, t.l
+            FROM unnest(${tasks.map((_, i) => firstNo + i)}::int[], ${tasks.map((t) => t.sourceNo)}::int[], ${tasks.map((t) => t.kind)}::text[],
+                        ${tasks.map((t) => t.first)}::int[], ${tasks.map((t) => t.last)}::int[]) AS t(n, s, k, f, l)`;
 }
 
 /**
@@ -270,31 +380,33 @@ export async function startJob(opts: { adminId: string; jobId: string; confirm: 
   if (job.state !== "UPLOADING") throw new JobError("This reading has already started", 409);
   const sources = sourcesOf(job);
   const parts = await partsOf(opts.jobId, true);
-  const missing = sources.flatMap((s) => unavailableOf(s, parts).map((u) => ({ sourceNo: s.no, ...u })));
-  const tasks = plannedTasks(sources, parts);
+  const scans = await scanPagesOf(opts.jobId);
+  const missing = sources.flatMap((s) => unavailableOf(s, parts, scans).map((u) => ({ sourceNo: s.no, ...u })));
+  const { tasks, later } = plannedTasks(sources, parts, scans);
   const allowance = await allowanceLeft();
-  const out = { estimate: tasks.length, allowance, missing, started: false };
+  const estimate = tasks.length + later;
+  const scanPages = tasks.filter((t) => t.kind === "SCAN_PAGE").length;
+  const out = { estimate, scanPages, allowance, missing, started: false };
   if (!opts.confirm) return out;
   if (missing.length > 0 && !opts.allowMissing) throw new JobError("Some pages are not uploaded or could not be read: send them again, or choose to read without them", 409);
-  if (tasks.length === 0) throw new JobError("No page of the document has text to read", 409);
-  const claimed = await sql`UPDATE recruitment_import_jobs SET state = 'READING', estimate = ${tasks.length}, state_note = NULL, updated_at = now()
+  if (tasks.length === 0) throw new JobError("No page of the document can be read: no text, and no scanned page image", 409);
+  const claimed = await sql`UPDATE recruitment_import_jobs SET state = 'READING', estimate = ${estimate}, state_note = NULL, updated_at = now()
                             WHERE job_id = ${opts.jobId} AND state = 'UPLOADING' RETURNING job_id`;
   if (claimed.length === 0) throw new JobError("This reading has already started", 409);
-  await sql`INSERT INTO recruitment_import_job_tasks (job_id, task_no, source_no, kind, first_page, last_page)
-            SELECT ${opts.jobId}, t.n, t.s, t.k, t.f, t.l
-            FROM unnest(${tasks.map((_, i) => i + 1)}::int[], ${tasks.map((t) => t.sourceNo)}::int[], ${tasks.map((t) => t.kind)}::text[],
-                        ${tasks.map((t) => t.first)}::int[], ${tasks.map((t) => t.last)}::int[]) AS t(n, s, k, f, l)`;
+  await insertTasks(opts.jobId, tasks, 1);
   return { ...out, started: true };
 }
 
 // ─── A step: take tasks with a lease, read, save under the lease ──
 
 /** A reading that failed for a reason worth another try (not a missing key or the daily allowance). */
-const RETRYABLE = /unavailable|incomplete|took too long|rate limit|timed out|aborted/i;
+const RETRYABLE = /unavailable|incomplete|took too long|rate limit|timed out|aborted|found almost nothing/i;
+const NEARLY_EMPTY = "the AI found almost nothing on this scanned page";
 const CAP_REACHED = /AI limit for the site/i;
 
 function failureOf(kind: TaskKind, result: unknown): string | null {
   if (kind === "TEXT_BATCH") return (result as ArticleReading).skipped ?? null;
+  if (kind === "SCAN_PAGE") return (result as { skipped?: string }).skipped ?? null;
   const outcomes = Object.values(result as J).filter((o): o is { status: string; reason?: string } => !!o && typeof o === "object" && "status" in (o as J));
   const failed = outcomes.find((o) => o.status === "skipped" && o.reason && (RETRYABLE.test(o.reason) || CAP_REACHED.test(o.reason)));
   return failed?.reason ?? null;
@@ -304,6 +416,17 @@ async function runTask(task: J, ctx: { job: J; sources: JobSource[]; texts: Map<
   const source = ctx.sources.find((s) => s.no === Number(task.source_no))!;
   const text = ctx.texts.get(source.no) ?? "";
   const kind = task.kind as TaskKind;
+  if (kind === "SCAN_PAGE") {
+    // The page itself, as the model's image to read; its own one-page PDF.
+    const page = Number(task.first_page);
+    const rows = await sql`SELECT pdf_base64 FROM recruitment_import_job_pages WHERE job_id = ${String(ctx.job.job_id)} AND source_no = ${source.no} AND page = ${page} AND pdf_base64 IS NOT NULL`;
+    if (rows.length === 0) return { skipped: "the page's image is no longer kept" };
+    const r = await transcribePage({ pdfBase64: String(rows[0].pdf_base64), page, pages: source.pages, subject: ctx.subject, apiKey: ctx.apiKey, fetchFn: ctx.fetchFn });
+    if (!r.ok) return { skipped: r.reason };
+    // Almost nothing found on a page not called blank: read once more; then kept, but said to be checked.
+    if (nearlyEmpty(r.page)) return Number(task.attempts) < MAX_ATTEMPTS ? { skipped: NEARLY_EMPTY } : { page: r.page, suspect: true };
+    return { page: r.page };
+  }
   if (kind !== "TEXT_BATCH") {
     // A pasted text is read as the one-request preview reads it (as a page's text).
     return readSectionPart(SECTION_OF[kind], { content: text, kind: source.kind === "text" ? "html" : "pdf", url: source.url ?? "", subject: ctx.subject, apiKey: ctx.apiKey, fetchFn: ctx.fetchFn });
@@ -342,7 +465,8 @@ export async function stepJob(opts: { adminId: string; jobId: string; apiKey: st
   if (claimed.length > 0) {
     const sources = sourcesOf(job);
     const parts = await partsOf(opts.jobId, true);
-    const texts = new Map(sources.map((s) => [s.no, sourceText(parts, s.no)]));
+    const transcribed = await transcriptionsOf(opts.jobId);
+    const texts = new Map(sources.map((s) => [s.no, readingText(parts, transcribed, s)]));
     const { subject } = await resolveTarget({ mode: job.mode as "NEW" | "EXISTING", recruitmentId: (job.recruitment_id as string | null) ?? undefined, newJob: (job.new_job as NewJobInput | null) ?? undefined });
     const paced = retryingFetch(opts.fetchFn ?? ((input, init) => globalThis.fetch(input, init)), { backoffMs: opts.retryBackoffMs });
     const gate = createGate(TASKS_PER_STEP);
@@ -384,11 +508,28 @@ export async function stepJob(opts: { adminId: string; jobId: string; apiKey: st
       await sql`UPDATE recruitment_import_jobs SET state = 'PAUSED', updated_at = now(),
                   state_note = ${`${open[0].failed} part(s) of the reading failed. Retry them, or finish without them (their pages are then reported as not read).`}
                 WHERE job_id = ${opts.jobId} AND state = 'READING'`;
-    } else {
+    } else if (!(await addScanReading(opts.jobId, job))) {
       await finishJob({ ...opts, acceptFailed: false });
     }
   }
   return jobProgress(opts);
+}
+
+/**
+ * Once every scanned page is written out, the second round: reading what
+ * they say. Added once only (two tabs may both get here); false when there
+ * is nothing to add, so the reading can finish.
+ */
+async function addScanReading(jobId: string, job: J): Promise<boolean> {
+  const transcribed = await transcriptionsOf(jobId);
+  if (transcribed.length === 0) return false;
+  const took = await sql`UPDATE recruitment_import_jobs SET scan_reading_added = true, updated_at = now()
+                         WHERE job_id = ${jobId} AND state = 'READING' AND scan_reading_added = false RETURNING job_id`;
+  if (took.length === 0) return false;
+  const firstRound = await sql`SELECT task_no, source_no, kind FROM recruitment_import_job_tasks WHERE job_id = ${jobId}`;
+  const tasks = scanReadingTasks(sourcesOf(job), transcribed, firstRound as J[]);
+  await insertTasks(jobId, tasks, firstRound.reduce((n, t) => Math.max(n, Number(t.task_no)), 0) + 1);
+  return tasks.length > 0;
 }
 
 // ─── Finishing: the preview from the saved results ────────
@@ -407,14 +548,21 @@ export async function finishJob(opts: { adminId: string; jobId: string; apiKey: 
                            FROM recruitment_import_job_tasks WHERE job_id = ${opts.jobId}`;
   if (Number(counts[0].open) > 0) throw new JobError("The reading is not finished yet", 409);
   if (Number(counts[0].failed) > 0 && !opts.acceptFailed) throw new JobError("Some parts of the reading failed: retry them, or choose to finish without them", 409);
+  // Finishing without failed pages still reads what the scanned pages that were written out say.
+  if (job.scan_reading_added === false && job.state !== "FINISHING" && (await transcriptionsOf(opts.jobId)).length > 0) {
+    await sql`UPDATE recruitment_import_jobs SET state = 'READING', state_note = NULL, updated_at = now() WHERE job_id = ${opts.jobId} AND state IN ('READING', 'PAUSED')`;
+    if (await addScanReading(opts.jobId, job)) return;
+  }
   const took = await sql`UPDATE recruitment_import_jobs SET state = 'FINISHING', updated_at = now()
                          WHERE job_id = ${opts.jobId} AND (state IN ('READING', 'PAUSED')
                            OR (state = 'FINISHING' AND updated_at < now() - make_interval(secs => ${FINISH_STALE_SECONDS})))
                          RETURNING job_id`;
   if (took.length === 0) return; // another step is finishing it, or it is done or cancelled
   try {
-    const importId = await buildJobPreview(job, opts);
-    await sql`UPDATE recruitment_import_jobs SET state = 'DONE', import_id = ${importId}, state_note = NULL, updated_at = now() WHERE job_id = ${opts.jobId} AND state = 'FINISHING'`;
+    const { importId, unreadLines } = await buildJobPreview(job, opts);
+    // Every page read, but table lines that could not be read are missing data: said, and never "complete".
+    const note = unreadLines > 0 ? `${unreadLines} line(s) inside a vacancy table could not be read as rows; the review lists them.` : null;
+    await sql`UPDATE recruitment_import_jobs SET state = 'DONE', import_id = ${importId}, state_note = ${note}, updated_at = now() WHERE job_id = ${opts.jobId} AND state = 'FINISHING'`;
     await dropPieces(opts.jobId);
   } catch (err) {
     const why = err instanceof Error ? err.message.slice(0, 200) : "unknown error";
@@ -424,7 +572,7 @@ export async function finishJob(opts: { adminId: string; jobId: string; apiKey: 
   }
 }
 
-async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; apiKey: string | undefined; fetchFn?: typeof fetch }): Promise<string> {
+async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; apiKey: string | undefined; fetchFn?: typeof fetch }): Promise<{ importId: string; unreadLines: number }> {
   const sources = sourcesOf(job);
   const parts = await partsOf(opts.jobId, true);
   const taskRows = await sql`SELECT task_no, source_no, kind, first_page, last_page, status, result, reason FROM recruitment_import_job_tasks WHERE job_id = ${opts.jobId} ORDER BY task_no`;
@@ -432,10 +580,15 @@ async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; a
   const newJob = (job.new_job as NewJobInput | null) ?? undefined;
   const { record, organizationId } = await resolveTarget({ mode, recruitmentId: (job.recruitment_id as string | null) ?? undefined, newJob });
   const parsed = (v: unknown) => (typeof v === "string" ? JSON.parse(v) : v);
+  const scans = await scanPagesOf(opts.jobId);
+  const transcribed = await transcriptionsOf(opts.jobId);
 
   const read: ReadInput[] = [];
   for (const s of sources) {
-    const text = sourceText(parts, s.no);
+    // Scanned pages read from their images are in the text as the AI wrote them out.
+    const text = readingText(parts, transcribed, s);
+    const scanPages = transcribed.filter((t) => t.sourceNo === s.no).map((t) => t.page);
+    const scanned = new Set(scanPages.map((p) => p.page));
     const mine = taskRows.filter((t) => Number(t.source_no) === s.no);
     const section = <P extends SectionPart>(kind: TaskKind, part: P): SectionOutcomes[P] => {
       const t = mine.find((x) => x.kind === kind);
@@ -446,13 +599,18 @@ async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; a
     const whole = batches.length === 1 && batches[0].first_page === null;
     const doneParts = batches.filter((t) => t.status === "DONE").map((t) => parsed(t.result) as ArticleReading);
     const merged = mergeReadings(doneParts.map((r) => ({ values: r.values, refused: r.refused })));
-    const noTextPages = [...new Set(parts.filter((p) => p.sourceNo === s.no && p.status === "READ").flatMap((p) => p.noTextPages))].sort((a, b) => a - b);
+    // What was read from a scanned page is the AI's reading of a picture: marked so.
+    merged.values = merged.values.map((v) => (v.page != null && scanned.has(v.page) ? { ...v, fromImage: true } : v));
+    // Pages with no text that were not read from their image either.
+    const noTextPages = [...new Set(parts.filter((p) => p.sourceNo === s.no && p.status === "READ").flatMap((p) => p.noTextPages))]
+      .filter((n) => !scanned.has(n) && !unavailableOf(s, parts, scans).some((u) => u.first <= n && u.last >= n)).sort((a, b) => a - b);
     const coverage: ReadingCoverage = {
       mode: whole ? "whole" : "batches", pages: s.kind === "text" ? null : s.pages, noTextPages,
       batches: batches.map((t) => ({ first: t.first_page === null ? 1 : Number(t.first_page), last: t.last_page === null ? s.pages : Number(t.last_page),
         status: t.status === "DONE" ? "read" as const : "failed" as const, ...(t.status === "DONE" ? {} : { reason: String(t.reason ?? "failed") }),
         values: t.status === "DONE" ? (parsed(t.result) as ArticleReading).values.length : 0 })),
-      unavailable: unavailableOf(s, parts),
+      unavailable: unavailableOf(s, parts, scans),
+      suspectPages: transcribed.filter((t) => t.sourceNo === s.no && t.suspect).map((t) => t.page.page),
     };
     const article = { ...merged, coverage, ...(doneParts.length === 0 ? { skipped: batches[0]?.reason ? String(batches[0].reason) : "no page was read" } : {}) };
     const pasted = s.kind === "text";
@@ -463,14 +621,17 @@ async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; a
     }), organizationId);
     read.push({ input, reading, obtained: pasted
       ? { method: "PASTED", finalUrl: null, kind: "TEXT", bytes: Buffer.from(text, "utf8"), text, pages: null }
-      : { method: "UPLOADED", finalUrl: null, kind: "PDF", bytes: Buffer.alloc(0), text, pages: s.pages, sha256: s.sha256, byteSize: s.byteSize, shaFromBrowser: true } });
+      : { method: "UPLOADED", finalUrl: null, kind: "PDF", bytes: Buffer.alloc(0), text, pages: s.pages, sha256: s.sha256, byteSize: s.byteSize, shaFromBrowser: true },
+      ...(scanPages.length ? { scan: { pages: scanPages, images: { jobId: opts.jobId, sourceNo: s.no, pages: scans.filter((x) => x.sourceNo === s.no && x.status === "UPLOADED").map((x) => x.page) } } } : {}) });
   }
   const paced = retryingFetch(opts.fetchFn ?? ((input, init) => globalThis.fetch(input, init)));
   const out = await assemblePreview({
     adminId: opts.adminId, mode, newJob, apiKey: opts.apiKey, record, organizationId, read,
     aiFetch: paced.fetch, aiStats: { sent: Number(job.ai_sent) + paced.stats.sent, retried: Number(job.ai_retried), failed: Number(job.ai_failed) },
   });
-  return out.importId;
+  const unreadLines = (out.proposal.meta.sources as Array<{ vacancyTables?: { coverage?: { unreadLines?: unknown[] } } | null }>)
+    .reduce((n, src) => n + (src.vacancyTables?.coverage?.unreadLines?.length ?? 0), 0);
+  return { importId: out.importId, unreadLines };
 }
 
 // ─── The admin's controls ─────────────────────────────────
@@ -501,11 +662,27 @@ export async function cancelJob(opts: { adminId: string; jobId: string }) {
   await sql`UPDATE recruitment_import_jobs SET state = 'CANCELLED', state_note = 'Cancelled by you.', updated_at = now()
             WHERE job_id = ${opts.jobId} AND state NOT IN ('DONE', 'CANCELLED')`;
   await dropPieces(opts.jobId);
+  await sql`UPDATE recruitment_import_job_pages SET pdf_base64 = NULL WHERE job_id = ${opts.jobId} AND pdf_base64 IS NOT NULL`;
   return jobProgress(opts);
 }
 
 async function dropPieces(jobId: string) {
   await sql`UPDATE recruitment_import_job_parts SET pdf_base64 = NULL WHERE job_id = ${jobId} AND pdf_base64 IS NOT NULL`;
+}
+
+/**
+ * The scanned page images of the reading that made this preview, dropped
+ * once the preview is saved or discarded: the review that shows them
+ * beside their tables is over. Never throws (before the importer's tables
+ * exist, there is nothing to drop).
+ */
+export async function dropPageImagesForImport(importId: string): Promise<void> {
+  try {
+    await sql`UPDATE recruitment_import_job_pages SET pdf_base64 = NULL WHERE pdf_base64 IS NOT NULL
+              AND job_id IN (SELECT job_id FROM recruitment_import_jobs WHERE import_id = ${importId})`;
+  } catch {
+    // Clean-up is also done by purgeOldJobs.
+  }
 }
 
 /**
@@ -519,6 +696,10 @@ export async function purgeOldJobs(): Promise<{ abandoned: number; deleted: numb
                               WHERE state NOT IN ('DONE', 'CANCELLED', 'FAILED') AND updated_at < now() - interval '7 days' RETURNING job_id`;
   await sql`UPDATE recruitment_import_job_parts SET pdf_base64 = NULL WHERE pdf_base64 IS NOT NULL
             AND job_id IN (SELECT job_id FROM recruitment_import_jobs WHERE state IN ('DONE', 'CANCELLED', 'FAILED'))`;
+  // Scanned page images: kept for the review only, so until its preview is saved or discarded, and 7 days at most.
+  await sql`UPDATE recruitment_import_job_pages SET pdf_base64 = NULL WHERE pdf_base64 IS NOT NULL AND job_id IN (
+              SELECT j.job_id FROM recruitment_import_jobs j LEFT JOIN recruitment_imports i ON i.import_id = j.import_id
+              WHERE j.state IN ('CANCELLED', 'FAILED') OR (j.state = 'DONE' AND (i.status IS DISTINCT FROM 'PREVIEWED' OR j.updated_at < now() - interval '7 days')))`;
   const deleted = await sql`DELETE FROM recruitment_import_jobs WHERE state IN ('DONE', 'CANCELLED', 'FAILED') AND updated_at < now() - interval '30 days' RETURNING job_id`;
   return { abandoned: abandoned.length, deleted: deleted.length };
 }
@@ -531,25 +712,37 @@ export async function jobProgress(opts: { adminId: string; jobId: string }) {
   const parts = await partsOf(opts.jobId);
   const tasks = await sql`SELECT task_no, source_no, kind, first_page, last_page, status, reason, attempts, ai_requests FROM recruitment_import_job_tasks WHERE job_id = ${opts.jobId} ORDER BY task_no`;
   const count = (st: string) => tasks.filter((t) => t.status === st).length;
-  const pagesOfTask = (t: J, s: JobSource) => t.first_page === null ? s.pages : Number(t.last_page) - Number(t.first_page) + 1;
 
+  const scans = await scanPagesOf(opts.jobId);
+  const suspects = (await transcriptionsOf(opts.jobId)).filter((t) => t.suspect);
   const perSource = sources.map((s) => {
     const mine = parts.filter((p) => p.sourceNo === s.no);
     const uploaded = mine.filter((p) => p.status === "READ").reduce((n, p) => n + p.last - p.first + 1, 0);
     const noText = [...new Set(mine.flatMap((p) => p.noTextPages))].sort((a, b) => a - b);
-    const batches = tasks.filter((t) => Number(t.source_no) === s.no && t.kind === "TEXT_BATCH");
     const textPages = uploaded - noText.length;
-    const processed = batches.filter((t) => t.status === "DONE").reduce((n, t) => n + Math.min(pagesOfTask(t as J, s), textPages), 0);
+    // Text pages read: those inside a page batch that is done (a whole-text reading covers them all).
+    const readPages = new Set<number>();
+    for (const t of tasks.filter((x) => Number(x.source_no) === s.no && x.kind === "TEXT_BATCH" && x.status === "DONE")) {
+      const [a, b] = t.first_page === null ? [1, s.pages] : [Number(t.first_page), Number(t.last_page)];
+      for (let n = a; n <= b; n++) if (!noText.includes(n)) readPages.add(n);
+    }
+    const scanTasks = tasks.filter((x) => Number(x.source_no) === s.no && x.kind === "SCAN_PAGE");
     return {
       no: s.no, kind: s.kind, fileName: s.fileName, sha256: s.sha256, pages: s.pages, uploadedPages: uploaded, noTextPages: noText,
-      unavailable: unavailableOf(s, parts), textPages, processedPages: Math.min(processed, textPages),
-      piecesKept: mine.filter((p) => p.kept).length,
+      unavailable: unavailableOf(s, parts, scans), textPages, processedPages: Math.min(readPages.size, textPages),
+      /** Scanned pages: their images uploaded, and read from the image by the AI. */
+      scanImages: scans.filter((x) => x.sourceNo === s.no && x.status === "UPLOADED").map((x) => x.page),
+      scanRead: scanTasks.filter((x) => x.status === "DONE").map((x) => Number(x.first_page)),
+      /** Scanned pages where the AI found almost nothing, twice: to be checked against the page. */
+      scanSuspect: suspects.filter((t) => t.sourceNo === s.no).map((t) => t.page.page),
+      piecesKept: scans.filter((x) => x.sourceNo === s.no && x.kept).length,
     };
   });
   const failedTasks = tasks.filter((t) => t.status === "FAILED").map((t) => ({
     sourceNo: Number(t.source_no), kind: t.kind as TaskKind, first: t.first_page === null ? null : Number(t.first_page), last: t.last_page === null ? null : Number(t.last_page), reason: String(t.reason ?? ""),
   }));
-  const allRead = perSource.every((s) => s.unavailable.length === 0 && s.noTextPages.length === 0 && s.processedPages === s.textPages) && failedTasks.length === 0;
+  // Complete: every page uploaded; every text page read; every scanned page read from its image; nothing failed.
+  const allRead = perSource.every((s) => s.unavailable.length === 0 && s.noTextPages.every((n) => s.scanRead.includes(n)) && s.scanSuspect.length === 0 && s.processedPages === s.textPages) && failedTasks.length === 0;
   return {
     jobId: opts.jobId, state: job.state as JobState, stateNote: (job.state_note as string | null) ?? null, importId: (job.import_id as string | null) ?? null,
     mode: job.mode, recruitmentId: job.recruitment_id ?? null,
@@ -560,7 +753,7 @@ export async function jobProgress(opts: { adminId: string; jobId: string }) {
     ai: { estimate: job.estimate === null ? null : Number(job.estimate), sent: Number(job.ai_sent), retried: Number(job.ai_retried), failed: Number(job.ai_failed) },
     allowance: await allowanceLeft(),
     /** True only when every page was uploaded, had text and was read, and nothing failed. */
-    complete: job.state === "DONE" && allRead,
+    complete: job.state === "DONE" && allRead && !job.state_note,
     updatedAt: job.updated_at,
   };
 }

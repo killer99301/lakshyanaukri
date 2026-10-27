@@ -66,3 +66,14 @@ export async function* splitPdf(doc: PDFDocument, opts: { maxBytes: number; maxP
     }
   }
 }
+
+/**
+ * One page (1-based) as its own PDF: a scanned page, sent to be read from its
+ * image. Saved without object streams, so the server can see it holds one page.
+ */
+export async function onePage(doc: PDFDocument, page: number): Promise<Uint8Array> {
+  const one = await PDFDocument.create();
+  const [copied] = await one.copyPages(doc, [page - 1]);
+  one.addPage(copied);
+  return one.save({ useObjectStreams: false });
+}

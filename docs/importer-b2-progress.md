@@ -265,3 +265,138 @@ This implements the approved mechanism (`importer-b2-3-mechanism.md`): the job i
 - **Scanned pages** are named and kept, but not read until B2.4.
 - **A reading moves only while an import page is open.** This is the approved limit, without QStash.
 - **Existing one-request previews** (`/api/admin/cms/import/:importId`) can still be opened by any admin, as before B2. Only the new reading jobs are per admin. Restricting previews too is your call.
+
+## B2.4 — Scanned pages and their vacancy tables (done)
+
+### What was built
+
+**Detecting scanned pages, page by page.** The server reads each uploaded piece's text. A page with almost no printed text (fewer than 12 characters, such as a bare "Page 9 | 10") is a scanned page. This works for mixed PDFs too: in the LIC test file, pages 1–4 are text, pages 5–9 are images, and page 10 holds only its running header.
+
+- The threshold was 40 characters in B2.2. It is lower now so that a short real text page counts as text.
+
+**The page itself goes to the model.**
+- For each scanned page, the browser cuts that page out as its own one-page PDF with pdf-lib and uploads it.
+- The server sends that page to Gemini 3.5 Flash-Lite (unchanged), which reads the page image. Nothing is taken from another AI's prose.
+- A page larger than 4 MB on its own is recorded as not uploaded, with its size. It is never shrunk.
+
+**Transcription, not interpretation.** The model returns, as JSON:
+- every text line on the page, and whether the page is blank;
+- each table: its title, whether it continues from the previous page, every lowest-level column heading in order (a two-level heading becomes, for example, "OC G" and "OC W"), and every row cell by cell.
+
+Figures come back exactly as printed: "01", "-", "NR", "0", "Nil", "[blank]" for an empty cell, "[unclear]" when unreadable, and notes such as "01 (VH)". The model is told never to guess, correct or add up.
+
+**Code does the reading** (`src/lib/cms/importer/scan-tables.ts`):
+- **Columns:** row-name columns come first; the first column whose every cell is a figure starts the figure columns.
+- **Totals:** the total is "Grand Total", or the single total column, or the only figure column. Printed subtotals ("TOTAL G", "TOTAL W") are checked against their columns, and against the total, in every row.
+  - When every row agrees, the columns are established by the source as part of the total, with a note saying how.
+  - When a row disagrees, the difference is reported and nothing is corrected.
+- **Continuing tables:** a page with no heading row joins the previous page's table, whether it gives no columns or gives its first row as the headings.
+- **Repeated rows:** a row repeated at the top of the next page is counted once, and the review says so.
+- **Wrong cell counts:** a row with the wrong number of cells is not read; it is listed as an unread line, with its page.
+- **Text in a figure column** is treated as unreadable and reported.
+- **Same builder:** the result goes through the B1 table builder and the A1 vacancy engine. A table that runs from a text page onto a scanned page stays one table.
+- **No double reading:** scanned pages are never read twice. Their tables come from the transcription, not from the text reader.
+
+**Marks and checks** (`src/lib/vacancy-table.ts`):
+- Every row from a scanned page carries `readBy: "AI_IMAGE"`. An unreadable figure is recorded in `unclear` and never filled in.
+- The engine adds an **UNCLEAR_FIGURE** error. A total that needs an unreadable figure is incomplete.
+- "The total is ready" now also lists the rows read from images by AI until the table is checked. The arithmetic adding up is not treated as proof.
+- The "figures not in the printed line" check now compares "01" with 1 numerically.
+
+**The rest of a scanned page.**
+- Once every scanned page is written out, a second round reads what those pages say, in page batches like any text.
+- Any value found on a scanned page (a date, a fee) carries the flag "read from a scanned page by AI — check it against the page image".
+
+**Retries and nearly empty pages.**
+- Scanned pages are read one per task, through the B2.3 leases, pacing, resends, allowance and resume. A failed page is retried once, then reported.
+- A page where the model finds almost nothing (and does not call it blank) is read once more. If it is still nearly empty, it is kept but flagged ("the AI found almost nothing, twice — check the page"), and the reading is not called complete.
+- This came from a real browser run in which the model returned no table at all for page 9.
+
+**Side by side.**
+- In the review, the vacancy section shows "Read from image by AI — human verification required" with the row count and a button for each page.
+- Each AI-read row shows its page, and clicking it draws the scanned page beside its rows. pdf.js draws the page in the browser for viewing only, because the site's `X-Frame-Options: DENY` header forbids showing PDFs in frames. pdf.js was already installed with the PDF reader; it is now listed directly at the same version, 5.4.296.
+- Other values read from a scanned page show the same mark and can show their page.
+- After saving, the job editor marks each such row "AI-read from image", and any unreadable figure in red. Typing the figure clears that mark.
+
+**"Complete" is withheld** while any table line could not be read, even when every page was processed. Run 3 showed the need: one LIC row split by the model was reported, yet the reading had said "complete". The reading now finishes with a note: "N line(s) inside a vacancy table could not be read as rows; the review lists them."
+
+**Storage:** page images are kept only for the review. They are dropped when the preview is saved or discarded, at once on cancel, and after 7 days at most. Each image is served only to its own admin.
+
+**"Opening the reading…"**
+- **Likely cause:** on the development server, the first request to a reading compiles the routes. That took over 30 s, and the panel waited for ever. An answer with no progress in it would also have left it waiting.
+- **Fix:**
+  - The open request has a 30 s limit and is retried once by itself ("still opening").
+  - After that, a clear error with "Try again" and "Back to Smart intake".
+  - Malformed answers are reported, and a successful open clears any earlier error.
+- **Checked in the browser:** an address with no reading showed the time-out, then "Reading not found" on Try again; a real reading opened after one retry.
+
+### Results
+
+**Deterministic**
+- `tests/cms/scan-tables.test.ts`: **11/11**
+  - Telangana page 23: three posts in G/W columns read from a person's reading of the page, giving 1 + 26 + 2 = 29 with no issues and the columns established by the subtotals.
+  - LIC Table E over four scanned pages: 181 cities, Ananthapur 1, Grand Total 232.
+  - A row repeated at a page break; unreadable, zero, NR and blank cells; text in a figure column; wrong cell counts.
+  - **Deliberately wrong figures:**
+    - Telangana post 15 with OC W read as 04: the row is an ERROR, the W subtotal disagrees, the figure is unchanged, and the total is not ready.
+    - LIC with one city read as 3: the printed Grand Total disagrees.
+  - The two real-model misreads kept as tests; a mixed text-and-scan document.
+- `tests/local-stack/importer-jobs.test.ts`: **43/43**. It adds a row split into too many cells leaving the reading "finished — incomplete" with a note, plus:
+  - scanned-page images uploaded and refused (not a scanned page, or more than one page)
+  - estimates, one read per page, and the second round
+  - the table over three pages with a repeated row, unreadable, zero and NR
+  - AI-read marks on rows and on a date
+  - page images served to their admin only, kept for the review, dropped on discard and on cancel
+  - nearly empty pages retried, then flagged; a blank page accepted
+
+**Real Gemini (gemini-3.5-flash-lite), the whole pipeline on the in-memory test database** (`tests/local-stack/importer-scans.acceptance.ts`):
+
+| | Run 1 | Run 2 |
+|---|---|---|
+| LIC scan (pages 5–9 as images) | 180/181 cities, total 232 | 181/181, 232, every row's page correct |
+| LIC mixed (text 1–4, images 5–10) | 181/181, 232 | 181/181, 232 |
+| Telangana page 23 | 1, 26, 2 = 29 | 1, 26, 2 = 29; every category cell as printed |
+| Checks | 12/14 | 14/14 |
+
+A third run, on the final code, repeated run 1 exactly: 12/14, with the same two misreads, both flagged.
+
+What run 1 got wrong, and how it was caught:
+- **LIC:** the model split "Jammu And Kashmir" into two cells. That row is not read, is listed as an unread line with its page, and the review warns about it.
+- **Telangana post 16:** the model swapped SC G and SC W. Both subtotal checks flag it in the review. The post totals stay right.
+
+In all three runs the model also swapped post 14's TOTAL G and TOTAL W. The subtotal checks flag it each time.
+
+**Browser (local test copy, real Gemini)**
+- A missing-reading address showed the time-out, then "Reading not found", with Try again and Back.
+- The mixed LIC PDF was uploaded: 10 of 10 pages, and the 6 scanned page images were sent automatically. The estimate was 11 requests.
+- **Reloaded** at 2 of 6 scanned pages: it carried on from 2 of 6, with nothing repeated.
+- **The first browser run exposed the page-9 omission** (the model returned no table on page 9). The total then showed "178 (calculated)" with no warning. That led to the nearly-empty retry and flag.
+- **The second run:** 181 rows from pages 6–9, all marked AI-read, Total 232 as printed, complete, 11 requests (exactly the estimate).
+- **Side by side:** page 9 drawn beside its 44 rows (screenshot taken).
+- **Production build:** the one-page Telangana scan was read through the UI on the built app: 29 vacancies, and the page drawn beside its table. The build prints a warning that pdf.js's worker file "can't be external", because pdf.js is on the server's external-package list for the PDF reader. The view works in the build; the warning stays and is noted here.
+- **Saved and reopened:** the page image was dropped on save (404 afterwards). The reloaded draft holds 181 rows, all AI-read, Ananthapur 1, Total Vacancies 232 (printed, page 9), all Pending. The editor marks all 181 rows "AI-read from image".
+
+**Regression**
+- 20 local-stack suites pass
+- `cms:test` 44/44 suites, including the new scan-table suite
+- intake 332/332
+- PostgreSQL 17: 35/35
+- `tsc` clean
+- production build passes, and the cache test on it is 31/31
+- intelligence 12/13 and lint 7 / 26, both unchanged baselines
+
+### Limits and what is still open
+
+- **Missing rows:** a row the model leaves out in the middle of a page, or a split cell it produces, is caught only by a printed total that then disagrees, or as an unread line. Without a printed total on that table, a missing row is not detectable by code. That is why every AI-read row stays Pending and is to be checked against its page.
+- **Model variance:** the model's reading varies from run to run, as seen in runs 1 and 2. Arithmetic checks catch some misreads (subtotals, totals), never all.
+- **Earlier open items, unchanged by B2.4:**
+  - the IBPS exam-pattern reader (4 to 7 of 7 papers)
+  - page batches answered incompletely needing smaller-batch recovery
+  - exam-stage over-extraction (download and result steps)
+  - ages per post (the age field holds one range)
+- **Plan before final B2 acceptance:**
+  - B2.5: tables across text and scan pages, plus the smaller-batch recovery for incomplete answers.
+  - Then the pattern reader's variance (to try: running the pattern through the batch merge so differences show as conflicts), and stages limited to exam, interview and verification by a code rule, not only the prompt.
+  - Ages per post needs your product decision.
+  - B2.6: real-source acceptance including the SSC CGL, corrigendum, UPSC CSE and BPSC 72nd PDFs.
+- **Migration:** the schema changed (`recruitment_import_job_pages`, the `SCAN_PAGE` task kind, `scan_reading_added`), local test databases only. Nothing is migrated in production.

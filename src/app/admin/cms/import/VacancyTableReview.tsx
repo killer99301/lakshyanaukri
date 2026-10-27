@@ -7,7 +7,9 @@
 // calculated by code; nothing is verified by being shown.
 
 import { analyseVacancyTable, type VacancyTable, type VacancyTableRow } from "@/lib/vacancy-table";
-import { C, badge } from "./ui";
+import { useState } from "react";
+import { C, badge, quietBtn } from "./ui";
+import { ScanPageImage } from "./ScanPage";
 
 type Brief = { at: Record<string, string>; status: string; total: number | null; page: number | null };
 export interface VacancyTableNote {
@@ -38,8 +40,16 @@ function cellsOf(row: VacancyTableRow, table: VacancyTable): string {
 const box = (color: string) => ({ border: `1px solid ${color}55`, background: `${color}0f`, borderRadius: 8, padding: "8px 10px", display: "grid", gap: 4 } as const);
 const small = { fontSize: 12, color: C.muted, lineHeight: 1.5 } as const;
 
-export function VacancyTableReview({ table, note }: { table: VacancyTable; note: VacancyTableNote | null }) {
+export function VacancyTableReview({ table, note, pageImageUrl }: {
+  table: VacancyTable; note: VacancyTableNote | null;
+  /** Where a scanned page's image can be seen, when it is kept (stage B2.4). */
+  pageImageUrl?: (page: number) => string | null;
+}) {
+  const [shownPage, setShownPage] = useState<number | null>(null);
   const an = analyseVacancyTable(table);
+  const fromImage = table.rows.filter((r) => r.source.readBy === "AI_IMAGE");
+  const imagePages = [...new Set(fromImage.map((r) => r.source.page).filter((p): p is number => p != null))].sort((a, b) => a - b);
+  const shownUrl = shownPage !== null ? pageImageUrl?.(shownPage) ?? null : null;
   const where = whereIn(table.dimensions);
   const cov = note?.coverage;
   const diff = note?.diff;
@@ -62,7 +72,24 @@ export function VacancyTableReview({ table, note }: { table: VacancyTable; note:
           {an.grandTotal.complete ? "" : "at least "}{n(an.grandTotal.value)} vacancies ({an.grandTotal.basis === "STATED" ? "as printed" : "calculated"})
         </span>}
         {note?.from === "split" && <span style={badge(C.orange)}>from the whole-text reading&apos;s quoted split</span>}
+        {fromImage.length > 0 && <span data-vacancy-ai-image style={badge(C.orange)}>{plural(fromImage.length, "row")} read from scanned page images by AI</span>}
       </div>
+      {fromImage.length > 0 && (
+        <div data-vacancy-image-note style={box(C.orange)}>
+          <strong style={{ color: C.orange, fontSize: 12 }}>Read from image by AI — human verification required</strong>
+          <div style={{ fontSize: 12 }}>
+            {plural(fromImage.length, "row")} on {imagePages.length === 1 ? "page" : "pages"} {imagePages.join(", ")} had no text: the AI wrote them out from the page {imagePages.length === 1 ? "image" : "images"}, and code read the table from that.
+            Every such figure stays to be checked against its page. The totals adding up does not prove the reading.
+          </div>
+          {pageImageUrl && imagePages.some((p) => pageImageUrl(p)) && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {imagePages.filter((p) => pageImageUrl(p)).map((p) => (
+                <button key={p} onClick={() => setShownPage(shownPage === p ? null : p)} style={{ ...quietBtn, padding: "2px 8px", fontSize: 12 }} aria-pressed={shownPage === p}>Page {p}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <table style={{ borderCollapse: "collapse", fontSize: 12, width: "100%" }}>
         <thead><tr style={{ color: C.muted, textAlign: "left" }}><th style={{ padding: "2px 6px 2px 0" }}>Post</th><th>Rows</th><th>Total</th><th>Missing</th></tr></thead>
         <tbody>
@@ -132,23 +159,33 @@ export function VacancyTableReview({ table, note }: { table: VacancyTable; note:
         </details>
       )}
 
-      {/* Every row with its evidence */}
-      <details data-vacancy-rows style={{ fontSize: 12, color: C.muted }}>
+      {/* Every row with its evidence; a scanned page beside its rows */}
+      <details data-vacancy-rows style={{ fontSize: 12, color: C.muted }} open={shownPage !== null}>
         <summary style={{ cursor: "pointer" }}>Every row with its page and printed line</summary>
-        <div style={{ maxHeight: 360, overflow: "auto", marginTop: 4 }}>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
-            <tbody>
-              {table.rows.map((r) => (
-                <tr key={r.id} style={{ borderTop: `1px solid ${C.border}`, verticalAlign: "top" }}>
-                  <td style={{ padding: "3px 6px 3px 0", color: C.text }}>{where(r.at)}</td>
-                  <td style={{ padding: "3px 6px", whiteSpace: "nowrap", color: r.status === "STATED" || r.status === "NIL" ? C.text : C.amber }}>{figureOf({ status: r.status, total: r.total ?? null })}</td>
-                  <td style={{ padding: "3px 6px" }}>{cellsOf(r, table)}</td>
-                  <td style={{ padding: "3px 6px", whiteSpace: "nowrap" }}>{pageOf(r.source.page)}</td>
-                  <td style={{ padding: "3px 0", fontStyle: "italic", overflowWrap: "anywhere" }}>“{r.source.line.slice(0, 200)}”</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{ display: "grid", gridTemplateColumns: shownUrl ? "minmax(0, 1fr) minmax(0, 1fr)" : "1fr", gap: 8, marginTop: 4 }}>
+          <div style={{ maxHeight: 640, overflow: "auto" }}>
+            <table style={{ borderCollapse: "collapse", width: "100%" }}>
+              <tbody>
+                {table.rows.filter((r) => shownPage === null || r.source.page === shownPage).map((r) => (
+                  <tr key={r.id} data-row-from-image={r.source.readBy === "AI_IMAGE" ? "true" : undefined} style={{ borderTop: `1px solid ${C.border}`, verticalAlign: "top" }}>
+                    <td style={{ padding: "3px 6px 3px 0", color: C.text }}>{where(r.at)}</td>
+                    <td style={{ padding: "3px 6px", whiteSpace: "nowrap", color: r.status === "STATED" || r.status === "NIL" ? C.text : C.amber }}>{figureOf({ status: r.status, total: r.total ?? null })}</td>
+                    <td style={{ padding: "3px 6px" }}>{cellsOf(r, table)}{r.unclear?.length ? <span style={{ color: C.red }}> · unreadable: {r.unclear.map((k) => (k === "total" ? "Total" : table.categories.find((c) => c.key === k)?.label ?? k)).join(", ")}</span> : null}</td>
+                    <td style={{ padding: "3px 6px", whiteSpace: "nowrap" }}>
+                      {r.source.readBy === "AI_IMAGE" && r.source.page != null && pageImageUrl?.(r.source.page)
+                        ? <button onClick={() => setShownPage(r.source.page)} style={{ ...quietBtn, padding: "0 6px", fontSize: 11 }}>{pageOf(r.source.page)}</button>
+                        : pageOf(r.source.page)}
+                    </td>
+                    <td style={{ padding: "3px 0", fontStyle: "italic", overflowWrap: "anywhere" }}>
+                      {r.source.readBy === "AI_IMAGE" && <span style={{ ...badge(C.orange), fontStyle: "normal", marginRight: 4 }}>AI-read from image</span>}
+                      “{r.source.line.slice(0, 200)}”
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {shownUrl && shownPage !== null && <ScanPageImage key={shownUrl} url={shownUrl} page={shownPage} onClose={() => setShownPage(null)} />}
         </div>
       </details>
     </div>
