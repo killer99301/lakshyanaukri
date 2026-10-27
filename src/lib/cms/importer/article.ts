@@ -27,7 +27,8 @@ import type {
 // annexure near the end (IBPS: pages 44-53 of 76). A long text gets a longer
 // answer and more time; the preview route allows 60 s.
 export const ARTICLE_MAX_CHARS = 200_000;
-const LONG_TEXT_CHARS = 60_000;
+/** Room for one reading's answer, in tokens (the model's thinking uses some of it). */
+export const ANSWER_TOKENS = 16_384;
 const READ_TIMEOUT_MS = 50_000;
 const MAX_ITEMS = 40;
 
@@ -458,10 +459,11 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
 /** One request for the whole text. Never throws. */
 export async function readArticle(opts: { text: string; subject: string; apiKey: string | undefined; fetchFn?: typeof fetch; part?: { first: number; last: number; pages: number }; timeoutMs?: number }): Promise<ArticleReading> {
   if (opts.text.trim().length < 100) return { values: [], refused: [], skipped: "too little text to read" };
-  const long = opts.text.length > LONG_TEXT_CHARS;
+  // The same room for the answer whether the text is read whole or as a page batch: a short notice read whole can be
+  // as long as a batch (up to BATCH_FROM_CHARS), and its answer was being cut off at half the room (B2.6).
   const answer = await callAiJson({
     prompt: buildArticlePrompt(opts.text, opts.subject, opts.part), apiKey: opts.apiKey, fetchFn: opts.fetchFn, feature: "import",
-    maxOutputTokens: long || opts.part ? 16_384 : 8192, timeoutMs: opts.timeoutMs ?? READ_TIMEOUT_MS,
+    maxOutputTokens: ANSWER_TOKENS, timeoutMs: opts.timeoutMs ?? READ_TIMEOUT_MS,
   });
   if (!answer.ok) return { values: [], refused: [], skipped: answer.reason };
   return judgeArticle(answer.data, opts.text);

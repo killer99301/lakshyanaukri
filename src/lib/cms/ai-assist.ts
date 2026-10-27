@@ -745,8 +745,13 @@ export async function callAiJson(opts: {
       return { ok: false, reason: quota?.perDay ? providerDailyQuotaMessage(quota) : feeFailureMessage(status) };
     }
 
-    const body = (await response.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const body = (await response.json()) as { candidates?: Array<{ finishReason?: string; content?: { parts?: Array<{ text?: string }> } }> };
     const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    // An answer the model stopped at its length limit is incomplete, and says why.
+    if (body.candidates?.[0]?.finishReason === "MAX_TOKENS") {
+      await recordAiFailure(feature);
+      return { ok: false, reason: "AI response was incomplete (stopped at its length limit)" };
+    }
     // Models sometimes wrap the object in a one-element list.
     const parsed: unknown = JSON.parse(text);
     const data = (Array.isArray(parsed) ? parsed[0] : parsed) ?? {};

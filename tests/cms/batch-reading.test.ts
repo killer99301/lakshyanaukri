@@ -292,3 +292,22 @@ test("PC05 a per-minute 429 is resent after the wait the provider asks for, when
   await p2.fetch("https://x/", {});
   assert.deepEqual(waits2, [5_000]);
 });
+
+test("BR14 a short notice read whole gets the same room for its answer as a page batch; an answer stopped at its length limit is incomplete and read in halves", async () => {
+  const text = notice(4, { 3: ["Last date for registration 21.09.2026"] });
+  const sent: Array<{ what: string; tokens: number }> = [];
+  const fetchFn = (async (_url: unknown, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body));
+    const m = /pages (\d+) to (\d+) of a/.exec(body.contents[0].parts[0].text as string);
+    sent.push({ what: m ? `${m[1]}-${m[2]}` : "whole", tokens: body.generationConfig.maxOutputTokens });
+    const t = body.contents[0].parts[0].text as string;
+    const answer = JSON.stringify(t.includes("21.09.2026") ? { dates: { applicationCloseDate: { value: "2026-09-21", quote: "Last date for registration 21.09.2026" } } } : {});
+    // The whole notice: the model stops at its length limit (a valid start, then cut).
+    const candidate = m ? { content: { parts: [{ text: answer }] }, finishReason: "STOP" } : { content: { parts: [{ text: "{\"dates\":{}}" }] }, finishReason: "MAX_TOKENS" };
+    return new Response(JSON.stringify({ candidates: [candidate] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as unknown as typeof fetch;
+  const r = await readArticleInBatches({ text, subject: "x", apiKey: "test-key", fetchFn });
+  assert.deepEqual(sent.map((s) => `${s.what}:${s.tokens}`), ["whole:16384", "1-2:16384", "3-4:16384"]);
+  assert.deepEqual(r.coverage.split, [{ first: 1, last: 4 }], "a cut-off answer, even one that parses, is not taken as the reading");
+  assert.equal(r.values.find((v) => v.fieldPath === "dates.applicationCloseDate")?.page, 3);
+});
