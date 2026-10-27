@@ -23,6 +23,7 @@ import { pageOf } from "@/lib/cms/importer/evidence-text";
 import { linksInText, type FoundLink } from "@/lib/cms/importer/links";
 import { readArticleInBatches, type ArticleReading, type ReadingCoverage } from "@/lib/cms/importer/article";
 import type { ExtractedValue } from "@/lib/cms/importer/proposal";
+import { readPatternTables, type PatternCoverage } from "@/lib/cms/importer/pattern-tables";
 
 export interface SourceReading {
   values: ExtractedValue[];
@@ -36,6 +37,8 @@ export interface SourceReading {
   articleSkipped?: string;
   /** Which pages the whole-text reading read, batch by batch. */
   readingCoverage?: ReadingCoverage;
+  /** The exam-pattern tables the notice prints, and which were read by code. */
+  patternCoverage?: PatternCoverage;
 }
 
 /** Plain text from an HTML page, for storage, page lookup and link finding. */
@@ -183,8 +186,21 @@ export function combineReading(opts: {
     "dates.correctionWindowEnd": /^Correction Window End/, "dates.applicationOpenDate": /^Application Opens/,
     "dates.applicationCloseDate": /^Application Closes/,
   };
+  // The exam pattern from the notice's own tables, read by code: where the text
+  // prints pattern tables, they are the pattern, and the AI's papers are not
+  // used (they come and go between readings). Tables code could not read are
+  // listed as missing, with their pages. The AI's pattern stays only where
+  // the text has no pattern table (prose, or a scan not written out as one).
+  const byCode = readPatternTables(plain);
+  if (byCode.coverage.expected > 0) {
+    for (let i = values.length - 1; i >= 0; i--) if (values[i].fieldPath === "examPattern") values.splice(i, 1);
+    for (let i = refused.length - 1; i >= 0; i--) if (refused[i].fieldPath === "examPattern") refused.splice(i, 1);
+    if (byCode.papers.length) add("examPattern", byCode.papers, byCode.quote ?? undefined);
+    if (byCode.coverage.read > 0) filled.push("examPattern");
+  }
   const stillMissing = notFound.filter((label) => !filled.some((p) => NOT_FOUND_LABEL[p]?.test(label)));
 
   return { values, links: linksInText(plain, opts.organizationId), notFound: stillMissing, refused, summary: details.summary,
-           ...(article.skipped ? { articleSkipped: article.skipped } : {}), readingCoverage: article.coverage };
+           ...(article.skipped ? { articleSkipped: article.skipped } : {}), readingCoverage: article.coverage,
+           ...(byCode.coverage.expected > 0 ? { patternCoverage: byCode.coverage } : {}) };
 }

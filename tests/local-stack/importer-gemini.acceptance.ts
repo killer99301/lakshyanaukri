@@ -37,6 +37,10 @@ mkdirSync(OUT, { recursive: true });
 type J = Record<string, unknown>;
 type Item = { id: string; fieldPath: string; value: unknown; action: string; conflict: boolean; defaultTicked: boolean; flags: string[]; claims: Array<{ quote?: string; page?: number | null; retrievalId: string }> };
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+/** One paper as "name | questions/marks duration | subject q/m; …", to compare with the notice. */
+const paperBrief = (p: { name: string; totalQuestions?: number; totalMarks?: number; durationMinutes?: number; sections: Array<{ subject: string; questions?: number; marks?: number }> }) =>
+  `${p.name} | ${p.totalQuestions}/${p.totalMarks} ${p.durationMinutes ?? "-"} min | ${p.sections.map((x) => `${x.subject} ${x.questions}/${x.marks}`).join("; ")}`;
+
 const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : JSON.stringify(v); return s.length > n ? s.slice(0, n) + "…" : s; };
 
 (async () => {
@@ -146,6 +150,8 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     const officialLinks = it.filter((i) => i.fieldPath.startsWith("links#")).map((i) => i.value as { url: string; official?: boolean });
     note(`links: ${JSON.stringify(officialLinks)}`);
     check("BTSC: no portal (adda247) address offered as official", !officialLinks.some((l) => /adda247/i.test(l.url) && l.official));
+    const btscPapers = (val(it, "examPattern")[0] ?? []) as Parameters<typeof paperBrief>[0][];
+    check("BTSC: the exam pattern table read by code as printed (the web page's tabs come through as spaces)", btscPapers.map(paperBrief).join() === "BTSC FSO Exam Pattern 2026 | 100/100 120 min | Paper 1 General Studies and Mental Ability 25/25; Paper 2 Chemistry and Food Nutrition 75/75", btscPapers.map(paperBrief));
   }
 
   // ── 2. LIC HFL: the official PDF, uploaded with an attestation ──
@@ -168,6 +174,8 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     check("LIC: the NATS manual is not offered as the notification", !it.some((i) => i.fieldPath === "links#OFFICIAL_NOTIFICATION" && /manual/i.test(JSON.stringify(i.value))));
     check("LIC: entrance exam 7 Nov 2026 found (date or exam stage)", JSON.stringify(it).includes("2026-11-07"));
     check("LIC: an official document's values are not flagged as research", !it.some((i) => i.flags.some((f) => /research only/.test(f))));
+    const licPapers = (val(it, "examPattern")[0] ?? []) as Parameters<typeof paperBrief>[0][];
+    check("LIC: the online test read by code as printed", licPapers.map(paperBrief).join() === "Table D: Online test | 100/100 60 min | General/Financial Awareness 25/25; General English 25/25; Reasoning Ability & Computer Aptitude 25/25; Quantitative Aptitude 25/25", licPapers.map(paperBrief));
   }
 
   // ── 3. The same notice as a scan (images only, no text layer) ──
@@ -216,6 +224,19 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     note(`sections found: ${[...paths].sort().join(", ")}`);
     check("IBPS: exam stages found", paths.has("examStages"));
     check("IBPS: exam pattern found", paths.has("examPattern"));
+    // All seven papers, read by code from the notice's tables, every figure as printed.
+    const papers = (val(ibps.items, "examPattern")[0] ?? []) as Parameters<typeof paperBrief>[0][];
+    for (const p of papers) note(`  paper: ${paperBrief(p)}`);
+    check("IBPS: all 7 papers, with their questions, marks and durations as printed", JSON.stringify(papers.map(paperBrief)) === JSON.stringify([
+      "Preliminary Examination (objective) – Office Assistants (Multipurpose) | 80/80 45 min | Reasoning 40/40; Numerical Ability 40/40",
+      "Preliminary Examination (objective) – Officer Scale-I | 80/80 45 min | Reasoning 40/40; Quantitative Aptitude 40/40",
+      "Main Examination (objective) – Office Assistants (Multipurpose) | 200/200 120 min | Reasoning 40/50; Computer Knowledge 40/20; General Awareness 40/40; English Language 40/40; Hindi Language 40/40; Numerical Ability 40/50",
+      "Main Examination (objective) – Officer Scale-I | 200/200 120 min | Reasoning 40/50; Computer Knowledge 40/20; General Awareness 40/40; English Language 40/40; Hindi Language 40/40; Quantitative Aptitude 40/50",
+      "Single level Examination (objective) – Officer Scale-II (General Banking Officer) | 200/200 120 min | Reasoning 40/50; Computer Knowledge 40/20; Financial Awareness 40/40; English Language 40/40; Hindi Language 40/40; Quantitative Aptitude & Data Interpretation 40/50",
+      "Single level Examination (objective) – Officer Scale-II (Specialist Cadre) | 240/200 150 min | Professional Knowledge 40/40; Reasoning 40/40; Financial Awareness 40/40; English Language 40/20; Hindi Language 40/20; Computer Knowledge 40/20; Quantitative Aptitude & Data Interpretation 40/40",
+      "Single level Examination (objective) – Officer Scale- III | 200/200 120 min | Reasoning 40/50; Computer Knowledge 40/20; Financial Awareness 40/40; English Language 40/40; Hindi Language 40/40; Quantitative Aptitude & Data Interpretation 40/50",
+    ]), papers.length);
+    check("IBPS: the pattern says it is complete (7 of 7 read by code)", ibps.items.find((i) => i.fieldPath === "examPattern")?.flags.some((f) => /all 7 papers read by code/.test(f)) === true);
     // The vacancies are bank by bank in Annexure I, past the first 60,000 characters.
     const vac = val(ibps.items, "vacancies.breakdown")[0] as Array<{ post: string; count: number; breakdown?: Record<string, number> }> | undefined;
     note(`IBPS vacancy rows: ${JSON.stringify(vac ?? null).slice(0, 400)}`);

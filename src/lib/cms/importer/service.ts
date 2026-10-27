@@ -358,6 +358,21 @@ export async function assemblePreview(opts: {
       }
     }
   }
+  // The exam pattern: how many papers the notice prints, against how many were read. A partial pattern is
+  // never offered as the whole: it is flagged, left unticked, and each paper not read is named with its page.
+  for (const s of sources) {
+    const pc = s.reading.patternCoverage;
+    if (!pc) continue;
+    const item = proposal.items.find((i) => i.fieldPath === "examPattern" && i.claims.some((c) => c.retrievalId === s.retrieval.id));
+    const missing = pc.tables.filter((t) => !t.read).map((t) => `${t.heading ? `“${t.heading}”` : "a paper"} (page ${t.page ?? "?"})`);
+    if (missing.length) {
+      proposal.warnings.push(`${s.summary.label}: the notice prints ${pc.expected} exam-pattern table(s); ${pc.read} read. Not read: ${missing.join(", ")}. Enter ${missing.length === 1 ? "it" : "them"} in the editor's exam pattern.`);
+      if (item) { item.defaultTicked = false; item.flags = [...item.flags, `incomplete: ${pc.read} of ${pc.expected} papers read — not read: ${missing.join(", ")}`]; }
+    } else if (item) {
+      item.flags = [...item.flags, `all ${pc.expected} papers read by code from the notice's tables`];
+    }
+    if (item && pc.problems.length) item.flags = [...item.flags, ...pc.problems.map((p) => `printed total disagrees: ${p}`)];
+  }
   // Tables found but not read, and lines in a table that were not read, are said.
   for (const s of sources) {
     const note = tableNotes.get(s.retrieval.id) as { coverage?: { tables: Array<{ title: string; pages: number[]; read: boolean; why?: string }>; unreadLines: unknown[] } } | undefined;
@@ -407,7 +422,7 @@ export async function assemblePreview(opts: {
       sources: sources.map((s) => ({ ...s.summary, method: s.retrieval.method, originUrl: s.retrieval.originUrl,
         notFound: s.reading.notFound, refused: s.reading.refused, summary: s.reading.summary,
         ...(s.reading.articleSkipped ? { articleSkipped: s.reading.articleSkipped } : {}),
-        vacancyTables: tableNotes.get(s.retrieval.id) ?? null, reading: s.reading.readingCoverage ?? null,
+        vacancyTables: tableNotes.get(s.retrieval.id) ?? null, reading: s.reading.readingCoverage ?? null, ...(s.reading.patternCoverage ? { pattern: s.reading.patternCoverage } : {}),
         ...(s.scan?.images ? { pageImages: s.scan.images } : {}) })),
       duplicates,
       aiRequests: { ...paced.stats },

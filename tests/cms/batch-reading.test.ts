@@ -238,3 +238,28 @@ test("PC03 the gate lets at most two tasks run at once, in the order they asked"
   assert.equal(most, 2);
   assert.deepEqual(order, [1, 2, 3, 4, 5]);
 });
+
+test("BR13 a short notice read in one request whose answer is cut off is read again in halves; every page once, values on their pages", async () => {
+  const text = notice(4, { 1: ["Last date for registration 21.09.2026"], 4: ["Application fee Rs. 850/- for General candidates"] });
+  const calls: string[] = [];
+  const fetchFn = (async (_url: unknown, init?: RequestInit) => {
+    const prompt = JSON.parse(String(init?.body)).contents[0].parts[0].text as string;
+    const m = /pages (\d+) to (\d+) of a/.exec(prompt);
+    calls.push(m ? `${m[1]}-${m[2]}` : "whole");
+    const t = prompt.slice(prompt.indexOf("TEXT:"));
+    const answer = JSON.stringify({
+      ...(t.includes("21.09.2026") ? { dates: { applicationCloseDate: { value: "2026-09-21", quote: "Last date for registration 21.09.2026" } } } : {}),
+      ...(t.includes("Rs. 850/-") ? { feeGeneral: { value: 850, quote: "Application fee Rs. 850/- for General candidates" } } : {}),
+    });
+    // The whole notice in one answer is too much: cut off. Two pages at a time is fine.
+    const out = m ? answer : answer.slice(0, 20);
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: out }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as unknown as typeof fetch;
+  const r = await readArticleInBatches({ text, subject: "x", apiKey: "test-key", fetchFn });
+  assert.deepEqual(calls, ["whole", "1-2", "3-4"]);
+  assert.deepEqual(r.coverage.split, [{ first: 1, last: 4 }]);
+  assert.deepEqual(r.coverage.batches.map((b) => `${b.first}-${b.last}:${b.status}`), ["1-2:read", "3-4:read"]);
+  assert.equal(r.values.find((v) => v.fieldPath === "dates.applicationCloseDate")?.page, 1);
+  assert.equal(r.values.find((v) => v.fieldPath === "financial.feeGeneral")?.page, 4);
+  assert.equal(r.skipped, undefined);
+});

@@ -586,9 +586,12 @@ export async function finishJob(opts: { adminId: string; jobId: string; apiKey: 
                          RETURNING job_id`;
   if (took.length === 0) return; // another step is finishing it, or it is done or cancelled
   try {
-    const { importId, unreadLines } = await buildJobPreview(job, opts);
-    // Every page read, but table lines that could not be read are missing data: said, and never "complete".
-    const note = unreadLines > 0 ? `${unreadLines} line(s) inside a vacancy table could not be read as rows; the review lists them.` : null;
+    const { importId, unreadLines, papersMissing } = await buildJobPreview(job, opts);
+    // Every page read, but table lines or exam-pattern papers that could not be read are missing data: said, and never "complete".
+    const note = [
+      unreadLines > 0 ? `${unreadLines} line(s) inside a vacancy table could not be read as rows; the review lists them.` : "",
+      papersMissing > 0 ? `${papersMissing} exam-pattern paper(s) printed in the notice could not be read; the review names them.` : "",
+    ].filter(Boolean).join(" ") || null;
     await sql`UPDATE recruitment_import_jobs SET state = 'DONE', import_id = ${importId}, state_note = ${note}, updated_at = now() WHERE job_id = ${opts.jobId} AND state = 'FINISHING'`;
     await dropPieces(opts.jobId);
   } catch (err) {
@@ -599,7 +602,7 @@ export async function finishJob(opts: { adminId: string; jobId: string; apiKey: 
   }
 }
 
-async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; apiKey: string | undefined; fetchFn?: typeof fetch }): Promise<{ importId: string; unreadLines: number }> {
+async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; apiKey: string | undefined; fetchFn?: typeof fetch }): Promise<{ importId: string; unreadLines: number; papersMissing: number }> {
   const sources = sourcesOf(job);
   const parts = await partsOf(opts.jobId, true);
   const taskRows = await sql`SELECT task_no, source_no, kind, first_page, last_page, status, result, reason FROM recruitment_import_job_tasks WHERE job_id = ${opts.jobId} ORDER BY task_no`;
@@ -662,7 +665,9 @@ async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; a
   });
   const unreadLines = (out.proposal.meta.sources as Array<{ vacancyTables?: { coverage?: { unreadLines?: unknown[] } } | null }>)
     .reduce((n, src) => n + (src.vacancyTables?.coverage?.unreadLines?.length ?? 0), 0);
-  return { importId: out.importId, unreadLines };
+  const papersMissing = (out.proposal.meta.sources as Array<{ pattern?: { expected: number; read: number } }>)
+    .reduce((n, src) => n + (src.pattern ? src.pattern.expected - src.pattern.read : 0), 0);
+  return { importId: out.importId, unreadLines, papersMissing };
 }
 
 // ─── The admin's controls ─────────────────────────────────

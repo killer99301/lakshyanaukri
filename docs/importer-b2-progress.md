@@ -754,3 +754,88 @@ unchanged. Stage C and B2.6 are not started.
   - production build passes; the cache test is 31/31;
   - intelligence 12/13 (baseline). Lint is back to the 7 / 26 baseline
     after one new apostrophe error was fixed.
+
+---
+
+## Exam-pattern completeness, read by code (done)
+
+- **`src/lib/cms/importer/pattern-tables.ts`**, pure, no AI.
+  - **Finding the papers:** every pattern table is found first. A table's
+    header names the tests or subjects, the questions and the marks. The
+    count of tables is the number of papers the notice prints.
+  - **Reading the rows**, as printed:
+    - wrapped names;
+    - numbered (1, 4a/4b), lettered (A–D under a Part or Section column) or
+      unnumbered rows;
+    - a medium column stripped only where most rows end with one, so "General
+      English" stays whole;
+    - marks-first headers read in that order;
+    - tab-separated rows.
+  - **Totals and duration:** the printed Total gives the questions, marks
+    and duration. A duration on the next line or in the sentence after
+    ("will be 60 minutes", "2 Hours") is also used.
+  - **Paper names:** the stage heading plus the post's title. Titles listed
+    together before their tables (IBPS single level) are given out in
+    order. A sentence is never a title.
+  - **Nothing is worked out:**
+    - a sum that disagrees with its printed total is said, not corrected;
+    - "4a / 4b" alternatives are counted once and noted;
+    - a table whose rows cannot be read is named, with its page.
+- **In the reading (`combineReading`):**
+  - Where the text has pattern tables, the papers read by code are the
+    pattern. The AI's papers are not used there; they came and went between
+    runs, 4–7 of 7 for IBPS.
+  - The AI's pattern is used only where the text has no pattern table
+    (prose, or a scan not written out as a table).
+  - The coverage (expected, read, tables, problems) is kept on the source
+    reading.
+- **Review:**
+  - All papers read: the item says "all N papers read by code from the
+    notice's tables".
+  - Any paper missing: the item is flagged "incomplete: N of M papers read
+    — not read: … (page P)" and left unticked, and the preview warns.
+  - A disagreeing printed total is flagged.
+  - Reading jobs never call a reading with a missing paper "complete": the
+    job's note says so.
+- **Also, recovery for short notices:** a notice short enough to be read in
+  one request, whose answer comes back incomplete, is now read again in
+  halves, as a page batch is. LIC's one-request reading was answered
+  incompletely twice in one run and lost its total and exam date.
+
+### Results
+- **`tests/cms/pattern-tables.test.ts`: 10/10.** It covers:
+  - IBPS from its real text: 7 tables on pages 21, 21, 22, 22, 24, 24, 24,
+    and every paper's questions, marks and duration as printed;
+  - LIC and BTSC from their real text;
+  - an SSC-style two-tier scheme with lettered parts;
+  - a marks-first table;
+  - a disagreeing total, said;
+  - an unreadable table, named with its page;
+  - prose only (nothing counted);
+  - in the reading, IBPS's AI four papers replaced by the code's seven;
+  - with no table, the AI's papers kept.
+- **`tests/cms/batch-reading.test.ts`: 16/16** (BR13: a short notice cut
+  off, then read again in halves).
+- **Real Gemini (`importer-gemini.acceptance.ts`, three runs):**
+  - IBPS read 7 of 7 papers with every figure as printed in all three runs.
+    The item said "all 7 papers read by code".
+  - LIC and BTSC were read as printed. A web article's tabs come through as
+    spaces, so BTSC's part label reads "Paper 1 General Studies…".
+  - Run 3 passed 55/56. The one failure: Gemini answered "rate limit
+    reached" for IBPS pages 65–72 after the retries. Those pages were
+    reported as not read.
+- **Browser (local test copy, real Gemini):**
+  - IBPS pages 21–24 were pasted as the notice. The review lists all seven
+    papers and "all 7 papers read by code".
+  - With the Specialist Cadre table's figures removed (as a damaged text
+    layer would), the item is flagged "incomplete: 6 of 7 papers read — not
+    read: … (Specialist Cadre) (page 24)". It is left unticked, the preview
+    warns, and the six good papers are still offered.
+- **Regression:**
+  - 20 local-stack suites pass; `cms:test` 48/48 suites; intake 332/332;
+    PostgreSQL 35/35; `tsc` clean;
+  - production build passes;
+  - intelligence 12/13 and lint 7 / 26 (baselines).
+- **Not changed:** the review shows the positive "all N papers read" note
+  with the same ⚠ mark as warnings. That is how the review shows every
+  flag.

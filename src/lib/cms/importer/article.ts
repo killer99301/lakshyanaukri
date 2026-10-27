@@ -625,13 +625,24 @@ export async function readArticleInBatches(opts: {
   const pages = pagesOf(opts.text);
   const pageCount = pages ? pages[pages.length - 1].page : null;
   const noTextPages = pages ? pages.filter((p) => !pageHasText(p)).map((p) => p.page) : [];
+  const split: Array<{ first: number; last: number }> = [];
+  let groups: PageText[][];
+  let startDepth = 0;
   if (!pages || opts.text.length <= BATCH_FROM_CHARS) {
     const one = await gate(() => readArticle(opts));
-    return { ...one, coverage: { mode: "whole", pages: pageCount, noTextPages,
-      batches: [{ first: pages ? 1 : null, last: pageCount, status: one.skipped ? "failed" : "read", ...(one.skipped ? { reason: one.skipped } : {}), values: one.values.length }] } };
+    const withText = pages?.filter(pageHasText) ?? [];
+    // A short text read in one request whose answer came back incomplete is read again in halves, as a batch is.
+    if (!(one.skipped && INCOMPLETE.test(one.skipped) && withText.length > 1)) {
+      return { ...one, coverage: { mode: "whole", pages: pageCount, noTextPages,
+        batches: [{ first: pages ? 1 : null, last: pageCount, status: one.skipped ? "failed" : "read", ...(one.skipped ? { reason: one.skipped } : {}), values: one.values.length }] } };
+    }
+    split.push({ first: withText[0].page, last: withText[withText.length - 1].page });
+    const mid = Math.ceil(withText.length / 2);
+    groups = [withText.slice(0, mid), withText.slice(mid)];
+    startDepth = 1;
+  } else {
+    groups = pageBatches(pages!).map((b) => pagesOf(b.text) ?? []);
   }
-  const batches = pageBatches(pages);
-  const split: Array<{ first: number; last: number }> = [];
   /** One batch's pages; an incomplete answer cuts them in half and reads each half (B2.5), down to one page. */
   const readPages = async (ps: PageText[], depth: number): Promise<Array<{ first: number; last: number; r: ArticleReading | null }>> => {
     const first = ps[0].page, last = ps[ps.length - 1].page;
@@ -649,7 +660,7 @@ export async function readArticleInBatches(opts: {
     if (r?.skipped && RETRY_BATCH.test(r.skipped)) r = (await read()) ?? r; // once more
     return [{ first, last, r }];
   };
-  const results = (await Promise.all(batches.map((b) => gate(() => readPages(pagesOf(b.text) ?? [], 0))))).flat();
+  const results = (await Promise.all(groups.map((ps) => gate(() => readPages(ps, startDepth))))).flat();
   const coverage: ReadingCoverage = { mode: "batches", pages: pageCount, noTextPages, batches: [], ...(split.length ? { split } : {}) };
   const parts: Array<Omit<ArticleReading, "skipped">> = [];
   results.forEach(({ first, last, r }) => {
