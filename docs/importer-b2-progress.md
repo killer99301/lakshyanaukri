@@ -63,3 +63,93 @@ These builders are shared with AI Assist in the job editor, so AI Assist gains t
 - **IBPS exam stages** still come only from the single whole-notice request, so they still vary between runs. B2.2's page batches address this.
 - **The pattern reader's own variance:** in run 1 the model left out two papers that it had been given. Detection is now right; the model's reading still varies. The review screen shows what was found, and B2.2's merge across batches will be checked against this.
 - **IBPS age is refused in both runs**, correctly. IBPS gives a different age range for each post (18–28, 18–30, 21–32, 21–40), but the age field holds one range. The model returns one range and the quote check refuses it. Storing ages per post is a product decision (a change to the record's age field), and it is not part of B2.
+
+## B2.2 — Page-batched reading, merged by code, with coverage (done)
+
+### What changed
+
+**Page batches** (`src/lib/cms/importer/article.ts`)
+
+- A notice with page marks and more than 40,000 characters is read in **batches of whole pages**: at most 8 pages or 30,000 characters each. IBPS (76 pages) becomes 10 batches.
+- A page with no text (a scanned page) is in no batch. It is named as "no text (scanned)".
+- Each request is told which pages it holds. Each value's page is counted in the whole document.
+- Shorter texts are still read whole, in one request, as before.
+
+**Merging, by code**
+
+- A list (exam stages, papers, posts, eligibility, syllabus, steps, notes) is joined across batches. An entry given twice the same way counts once, and the joined value keeps every contributing batch's quote and page.
+- When two batches give the same entry differently, nothing is joined for that field. Each batch's version is offered, so the review shows a conflict.
+- A single value (a date, a fee, the age limit) is offered as each batch gives it: the same value from two batches is one item with two quotes, and different values are a conflict.
+- Nothing is chosen between differing values.
+
+**Coverage**
+
+- Each batch is recorded as read, failed (with the reason) or not read (the time ran out). This is stored with the preview and shown in the review's Sources panel.
+- Any unread page range becomes a warning: "pages 17–24 of 40 were not read (…). What those pages state is missing from this preview." "Complete" is never claimed while a page is unread.
+
+**Pacing** (`src/lib/cms/importer/pacing.ts`)
+
+- **A gate per import:** at most 2 AI requests at a time. A task starts its request, and its timeout, only when it gets a place, so queuing never uses up a request's time.
+- **Resends:** a request refused for load (429 or 5xx) is resent at most twice, after 5 s and then 12 s. Each resend is counted against the daily allowance first, and each refused attempt is counted as a failure. Nothing is resent once the allowance is used up.
+- A batch that still fails is tried once more as a whole.
+- The preview stores the number of requests (sent, resent, failed), and the review shows it.
+
+**Time limit in the browser.** The preview route stops starting new batches 45 s into its 60 s. Batches not started are reported as not read. B2.3's background reading removes this limit.
+
+**Two real faults found by batching, fixed generally**
+
+- A batch without the schedule took unrelated dates, such as the notice's signature date as the admit-card date, or a qualification deadline as the exam date. A date's quote must now **name its event** (exam, admit card, interview, result, registration, fee payment, correction), or the date is refused with that reason.
+- Schedule steps with only a month ("November / December, 2026") were left out of the exam stages. The reading now asks for them, keeping the month as written, never as a date. Stages are limited to examination, interview and document-verification steps. A stage name longer than the editor's 80 characters drops that stage only, and says so.
+
+### Results
+
+**Deterministic tests**
+
+- `tests/cms/batch-reading.test.ts`: 12/12. Covers:
+  - pages and batches
+  - each value's page in the whole document
+  - lists joined across batches, and conflicts kept apart
+  - a failed batch, and batches not started in time
+  - short texts read whole
+  - the date-event rule and month-only stages
+  - resends, the allowance and the gate
+- `tests/local-stack/importer-batches.test.ts`: 8/8, through the real preview service and test database:
+  - a batch refused once for load is resent and read
+  - a batch that keeps failing is named with its pages in the coverage and warnings
+  - a value on a failed page is missing, not guessed
+  - a scanned page is named
+  - the requests are counted
+  - the time limit leaves batches "not read"
+
+**Real Gemini, final two runs:** 47/47 and 47/47.
+
+| | Run 5 | Run 6 |
+|---|---|---|
+| IBPS batches read | 10 of 10 | 10 of 10 |
+| AI requests (sent, resent after a refusal for load) | 18, 4 resent | 14, 0 resent |
+| IBPS exam stages | the same 4 stages from page 1, months as written (Pre-Exam Training; Preliminary; Main / Single; Interview) | same |
+| IBPS exam pattern | 7 of 7 papers | 4 of 7 papers |
+| Wrong dates | none | none |
+
+- Earlier runs on the way, before the two faults were fixed, showed the wrong dates and the missing stages. That is how the faults were found.
+- In run 6, the fee-payment deadline was refused by the date reader (its quote did not contain the date), so it is missing from that preview. This rule predates B2.
+
+**Browser (local test copy, real Gemini)**
+
+- The full 76-page IBPS text was pasted into Smart Intake. It was read in 17 s: 10 of 10 batches, 10 AI requests, inside the browser's time budget.
+- The review showed the four exam stages, the exam pattern, age, fees, dates, vacancies and eligibility, plus "Read in 10 page batches: 10 of 10 read (76 pages)" and the request count.
+
+**Regression**
+
+- 19 local-stack suites pass
+- `cms:test` 43/43 suites
+- intake 332/332
+- PostgreSQL 17 concurrency 30/30
+- `tsc` clean
+- intelligence 12/13 and lint 7 / 26, both unchanged baselines
+
+### Still open after B2.2
+
+- **The pattern reader's variance** (4 to 7 of IBPS's 7 papers). It reads the content-found passages from B2.1, not the page batches. When the batches also return the pattern, the stricter section reader still wins. Running the pattern through the batch merge too, and offering a difference as a conflict, would show the gap. Whether to do that is for you to say.
+- **IBPS age** is refused correctly: its age differs by post, and the age field holds one range.
+- **A document longer than about 45 s to read in the browser** is reported as partly read until B2.3.

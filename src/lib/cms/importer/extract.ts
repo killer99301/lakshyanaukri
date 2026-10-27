@@ -21,7 +21,7 @@ import { DETAIL_FIELDS, buildDetailSections, extractDetails } from "@/lib/cms/ai
 import { SYLLABUS_FIELDS, buildSyllabusSections, extractPatternAndSyllabus } from "@/lib/cms/ai-assist-syllabus";
 import { pageOf } from "@/lib/cms/importer/evidence-text";
 import { linksInText, type FoundLink } from "@/lib/cms/importer/links";
-import { readArticle } from "@/lib/cms/importer/article";
+import { readArticleInBatches, type ReadingCoverage } from "@/lib/cms/importer/article";
 import type { ExtractedValue } from "@/lib/cms/importer/proposal";
 
 export interface SourceReading {
@@ -34,6 +34,8 @@ export interface SourceReading {
   summary: string | null;
   /** Why the whole-text reading did not run, when it did not. */
   articleSkipped?: string;
+  /** Which pages the whole-text reading read, batch by batch. */
+  readingCoverage?: ReadingCoverage;
 }
 
 /** Plain text from an HTML page, for storage, page lookup and link finding. */
@@ -58,8 +60,13 @@ export async function readSource(opts: {
   organizationId: string;
   apiKey: string | undefined;
   fetchFn?: typeof fetch;
+  /** Lets only a few AI requests of the import run at a time (see pacing.ts). */
+  gate?: <T>(task: () => Promise<T>) => Promise<T>;
+  /** Epoch ms after which no new page batch is started. */
+  deadline?: number;
 }): Promise<SourceReading> {
   const { content, kind, url, subject, apiKey, fetchFn } = opts;
+  const gate = opts.gate ?? (<T>(t: () => Promise<T>) => t());
   const plain = kind === "html" ? htmlToText(content) : content;
   const values: ExtractedValue[] = [];
   const notFound: string[] = [];
@@ -69,10 +76,10 @@ export async function readSource(opts: {
 
   const base = buildAssistCandidates(content, kind, url);
   const [ai, details, pattern, article] = await Promise.all([
-    extractWithAi({ sections: buildAiSections(content, kind, url), url, apiKey, fetchFn }),
-    extractDetails({ sections: buildDetailSections(content, kind, url, subject), url, apiKey, subject, fetchFn }),
-    extractPatternAndSyllabus({ sections: buildSyllabusSections(content, kind, url, subject), url, apiKey, subject, fetchFn }),
-    readArticle({ text: plain, subject, apiKey, fetchFn }),
+    gate(() => extractWithAi({ sections: buildAiSections(content, kind, url), url, apiKey, fetchFn })),
+    gate(() => extractDetails({ sections: buildDetailSections(content, kind, url, subject), url, apiKey, subject, fetchFn })),
+    gate(() => extractPatternAndSyllabus({ sections: buildSyllabusSections(content, kind, url, subject), url, apiKey, subject, fetchFn })),
+    readArticleInBatches({ text: plain, subject, apiKey, fetchFn, gate, deadline: opts.deadline }),
   ]);
 
   const merged = mergeAiDates(mergeAiNotificationNumber(base, ai.notificationNumber), ai.dates);
@@ -131,5 +138,5 @@ export async function readSource(opts: {
   const stillMissing = notFound.filter((label) => !filled.some((p) => NOT_FOUND_LABEL[p]?.test(label)));
 
   return { values, links: linksInText(plain, opts.organizationId), notFound: stillMissing, refused, summary: details.summary,
-           ...(article.skipped ? { articleSkipped: article.skipped } : {}) };
+           ...(article.skipped ? { articleSkipped: article.skipped } : {}), readingCoverage: article.coverage };
 }

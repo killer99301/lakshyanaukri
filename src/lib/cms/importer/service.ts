@@ -25,6 +25,7 @@ import { CRITICAL_FIELDS, FIELD_DEFS, fieldDef, revisionPath } from "@/lib/cms/i
 import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-domains";
 import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
 import { mergeTables, readVacancyTables, tableFromSplit } from "@/lib/cms/importer/vacancy-tables";
+import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
 import {
   applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -32,6 +33,8 @@ import {
 
 export const MAX_SOURCES = 4;
 export const MAX_TEXT_CHARS = 200_000;
+/** AI requests of one import in flight at a time (stage B2.2: four at once hit the per-minute limit). */
+const AI_CONCURRENCY = 2;
 
 export class ImportInputError extends Error {
   constructor(message: string, readonly status = 400) { super(message); this.name = "ImportInputError"; }
@@ -129,11 +132,12 @@ async function obtain(input: SourceInput, fetchSourceFn: typeof fetchSource, rea
   return { method: "PASTED", finalUrl: null, kind: "TEXT", bytes: Buffer.from(text, "utf8"), text, pages: null };
 }
 
-async function readOne(input: SourceInput, organizationId: string, subject: string, apiKey: string | undefined, fetchFn: typeof fetch | undefined, fetchSourceFn: typeof fetchSource): Promise<Omit<ReadSource, "retrieval" | "summary"> & { obtained: Awaited<ReturnType<typeof obtain>> }> {
+async function readOne(input: SourceInput, organizationId: string, subject: string, apiKey: string | undefined, fetchFn: typeof fetch | undefined, fetchSourceFn: typeof fetchSource,
+  pace: { gate: <T>(task: () => Promise<T>) => Promise<T>; deadline?: number }): Promise<Omit<ReadSource, "retrieval" | "summary"> & { obtained: Awaited<ReturnType<typeof obtain>> }> {
   const obtained = await obtain(input, fetchSourceFn, { subject, apiKey, fetchFn });
   const reading = await readSource({
     content: obtained.text, kind: obtained.kind === "PDF" ? "pdf" : "html", url: obtained.finalUrl ?? input.url ?? "",
-    subject, organizationId, apiKey, fetchFn,
+    subject, organizationId, apiKey, fetchFn, gate: pace.gate, deadline: pace.deadline,
   });
   // Every value as the editor would store it; one the editor refuses is left
   // out with its reason, never offered.
@@ -159,6 +163,10 @@ export async function previewImport(opts: {
   fetchFn?: typeof fetch;
   /** Fetching a source by address (tests replace it; the real one checks every address is public). */
   fetchSourceFn?: typeof fetchSource;
+  /** Epoch ms after which no new page batch of a long notice is started (the route's time limit). */
+  deadline?: number;
+  /** For tests: the waits between resends of a request refused for load. */
+  retryBackoffMs?: number[];
 }) {
   if (opts.sources.length === 0) throw new ImportInputError("Add at least one source");
   if (opts.sources.length > MAX_SOURCES) throw new ImportInputError(`At most ${MAX_SOURCES} sources in one import`);
@@ -180,8 +188,12 @@ export async function previewImport(opts: {
     subject = `${j.title} — ${j.organizationName}`;
   }
 
-  // Read every source together (the AI requests of each run in parallel too).
-  const read = await Promise.all(opts.sources.map((s) => readOne(s, organizationId, subject, opts.apiKey, opts.fetchFn, opts.fetchSourceFn ?? fetchSource)));
+  // Read every source together, but through one gate: at most AI_CONCURRENCY
+  // AI requests of this import at a time, and a request refused for load is
+  // resent after a wait, each resend counted against the daily allowance.
+  const paced = retryingFetch(opts.fetchFn ?? ((input, init) => globalThis.fetch(input, init)), { backoffMs: opts.retryBackoffMs });
+  const gate = createGate(AI_CONCURRENCY);
+  const read = await Promise.all(opts.sources.map((s) => readOne(s, organizationId, subject, opts.apiKey, paced.fetch, opts.fetchSourceFn ?? fetchSource, { gate, deadline: opts.deadline })));
 
   // Retrievals: fetches first, so an upload of the same file can point at one.
   const order = [...read].sort((a, b) => (a.obtained.method === "FETCHED" ? 0 : 1) - (b.obtained.method === "FETCHED" ? 0 : 1));
@@ -233,7 +245,7 @@ export async function previewImport(opts: {
     const splitRows = Array.isArray(breakdown?.value) ? (breakdown!.value as Array<{ post: string; count: number; breakdown?: Record<string, unknown> }>) : [];
     const fallbackPost = (splitRows.length === 1 ? splitRows[0].post : null) ?? opts.newJob?.title ?? record?.identity.title.value ?? "All posts";
     const { table: read, coverage } = s.retrieval.source.text.trim()
-      ? await readVacancyTables(s.retrieval.source.text, { retrievalId: s.retrieval.id, fallbackPost, apiKey: opts.apiKey, fetchFn: opts.fetchFn })
+      ? await readVacancyTables(s.retrieval.source.text, { retrievalId: s.retrieval.id, fallbackPost, apiKey: opts.apiKey, fetchFn: paced.fetch })
       : { table: null, coverage: { pages: null, tables: [], unreadLines: [] } };
     const fromSplit = !read && breakdown
       ? tableFromSplit(splitRows, typeof totalValue === "number" ? totalValue : null, { retrievalId: s.retrieval.id, page: breakdown.page ?? null, line: breakdown.quote ?? "" }, s.retrieval.source.text)
@@ -309,6 +321,18 @@ export async function previewImport(opts: {
     }
     if (note?.coverage?.unreadLines.length) proposal.warnings.push(`${note.coverage.unreadLines.length} line(s) inside a vacancy table could not be read as rows; check them in the preview.`);
   }
+  // Pages the whole-text reading did not read are said, page range by page range.
+  for (const s of sources) {
+    const cov = s.reading.readingCoverage;
+    if (!cov) continue;
+    const unread = cov.batches.filter((b) => b.status !== "read");
+    if (cov.mode === "batches" && unread.length > 0) {
+      proposal.warnings.push(`${s.summary.label}: pages ${unread.map((b) => b.first === b.last ? `${b.first}` : `${b.first}–${b.last}`).join(", ")} of ${cov.pages} were not read (${[...new Set(unread.map((b) => b.reason))].join("; ")}). What those pages state is missing from this preview.`);
+    }
+    if (cov.noTextPages.length > 0) {
+      proposal.warnings.push(`${s.summary.label}: pages ${cov.noTextPages.join(", ")} have no text (scanned pages); they were not read.`);
+    }
+  }
 
   // Keys for the duplicate lock and check of a new job.
   let identityKey: string | null = null;
@@ -332,8 +356,9 @@ export async function previewImport(opts: {
       sources: sources.map((s) => ({ ...s.summary, method: s.retrieval.method, originUrl: s.retrieval.originUrl,
         notFound: s.reading.notFound, refused: s.reading.refused, summary: s.reading.summary,
         ...(s.reading.articleSkipped ? { articleSkipped: s.reading.articleSkipped } : {}),
-        vacancyTables: tableNotes.get(s.retrieval.id) ?? null })),
+        vacancyTables: tableNotes.get(s.retrieval.id) ?? null, reading: s.reading.readingCoverage ?? null })),
       duplicates,
+      aiRequests: { ...paced.stats },
     },
   };
   await storePreview({

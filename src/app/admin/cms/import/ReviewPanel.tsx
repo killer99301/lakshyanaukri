@@ -10,6 +10,7 @@ import Link from "next/link";
 import { C, PANEL, badge, inputStyle, primaryBtn, quietBtn, readableDates, showValue } from "./ui";
 import { VacancyTableReview, type VacancyTableNote } from "./VacancyTableReview";
 import { analyseVacancyTable, type VacancyTable } from "@/lib/vacancy-table";
+import type { ReadingCoverage } from "@/lib/cms/importer/article";
 
 export interface ReviewItem {
   id: string; kind: "FIELD" | "LINK"; fieldPath: string; label: string; value: unknown;
@@ -21,6 +22,21 @@ export interface ReviewSource {
   id: string; label: string; declaredKind: string; authenticity: string;
   notFound: string[]; refused: Array<{ fieldPath: string; reason: string }>; articleSkipped?: string;
   vacancyTables?: VacancyTableNote | null;
+  /** Which pages the whole-text reading read (stage B2.2). */
+  reading?: ReadingCoverage | null;
+}
+
+/** "pages 1–76 read in 10 batches", and what was not read. */
+function readingInWords(r: ReadingCoverage): { read: string; unread: string[] } {
+  const range = (b: { first: number | null; last: number | null }) => (b.first === null ? "the text" : b.first === b.last ? `page ${b.first}` : `pages ${b.first}–${b.last}`);
+  const ok = r.batches.filter((b) => b.status === "read");
+  const read = r.mode === "batches"
+    ? `Read in ${r.batches.length} page batches: ${ok.length} of ${r.batches.length} read${r.pages ? ` (${r.pages} pages)` : ""}`
+    : ok.length ? `Read whole${r.pages ? ` (${r.pages} pages)` : ""}` : "Not read";
+  return { read, unread: [
+    ...r.batches.filter((b) => b.status !== "read").map((b) => `${range(b)}: not read — ${b.reason ?? "unknown"}`),
+    ...(r.noTextPages.length ? [`pages ${r.noTextPages.join(", ")}: no text (scanned)`] : []),
+  ] };
 }
 
 /** A vacancy table in one line, for "Replaces:" (the full table is shown above it). */
@@ -63,6 +79,8 @@ export function ReviewPanel(props: {
   existing: boolean;
   items: ReviewItem[];
   sources: ReviewSource[];
+  /** The AI requests this preview made (resends included). */
+  aiRequests?: { sent: number; retried: number; failed: number };
   warnings: string[];
   replaced: Array<{ fieldPath: string; value: unknown; by: string }>;
   ticked: Set<string>;
@@ -204,8 +222,20 @@ export function ReviewPanel(props: {
               {s.notFound.length > 0 && <div>Not in it: {s.notFound.join(", ")}</div>}
               {s.refused.length > 0 && <div style={{ color: C.amber }}>Left out (did not pass the checks): {s.refused.map((r) => `${r.fieldPath} — ${r.reason}`).join("; ")}</div>}
               {s.articleSkipped && <div style={{ color: C.amber }}>The whole-text reading did not run: {s.articleSkipped}</div>}
+              {s.reading && (() => {
+                const w = readingInWords(s.reading);
+                return (
+                  <div data-reading-coverage>
+                    <div>{w.read}.</div>
+                    {w.unread.map((u) => <div key={u} style={{ color: C.amber }}>{u}</div>)}
+                  </div>
+                );
+              })()}
             </div>
           ))}
+          {props.aiRequests && props.aiRequests.sent > 0 && (
+            <div data-ai-requests>AI requests for this preview: {props.aiRequests.sent}{props.aiRequests.retried ? ` (${props.aiRequests.retried} resent after a refusal for load)` : ""}, each counted against the daily allowance.</div>
+          )}
           <div>Kept with the job: each source&apos;s text, fingerprint (SHA-256), size, pages and address. Not kept: the original PDF or image.</div>
         </div>
       </details>

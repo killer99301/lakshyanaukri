@@ -22,7 +22,11 @@ import type { DeclaredKind } from "@/lib/cms/importer/proposal";
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const KINDS: DeclaredKind[] = ["OFFICIAL_NOTIFICATION", "OFFICIAL_CORRIGENDUM", "OFFICIAL_PAGE", "RESEARCH", "OTHER"];
 
+/** How long the reading may start new page batches, inside maxDuration. */
+const READ_BUDGET_MS = 45_000;
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const startedAt = Date.now();
   const guard = await guardImporter(request, { write: true });
   if (guard instanceof NextResponse) return guard;
 
@@ -68,6 +72,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       adminId: guard.adminId, mode, recruitmentId: String(form.get("recruitmentId") ?? "") || undefined,
       newJob: newJob ? { ...newJob, recruitmentYear: Number(newJob.recruitmentYear) } : undefined,
       sources, apiKey: process.env.GEMINI_API_KEY,
+      // Within this route's 60 s: page batches not started by then are reported as not read.
+      deadline: startedAt + READ_BUDGET_MS,
     });
     return NextResponse.json(result, { status: 201 });
   } catch (err) {

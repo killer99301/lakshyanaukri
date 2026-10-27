@@ -39,10 +39,13 @@ export interface ArticleReading {
 
 type J = Record<string, unknown>;
 
-export function buildArticlePrompt(text: string, subject: string): string {
+export function buildArticlePrompt(text: string, subject: string, part?: { first: number; last: number; pages: number }): string {
+  const scope = part
+    ? `\nThe TEXT below is pages ${part.first} to ${part.last} of a ${part.pages}-page notice; the other pages are read separately. Give what THESE pages state, even when it seems minor or continues from another page. The lines "-- N of ${part.pages} --" mark page ends.\n`
+    : "";
   return `You are reading a government recruitment notice or an article about one: "${subject}".
 Map what it says onto the fields below. Use ONLY what the text states. Never guess, never fill a field from general knowledge.
-
+${scope}
 Every value comes with "quote": words copied EXACTLY from the text (10 to 250 characters) that contain the value.
 Leave a field out when the text does not state it. Facts about other recruitments mentioned on the page are ignored.
 
@@ -57,7 +60,7 @@ Return one JSON object with any of:
 - "age": { "min"?: integer, "max"?: integer for General/UR men, "asOf"?: "YYYY-MM-DD", "quote", "categoryMax"?: [ { "category", "max": integer, "quote" } ] }
 - "eligibility": [ { "post", "qualifications": [ each copied from the text ], "quote" } ]
 - "selectionStages": [ { "name", "type": one of WRITTEN, CBT, INTERVIEW, SKILL_TEST, DOCUMENT_VERIFICATION, PHYSICAL, OTHER, "description"?: copied from the text, "quote" } ] in order.
-- "examStages": [ { "name", "date"?: "YYYY-MM-DD" or null when not announced, "dateText"?: as written, e.g. "To be announced", "quote" } ] — the dated steps after applying (exam, interview, document verification).
+- "examStages": [ { "name", "date"?: "YYYY-MM-DD" or null when not announced, "dateText"?: as written, e.g. "To be announced", "quote" } ] — each examination, interview or document-verification step after applying (not registration, downloads, results or training), including such a step in a schedule or "important dates" table whose date is only a month or "to be announced": then "date" is null and "dateText" is the month or words as written.
 - "examPattern": [ { "name": paper name, "durationMinutes"?: integer, "totalQuestions"?: integer, "totalMarks"?: integer, "sections": [ { "subject", "questions"?: integer, "marks"?: integer } ], "note"?: copied, "quote" } ]
 - "syllabus": [ { "subject", "topics": [ each copied from the text ], "paper"?: name, "quote" } ]
 - "howToApply": [ { "step": copied from the text, "quote" } ] in order.
@@ -103,6 +106,19 @@ const obj = (v: unknown): J | undefined => (v && typeof v === "object" && !Array
 
 const ARTICLE_DATE = /\b(posted|updated|published|last modified)\b(?![^.]*\b(notification|advertisement|notice)\b)/i;
 const DATE_KEYS = ["applicationOpenDate", "applicationCloseDate", "feePaymentCloseDate", "correctionWindowEnd", "examDate", "admitCardDate", "interviewDate", "resultDate"] as const;
+/** Words a date's quote must contain to be that date: the event it belongs to. */
+const DATE_EVENT: Record<(typeof DATE_KEYS)[number], RegExp> = {
+  applicationOpenDate: /appl(?:y|ication)|regist|online|start|commenc|open|begin|invit/i,
+  applicationCloseDate: /appl(?:y|ication)|regist|online|last\s+date|clos|end|till|upto|up\s+to|until|invit/i,
+  feePaymentCloseDate: /\bfees?\b|payment|charges/i,
+  correctionWindowEnd: /correct|edit|modif|rectif/i,
+  examDate: /exam|test\b|\bcbt\b|\bwritten\b/i,
+  admitCardDate: /admit|call\s+letter|hall\s+ticket/i,
+  interviewDate: /interview/i,
+  resultDate: /result/i,
+};
+/** The editor's limit on an exam stage's name. */
+const STAGE_NAME_MAX = 80;
 const STAGE_TYPES: SelectionStageType[] = ["WRITTEN", "CBT", "INTERVIEW", "SKILL_TEST", "DOCUMENT_VERIFICATION", "PHYSICAL", "OTHER"];
 
 /**
@@ -191,8 +207,10 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
     if (!v || !quoted(path, d.quote)) continue;
     // "Posted on 15 October 2026", "Updated on …": the article's own date.
     if (ARTICLE_DATE.test(d.quote as string)) refuse(path, "the quote dates the article, not the recruitment");
-    else if (dateInQuote(v, d.quote as string)) keep(path, v, d.quote as string);
-    else refuse(path, "the date is not written in its quote");
+    else if (!dateInQuote(v, d.quote as string)) refuse(path, "the date is not written in its quote");
+    // A date beside another event ("Director, Date: 01.09.2026", "result on or before …") is not this one.
+    else if (!DATE_EVENT[key].test(d.quote as string)) refuse(path, "the quote does not name this event");
+    else keep(path, v, d.quote as string);
   }
 
   const tv = obj(raw.totalVacancies);
@@ -299,6 +317,8 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
   for (const s of arr(raw.examStages)) {
     const name = str(s.name, 120);
     if (!name || !inText(s.quote)) continue;
+    // The editor keeps stage names short; a longer one is left out, and said, not cut.
+    if (name.length > STAGE_NAME_MAX) { refuse("examStages", `a stage name is longer than ${STAGE_NAME_MAX} characters: "${name.slice(0, 60)}…"`); continue; }
     const date = str(s.date, 10);
     const dated = !!date && dateInQuote(date, s.quote as string);
     const stage: ExamStage = {
@@ -363,13 +383,187 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
 }
 
 /** One request for the whole text. Never throws. */
-export async function readArticle(opts: { text: string; subject: string; apiKey: string | undefined; fetchFn?: typeof fetch }): Promise<ArticleReading> {
+export async function readArticle(opts: { text: string; subject: string; apiKey: string | undefined; fetchFn?: typeof fetch; part?: { first: number; last: number; pages: number }; timeoutMs?: number }): Promise<ArticleReading> {
   if (opts.text.trim().length < 100) return { values: [], refused: [], skipped: "too little text to read" };
   const long = opts.text.length > LONG_TEXT_CHARS;
   const answer = await callAiJson({
-    prompt: buildArticlePrompt(opts.text, opts.subject), apiKey: opts.apiKey, fetchFn: opts.fetchFn, feature: "import",
-    maxOutputTokens: long ? 16_384 : 8192, timeoutMs: READ_TIMEOUT_MS,
+    prompt: buildArticlePrompt(opts.text, opts.subject, opts.part), apiKey: opts.apiKey, fetchFn: opts.fetchFn, feature: "import",
+    maxOutputTokens: long || opts.part ? 16_384 : 8192, timeoutMs: opts.timeoutMs ?? READ_TIMEOUT_MS,
   });
   if (!answer.ok) return { values: [], refused: [], skipped: answer.reason };
   return judgeArticle(answer.data, opts.text);
+}
+
+// ─── A long notice, page batch by page batch (stage B2.2) ─────
+//
+// One request over a 76-page notice returns some fields and drops others,
+// differently each time. A notice with page marks and more than
+// BATCH_FROM_CHARS of text is read in batches of whole pages instead; code,
+// not the model, puts the batches' readings together. What no batch read is
+// reported page by page, and the reading is never called complete while a
+// page is unread.
+
+const BATCH_FROM_CHARS = 40_000;
+const BATCH_MAX_CHARS = 30_000;
+const BATCH_MAX_PAGES = 8;
+/** A page with less text than this (after its page mark) has no text layer: a scanned page. */
+const NO_TEXT_CHARS = 40;
+
+export interface PageText { page: number; text: string }
+export interface ReadingCoverage {
+  mode: "whole" | "batches";
+  /** Pages in the document, when it has page marks. */
+  pages: number | null;
+  batches: Array<{ first: number | null; last: number | null; status: "read" | "failed" | "not_read"; reason?: string; values: number }>;
+  /** Pages with no text: scanned pages, not read by the text reading. */
+  noTextPages: number[];
+}
+
+/** The text cut into its pages, each ending with its page mark; null without page marks. */
+export function pagesOf(text: string): PageText[] | null {
+  const marks = [...text.matchAll(/^-- (\d+) of (\d+) --$/gm)];
+  if (marks.length === 0) return null;
+  const out: PageText[] = [];
+  let at = 0;
+  for (const m of marks) {
+    const end = (m.index ?? 0) + m[0].length;
+    out.push({ page: Number(m[1]), text: text.slice(at, end) });
+    at = end;
+  }
+  const rest = text.slice(at);
+  if (rest.trim()) out.push({ page: (out[out.length - 1]?.page ?? 0) + 1, text: rest });
+  return out;
+}
+
+const hasText = (p: PageText) => p.text.replace(/^-- \d+ of \d+ --$/gm, "").replace(/GO TO INDEX \d*/g, "").replace(/\s+/g, "").length >= NO_TEXT_CHARS;
+
+/** Batches of whole pages with text, at most BATCH_MAX_PAGES pages or BATCH_MAX_CHARS characters each. */
+export function pageBatches(pages: PageText[]): Array<{ first: number; last: number; text: string }> {
+  const out: Array<{ first: number; last: number; text: string }> = [];
+  let cur: PageText[] = [];
+  const flush = () => {
+    if (cur.length) out.push({ first: cur[0].page, last: cur[cur.length - 1].page, text: cur.map((p) => p.text).join("") });
+    cur = [];
+  };
+  for (const p of pages) {
+    if (!hasText(p)) { flush(); continue; }
+    const size = cur.reduce((n, x) => n + x.text.length, 0);
+    if (cur.length >= BATCH_MAX_PAGES || (cur.length > 0 && size + p.text.length > BATCH_MAX_CHARS)) flush();
+    cur.push(p);
+  }
+  flush();
+  return out;
+}
+
+/** Lists merged across batches, by what names an entry; anything else is a single value. */
+const LIST_KEY: Record<string, (x: J) => string> = {
+  examStages: (x) => String(x.name ?? ""),
+  examPattern: (x) => String(x.name ?? ""),
+  eligibility: (x) => String(x.post ?? ""),
+  "vacancies.breakdown": (x) => String(x.post ?? ""),
+  syllabus: (x) => `${x.paper ?? ""}|${x.subject ?? ""}`,
+};
+const TEXT_LISTS = new Set(["howToApply", "conditions"]);
+const keyOf = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const canon = (v: unknown): string => Array.isArray(v) ? `[${v.map(canon).join(",")}]`
+  : v && typeof v === "object" ? `{${Object.keys(v as J).sort().map((k) => `${k}:${canon((v as J)[k])}`).join(",")}}` : JSON.stringify(v);
+
+/**
+ * The batches' readings as one. A list (exam stages, papers, posts…) is
+ * joined, an entry given twice the same counting once; when two batches
+ * give the same entry differently, nothing is joined for that field and each
+ * batch's list is offered as it is, so the difference shows as a conflict.
+ * A single value (a date, a fee, the age limit) is offered as each batch
+ * gives it: the same value from two batches is one item with two quotes,
+ * different values are a conflict. Every value keeps its batch's quote and
+ * page. Nothing is chosen between differing values here.
+ */
+export function mergeReadings(parts: Array<Omit<ArticleReading, "skipped">>): Omit<ArticleReading, "skipped"> {
+  const values: ExtractedValue[] = [];
+  const byField = new Map<string, ExtractedValue[]>();
+  for (const p of parts) for (const v of p.values) byField.set(v.fieldPath, [...(byField.get(v.fieldPath) ?? []), v]);
+  for (const [fieldPath, given] of byField) {
+    const listKey = LIST_KEY[fieldPath] ?? (TEXT_LISTS.has(fieldPath) ? (x: unknown) => String(x) : null);
+    const isSelection = fieldPath === "selection";
+    if ((!listKey && !isSelection) || given.length === 1) { values.push(...given); continue; }
+    const entriesOf = (v: unknown): unknown[] => isSelection ? (((v as J)?.stages as unknown[]) ?? []) : (Array.isArray(v) ? v : []);
+    const keyFn = isSelection ? (x: unknown) => String((x as J).name ?? "") : (listKey as (x: unknown) => string);
+    const joined = new Map<string, unknown>();
+    let differs = false;
+    // An entry's place in its own batch's list ("order") is not part of what it says.
+    const said = (e: unknown) => canon(e && typeof e === "object" ? Object.fromEntries(Object.entries(e as J).filter(([k]) => k !== "order")) : e);
+    for (const v of given) for (const e of entriesOf(v.value)) {
+      const k = keyOf(keyFn(e as J));
+      const had = joined.get(k);
+      if (had === undefined) joined.set(k, e);
+      else if (said(had) !== said(e)) differs = true;
+    }
+    if (differs) { values.push(...given); continue; }
+    const list = [...joined.values()];
+    const merged = isSelection ? { ...(given[0].value as J), stages: list.map((s, i) => ({ ...(s as J), order: i + 1 })) }
+      : fieldPath === "examStages" ? list.map((s, i) => ({ ...(s as J), order: i + 1 })) : list;
+    // One value, with every contributing batch's quote and page.
+    for (const v of given) values.push({ ...v, value: merged });
+  }
+  const kept = new Set(values.map((v) => v.fieldPath));
+  const seen = new Set<string>();
+  const refused = parts.flatMap((p) => p.refused).filter((r) => {
+    const k = `${r.fieldPath}|${r.reason}`;
+    if (kept.has(r.fieldPath) || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return { values, refused };
+}
+
+/** A failed request worth one more try (not a missing key, the daily cap, or a rejected key). */
+const RETRY_BATCH = /unavailable|incomplete|took too long|rate limit/i;
+
+/**
+ * Reads the text whole when it is short or has no page marks; otherwise in
+ * page batches, through `gate` (so only a few requests run at a time), each
+ * value's page counted in the whole document. A batch whose request fails is
+ * tried once more; a batch not started before `deadline` is reported as not
+ * read. Never throws.
+ */
+export async function readArticleInBatches(opts: {
+  text: string; subject: string; apiKey: string | undefined; fetchFn?: typeof fetch;
+  gate?: <T>(task: () => Promise<T>) => Promise<T>;
+  /** Epoch ms after which no new batch is started. */
+  deadline?: number;
+}): Promise<ArticleReading & { coverage: ReadingCoverage }> {
+  const gate = opts.gate ?? (<T>(t: () => Promise<T>) => t());
+  const pages = pagesOf(opts.text);
+  const pageCount = pages ? pages[pages.length - 1].page : null;
+  const noTextPages = pages ? pages.filter((p) => !hasText(p)).map((p) => p.page) : [];
+  if (!pages || opts.text.length <= BATCH_FROM_CHARS) {
+    const one = await gate(() => readArticle(opts));
+    return { ...one, coverage: { mode: "whole", pages: pageCount, noTextPages,
+      batches: [{ first: pages ? 1 : null, last: pageCount, status: one.skipped ? "failed" : "read", ...(one.skipped ? { reason: one.skipped } : {}), values: one.values.length }] } };
+  }
+  const batches = pageBatches(pages);
+  const results = await Promise.all(batches.map((b) => gate(async () => {
+    const read = async () => {
+      const left = opts.deadline ? opts.deadline - Date.now() : Infinity;
+      if (left < 8_000) return null; // not started: too little time left
+      return readArticle({ ...opts, text: b.text, part: { first: b.first, last: b.last, pages: pageCount ?? b.last }, timeoutMs: Math.min(READ_TIMEOUT_MS, left - 2_000) });
+    };
+    let r = await read();
+    if (r?.skipped && RETRY_BATCH.test(r.skipped)) r = (await read()) ?? r; // once more
+    return r;
+  })));
+  const coverage: ReadingCoverage = { mode: "batches", pages: pageCount, noTextPages, batches: [] };
+  const parts: Array<Omit<ArticleReading, "skipped">> = [];
+  results.forEach((r, i) => {
+    const b = batches[i];
+    if (!r) { coverage.batches.push({ first: b.first, last: b.last, status: "not_read", reason: "the time for this reading ran out before these pages were reached", values: 0 }); return; }
+    if (r.skipped) { coverage.batches.push({ first: b.first, last: b.last, status: "failed", reason: r.skipped, values: 0 }); return; }
+    // A value's page within the batch, counted in the whole document.
+    const values = r.values.map((v) => ({ ...v, page: v.page ? b.first + v.page - 1 : null }));
+    parts.push({ values, refused: r.refused });
+    coverage.batches.push({ first: b.first, last: b.last, status: "read", values: values.length });
+  });
+  const merged = mergeReadings(parts);
+  const failed = coverage.batches.filter((b) => b.status !== "read");
+  return { ...merged, coverage, ...(parts.length === 0 && failed.length > 0 ? { skipped: failed[0].reason } : {}) };
 }

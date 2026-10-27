@@ -84,6 +84,7 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     check(`${name}: every quote is in its source`, missing.length === 0, missing);
     results[name] = { items, warnings: proposal.warnings, sources: proposal.meta.sources };
     writeFileSync(join(OUT, `${name}.json`), scrub(JSON.stringify(results[name], null, 2)));
+    note(`AI requests: ${JSON.stringify((proposal.meta as J).aiRequests ?? null)}`);
     return { items, warnings: proposal.warnings, sources: proposal.meta.sources };
   }
   const val = (items: Item[], path: string) => items.filter((i) => i.fieldPath === path).map((i) => i.value);
@@ -209,6 +210,10 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     note(`IBPS vacancy rows: ${JSON.stringify(vac ?? null).slice(0, 400)}`);
     // Since B1 the annexure is read by code into the vacancy table (checked below); the AI's own breakdown is for reference only.
     check("IBPS: vacancies from the annexure found (the table, or the AI's breakdown)", (Array.isArray(vac) && vac.length > 0) || ibps.items.some((i) => i.fieldPath === "vacancies.table"), vac);
+    // Stage B2.2: the long notice is read in page batches; every page with text is read.
+    const rd = (ibps.sources[0]?.reading ?? null) as { mode: string; pages: number; batches: Array<{ first: number; last: number; status: string; reason?: string; values: number }>; noTextPages: number[] } | null;
+    note(`IBPS reading: ${rd ? `${rd.mode}, ${rd.batches.map((b) => `${b.first}-${b.last}:${b.status}${b.status === "read" ? `(${b.values})` : ` ${b.reason}`}`).join(" ")}; no text: ${rd.noTextPages.join(",") || "none"}` : "none"}`);
+    check("IBPS: read in page batches, every batch read", rd?.mode === "batches" && rd.batches.length > 1 && rd.batches.every((b) => b.status === "read"), rd?.batches);
     const it2 = tableReport("IBPS", ibps);
     check("IBPS table: 10 tables on pages 46-55 read by code, 280 rows, at least 13,706 (Tripura not reported)",
       it2.n?.from === "tables" && it2.n.coverage?.tables.length === 10 && it2.n.coverage.tables.every((x) => x.read && x.columnsBy === "CODE")

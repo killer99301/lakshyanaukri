@@ -47,7 +47,7 @@ interface SourceMeta {
 }
 interface Preview {
   importId: string;
-  proposal: { items: Item[]; replacedInImport: Array<{ fieldPath: string; value: unknown; by: string }>; warnings?: string[]; meta: { sources: SourceMeta[]; duplicates: Array<{ id: string; title: string; reason: string }> } };
+  proposal: { items: Item[]; replacedInImport: Array<{ fieldPath: string; value: unknown; by: string }>; warnings?: string[]; meta: { sources: SourceMeta[]; duplicates: Array<{ id: string; title: string; reason: string }>; aiRequests?: { sent: number; retried: number; failed: number } } };
 }
 
 const KIND_LABELS: Record<Kind, string> = {
@@ -380,6 +380,7 @@ function Importer() {
               existing={!!recordId}
               items={items}
               sources={preview.proposal.meta.sources}
+              aiRequests={preview.proposal.meta.aiRequests}
               warnings={preview.proposal.warnings ?? []}
               replaced={preview.proposal.replacedInImport}
               ticked={ticked}
