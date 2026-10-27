@@ -371,7 +371,7 @@ export function buildAssistCandidates(
 
 // ─── Fee extraction (Gemini + evidence verification) ──────
 
-const FEE_STRONG_RE = /application\s+fees?|intimation\s+charges?|examination\s+fees?|exam\s+fees?|registration\s+fees?|fee\s+(?:structure|details|payable)/gi;
+const FEE_STRONG_RE = /application\s+fees?|application\s+charges?|intimation\s+charges?|examination\s+fees?|exam\s+fees?|registration\s+fees?|fee\s+(?:structure|details|payable)|fees?\s*\/\s*charges/gi;
 const FEE_WEAK_RE = /\bfees?\b/gi;
 const FEE_WINDOW_BEFORE = 200;
 const FEE_WINDOW_AFTER = 1600;
@@ -509,7 +509,7 @@ export function parseDatesInText(text: string): string[] {
 }
 
 const DATE_KEYWORD_RE =
-  /last\s+date|closing\s+date|start(?:ing)?\s+date|opening\s+date|apply\s+online|online\s+application|registration|application\s+(?:start|begin|open|clos)|fee\s+payment|correction|important\s+dates/i;
+  /last\s+date|closing\s+date|start(?:ing)?\s+date|opening\s+date|apply\s+online|online\s+application|registration|application\s+(?:start|begin|open|clos)|fee\s+payment|correction|important\s+dates|commencement|closure|activity\s+(?:dates?|schedule)|tentative\s+schedule/i;
 const MAX_DATE_SECTIONS = 2;
 const DATE_WINDOW = 3200;
 

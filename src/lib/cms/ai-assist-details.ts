@@ -22,6 +22,7 @@ import type {
   SelectionStageType,
 } from "@/types/recruitment-record";
 import { callAiJson, parseDatesInText, type SourceKind } from "@/lib/cms/ai-assist";
+import { findAgePassages, overlaps, piecesOf } from "@/lib/cms/passage-finder";
 
 // ─── Passages ─────────────────────────────────────────────
 
@@ -72,18 +73,26 @@ export function buildDetailSections(content: string, kind: SourceKind, url: stri
     for (const s of structureDocument(content, url).sections) {
       const text = s.text.trim();
       if (!text || DETAIL_EXCLUDE_RE.test(s.heading) || isOtherJobHeading(s.heading, tokens)) continue;
-      if (DETAIL_TYPES.has(s.type) || DETAIL_HEADING_RE.test(s.heading)) {
+      if (DETAIL_TYPES.has(s.type) || DETAIL_HEADING_RE.test(s.heading) || findAgePassages(text).length > 0) {
         // The heading is part of the source text: post names often appear only there.
         picked.push({ title: s.heading || "Section", text: s.heading ? `${s.heading}\n${text}` : text });
       }
     }
   } else {
+    // First the passages that state ages in years beside age words, whatever
+    // their heading ("Age (As on …)", a table of posts and ages), strongest
+    // two; then the passages under the usual headings not already taken.
+    const ages = findAgePassages(content).sort((a, b) => b.score - a.score || a.start - b.start).slice(0, 2);
+    const taken = piecesOf(content, ages, MAX_DETAIL_SECTION_CHARS);
+    for (const p of taken) picked.push({ title: "age limit", text: content.slice(p.start, p.end) });
     let lastEnd = -1;
     for (const m of content.matchAll(PDF_DETAIL_RE)) {
       const start = Math.max(0, (m.index ?? 0) - 100);
       if (start < lastEnd) continue;
-      lastEnd = start + 2500;
-      picked.push({ title: m[0], text: content.slice(start, lastEnd) });
+      const range = { start, end: start + 2500 };
+      lastEnd = range.end;
+      if (taken.some((t) => overlaps(t, range)) && /^age/i.test(m[0])) continue;
+      picked.push({ title: m[0], text: content.slice(range.start, range.end) });
     }
   }
 

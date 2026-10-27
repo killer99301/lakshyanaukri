@@ -21,6 +21,7 @@ import {
   type Evidence,
 } from "@/lib/cms/ai-assist-details";
 import { cleanExamPattern, cleanSyllabus } from "@/lib/cms/record-ops";
+import { findPatternPassages, overlaps, piecesOf } from "@/lib/cms/passage-finder";
 
 // ─── Passages ─────────────────────────────────────────────
 
@@ -46,16 +47,28 @@ export function buildSyllabusSections(content: string, kind: SourceKind, url: st
   if (kind === "html") {
     for (const s of structureDocument(content, url).sections) {
       const text = s.text.trim();
-      if (!text || !HEADING_RE.test(s.heading) || EXCLUDE_RE.test(s.heading) || isOtherJobHeading(s.heading, tokens)) continue;
-      picked.push({ title: s.heading, text: `${s.heading}\n${text}` });
+      if (!text || EXCLUDE_RE.test(s.heading) || isOtherJobHeading(s.heading, tokens)) continue;
+      // A section whose heading names the pattern or syllabus, or whose content is a pattern table.
+      if (!HEADING_RE.test(s.heading) && findPatternPassages(text).length === 0) continue;
+      picked.push({ title: s.heading || "Exam pattern", text: `${s.heading}\n${text}` });
     }
   } else {
+    // First the passages that hold a pattern table, whatever their heading
+    // ("Online Examination Structure", "Plan of Examination"…), strongest first;
+    // then the passages under syllabus or pattern headings not already taken.
+    let room = MAX_TOTAL_CHARS;
+    const found = findPatternPassages(content).sort((a, b) => b.score - a.score || a.start - b.start)
+      .filter((p) => (room -= p.end - p.start) >= 0).sort((a, b) => a.start - b.start); // the strongest that fit, read in order
+    const taken = piecesOf(content, found, MAX_SECTION_CHARS);
+    for (const p of taken) picked.push({ title: "exam pattern table", text: content.slice(p.start, p.end) });
     let lastEnd = -1;
     for (const m of content.matchAll(PDF_RE)) {
       const start = Math.max(0, (m.index ?? 0) - 100);
       if (start < lastEnd) continue;
-      lastEnd = start + MAX_SECTION_CHARS;
-      picked.push({ title: m[0], text: content.slice(start, lastEnd) });
+      const range = { start, end: start + MAX_SECTION_CHARS };
+      lastEnd = range.end;
+      if (taken.some((t) => overlaps(t, range))) continue;
+      picked.push({ title: m[0], text: content.slice(range.start, range.end) });
     }
   }
 
