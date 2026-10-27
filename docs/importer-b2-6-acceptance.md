@@ -91,7 +91,37 @@ and were not opened.
 
 ---
 
-## 3. Still to do after the quota resets
+## 3. Browser so far: save and reopen, with the stand-in AI (no quota used)
+
+- **The run:** the local test copy with `--fake-ai`, which answers the AI
+  requests from the text itself, offline. LIC HFL pages 1–9 were pasted as
+  the official notice, with its address and the "I copied this myself"
+  attestation.
+- **Review:**
+  - Table E read by code: 181 rows, 232 as printed.
+  - The online-test pattern read by code, "all 1 papers read by code".
+  - Every value flagged "no confirmed official document states this".
+  - Warnings for the missing official notification and apply links.
+- **Saved as draft, then reopened in the editor:**
+  - the job is DRAFT, never published, provenance NOT_VERIFIED;
+  - the vacancy table (181 rows), the exam pattern and both dates are
+    PENDING;
+  - the editor shows "Needed to publish: a link marked official" and "10
+    imported key details to check in Check before publishing";
+  - the vacancy total is shown as "Printed in the notice (page 9)", marked
+    PENDING and "No official source — needs review".
+- **Found:** the LIC notice prints its NATS address as
+  `https://nats.education.gov.in.in`. Smart intake offers it exactly as
+  printed, as an "Official website" link, though that address is dead.
+  Links are not checked for whether they open. This is a known limitation
+  (see section 5).
+- **Not yet done:** the same workflow with the real model, a long PDF
+  through a reading job (reload, resume), and a scanned PDF. They wait for
+  the quota.
+
+---
+
+## 4. Still to do after the quota resets
 
 1. Real-Gemini acceptance, twice each: `importer-gemini.acceptance.ts` and
    `importer-scans.acceptance.ts`. Record the requests used per run.
@@ -108,3 +138,20 @@ and were not opened.
      visible;
    - a long PDF through a reading job, with reload and resume.
 4. The four outstanding PDFs, once supplied.
+
+---
+
+## 5. Known limitations and risks (so far)
+
+- **The free-tier quota** (500 requests a day) is the hard ceiling for real
+  use and for acceptance runs. Every full run must be planned against it.
+- **Links are copied as printed,** including the notice's own mistakes (LIC's
+  `gov.in.in`). Nothing checks that an official link opens.
+- **Model variance** remains in AI-read lists: extra schedule entries from
+  the pattern pages, and posts named without their scale. These are flagged
+  or shown for the admin, never auto-verified.
+- **Scan transcription** can misread or omit rows. The subtotal and total
+  checks catch some, not all, so every AI-read row stays Pending.
+- **Untested formats:** SSC, UPSC and BPSC notices, and a corrigendum
+  against an existing record. This is the largest open risk until those
+  four PDFs are run.
