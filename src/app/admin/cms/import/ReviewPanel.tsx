@@ -38,7 +38,7 @@ function readingInWords(r: ReadingCoverage): { read: string; unread: string[] } 
   const range = (b: { first: number | null; last: number | null }) => (b.first === null ? "the text" : b.first === b.last ? `page ${b.first}` : `pages ${b.first}–${b.last}`);
   const ok = r.batches.filter((b) => b.status === "read");
   const read = r.mode === "batches"
-    ? `Read in ${r.batches.length} page batches: ${ok.length} of ${r.batches.length} read${r.pages ? ` (${r.pages} pages)` : ""}`
+    ? `Read in ${r.batches.length} page batches: ${ok.length} of ${r.batches.length} read${r.pages ? ` (${r.pages} pages)` : ""}${r.split?.length ? `; ${r.split.map(range).join(", ")} answered incompletely at first, so read again in halves` : ""}`
     : ok.length ? `Read whole${r.pages ? ` (${r.pages} pages)` : ""}` : "Not read";
   return { read, unread: [
     ...r.batches.filter((b) => b.status !== "read").map((b) => `${range(b)}: not read — ${b.reason ?? "unknown"}`),

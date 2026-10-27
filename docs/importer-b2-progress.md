@@ -400,3 +400,128 @@ In all three runs the model also swapped post 14's TOTAL G and TOTAL W. The subt
   - Ages per post needs your product decision.
   - B2.6: real-source acceptance including the SSC CGL, corrigendum, UPSC CSE and BPSC 72nd PDFs.
 - **Migration:** the schema changed (`recruitment_import_job_pages`, the `SCAN_PAGE` task kind, `scan_reading_added`), local test databases only. Nothing is migrated in production.
+
+---
+
+## B2.5 — Tables across text and scanned pages; incomplete answers read again in halves (done)
+
+### What was built
+
+- **One table across text and scanned pages** (`readVacancyTables` with
+  `scanPages`):
+  - A scanned page whose first table has no heading continues the text
+    table that ended on the page before, if the widths match: same names
+    and figures. Example: LIC Table E, text pages 6–7, scanned pages 8–9.
+  - Rows at the top of a text page with no heading continue the table that
+    ended on the page before, text or scanned. Example: scanned 6–7, text
+    8–9.
+  - Each row keeps its own page and how it was read. Rows from a scanned
+    page are marked AI-read; rows from a text page are not, even inside the
+    same table.
+- **A row printed again at the page break** is counted once, across either
+  kind of page, and the review says so.
+- **What cannot be joined is reported, never dropped:**
+  - A scanned continuation row whose width differs from its table (for
+    example a name split over two cells) is listed as an unread line with
+    its page, and a problem is noted.
+  - Heading-less rows that continue no table read are reported as unread.
+    This applies when a table ended on the page before, or that page was
+    scanned and its table may have been missed. Elsewhere, for example an
+    index of clauses with page numbers, they are no table and are passed
+    over, as before. The first version flagged the IBPS index page and two
+    numbered paragraphs; the regression caught it and the rule was
+    tightened.
+  - Unread lines still withhold "complete".
+- **An answer cut off for a page batch is read again in halves:**
+  - **One-request path** (`readArticleInBatches`): the batch is halved
+    recursively, at most three levels, down to one page.
+  - **Reading jobs:** the batch's task is marked `SPLIT` and two new tasks
+    for its halves are added. Each half can be split again. A single page
+    still cut off fails after its tries, with why, and the reading is never
+    "complete".
+  - Progress counts split batches apart from tasks to do.
+  - The preview lists batches in page order, so lists joined from halves
+    keep the document's order. It records the split ranges.
+  - The review says "pages 1–8 answered incompletely at first, so read
+    again in halves".
+- **Schema:** the tasks status CHECK now allows `SPLIT`. This applies to
+  local test databases only; nothing is migrated in production.
+
+### Results
+
+**Deterministic**
+- `tests/cms/cross-page.test.ts` (new): **7/7**.
+  - Real LIC text for some pages, the person-checked transcription for the
+    others:
+    - text 6–7 then scanned 8–9: 181 cities, 232, rows per page and source
+      44/46/47/44;
+    - scanned 6–7 then text 8–9: the same.
+  - A row repeated at the break in each direction.
+  - A missed scanned table leaving 92 heading-less lines (reported, every
+    one listed).
+  - A split-name row on a scanned continuation (not read, said; 180 rows
+    joined).
+  - An index page (passed over, nothing reported).
+- `tests/cms/batch-reading.test.ts`: **15/15** (3 new):
+  - an 8-page batch cut off, then read as 4-page halves: every page read
+    once, values on their pages, the split recorded;
+  - always cut off: every piece failed, nothing taken, the reading says so;
+  - halving bounded.
+- `tests/local-stack/importer-jobs.test.ts`: **48/48** (5 new):
+  - the cut-off batch is SPLIT and its halves 1–4 and 5–8 are read;
+  - every page read once;
+  - the reading complete, with 1 split and 14 done;
+  - the stage still on page 1;
+  - the split recorded, halves in page order;
+  - a page cut off at every size is failed with "incomplete", the reading
+    PAUSED and not complete.
+
+**Real Gemini (gemini-3.5-flash-lite), whole pipeline on the in-memory test database**
+
+The PDFs were built from the real LIC notice. `lic-text-then-scan.pdf` has
+pages 8–9 as images; `lic-scan-then-text.pdf` has pages 6–7 as images.
+Run with `ONLY_CROSS=1 … importer-scans.acceptance.ts`.
+
+| | Run 1 | Run 2 |
+|---|---|---|
+| LIC text 6–7 → scanned 8–9 | 181/181, 232, complete | 181/181, 232, complete |
+| LIC scanned 6–7 → text 8–9 | 181/181, 232, complete | 181/181, 232, complete |
+| Checks | 12/12 | 12/12 |
+
+Only the rows on scanned pages are marked AI-read, and the page images are
+kept for the review.
+
+`importer-gemini.acceptance.ts` was run once more: 46/47. IBPS read every
+batch this time, so the split was not exercised against the real model. A
+B2.3 run had lost pages 17–24 to exactly this. Exam pattern: 6 of 7 papers.
+
+The one failure is older than B2.5. An LIC selection quote ending in "..."
+passed the details reader, which matches quotes without punctuation. That
+reader is shared with the CMS AI Assist, so it was left unchanged; see the
+proposals file.
+
+**Regression**
+- 20 local-stack suites pass, including jobs 48/48
+- `cms:test`: 45/45 suites, including the new cross-page suite
+- intake 332/332
+- PostgreSQL 17: 35/35
+- `tsc` clean
+- production build passes (the pdf.js warning as in B2.4); the cache test
+  on it is 31/31
+- intelligence 12/13 and lint 7 / 26, both unchanged baselines (the same
+  files as B2.4)
+
+### Still open
+
+The proposals are in `docs/importer-b2-design-proposals.md`. Nothing there
+is built, and each waits for a decision:
+
+- post-wise age limits (extending `PostAgeRange`, legacy single range kept);
+- selection stages vs recruitment milestones (an optional `kind`, classified
+  by code on the printed name, nothing dropped);
+- the exam-pattern plan (count papers by code, read text tables by code,
+  never "complete" with papers missing);
+- the shortened-quote finding.
+
+Scan transcription can still misread or omit rows. The B2.4 safeguards are
+unchanged. Stage C and B2.6 are not started.

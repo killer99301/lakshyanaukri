@@ -24,6 +24,7 @@
 // tables, which tables were read, and every line in a table that was not.
 
 import { callAiJson } from "@/lib/cms/ai-assist";
+import { foundTablesFromTranscription, type TranscribedPage } from "@/lib/cms/importer/scan-tables";
 import { initialCategoryKind, type VacancyCategory, type VacancyDimension, type VacancyTable, type VacancyTableRow } from "@/lib/vacancy-table";
 
 // ─── Pages ────────────────────────────────────────────────
@@ -161,11 +162,13 @@ export interface FoundTable {
   /** Rows: the words (wrapped lines joined) and the figures, with the printed lines. */
   rows: Array<{ serial: number | null; words: string; figures: string[]; page: number | null; printed: string;
     /** A transcribed table's dimension cells by dimension key, as printed (no splitting of words needed). */
-    dimCells?: Record<string, string> }>;
+    dimCells?: Record<string, string>;
+    /** How this row was read, when it differs from its table (a table that runs from a text page onto a scanned one). */
+    readBy?: "AI_IMAGE" | "TEXT" }>;
   /** Written out by the AI from scanned page images (stage B2.4), not read from text. */
   readBy?: "AI_IMAGE";
   /** "Total" / "Grand Total" lines. */
-  totals: Array<{ label: string; figures: string[]; page: number | null; printed: string }>;
+  totals: Array<{ label: string; figures: string[]; page: number | null; printed: string; readBy?: "AI_IMAGE" | "TEXT" }>;
   /** Lines inside the table that could not be read as a row. */
   unread: Line[];
   /** Why the table cannot be used, when it cannot. */
@@ -187,10 +190,63 @@ const isHeadingLine = (t: string) => VACANCY_WORDS.test(t) && splitFigures(t).fi
 const looksLikeTitle = (t: string) => !NOISE.test(t) && splitFigures(t).figures.length === 0 && t.length <= 120 && /[A-Za-z]/.test(t);
 
 /**
+ * Rows of figures at the top of a page, before any other text on it: a table
+ * continuing from the page before without its heading. Wrapped names (up to
+ * two lines) are joined to the row they belong to, as in a table.
+ */
+function orphanRun(lines: Line[], data: number[], i: number): { orphan: Orphan; next: number } | null {
+  const page = lines[i].page;
+  for (let b = i - 1; b >= 0 && lines[b].page === page; b--) if (!NOISE.test(lines[b].text) && data[b] === 0 && !/^\d{1,3}$/.test(lines[b].text)) {
+    // Wrapped words of the first row are allowed just above it.
+    if (i - b > 2) return null;
+  }
+  const k = data[i];
+  const rows: Orphan["rows"] = [];
+  const totals: Orphan["totals"] = [];
+  const used: Line[] = [];
+  let pending: Line[] = [];
+  let start = i;
+  while (start - 1 >= 0 && lines[start - 1].page === page && data[start - 1] === 0 && !NOISE.test(lines[start - 1].text) && i - (start - 1) <= 2) start--;
+  pending = lines.slice(start, i);
+  let j = i;
+  while (j < lines.length) {
+    const l = lines[j];
+    if (data[j] === k) {
+      const { words, figures } = splitFigures(l.text);
+      const all = [...pending.map((p) => p.text), words].join(" ").trim();
+      const printed = [...pending.map((p) => p.text), l.text].join("\n");
+      const serialM = /^(\d{1,4})\.?\s+(.*)$/.exec(all);
+      if (/^(grand\s+)?total\b/i.test(serialM ? serialM[2] : all)) totals.push({ label: all, figures, page: l.page, printed });
+      else rows.push({ serial: serialM ? Number(serialM[1]) : null, words: serialM ? serialM[2] : all, figures, page: pending[0]?.page ?? l.page, printed });
+      used.push(...pending, l);
+      pending = [];
+      j++;
+      continue;
+    }
+    if (NOISE.test(l.text)) { j++; continue; }
+    if (data[j] === 0 && !isHeadingLine(l.text) && pending.length < 2 && data.slice(j + 1, j + 3).includes(k)) { pending.push(l); j++; continue; }
+    break;
+  }
+  if (rows.length === 0 && totals.length === 0) return null;
+  return { orphan: { page, figureCount: k, rows, totals, lines: used }, next: j };
+}
+
+export interface Orphan {
+  page: number | null;
+  figureCount: number;
+  rows: FoundTable["rows"];
+  totals: FoundTable["totals"];
+  lines: Line[];
+}
+
+/**
  * Every vacancy table in the lines. Pure: the columns of a table whose
  * heading code cannot match are left null for the caller to ask about.
+ * With `out.orphans`, rows at the top of a page with no heading above them
+ * (a table continuing from the page before) are collected there, to be
+ * joined to that table or reported; otherwise they are passed over.
  */
-export function findVacancyTables(lines: Line[]): FoundTable[] {
+export function findVacancyTables(lines: Line[], out?: { orphans: Orphan[] }): FoundTable[] {
   const tables: FoundTable[] = [];
   // Data lines: words then figures. Each table is a run of them with the same count.
   const data = lines.map((l) => {
@@ -214,7 +270,12 @@ export function findVacancyTables(lines: Line[]): FoundTable[] {
     // A heading line names two columns, or starts with a serial-number heading:
     // a title that merely contains a column word ("General Banking Officer") does not count.
     const firstColumnLine = headingLines.findIndex((l) => columnWordCount(l.text) >= 2 || SERIAL_HEADING.test(l.text));
-    if (firstColumnLine < 0) { i++; continue; }
+    if (firstColumnLine < 0) {
+      const run = out ? orphanRun(lines, data, i) : null;
+      if (run) { out!.orphans.push(run.orphan); i = run.next; continue; }
+      i++;
+      continue;
+    }
     // The heading continues until the first row: a line starting with a serial
     // number. A wrapped heading word ("Vacancies", "(NCL", "HI OC VI ID") stays in it.
     let lastColumnLine = firstColumnLine;
@@ -347,6 +408,8 @@ export interface CoverageReport {
   pages: number | null;
   tables: Array<{ title: string; pages: number[]; rows: number; read: boolean; why?: string; columnsBy?: "CODE" | "AI"; columns?: string[]; readBy?: "AI_IMAGE" }>;
   unreadLines: Array<{ page: number | null; text: string }>;
+  /** What did not fit and was said rather than guessed: rows repeated at a page break, rows continuing no table read, subtotals that disagree. */
+  problems?: string[];
 }
 
 const titleCase = (s: string) => (s === s.toUpperCase() && /[A-Z]{3}/.test(s)
@@ -443,7 +506,8 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
         const n = Number(v.replace(/,/g, ""));
         if (c.role === "total") total = n; else cells[c.key] = n;
       });
-      const source = { retrievalId: opts.retrievalId, page: r.page, line: r.printed, ...(t.readBy ? { readBy: t.readBy } : {}) };
+      const rb = r.readBy ?? t.readBy;
+      const source = { retrievalId: opts.retrievalId, page: r.page, line: r.printed, ...(rb === "AI_IMAGE" ? { readBy: rb } : {}) };
       const id = `t${ti + 1}r${ri + 1}`;
       const marks = unclear.length ? { unclear } : {};
       if (nr > 0 && nr + blank === t.columns!.length) rows.push({ id, at, status: "NOT_REPORTED", cells: {}, source });
@@ -462,7 +526,7 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
       const cells: Record<string, number> = {};
       t.columns!.forEach((c, i) => { if (c.role === "category" && /^\d[\d,]*$/.test(tot.figures[i] ?? "")) cells[c.key] = Number(tot.figures[i].replace(/,/g, "")); });
       statedTotals.push({ at: grand ? {} : { post }, total: Number(v.replace(/,/g, "")), ...(Object.keys(cells).length ? { cells } : {}),
-        source: { retrievalId: opts.retrievalId, page: tot.page, line: tot.printed, ...(t.readBy ? { readBy: t.readBy } : {}) } });
+        source: { retrievalId: opts.retrievalId, page: tot.page, line: tot.printed, ...((tot.readBy ?? t.readBy) === "AI_IMAGE" ? { readBy: "AI_IMAGE" as const } : {}) } });
     }
   }
   void rowsHavePost;
@@ -476,12 +540,43 @@ export async function readVacancyTables(text: string, opts: {
   skipPages?: number[];
   /** Tables transcribed from scanned page images (stage B2.4), already split into columns. */
   extraFound?: FoundTable[];
+  /** Scanned pages as the AI wrote them out (stage B2.4): their tables are read here, and joined to text tables they continue (B2.5). */
+  scanPages?: TranscribedPage[];
 }): Promise<{ table: VacancyTable | null; coverage: CoverageReport }> {
   const all = linesWithPages(text);
-  const skip = new Set(opts.skipPages ?? []);
+  const skip = new Set([...(opts.skipPages ?? []), ...(opts.scanPages ?? []).map((p) => p.page)]);
   const lines = skip.size ? all.filter((l) => l.page === null || !skip.has(l.page)) : all;
+  const orphans: Orphan[] = [];
+  const problems: string[] = [];
+  const unread: Line[] = [];
+  const textTables = findVacancyTables(lines, { orphans });
+  // A scanned page that continues a table from a text page joins that table (B2.5).
+  let scanFound: FoundTable[] = [];
+  if (opts.scanPages?.length) {
+    const scan = foundTablesFromTranscription(opts.scanPages, {
+      continueFrom: (page, width) => textTables.find((t) => lastPageOf(t) === page - 1 && t.columns && ownDims(t).length + t.figureCount === width) ?? null,
+    });
+    scanFound = scan.found;
+    problems.push(...scan.problems);
+    unread.push(...scan.unread);
+  }
   // In page order, so a table that runs on from a text page onto a scanned one stays in order.
-  const found = [...findVacancyTables(lines), ...(opts.extraFound ?? [])].sort((a, b) => (a.pages[0] ?? 0) - (b.pages[0] ?? 0));
+  const found = [...textTables, ...scanFound, ...(opts.extraFound ?? [])].sort((a, b) => (a.pages[0] ?? 0) - (b.pages[0] ?? 0));
+  // Rows at the top of a text page with no heading: the table that ended on the page before, text or scanned (B2.5).
+  for (const o of orphans) {
+    const target = o.page == null ? null : found.find((t) => lastPageOf(t) === o.page! - 1 && t.figureCount === o.figureCount);
+    if (!target) {
+      // Said only where a table could have been continued: a table ended on the page before, or that page was
+      // scanned (its table may have been missed). Elsewhere (an index, a numbered list) it is no table: passed over, as before.
+      const before = o.page == null ? false : found.some((t) => lastPageOf(t) === o.page! - 1) || (opts.scanPages ?? []).some((p) => p.page === o.page! - 1);
+      if (!before) continue;
+      unread.push(...o.lines);
+      const last = Math.max(...o.lines.map((l) => l.page ?? 0));
+      problems.push(`page ${o.page ?? "?"}${last > (o.page ?? 0) ? `–${last}` : ""}: ${o.rows.length + o.totals.length} row(s) at the top of the page continue no table that was read; not read`);
+      continue;
+    }
+    joinRows(target, o.rows.map((r) => ({ ...r, readBy: "TEXT" as const })), o.totals.map((t) => ({ ...t, readBy: "TEXT" as const })), o.page!, problems);
+  }
   for (const t of found) {
     if (!t.columns) {
       t.columns = await columnsByAi(t, opts);
@@ -490,7 +585,31 @@ export async function readVacancyTables(text: string, opts: {
   }
   const pages = all.reduce((m, l) => Math.max(m, l.page ?? 0), 0) || null;
   const { table, coverage } = buildVacancyTable(found, opts);
-  return { table, coverage: { pages, ...coverage } };
+  coverage.unreadLines.push(...unread.map((l) => ({ page: l.page, text: l.text })));
+  return { table, coverage: { pages, ...coverage, ...(problems.length ? { problems } : {}) } };
+}
+
+/** The last page a table has a row on. */
+export const lastPageOf = (t: FoundTable) => Math.max(...t.rows.map((r) => r.page ?? 0), ...t.totals.map((r) => r.page ?? 0), ...t.pages);
+/** A table's dimensions other than the post (named in its title). */
+export const ownDims = (t: FoundTable) => t.dimensions.filter((d) => d.key !== "post" || !t.title);
+
+/**
+ * Rows that continue a table on the next page, added to it. A first row that
+ * repeats the table's last row (printed again at the page break) counts once,
+ * and is said.
+ */
+export function joinRows(target: FoundTable, rows: FoundTable["rows"], totals: FoundTable["totals"], page: number, problems: string[]): void {
+  const key = (r: { words: string; figures: string[] }) => `${r.words.replace(/\s+/g, " ").trim().toLowerCase()}|${r.figures.join(" ")}`;
+  const last = target.rows[target.rows.length - 1];
+  let add = rows;
+  if (last && add[0] && key(last) === key(add[0])) {
+    problems.push(`page ${page}: the row "${add[0].words.slice(0, 60)}" is repeated from the foot of page ${last.page}; counted once`);
+    add = add.slice(1);
+  }
+  target.rows.push(...add);
+  target.totals.push(...totals);
+  if (!target.pages.includes(page)) target.pages.push(page);
 }
 
 // ─── A table from a reading's quoted category split (no table printed) ──

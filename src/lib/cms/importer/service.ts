@@ -26,7 +26,7 @@ import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-d
 import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
 import { mergeTables, readVacancyTables, tableFromSplit } from "@/lib/cms/importer/vacancy-tables";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
-import { foundTablesFromTranscription, type TranscribedPage } from "@/lib/cms/importer/scan-tables";
+import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
 import {
   applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -285,18 +285,18 @@ export async function assemblePreview(opts: {
     const totalValue = s.reading.values.find((v) => v.fieldPath === "vacancies.total")?.value;
     const splitRows = Array.isArray(breakdown?.value) ? (breakdown!.value as Array<{ post: string; count: number; breakdown?: Record<string, unknown> }>) : [];
     const fallbackPost = (splitRows.length === 1 ? splitRows[0].post : null) ?? opts.newJob?.title ?? record?.identity.title.value ?? "All posts";
-    // Scanned pages: their tables come from what the AI wrote out cell by cell, read by code; those pages are not read again as text.
-    const scanTables = s.scan ? foundTablesFromTranscription(s.scan.pages) : null;
+    // Scanned pages: their tables come from what the AI wrote out cell by cell, read by code, and join the
+    // text tables they continue (or that continue them); those pages are not read again as text.
     const { table: read, coverage } = s.retrieval.source.text.trim()
       ? await readVacancyTables(s.retrieval.source.text, { retrievalId: s.retrieval.id, fallbackPost, apiKey: opts.apiKey, fetchFn: paced.fetch,
-          ...(s.scan ? { skipPages: s.scan.pages.map((p) => p.page), extraFound: scanTables!.found } : {}) })
-      : { table: null, coverage: { pages: null, tables: [], unreadLines: [] } };
-    if (scanTables) coverage.unreadLines.push(...scanTables.unread.map((l) => ({ page: l.page, text: l.text })));
+          ...(s.scan ? { scanPages: s.scan.pages } : {}) })
+      : { table: null, coverage: { pages: null, tables: [], unreadLines: [] } as Awaited<ReturnType<typeof readVacancyTables>>["coverage"] };
+    const readerProblems = coverage.problems ?? [];
     const fromSplit = !read && breakdown
       ? tableFromSplit(splitRows, typeof totalValue === "number" ? totalValue : null, { retrievalId: s.retrieval.id, page: breakdown.page ?? null, line: breakdown.quote ?? "" }, s.retrieval.source.text)
       : null;
     const table = read ?? fromSplit;
-    let note: Record<string, unknown> = { coverage, from: read ? "tables" : fromSplit ? "split" : null, ...(scanTables?.problems.length ? { problems: scanTables.problems } : {}) };
+    let note: Record<string, unknown> = { coverage, from: read ? "tables" : fromSplit ? "split" : null, ...(readerProblems.length ? { problems: readerProblems } : {}) };
     if (table) {
       // Rows a re-issued notice no longer lists are removed only when every
       // table and line of it was read: a line that was not read may be one of them.
@@ -313,7 +313,7 @@ export async function assemblePreview(opts: {
         s.reading.refused.push({ fieldPath: "vacancies.table", reason: `the editor would refuse it: ${stored.reason}` });
       }
       const brief = (r: { at: Record<string, string>; status: string; total?: number; source: { page: number | null } }) => ({ at: r.at, status: r.status, total: r.total ?? null, page: r.source.page });
-      note = { ...note, problems: [...(scanTables?.problems ?? []), ...merged.problems], removalsHeld, diff: {
+      note = { ...note, problems: [...readerProblems, ...merged.problems], removalsHeld, diff: {
         added: merged.diff.added.length, changed: merged.diff.changed.length, removed: merged.diff.removed.length, same: merged.diff.same,
         untouchedPosts: merged.diff.untouchedPosts,
         addedRows: merged.diff.added.slice(0, 60).map(brief),

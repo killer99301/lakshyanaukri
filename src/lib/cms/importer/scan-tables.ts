@@ -134,6 +134,47 @@ const STANDARD: Record<string, string> = { sc: "sc", st: "st", obc: "obc", "obc 
 const VACANCY_CONTEXT = /vacanc|\bposts?\b|seats|apprentice|\bsc\b|\bst\b|obc|ews|\bur\b|\boc\b|\bbc\b|total|reserv/i;
 const NOT_VACANCY_COLUMN = /\b(questions?|marks|duration|minutes|fee|amount|rs\.?|salary|pay\s+level|age)\b/i;
 
+/**
+ * A scanned page's rows added to a table read from the text page before it:
+ * the leading cells are its dimensions, the rest its figures in the table's
+ * column order. Each row is marked as read from the image by AI. A row of
+ * the wrong width is not read, and said; a first row repeating the table's
+ * last row counts once, and is said.
+ */
+function joinScanRows(target: FoundTable, rows: string[][], page: number, problems: string[], unread: Line[]): void {
+  const dims = target.dimensions.filter((d) => d.key !== "post" || !target.title);
+  const n = target.figureCount;
+  const lastRow = target.rows[target.rows.length - 1];
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  let first = true;
+  for (const cells of rows) {
+    const dimCount = cells.length - n;
+    // A row of the wrong width (a name split over two cells, a cell missed) cannot be placed: not read.
+    if (dimCount < 1 || dimCount !== dims.length) {
+      unread.push({ page, text: cells.join(" | ") });
+      problems.push(`page ${page}: a row continuing “${target.title || "a table"}” has ${cells.length} cells where the table has ${dims.length + n}; not read`);
+      continue;
+    }
+    const words = cells.slice(0, dimCount).join(" ").trim();
+    const figures = cells.slice(dimCount).map((c) => {
+      const f = figureToken(c);
+      if (f === null) problems.push(`page ${page}, ${words}: “${c}” is not a figure; treated as unreadable`);
+      return f ?? "[unclear]";
+    });
+    if (first && lastRow && norm(lastRow.words) === norm(words) && lastRow.figures.join(" ") === figures.join(" ")) {
+      problems.push(`page ${page}: the row "${words.slice(0, 60)}" is repeated from the foot of page ${lastRow.page}; counted once`);
+      first = false;
+      continue;
+    }
+    first = false;
+    const printed = cells.join(" | ");
+    if (/^(?:grand\s+)?total\b/i.test(words)) { target.totals.push({ label: words, figures, page, printed, readBy: "AI_IMAGE" }); continue; }
+    target.rows.push({ serial: null, words, figures, page, printed, readBy: "AI_IMAGE",
+      dimCells: Object.fromEntries(dims.map((d, i) => [d.key, cells[i]])) });
+  }
+  if (!target.pages.includes(page)) target.pages.push(page);
+}
+
 /** The sub-heading a column belongs to: "TOTAL G" → "g"; with `member`, "BC-A G" → "g". */
 function groupOf(label: string, member = false): string | null {
   if (!member) return SUBTOTAL.exec(label)?.[1].trim().toLowerCase() ?? null;
@@ -152,7 +193,10 @@ const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, 
  * is counted once, and said. Printed subtotals ("TOTAL G") are checked
  * against their columns; a difference is said, never corrected.
  */
-export function foundTablesFromTranscription(pages: TranscribedPage[]): { found: FoundTable[]; problems: string[]; unread: Line[] } {
+export function foundTablesFromTranscription(pages: TranscribedPage[], opts: {
+  /** The table read from text that ended on the page before `page`, with `width` columns in all, if any (B2.5). */
+  continueFrom?: (page: number, width: number) => FoundTable | null;
+} = {}): { found: FoundTable[]; problems: string[]; unread: Line[] } {
   const problems: string[] = [];
   const unread: Line[] = [];
   type Open = { t: TranscribedTable; page: number; rows: Array<{ cells: string[]; page: number }>; pages: number[] };
@@ -177,6 +221,13 @@ export function foundTablesFromTranscription(pages: TranscribedPage[]): { found:
         }
         prev.rows.push(...rows.map((cells) => ({ cells, page: p.page })));
         if (!prev.pages.includes(p.page)) prev.pages.push(p.page);
+      } else if (opts.continueFrom && p.tables.indexOf(t) === 0 && !(prev && prev.pages.includes(p.page - 1))
+        && (t.continues || t.columns.length === 0 || headingIsRow || !t.title)) {
+        // The first table on a scanned page, without its own heading, may continue a
+        // table read from the text page before it (B2.5): its rows join that table.
+        const target = opts.continueFrom(p.page, width);
+        if (!target) { runs.push({ t, page: p.page, rows: t.rows.map((cells) => ({ cells, page: p.page })), pages: [p.page] }); continue; }
+        joinScanRows(target, headingIsRow ? [t.columns, ...t.rows] : t.rows, p.page, problems, unread);
       } else {
         runs.push({ t, page: p.page, rows: t.rows.map((cells) => ({ cells, page: p.page })), pages: [p.page] });
       }

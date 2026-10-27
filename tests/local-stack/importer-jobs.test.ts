@@ -48,6 +48,8 @@ if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf
   };
   /** A stand-in model: page batches answer from what their pages say; the section readers find nothing. */
   let behaviour: (first: number, call: number) => "ok" | "503" | "hang" = () => "ok";
+  /** Batches whose answer the stand-in cuts off (not whole JSON), as a model does when an answer runs too long (B2.5). */
+  let cutOff: (first: number, last: number) => boolean = () => false;
   const calls = new Map<number, number>();
   let release: (() => void) | null = null;
   const answer = (data: unknown) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(data) }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -65,6 +67,7 @@ if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf
     const m = /pages (\d+) to (\d+) of a \d+-page notice/.exec(prompt);
     if (!m) return answer({});
     const first = Number(m[1]);
+    if (cutOff(first, Number(/pages \d+ to (\d+)/.exec(prompt)![1]))) return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"examStages":[{"name":"Online Exam' }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
     const n = (calls.get(first) ?? 0) + 1;
     calls.set(first, n);
     const how = behaviour(first, n);
@@ -172,6 +175,34 @@ if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf
   const after = (await q("SELECT status, result, attempts FROM recruitment_import_job_tasks WHERE job_id = $1 AND task_no = 4", [twin]))[0];
   check("tab B took the task once A's lease ran out, and saved its own result", tabB2.tasks.running === 0 && JSON.stringify(saved).length > 2 && (calls.get(1) ?? 0) === 2, tabB2.tasks);
   check("tab A, late, could not overwrite it: the saved result is B's", JSON.stringify(after.result) === JSON.stringify(saved) && after.status === "DONE", after);
+
+  section("An answer cut off for a page batch: read again in halves, only that batch");
+  behaviour = () => "ok";
+  calls.clear();
+  cutOff = (first, last) => first === 1 && last - first + 1 > 4; // pages 1–8 too much for one answer; 1–4 and 5–8 fine
+  const { jobId: cut } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD cut-off answer", "cut-job"), sources: [source] });
+  for (const p of pieces) await upload(cut, p);
+  await jobs.startJob({ adminId, jobId: cut, confirm: true });
+  const cp = await run(cut, 60);
+  const cutTasks = await q("SELECT kind, first_page, last_page, status FROM recruitment_import_job_tasks WHERE job_id = $1 AND kind = 'TEXT_BATCH' ORDER BY first_page, task_no", [cut]);
+  const ranges = (st: string) => cutTasks.filter((t) => t.status === st).map((t) => `${t.first_page}-${t.last_page}`);
+  check("the cut-off batch is marked split, and its halves are read", ranges("SPLIT").join() === "1-8" && ranges("DONE").slice(0, 2).join() === "1-4,5-8", cutTasks);
+  const covered = cutTasks.filter((t) => t.status === "DONE").flatMap((t) => Array.from({ length: Number(t.last_page) - Number(t.first_page) + 1 }, (_, i) => Number(t.first_page) + i));
+  check("every page read once, none twice, none missing", covered.length === new Set(covered).size && covered.length === pages, covered.length);
+  check("the reading is complete; progress counts the split apart, not as a task to do", cp.state === "DONE" && cp.complete && cp.tasks.split === 1 && cp.tasks.done === 14 && cp.tasks.failed === 0, cp.tasks);
+  const cutItems = ((await getImport(cp.importId!))?.proposal as unknown as { items: Array<{ fieldPath: string; claims: Array<{ page: number | null }> }>; meta: { sources: Array<{ reading?: { split?: Array<{ first: number; last: number }>; batches: Array<{ first: number; last: number }> } }> } });
+  check("evidence keeps its page (the stage on page 1); the preview records the split and lists the halves in page order", cutItems.items.find((i) => i.fieldPath === "examStages")?.claims[0]?.page === 1
+    && cutItems.meta.sources[0].reading?.split?.map((r) => `${r.first}-${r.last}`).join() === "1-8"
+    && cutItems.meta.sources[0].reading?.batches.slice(0, 3).map((r) => `${r.first}-${r.last}`).join() === "1-4,5-8,9-16", cutItems.meta.sources[0].reading);
+
+  cutOff = (first) => first === 9; // pages 9–16 cut off at every size, down to one page
+  const { jobId: cut2 } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD cut-off always", "cut2-job"), sources: [source] });
+  for (const p of pieces) await upload(cut2, p);
+  await jobs.startJob({ adminId, jobId: cut2, confirm: true });
+  const cp2 = await run(cut2, 80);
+  check("a page still cut off alone is failed, with why; the reading is never called complete", cp2.state === "PAUSED" && !cp2.complete
+    && cp2.failedTasks.length === 1 && cp2.failedTasks[0].first === 9 && /incomplete/i.test(cp2.failedTasks[0].reason ?? ""), { state: cp2.state, failed: cp2.failedTasks, tasks: cp2.tasks });
+  cutOff = () => false;
 
   section("Pause, resume, the daily allowance");
   const { jobId: paused } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD pause", "pause-job"), sources: [source] });

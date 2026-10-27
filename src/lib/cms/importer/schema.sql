@@ -720,7 +720,8 @@ CREATE TABLE IF NOT EXISTS recruitment_import_job_tasks (
   kind        VARCHAR(16)  NOT NULL CHECK (kind IN ('TEXT_BATCH', 'SECTION_AI', 'SECTION_DETAILS', 'SECTION_PATTERN', 'SCAN_PAGE')),
   first_page  INTEGER,
   last_page   INTEGER,
-  status      VARCHAR(8)   NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'RUNNING', 'DONE', 'FAILED')),
+  -- SPLIT: an incomplete answer; its pages are read again in halves, as new tasks (B2.5).
+  status      VARCHAR(8)   NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'RUNNING', 'DONE', 'FAILED', 'SPLIT')),
   attempts    INTEGER      NOT NULL DEFAULT 0,
   lease_owner UUID,
   lease_until TIMESTAMPTZ,

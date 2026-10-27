@@ -14,7 +14,9 @@
 //
 // <sources dir> holds lic-tableE-scan.pdf (LIC pages 5-9 as images only),
 // lic-mixed.pdf (LIC pages 1-4 and 10 as text, 5-9 as images) and
-// tg-page23-scan.pdf (the Telangana page as an image). The key is never printed.
+// tg-page23-scan.pdf (the Telangana page as an image), and for B2.5
+// lic-text-then-scan.pdf (pages 8-9 as images) and lic-scan-then-text.pdf
+// (pages 6-7 as images). ONLY_CROSS=1 runs those two only. The key is never printed.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -69,7 +71,8 @@ type Row = { at: Record<string, string>; status: string; total?: number; cells: 
   }
 
   /** `offset`: the file's page number is the notice's page minus this (the scan-only file starts at the notice's page 5). */
-  const licCheck = (name: string, r: Awaited<ReturnType<typeof read>>, offset: number) => {
+  /** `scanned`: the notice's pages that are images in this file (Table E's rows there are AI-read; elsewhere read from the text). */
+  const licCheck = (name: string, r: Awaited<ReturnType<typeof read>>, offset: number, scanned = [5, 6, 7, 8, 9]) => {
     if (!r?.table) { check(`${name}: a vacancy table`, false); return; }
     const an = analyseVacancyTable(r.table as never);
     let ok = 0; const bad: string[] = [];
@@ -81,13 +84,19 @@ type Row = { at: Record<string, string>; status: string; total?: number; cells: 
     check(`${name}: 181 cities, each with its figure and page as a person read them`, ok === 181, bad.slice(0, 10));
     check(`${name}: Ananthapur 1`, r.table.rows.find((x) => x.at.city === "Ananthapur")?.total === 1);
     check(`${name}: Total Vacancies 232, complete`, an.grandTotal?.value === 232 && an.grandTotal.complete, an.grandTotal);
-    check(`${name}: every Table E row marked as read from the image by AI`, r.table.rows.filter((x) => x.at.city).every((x) => x.source.readBy === "AI_IMAGE"));
+    const wrongMark = r.table.rows.filter((x) => x.at.city && (x.source.readBy === "AI_IMAGE") !== scanned.includes((x.source.page ?? 0) + offset));
+    check(`${name}: Table E rows on scanned pages (${scanned.join(", ")}) marked as read from the image by AI, and only those`, wrongMark.length === 0, wrongMark.slice(0, 5).map((x) => `${x.at.city} p${x.source.page} ${x.source.readBy ?? "text"}`));
     const images = r.proposal.meta.sources[0].pageImages?.pages ?? [];
     note(`page images kept for the review: ${images.join(", ")}`);
-    check(`${name}: the page images of Table E are there to compare`, [5, 6, 7, 8, 9].every((n) => images.includes(n - offset)), images);
+    check(`${name}: the page images of Table E's scanned pages are there to compare`, scanned.every((n) => images.includes(n - offset)), images);
+    check(`${name}: one table, nothing left unread in it, the reading complete`, r.p.complete && !r.p.stateNote, r.p.stateNote);
   };
 
-  licCheck("lic-scan", await read("lic-scan", "lic-tableE-scan.pdf", "TEST RECORD LIC scan", "lic-scan"), 4);
+  // B2.5: one table running from text pages onto scanned ones, and from scanned pages onto text ones.
+  if (process.env.ONLY_CROSS !== "1") licCheck("lic-scan", await read("lic-scan", "lic-tableE-scan.pdf", "TEST RECORD LIC scan", "lic-scan"), 4);
+  licCheck("lic-text-then-scan", await read("lic-text-then-scan", "lic-text-then-scan.pdf", "TEST RECORD LIC text then scan", "lic-tts"), 0, [8, 9]);
+  licCheck("lic-scan-then-text", await read("lic-scan-then-text", "lic-scan-then-text.pdf", "TEST RECORD LIC scan then text", "lic-stt"), 0, [6, 7]);
+  if (process.env.ONLY_CROSS === "1") { summary(); return; }
   const mixed = await read("lic-mixed", "lic-mixed.pdf", "TEST RECORD LIC mixed", "lic-mixed");
   licCheck("lic-mixed", mixed, 0);
   if (mixed) {

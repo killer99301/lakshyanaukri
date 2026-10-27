@@ -23,7 +23,7 @@ import { extractPdfFromBuffer } from "@/intelligence/pdf-extractor";
 import { readAiUsage, resolveDailyCap } from "@/lib/ai-usage";
 import { contentHash } from "@/lib/cms/importer/evidence-text";
 import {
-  BATCH_FROM_CHARS, mergeReadings, pageBatches, pageHasText, pagesOf, readArticle,
+  BATCH_FROM_CHARS, INCOMPLETE, mergeReadings, pageBatches, pageHasText, pagesOf, readArticle,
   type ArticleReading, type ReadingCoverage,
 } from "@/lib/cms/importer/article";
 import { combineReading, readSectionPart, skippedSection, type SectionOutcomes, type SectionPart } from "@/lib/cms/importer/extract";
@@ -360,6 +360,28 @@ function scanReadingTasks(sources: JobSource[], transcribed: Array<{ sourceNo: n
   return tasks;
 }
 
+/** A page batch's pages in two halves, for reading again after an incomplete answer; null when it is one page. */
+function halvesOf(task: J, text: string): Array<{ first: number; last: number }> | null {
+  const all = (pagesOf(text) ?? []).filter(pageHasText);
+  const ps = task.first_page === null ? all : all.filter((p) => p.page >= Number(task.first_page) && p.page <= Number(task.last_page));
+  if (ps.length < 2) return null;
+  const mid = Math.ceil(ps.length / 2);
+  return [ps.slice(0, mid), ps.slice(mid)].map((h) => ({ first: h[0].page, last: h[h.length - 1].page }));
+}
+
+/** New tasks numbered after the job's last; a number taken meanwhile by another step is tried again. */
+async function addTasks(jobId: string, tasks: PlannedTask[]) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const top = await sql`SELECT coalesce(max(task_no), 0)::int AS n FROM recruitment_import_job_tasks WHERE job_id = ${jobId}`;
+    try {
+      await insertTasks(jobId, tasks, Number(top[0].n) + 1);
+      return;
+    } catch (err) {
+      if (attempt === 4 || !/duplicate|unique/i.test(err instanceof Error ? err.message : "")) throw err;
+    }
+  }
+}
+
 async function insertTasks(jobId: string, tasks: PlannedTask[], firstNo: number) {
   if (tasks.length === 0) return;
   await sql`INSERT INTO recruitment_import_job_tasks (job_id, task_no, source_no, kind, first_page, last_page)
@@ -481,17 +503,22 @@ export async function stepJob(opts: { adminId: string; jobId: string; apiKey: st
       }
       const requests = paced.stats.sent - sent;
       const failure = failureOf(task.kind as TaskKind, result);
-      let status: "DONE" | "FAILED" | "PENDING" = "DONE";
+      let status: "DONE" | "FAILED" | "PENDING" | "SPLIT" = "DONE";
       let attempts = Number(task.attempts);
+      // An answer cut off for a batch of several pages: read in halves instead, only that batch (B2.5).
+      const halves = failure && INCOMPLETE.test(failure) && task.kind === "TEXT_BATCH" ? halvesOf(task as J, texts.get(Number(task.source_no)) ?? "") : null;
       if (failure && CAP_REACHED.test(failure)) { status = "PENDING"; attempts -= 1; capReached = true; } // not the task's fault: it waits
+      else if (halves) status = "SPLIT";
       else if (failure) status = attempts < MAX_ATTEMPTS && RETRYABLE.test(failure) ? "PENDING" : "FAILED";
       // Saved only under this step's own lease, and never into a cancelled reading.
-      await sql`
+      const saved = await sql`
         UPDATE recruitment_import_job_tasks SET status = ${status}, attempts = ${attempts},
           result = ${status === "DONE" ? JSON.stringify(result) : null}::jsonb, reason = ${status === "DONE" ? null : failure},
           lease_owner = NULL, lease_until = NULL, ai_requests = ai_requests + ${requests}, updated_at = now()
         WHERE job_id = ${opts.jobId} AND task_no = ${task.task_no} AND status = 'RUNNING' AND lease_owner = ${lease}
-          AND EXISTS (SELECT 1 FROM recruitment_import_jobs j WHERE j.job_id = ${opts.jobId} AND j.state IN ('READING', 'PAUSED'))`;
+          AND EXISTS (SELECT 1 FROM recruitment_import_jobs j WHERE j.job_id = ${opts.jobId} AND j.state IN ('READING', 'PAUSED'))
+        RETURNING task_no`;
+      if (halves && saved.length > 0) await addTasks(opts.jobId, halves.map((h) => ({ sourceNo: Number(task.source_no), kind: "TEXT_BATCH" as const, first: h.first, last: h.last })));
     })));
     await sql`UPDATE recruitment_import_jobs SET ai_sent = ai_sent + ${paced.stats.sent}, ai_retried = ai_retried + ${paced.stats.retried},
                 ai_failed = ai_failed + ${paced.stats.failed}, updated_at = now(),
@@ -595,7 +622,10 @@ async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; a
       if (!t) return skippedSection(part, "not read: no page had text");
       return t.status === "DONE" ? parsed(t.result) as SectionOutcomes[P] : skippedSection(part, `this reading failed: ${t.reason ?? "unknown"}`);
     };
-    const batches = mine.filter((t) => t.kind === "TEXT_BATCH");
+    // A batch read again in halves is replaced by its halves; its range is listed as split.
+    // In page order: halves are added after the other batches, but lists joined from them keep the document's order.
+    const batches = mine.filter((t) => t.kind === "TEXT_BATCH" && t.status !== "SPLIT").sort((a, b) => Number(a.first_page ?? 0) - Number(b.first_page ?? 0));
+    const splitRanges = mine.filter((t) => t.kind === "TEXT_BATCH" && t.status === "SPLIT").map((t) => ({ first: t.first_page === null ? 1 : Number(t.first_page), last: t.last_page === null ? s.pages : Number(t.last_page) }));
     const whole = batches.length === 1 && batches[0].first_page === null;
     const doneParts = batches.filter((t) => t.status === "DONE").map((t) => parsed(t.result) as ArticleReading);
     const merged = mergeReadings(doneParts.map((r) => ({ values: r.values, refused: r.refused })));
@@ -611,6 +641,7 @@ async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; a
         values: t.status === "DONE" ? (parsed(t.result) as ArticleReading).values.length : 0 })),
       unavailable: unavailableOf(s, parts, scans),
       suspectPages: transcribed.filter((t) => t.sourceNo === s.no && t.suspect).map((t) => t.page.page),
+      ...(splitRanges.length ? { split: splitRanges } : {}),
     };
     const article = { ...merged, coverage, ...(doneParts.length === 0 ? { skipped: batches[0]?.reason ? String(batches[0].reason) : "no page was read" } : {}) };
     const pasted = s.kind === "text";
@@ -748,7 +779,8 @@ export async function jobProgress(opts: { adminId: string; jobId: string }) {
     mode: job.mode, recruitmentId: job.recruitment_id ?? null,
     title: (job.new_job as NewJobInput | null)?.title ?? null,
     sources: perSource,
-    tasks: { total: tasks.length, done: count("DONE"), running: count("RUNNING"), pending: count("PENDING"), failed: count("FAILED") },
+    // A batch split after an incomplete answer is not counted: its halves are.
+    tasks: { total: tasks.length - count("SPLIT"), done: count("DONE"), running: count("RUNNING"), pending: count("PENDING"), failed: count("FAILED"), split: count("SPLIT") },
     failedTasks,
     ai: { estimate: job.estimate === null ? null : Number(job.estimate), sent: Number(job.ai_sent), retried: Number(job.ai_retried), failed: Number(job.ai_failed) },
     allowance: await allowanceLeft(),

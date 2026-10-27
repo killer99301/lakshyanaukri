@@ -425,6 +425,8 @@ export interface ReadingCoverage {
   unavailable?: Array<{ first: number; last: number; reason: string }>;
   /** Scanned pages where the AI found almost nothing, twice: maybe something printed was missed. */
   suspectPages?: number[];
+  /** Page ranges whose answer came back incomplete, so they were read again in halves (B2.5). */
+  split?: Array<{ first: number; last: number }>;
 }
 
 /** The text cut into its pages, each ending with its page mark; null without page marks. */
@@ -529,6 +531,9 @@ export function mergeReadings(parts: Array<Omit<ArticleReading, "skipped">>): Om
 
 /** A failed request worth one more try (not a missing key, the daily cap, or a rejected key). */
 const RETRY_BATCH = /unavailable|incomplete|took too long|rate limit/i;
+/** An answer cut off or not whole JSON: too much for one answer, so the pages are read in halves (B2.5). */
+export const INCOMPLETE = /incomplete/i;
+const MAX_SPLIT_DEPTH = 3;
 
 /**
  * Reads the text whole when it is short or has no page marks; otherwise in
@@ -553,20 +558,29 @@ export async function readArticleInBatches(opts: {
       batches: [{ first: pages ? 1 : null, last: pageCount, status: one.skipped ? "failed" : "read", ...(one.skipped ? { reason: one.skipped } : {}), values: one.values.length }] } };
   }
   const batches = pageBatches(pages);
-  const results = await Promise.all(batches.map((b) => gate(async () => {
+  const split: Array<{ first: number; last: number }> = [];
+  /** One batch's pages; an incomplete answer cuts them in half and reads each half (B2.5), down to one page. */
+  const readPages = async (ps: PageText[], depth: number): Promise<Array<{ first: number; last: number; r: ArticleReading | null }>> => {
+    const first = ps[0].page, last = ps[ps.length - 1].page;
     const read = async () => {
       const left = opts.deadline ? opts.deadline - Date.now() : Infinity;
       if (left < 8_000) return null; // not started: too little time left
-      return readArticle({ ...opts, text: b.text, part: { first: b.first, last: b.last, pages: pageCount ?? b.last }, timeoutMs: Math.min(READ_TIMEOUT_MS, left - 2_000) });
+      return readArticle({ ...opts, text: ps.map((p) => p.text).join(""), part: { first, last, pages: pageCount ?? last }, timeoutMs: Math.min(READ_TIMEOUT_MS, left - 2_000) });
     };
     let r = await read();
+    if (r?.skipped && INCOMPLETE.test(r.skipped) && ps.length > 1 && depth < MAX_SPLIT_DEPTH) {
+      split.push({ first, last });
+      const mid = Math.ceil(ps.length / 2);
+      return [...await readPages(ps.slice(0, mid), depth + 1), ...await readPages(ps.slice(mid), depth + 1)];
+    }
     if (r?.skipped && RETRY_BATCH.test(r.skipped)) r = (await read()) ?? r; // once more
-    return r;
-  })));
-  const coverage: ReadingCoverage = { mode: "batches", pages: pageCount, noTextPages, batches: [] };
+    return [{ first, last, r }];
+  };
+  const results = (await Promise.all(batches.map((b) => gate(() => readPages(pagesOf(b.text) ?? [], 0))))).flat();
+  const coverage: ReadingCoverage = { mode: "batches", pages: pageCount, noTextPages, batches: [], ...(split.length ? { split } : {}) };
   const parts: Array<Omit<ArticleReading, "skipped">> = [];
-  results.forEach((r, i) => {
-    const b = batches[i];
+  results.forEach(({ first, last, r }) => {
+    const b = { first, last };
     if (!r) { coverage.batches.push({ first: b.first, last: b.last, status: "not_read", reason: "the time for this reading ran out before these pages were reached", values: 0 }); return; }
     if (r.skipped) { coverage.batches.push({ first: b.first, last: b.last, status: "failed", reason: r.skipped, values: 0 }); return; }
     // Pages come from the batch's own page marks, so they are the document's page numbers.

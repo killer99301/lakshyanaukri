@@ -104,6 +104,53 @@ test("BR04 a batch that keeps failing is reported with its pages; the others are
   assert.equal(r.values.find((v) => v.fieldPath === "dates.applicationCloseDate")?.page, 20);
   assert.equal(r.skipped, undefined, "the reading ran; only those pages are missing");
 });
+/** A stand-in that cuts its answer off (not whole JSON) when given more than `maxPages` pages. */
+function cutOffModel(maxPages: number, answer: (text: string) => unknown) {
+  const calls: Array<{ first: number; last: number }> = [];
+  const fetchFn = (async (_url: unknown, init?: RequestInit) => {
+    const prompt = JSON.parse(String(init?.body)).contents[0].parts[0].text as string;
+    const m = /pages (\d+) to (\d+) of a/.exec(prompt);
+    const first = m ? Number(m[1]) : 1, last = m ? Number(m[2]) : 0;
+    calls.push({ first, last });
+    const whole = JSON.stringify(answer(prompt.slice(prompt.indexOf("TEXT:"))));
+    const out = last - first + 1 > maxPages ? whole.slice(0, Math.max(1, Math.floor(whole.length / 2))) + ',"examStages":[{"name":"Onl' : whole;
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: out }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as unknown as typeof fetch;
+  return { fetchFn, calls };
+}
+
+test("BR10 an answer cut off for an 8-page batch is read again in halves; every value keeps its page; the split is said", async () => {
+  const text = notice(16, { 2: ["Last date for registration 21.09.2026"], 7: ["Application fee Rs. 850/- for General candidates"] });
+  const { fetchFn, calls } = cutOffModel(4, (t) => ({
+    ...(has(t, "21.09.2026") ? { dates: { applicationCloseDate: { value: "2026-09-21", quote: "Last date for registration 21.09.2026" } } } : {}),
+    ...(has(t, "Rs. 850/-") ? { feeGeneral: { value: 850, quote: "Application fee Rs. 850/- for General candidates" } } : {}),
+  }));
+  const r = await readArticleInBatches({ text, subject: "x", apiKey: "test-key", fetchFn });
+  assert.ok(r.coverage.split?.length, "the split is recorded");
+  assert.ok(r.coverage.split!.every((s) => s.last - s.first + 1 > 4));
+  assert.ok(r.coverage.batches.every((b) => b.status === "read" && b.last - b.first + 1 <= 4), JSON.stringify(r.coverage.batches));
+  const read = r.coverage.batches.flatMap((b) => Array.from({ length: b.last - b.first + 1 }, (_, i) => b.first + i));
+  assert.deepEqual(read, Array.from({ length: 16 }, (_, i) => i + 1), "every page read once, none twice, none missing");
+  assert.equal(r.values.find((v) => v.fieldPath === "dates.applicationCloseDate")?.page, 2);
+  assert.equal(r.values.find((v) => v.fieldPath === "financial.feeGeneral")?.page, 7);
+  assert.ok(calls.some((c) => c.last - c.first + 1 > 4) && calls.some((c) => c.last - c.first + 1 <= 4));
+});
+test("BR11 a page whose answer is still cut off alone is failed, never read; the reading says so", async () => {
+  const text = notice(16, { 11: ["Last date for registration 21.09.2026"] });
+  const { fetchFn } = cutOffModel(0, (t) => (has(t, "21.09.2026") ? { dates: { applicationCloseDate: { value: "2026-09-21", quote: "Last date for registration 21.09.2026" } } } : {}));
+  const r = await readArticleInBatches({ text, subject: "x", apiKey: "test-key", fetchFn });
+  assert.ok(r.coverage.batches.length > 0 && r.coverage.batches.every((b) => b.status === "failed" && /incomplete/i.test(b.reason ?? "")), JSON.stringify(r.coverage.batches));
+  assert.equal(r.values.length, 0, "nothing taken from a cut-off answer");
+  assert.ok(r.skipped && /incomplete/i.test(r.skipped), "the reading says it read nothing, and why");
+});
+test("BR12 halving stops at its depth: a long batch never turns into endless requests", async () => {
+  const text = notice(16, {});
+  const { fetchFn, calls } = cutOffModel(0, () => ({}));
+  await readArticleInBatches({ text, subject: "x", apiKey: "test-key", fetchFn });
+  // 2 batches of 8 → halves of 4 → 2 → 1: 1+2+4+8 reads each, plus one resend of each final piece.
+  assert.ok(calls.length <= 2 * (1 + 2 + 4 + 8 + 8), String(calls.length));
+});
+
 test("BR05 batches not started before the time limit are \"not read\", never read", async () => {
   const text = notice(24, {});
   const { fetchFn, calls } = model(() => ({}));
