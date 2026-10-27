@@ -20,12 +20,21 @@ export function hasPageMarkers(text: string): boolean {
 
 const squash = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
-/** The page a quote is on, by the reader's page markers; null without markers or when not found. */
+/**
+ * The page a quote is on, by the reader's page markers: the number in the
+ * marker that ends its page ("-- 23 of 76 --"), so a part of a document (a
+ * page batch, pages uploaded in pieces) gives the document's own page
+ * numbers. Null without markers or when not found.
+ */
 export function pageOf(text: string, quote: string | undefined): number | null {
   if (!quote || !hasPageMarkers(text)) return null;
-  const pages = text.split(/^-- \d+ of \d+ --$/m);
+  const parts = text.split(/^-- (\d+) of \d+ --$/m); // [page text, its number, page text, its number, …, the rest]
   const needle = squash(quote);
-  for (let i = 0; i < pages.length; i++) if (squash(pages[i]).includes(needle)) return i + 1;
+  for (let i = 0; i < parts.length; i += 2) {
+    if (!squash(parts[i]).includes(needle)) continue;
+    if (i + 1 < parts.length) return Number(parts[i + 1]);
+    return parts.length >= 3 ? Number(parts[parts.length - 2]) + 1 : null; // after the last marker
+  }
   return null;
 }
 

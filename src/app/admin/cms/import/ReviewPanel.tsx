@@ -35,6 +35,7 @@ function readingInWords(r: ReadingCoverage): { read: string; unread: string[] } 
     : ok.length ? `Read whole${r.pages ? ` (${r.pages} pages)` : ""}` : "Not read";
   return { read, unread: [
     ...r.batches.filter((b) => b.status !== "read").map((b) => `${range(b)}: not read — ${b.reason ?? "unknown"}`),
+    ...(r.unavailable ?? []).map((u) => `${range(u)}: not read — ${u.reason}`),
     ...(r.noTextPages.length ? [`pages ${r.noTextPages.join(", ")}: no text (scanned)`] : []),
   ] };
 }

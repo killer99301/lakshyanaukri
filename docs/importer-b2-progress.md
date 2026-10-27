@@ -153,3 +153,115 @@ These builders are shared with AI Assist in the job editor, so AI Assist gains t
 - **The pattern reader's variance** (4 to 7 of IBPS's 7 papers). It reads the content-found passages from B2.1, not the page batches. When the batches also return the pattern, the stricter section reader still wins. Running the pattern through the batch merge too, and offering a difference as a conflict, would show the gap. Whether to do that is for you to say.
 - **IBPS age** is refused correctly: its age differs by post, and the age field holds one range.
 - **A document longer than about 45 s to read in the browser** is reported as partly read until B2.3.
+
+## B2.3 — Background reading of long documents (done)
+
+This implements the approved mechanism (`importer-b2-3-mechanism.md`): the job is held in the database, the browser drives the steps, pdf-lib splits the PDF, and there is no QStash.
+
+### What was built
+
+**Upload**
+- You select one PDF of any size, up to 60 MB and 400 pages.
+- The browser opens it with pdf-lib. An encrypted or damaged PDF is refused there, with the reason, before anything is sent.
+- The browser splits the PDF into pieces of whole pages: at most 40 pages each, and under 4 MB.
+- It computes the whole file's SHA-256 and sends the pieces one by one. Each piece is tried 3 times.
+- The **server** reads each piece's text itself and renumbers the page marks as pages of the original ("-- 43 of 76 --").
+- **A single page over 4 MB is not shrunk or changed.** It is recorded as not uploaded, with its size.
+- **A page with no text** is named as scanned, and its piece is kept until B2.4 reads it from the image. Every other piece keeps only its text.
+- **Pasted text** can be part of the same reading. Addresses and images still use the one-request preview, and a PDF over 4 MB mixed with them is refused with an explanation.
+
+**Database (local test databases only):** `recruitment_import_jobs`, `…_job_parts` and `…_job_tasks`, also added to the migration manifest. Nothing has been migrated in production.
+
+**Before reading**
+- The page shows the estimated AI requests and today's allowance.
+- Missing or unreadable pages are named. Reading starts only when every page is in, or when you tick "read without them".
+
+**Steps**
+- While the page is open, it asks for a step again and again.
+- Each step takes at most 2 tasks (a page batch or a section reader) with a 55 s **lease**, in one statement with `FOR UPDATE SKIP LOCKED`.
+- It reads them with the B2.2 pacing and saves each result **only if it still holds that task's lease** and the reading wasn't cancelled.
+- A task whose step died is taken again when its lease runs out.
+- A failed task is retried once automatically; after that it is marked failed, with its pages and the reason.
+- When the daily allowance runs out, the reading **pauses** with that note. The waiting task is not marked failed and keeps its tries.
+
+**Controls:** Pause, Resume, Retry failed pages (only those tasks), Finish without them (their pages are reported as not read), and Cancel (the kept pieces are deleted).
+
+**Reopen:** the address carries `?job=…`, and the import page lists your unfinished readings.
+- **After a reload or return**, finished tasks stay finished and the reading carries on.
+- **If an upload was interrupted**, the page asks for the same file again. A different file is refused because its SHA-256 doesn't match, and only the missing pages are sent.
+
+**Finish**
+- When every task is settled, one step moves the reading to FINISHING and builds the ordinary preview from the saved results (B2.2 merge, B1 tables, proposal).
+- Other tabs wait. A finish whose step died is redone after 90 s.
+- The status shows **"Complete" only when every page was uploaded, had text and was read, and nothing failed**. Otherwise it shows "Finished — incomplete", and the preview's warnings and Sources panel name every page not read and why.
+
+**Fingerprint:** the file's fingerprint comes from the browser, so it can never confirm a match with a server fetch.
+
+**Access:** every route goes through the importer guard (session, origin, switch). Every job function checks that the reading belongs to the admin asking; another admin gets "not found".
+
+**Clean-up**
+- Pieces are dropped when a reading ends or is cancelled.
+- Readings untouched for 7 days are cancelled, and ended readings older than 30 days are deleted.
+- This runs whenever a reading is started and in the existing daily cron job.
+
+**Refactor:** the one-request preview now shares these pieces: target, read, assemble, and section readers that can run one at a time. Its behaviour is unchanged (same tests).
+
+### Results
+
+**Deterministic and local tests**
+- `tests/local-stack/importer-jobs.test.ts`: **30/30**, with the real IBPS PDF split by pdf-lib exactly as the browser splits it. Covers:
+  - renumbered pages
+  - limits: piece size, piece pages, overlap, 400 pages, damaged piece
+  - an interrupted upload, and a piece sent twice
+  - another admin, and steps of at most two tasks
+  - a failing batch failed and then retried alone, with done tasks untouched
+  - evidence pages after splitting (page 1 and page 21) and the 280-row vacancy table
+  - the browser fingerprint never confirming a server fetch
+  - two tabs: B can't take A's task while A holds the lease, B takes it when the lease runs out, and A can't overwrite B's saved result
+  - pause, and the daily allowance
+  - scanned pages kept and then dropped, cancel, and "never complete"
+  - abandoned and old readings cleaned up
+- **Real PostgreSQL 17** (`tests/pg/importer-concurrency.test.ts`, now 35/35):
+  - two sessions claiming at the same moment get different tasks, without waiting
+  - a save under the wrong lease is refused
+  - nothing is saved into a cancelled reading
+
+**Browser (local test copy, real Gemini)**
+- The test file is **made up from a real source**: the IBPS notice plus two heavy image-only pages and one page of 4.8 MB, 79 pages and 12.6 MB in all. There was no real notice over 4 MB on this machine.
+- It was split and uploaded automatically: 78 of 79 pages. Page 79 is reported as too large, and pages 77–78 as scanned. The estimate was 13 requests.
+- Reading was started, and the page was **reloaded** mid-reading and **opened in a second tab**.
+- Afterwards the database shows **13 of 13 tasks done, none read twice (most tries = 1), and 13 AI requests**: exactly the estimate.
+- The finished reading opened in the review. Its warnings named page 79 (too large) and pages 77–78 (scanned), and the status said "Finished — incomplete", not "Complete".
+- **Saved and reopened:** the job holds the 280-row table (at least 13,706), 7 exam papers and 9 exam stages.
+- **An interrupted upload:** reloading at 59 of 79 pages kept those pages. A different PDF was refused, and the same file sent only pages 60–79.
+- **Cancel:** the reading shows Cancelled, and the database holds no kept pieces for it.
+- Faults found in the browser and fixed:
+  - Other tabs stopped watching while the preview was being built, so they now wait for it.
+  - "Send the rest again" showed for a page too large to send, so it is now hidden in that case.
+  - The Sources panel didn't list the too-large page, so it now does.
+- **A failed task retried in the browser** was not forced with the real model. The stand-in model covers it in the local test.
+
+**Regression**
+- 20 local-stack suites pass, including the new reading-job suite
+- `cms:test` 43/43 suites
+- intake 332/332
+- PostgreSQL 17: 35/35
+- `tsc` clean
+- production build passes, and the cache test on it is 31/31
+- intelligence 12/13 and lint 7 / 26, both unchanged baselines
+
+**Real Gemini, one-request preview after the refactor:** 46/47.
+- The one failure: the IBPS page batch for pages 17–24 came back from the model as an incomplete answer twice.
+- It was reported as "pages 17–24 not read", not hidden. The reading is never called complete, which is the intended behaviour.
+- It is the same B2.2 batch reading. It is noted below as something to improve, not fixed here.
+
+### Still open (kept visible, not solved by B2.3)
+
+- **A page batch the model answers incompletely** (seen once, pages 17–24 of IBPS) fails after two tries. Cutting such a batch into smaller ones before giving up would recover it. To do before final B2 acceptance.
+
+- **The IBPS exam-pattern reader still varies between 4 and 7 of its 7 papers** from run to run (B2.2 runs 5 and 6). The browser reading in B2.3 got 7 of 7, but one good run is not a fix. It stays open until it is addressed, before B2 is accepted.
+- **Exam stages:** in the browser run the model also listed download and result steps (9 stages), although the reading asks only for exam, interview and verification steps.
+- **IBPS age:** the saved age is 18–28, which is only the Office Assistants' range. IBPS ages differ by post, and the age field holds one range. This is a product decision. The value stays Pending.
+- **Scanned pages** are named and kept, but not read until B2.4.
+- **A reading moves only while an import page is open.** This is the approved limit, without QStash.
+- **Existing one-request previews** (`/api/admin/cms/import/:importId`) can still be opened by any admin, as before B2. Only the new reading jobs are per admin. Restricting previews too is your call.

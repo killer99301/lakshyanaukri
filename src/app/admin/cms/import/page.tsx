@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DiscoverPanel, type FoundJob } from "./DiscoverPanel";
 import { ReviewPanel } from "./ReviewPanel";
+import { OpenReadings, ReadingJobPanel, describePdf } from "./ReadingJob";
 import { C, PANEL, badge, inputStyle, labelStyle, primaryBtn, quietBtn } from "./ui";
 
 type Kind = "OFFICIAL_NOTIFICATION" | "OFFICIAL_CORRIGENDUM" | "OFFICIAL_PAGE" | "RESEARCH" | "OTHER";
@@ -213,6 +214,22 @@ function Importer() {
   const [confirmVerified, setConfirmVerified] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
   const [applied, setApplied] = useState<{ recruitmentId: string; replayed: boolean } | null>(null);
+  // A long document's reading (stage B2.3): its id is in the address (?job=…), so a reload or a return carries on.
+  const jobParam = params.get("job");
+  const [reading, setReading] = useState<{ id: string; files: Map<number, File> } | null>(() => (jobParam ? { id: jobParam, files: new Map() } : null));
+  const [readingTitle, setReadingTitle] = useState("");
+  const setJobInAddress = (jobId: string | null) => {
+    const url = new URL(window.location.href);
+    if (jobId) url.searchParams.set("job", jobId); else url.searchParams.delete("job");
+    window.history.replaceState(null, "", url);
+  };
+  const onReadingPreview = (d: { importId: string; proposal: unknown }, title: string | null) => {
+    const pv = d as Preview;
+    setPreview(pv);
+    setTicked(new Set(pv.proposal.items.filter((i) => i.defaultTicked).map((i) => i.id)));
+    setConfirmVerified(false);
+    if (title) setReadingTitle(title);
+  };
 
   useEffect(() => {
     fetch("/api/admin/cms/import/switch").then((r) => r.json()).then((d) => setOn(d.on === true)).catch(() => setOn(false));
@@ -226,7 +243,48 @@ function Importer() {
 
   const subject = recordId ? job?.title ?? "" : `${newJob.title} — ${newJob.organizationName}`;
 
+  /** PDFs (split in this browser) and pasted text are read as a reading job: any size, in steps, resumable. */
+  const isPdf = (s: SourceDraft) => s.method === "upload" && !!s.file && (s.file.type === "application/pdf" || /\.pdf$/i.test(s.file.name)) && !s.scanText;
+  const startReading = async () => {
+    setBusy(true);
+    setErr(null);
+    setPreview(null);
+    setApplied(null);
+    try {
+      const files = new Map<number, File>();
+      const list: Array<Record<string, unknown>> = [];
+      for (const [i, s] of sources.entries()) {
+        const base = { declaredKind: s.declaredKind, url: s.url || undefined, attestation: s.attest ? s.attestation : undefined, versionLabel: s.versionLabel || undefined, documentDate: s.documentDate || undefined };
+        if (s.method === "paste") { list.push({ ...base, pastedText: s.text }); continue; }
+        const d = await describePdf(s.file!); // an encrypted or damaged PDF stops here, with why
+        files.set(i + 1, s.file!);
+        list.push({ ...base, fileName: s.file!.name, pages: d.pages, byteSize: s.file!.size, sha256: d.sha256 });
+      }
+      const res = await fetch("/api/admin/cms/import/jobs", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          mode: recordId ? "EXISTING" : "NEW", recruitmentId: recordId ?? undefined, sources: list,
+          newJob: recordId ? undefined : { ...newJob, recruitmentYear: Number(newJob.recruitmentYear), notificationNumber: newJob.notificationNumber || undefined },
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error ?? `HTTP ${res.status}`);
+      setJobInAddress(d.jobId);
+      setReadingTitle(newJob.title);
+      setReading({ id: d.jobId, files });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const makePreview = async () => {
+    if (sources.some(isPdf) && sources.every((s) => isPdf(s) || s.method === "paste")) { await startReading(); return; }
+    if (sources.some((s) => s.method === "upload" && s.file && s.file.size > 4 * 1024 * 1024)) {
+      setErr("A PDF over 4 MB is read as a long reading, which takes PDFs and pasted text. Remove the address or image source here, and bring it into the same job afterwards.");
+      return;
+    }
     setBusy(true);
     setErr(null);
     setPreview(null);
@@ -287,6 +345,8 @@ function Importer() {
     if (!preview) return;
     await fetch(`/api/admin/cms/import/${preview.importId}/discard`, { method: "POST" });
     setPreview(null);
+    setReading(null);
+    setJobInAddress(null);
   };
 
   return (
@@ -324,9 +384,14 @@ function Importer() {
         </div>
       ) : (
         <>
-          {!preview && !recordId && <DiscoverPanel onPick={pickFound} />}
+          {!preview && !reading && !recordId && <DiscoverPanel onPick={pickFound} />}
+          {!preview && !reading && <OpenReadings />}
+          {!preview && reading && (
+            <ReadingJobPanel key={reading.id} jobId={reading.id} files={reading.files} onPreview={onReadingPreview}
+              onClose={() => { setReading(null); setJobInAddress(null); }} />
+          )}
 
-          {!preview && (<>
+          {!preview && !reading && (<>
           {/* The job */}
           <div data-import-job style={{ ...PANEL, padding: 16, marginBottom: 16 }}>
             {recordId ? (
@@ -375,7 +440,7 @@ function Importer() {
           {/* Review */}
           {preview && (
             <ReviewPanel
-              title={recordId ? job?.title ?? "" : newJob.title}
+              title={recordId ? job?.title ?? "" : newJob.title || readingTitle}
               organization={recordId ? "" : newJob.organizationName}
               existing={!!recordId}
               items={items}

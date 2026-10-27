@@ -190,6 +190,28 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     check("second waited and was refused by the unique index", r5.b.code !== 0 && /uq_field_claims_revoked_once|duplicate key/.test(r5.b.err), r5.b.err);
     check("exactly one revocation", await one(`SELECT count(*) FROM recruitment_field_claims WHERE revokes_claim_id = '${decision}'`) === "1");
 
+    section("Two tabs stepping the same reading at once (stage B2.3 task leases)");
+    // The claim and the guarded save, as jobs.ts sends them.
+    const rj = randomUUID();
+    await one(`INSERT INTO recruitment_import_jobs (job_id, created_by, mode, new_job, state, sources) VALUES ('${rj}', '${admin}', 'NEW', '{}'::jsonb, 'READING', '[]'::jsonb)`);
+    await one(`INSERT INTO recruitment_import_job_tasks (job_id, task_no, source_no, kind) SELECT '${rj}', n, 1, 'TEXT_BATCH' FROM generate_series(1, 4) n`);
+    const claim = (lease: string) => `UPDATE recruitment_import_job_tasks t SET status = 'RUNNING', lease_owner = '${lease}', lease_until = now() + make_interval(secs => 55), attempts = t.attempts + 1, updated_at = now()
+      WHERE (t.job_id, t.task_no) IN (SELECT job_id, task_no FROM recruitment_import_job_tasks WHERE job_id = '${rj}' AND (status = 'PENDING' OR (status = 'RUNNING' AND lease_until < now()))
+        ORDER BY task_no LIMIT 2 FOR UPDATE SKIP LOCKED)
+      AND EXISTS (SELECT 1 FROM recruitment_import_jobs j WHERE j.job_id = '${rj}' AND j.state = 'READING') RETURNING t.task_no`;
+    const save = (task: number, lease: string) => `UPDATE recruitment_import_job_tasks SET status = 'DONE', result = '{}'::jsonb, lease_owner = NULL, lease_until = NULL
+      WHERE job_id = '${rj}' AND task_no = ${task} AND status = 'RUNNING' AND lease_owner = '${lease}'
+        AND EXISTS (SELECT 1 FROM recruitment_import_jobs j WHERE j.job_id = '${rj}' AND j.state IN ('READING', 'PAUSED')) RETURNING task_no`;
+    const leaseA = randomUUID(), leaseB = randomUUID();
+    const r9 = await race(claim(leaseA), claim(leaseB));
+    const tasksOf = (out: string) => out.split(/\s+/).filter((x) => /^\d+$/.test(x)).map(Number).sort();
+    check("tab A took tasks 1 and 2", r9.a.code === 0 && tasksOf(r9.a.out).join() === "1,2", r9.a);
+    check("tab B, at the same moment, skipped A's tasks without waiting and took 3 and 4", r9.b.code === 0 && tasksOf(r9.b.out).join() === "3,4" && r9.waited < 900, { waited: r9.waited, out: r9.b.out });
+    check("tab B cannot save task 1, which A holds", await one(save(1, leaseB)) === "");
+    check("tab A saves task 1 under its own lease", await one(save(1, leaseA)) === "1");
+    await one(`UPDATE recruitment_import_jobs SET state = 'CANCELLED' WHERE job_id = '${rj}'`);
+    check("nothing is saved into a cancelled reading, even under the right lease", await one(save(2, leaseA)) === "");
+
     console.log(`\n${failed === 0 ? "ALL PASS" : "FAILURES"}: ${passed} passed, ${failed} failed (PostgreSQL ${version})`);
     process.exitCode = failed === 0 ? 0 : 1;
   } finally {

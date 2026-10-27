@@ -1,0 +1,42 @@
+// ═══════════════════════════════════════════════════════════
+// POST /api/admin/cms/import/jobs/:jobId/parts
+//
+// Multipart: sourceNo, first, last, file — one piece of whole pages, split
+// in the browser. The server reads its text. Or JSON { sourceNo, first,
+// last, reason } — pages the browser could not send (a page over the size
+// limit), recorded as not uploaded, with why.
+// ═══════════════════════════════════════════════════════════
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { guardImporter } from "@/lib/cms/importer/route-guard";
+import { JOB_LIMITS, JobError, recordFailedPart, uploadJobPart } from "@/lib/cms/importer/jobs";
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ jobId: string }> }): Promise<NextResponse> {
+  const guard = await guardImporter(request, { write: true });
+  if (guard instanceof NextResponse) return guard;
+  const { jobId } = await params;
+  try {
+    if ((request.headers.get("content-type") ?? "").includes("application/json")) {
+      const b = await request.json() as Record<string, unknown>;
+      await recordFailedPart({ adminId: guard.adminId, jobId, sourceNo: Number(b.sourceNo), first: Number(b.first), last: Number(b.last), reason: String(b.reason ?? "could not be sent") });
+      return NextResponse.json({ status: "FAILED" });
+    }
+    const form = await request.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) return NextResponse.json({ error: "The piece is missing" }, { status: 400 });
+    if (file.size > JOB_LIMITS.partBytes) return NextResponse.json({ error: `A piece is at most ${JOB_LIMITS.partBytes / 1024 / 1024} MB` }, { status: 413 });
+    const result = await uploadJobPart({
+      adminId: guard.adminId, jobId, sourceNo: Number(form.get("sourceNo")), first: Number(form.get("first")), last: Number(form.get("last")),
+      bytes: Buffer.from(await file.arrayBuffer()),
+    });
+    return NextResponse.json(result);
+  } catch (err) {
+    if (err instanceof JobError) return NextResponse.json({ error: err.message }, { status: err.status });
+    console.error("[importer] piece not saved", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "The piece could not be saved" }, { status: 500 });
+  }
+}

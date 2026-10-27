@@ -403,7 +403,7 @@ export async function readArticle(opts: { text: string; subject: string; apiKey:
 // reported page by page, and the reading is never called complete while a
 // page is unread.
 
-const BATCH_FROM_CHARS = 40_000;
+export const BATCH_FROM_CHARS = 40_000;
 const BATCH_MAX_CHARS = 30_000;
 const BATCH_MAX_PAGES = 8;
 /** A page with less text than this (after its page mark) has no text layer: a scanned page. */
@@ -417,6 +417,8 @@ export interface ReadingCoverage {
   batches: Array<{ first: number | null; last: number | null; status: "read" | "failed" | "not_read"; reason?: string; values: number }>;
   /** Pages with no text: scanned pages, not read by the text reading. */
   noTextPages: number[];
+  /** Pages that never reached the reading (a piece that failed to upload or could not be opened), with why. */
+  unavailable?: Array<{ first: number; last: number; reason: string }>;
 }
 
 /** The text cut into its pages, each ending with its page mark; null without page marks. */
@@ -435,7 +437,8 @@ export function pagesOf(text: string): PageText[] | null {
   return out;
 }
 
-const hasText = (p: PageText) => p.text.replace(/^-- \d+ of \d+ --$/gm, "").replace(/GO TO INDEX \d*/g, "").replace(/\s+/g, "").length >= NO_TEXT_CHARS;
+/** A page with text: more than a page mark and a few words (a running header or a page number). */
+export const pageHasText = (p: PageText) => p.text.replace(/^-- \d+ of \d+ --$/gm, "").replace(/\s+/g, "").length >= NO_TEXT_CHARS;
 
 /** Batches of whole pages with text, at most BATCH_MAX_PAGES pages or BATCH_MAX_CHARS characters each. */
 export function pageBatches(pages: PageText[]): Array<{ first: number; last: number; text: string }> {
@@ -446,7 +449,9 @@ export function pageBatches(pages: PageText[]): Array<{ first: number; last: num
     cur = [];
   };
   for (const p of pages) {
-    if (!hasText(p)) { flush(); continue; }
+    if (!pageHasText(p)) { flush(); continue; }
+    // A batch never spans a gap (pages missing from the text, e.g. a piece not uploaded).
+    if (cur.length > 0 && p.page !== cur[cur.length - 1].page + 1) flush();
     const size = cur.reduce((n, x) => n + x.text.length, 0);
     if (cur.length >= BATCH_MAX_PAGES || (cur.length > 0 && size + p.text.length > BATCH_MAX_CHARS)) flush();
     cur.push(p);
@@ -535,7 +540,7 @@ export async function readArticleInBatches(opts: {
   const gate = opts.gate ?? (<T>(t: () => Promise<T>) => t());
   const pages = pagesOf(opts.text);
   const pageCount = pages ? pages[pages.length - 1].page : null;
-  const noTextPages = pages ? pages.filter((p) => !hasText(p)).map((p) => p.page) : [];
+  const noTextPages = pages ? pages.filter((p) => !pageHasText(p)).map((p) => p.page) : [];
   if (!pages || opts.text.length <= BATCH_FROM_CHARS) {
     const one = await gate(() => readArticle(opts));
     return { ...one, coverage: { mode: "whole", pages: pageCount, noTextPages,
@@ -558,8 +563,8 @@ export async function readArticleInBatches(opts: {
     const b = batches[i];
     if (!r) { coverage.batches.push({ first: b.first, last: b.last, status: "not_read", reason: "the time for this reading ran out before these pages were reached", values: 0 }); return; }
     if (r.skipped) { coverage.batches.push({ first: b.first, last: b.last, status: "failed", reason: r.skipped, values: 0 }); return; }
-    // A value's page within the batch, counted in the whole document.
-    const values = r.values.map((v) => ({ ...v, page: v.page ? b.first + v.page - 1 : null }));
+    // Pages come from the batch's own page marks, so they are the document's page numbers.
+    const values = r.values;
     parts.push({ values, refused: r.refused });
     coverage.batches.push({ first: b.first, last: b.last, status: "read", values: values.length });
   });

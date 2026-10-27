@@ -21,7 +21,7 @@ import { DETAIL_FIELDS, buildDetailSections, extractDetails } from "@/lib/cms/ai
 import { SYLLABUS_FIELDS, buildSyllabusSections, extractPatternAndSyllabus } from "@/lib/cms/ai-assist-syllabus";
 import { pageOf } from "@/lib/cms/importer/evidence-text";
 import { linksInText, type FoundLink } from "@/lib/cms/importer/links";
-import { readArticleInBatches, type ReadingCoverage } from "@/lib/cms/importer/article";
+import { readArticleInBatches, type ArticleReading, type ReadingCoverage } from "@/lib/cms/importer/article";
 import type { ExtractedValue } from "@/lib/cms/importer/proposal";
 
 export interface SourceReading {
@@ -51,6 +51,32 @@ export function htmlToText(html: string): string {
     .trim();
 }
 
+export type SectionPart = "ai" | "details" | "pattern";
+export type SectionOutcomes = {
+  ai: Awaited<ReturnType<typeof extractWithAi>>;
+  details: Awaited<ReturnType<typeof extractDetails>>;
+  pattern: Awaited<ReturnType<typeof extractPatternAndSyllabus>>;
+};
+
+/** One of the three section readers (dates and fees; details; pattern and syllabus): one AI request. */
+export async function readSectionPart<P extends SectionPart>(part: P, opts: { content: string; kind: SourceKind; url: string; subject: string; apiKey: string | undefined; fetchFn?: typeof fetch }): Promise<SectionOutcomes[P]> {
+  const { content, kind, url, subject, apiKey, fetchFn } = opts;
+  if (part === "ai") return extractWithAi({ sections: buildAiSections(content, kind, url), url, apiKey, fetchFn }) as Promise<SectionOutcomes[P]>;
+  if (part === "details") return extractDetails({ sections: buildDetailSections(content, kind, url, subject), url, apiKey, subject, fetchFn }) as Promise<SectionOutcomes[P]>;
+  return extractPatternAndSyllabus({ sections: buildSyllabusSections(content, kind, url, subject), url, apiKey, subject, fetchFn }) as Promise<SectionOutcomes[P]>;
+}
+
+/** A section reader that did not run (its task failed), with why: the same shape as a reader that was skipped. */
+export function skippedSection<P extends SectionPart>(part: P, reason: string): SectionOutcomes[P] {
+  const skip = { status: "skipped" as const, reason };
+  if (part === "ai") {
+    return { fees: { general: skip, scst: skip }, notificationNumber: skip,
+      dates: { applicationOpenDate: skip, applicationCloseDate: skip, feePaymentCloseDate: skip, correctionWindowEnd: skip } } as SectionOutcomes[P];
+  }
+  if (part === "details") return { howToApply: skip, age: skip, eligibility: skip, selection: skip, payScale: skip, summary: null } as SectionOutcomes[P];
+  return { examPattern: skip, syllabus: skip } as SectionOutcomes[P];
+}
+
 export async function readSource(opts: {
   content: string;
   kind: SourceKind;
@@ -65,8 +91,28 @@ export async function readSource(opts: {
   /** Epoch ms after which no new page batch is started. */
   deadline?: number;
 }): Promise<SourceReading> {
-  const { content, kind, url, subject, apiKey, fetchFn } = opts;
   const gate = opts.gate ?? (<T>(t: () => Promise<T>) => t());
+  const plain = opts.kind === "html" ? htmlToText(opts.content) : opts.content;
+  const [ai, details, pattern, article] = await Promise.all([
+    gate(() => readSectionPart("ai", opts)),
+    gate(() => readSectionPart("details", opts)),
+    gate(() => readSectionPart("pattern", opts)),
+    readArticleInBatches({ text: plain, subject: opts.subject, apiKey: opts.apiKey, fetchFn: opts.fetchFn, gate, deadline: opts.deadline }),
+  ]);
+  return combineReading({ ...opts, ai, details, pattern, article });
+}
+
+/**
+ * The section readers' and the whole-text reading's results as one source
+ * reading: the stricter section readers win wherever they speak. No AI here,
+ * so a reading job can put its stored task results together the same way.
+ */
+export function combineReading(opts: {
+  content: string; kind: SourceKind; url: string; organizationId: string;
+  ai: SectionOutcomes["ai"]; details: SectionOutcomes["details"]; pattern: SectionOutcomes["pattern"];
+  article: ArticleReading & { coverage?: ReadingCoverage };
+}): SourceReading {
+  const { content, kind, url, ai, details, pattern, article } = opts;
   const plain = kind === "html" ? htmlToText(content) : content;
   const values: ExtractedValue[] = [];
   const notFound: string[] = [];
@@ -75,12 +121,6 @@ export async function readSource(opts: {
     values.push({ fieldPath, value, ...(quote ? { quote, page: pageOf(plain, quote) } : {}) });
 
   const base = buildAssistCandidates(content, kind, url);
-  const [ai, details, pattern, article] = await Promise.all([
-    gate(() => extractWithAi({ sections: buildAiSections(content, kind, url), url, apiKey, fetchFn })),
-    gate(() => extractDetails({ sections: buildDetailSections(content, kind, url, subject), url, apiKey, subject, fetchFn })),
-    gate(() => extractPatternAndSyllabus({ sections: buildSyllabusSections(content, kind, url, subject), url, apiKey, subject, fetchFn })),
-    readArticleInBatches({ text: plain, subject, apiKey, fetchFn, gate, deadline: opts.deadline }),
-  ]);
 
   const merged = mergeAiDates(mergeAiNotificationNumber(base, ai.notificationNumber), ai.dates);
   for (const f of merged.flagged) refused.push({ fieldPath: f.label, reason: f.reason });

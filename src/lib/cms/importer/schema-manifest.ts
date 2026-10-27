@@ -9,7 +9,7 @@
 type Col = [type: string, nullable: boolean];
 
 const T = "text", U = "uuid", J = "jsonb", TS = "timestamp with time zone", I = "integer", D = "date";
-const V = "character varying", C = "character", B = "bigint", A = "ARRAY";
+const V = "character varying", C = "character", B = "bigint", A = "ARRAY", S = "smallint";
 
 export const IMPORTER_OBJECTS = {
   tables: {
@@ -39,6 +39,21 @@ export const IMPORTER_OBJECTS = {
     recruitment_claim_supersessions: {
       superseding_claim_id: [U, false], superseded_claim_id: [U, false], decided_by: [U, false], decided_at: [TS, false],
     },
+    // Reading jobs for long documents (stage B2.3).
+    recruitment_import_jobs: {
+      job_id: [U, false], created_by: [U, false], mode: [V, false], recruitment_id: [U, true], new_job: [J, true], state: [V, false],
+      state_note: [T, true], sources: [J, false], estimate: [I, true], ai_sent: [I, false], ai_retried: [I, false], ai_failed: [I, false],
+      import_id: [U, true], created_at: [TS, false], updated_at: [TS, false],
+    },
+    recruitment_import_job_parts: {
+      job_id: [U, false], source_no: [S, false], first_page: [I, false], last_page: [I, false], status: [V, false], reason: [T, true],
+      sha256: [C, true], byte_size: [I, false], pdf_base64: [T, true], text: [T, true], no_text_pages: [A, false], uploaded_at: [TS, false],
+    },
+    recruitment_import_job_tasks: {
+      job_id: [U, false], task_no: [I, false], source_no: [S, false], kind: [V, false], first_page: [I, true], last_page: [I, true],
+      status: [V, false], attempts: [I, false], lease_owner: [U, true], lease_until: [TS, true], result: [J, true], reason: [T, true],
+      ai_requests: [I, false], updated_at: [TS, false],
+    },
   } as Record<string, Record<string, Col>>,
   triggers: [
     ["trg_field_claims_append_only", "recruitment_field_claims"],
@@ -58,7 +73,7 @@ export const IMPORTER_OBJECTS = {
   ],
   indexes: [
     "idx_recruitment_imports_recruitment", "idx_source_retrievals_source", "idx_source_retrievals_import",
-    "idx_field_claims_lookup", "uq_field_claims_revoked_once",
+    "idx_field_claims_lookup", "uq_field_claims_revoked_once", "idx_import_jobs_owner",
   ],
 };
 

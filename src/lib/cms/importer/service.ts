@@ -139,8 +139,11 @@ async function readOne(input: SourceInput, organizationId: string, subject: stri
     content: obtained.text, kind: obtained.kind === "PDF" ? "pdf" : "html", url: obtained.finalUrl ?? input.url ?? "",
     subject, organizationId, apiKey, fetchFn, gate: pace.gate, deadline: pace.deadline,
   });
-  // Every value as the editor would store it; one the editor refuses is left
-  // out with its reason, never offered.
+  return { input, reading: finishSourceReading(input, obtained, reading, organizationId), obtained };
+}
+
+/** Every value as the editor would store it (one the editor refuses is left out, with its reason), and the source's own link. */
+export function finishSourceReading(input: SourceInput, obtained: { finalUrl: string | null }, reading: SourceReading, organizationId: string): SourceReading {
   reading.values = reading.values.flatMap((v) => {
     const stored = editorValue(v.fieldPath, v.value);
     if (stored.ok) return [{ ...v, value: stored.value }];
@@ -149,7 +152,7 @@ async function readOne(input: SourceInput, organizationId: string, subject: stri
   });
   const own = sourceOwnLink(obtained.finalUrl ?? input.url, input.declaredKind, organizationId);
   if (own) reading.links = [own, ...reading.links.filter((l) => l.url !== own.url)];
-  return { input, reading, obtained };
+  return reading;
 }
 
 export async function previewImport(opts: {
@@ -170,7 +173,19 @@ export async function previewImport(opts: {
 }) {
   if (opts.sources.length === 0) throw new ImportInputError("Add at least one source");
   if (opts.sources.length > MAX_SOURCES) throw new ImportInputError(`At most ${MAX_SOURCES} sources in one import`);
+  const { record, organizationId, subject } = await resolveTarget(opts);
 
+  // Read every source together, but through one gate: at most AI_CONCURRENCY
+  // AI requests of this import at a time, and a request refused for load is
+  // resent after a wait, each resend counted against the daily allowance.
+  const paced = retryingFetch(opts.fetchFn ?? ((input, init) => globalThis.fetch(input, init)), { backoffMs: opts.retryBackoffMs });
+  const gate = createGate(AI_CONCURRENCY);
+  const read = await Promise.all(opts.sources.map((s) => readOne(s, organizationId, subject, opts.apiKey, paced.fetch, opts.fetchSourceFn ?? fetchSource, { gate, deadline: opts.deadline })));
+  return assemblePreview({ ...opts, record, organizationId, read, aiFetch: paced.fetch, aiStats: paced.stats });
+}
+
+/** The job an import goes into: an existing job open for editing, or a new one with an organisation, title and year. */
+export async function resolveTarget(opts: { mode: "NEW" | "EXISTING"; recruitmentId?: string; newJob?: NewJobInput }): Promise<{ record: RecruitmentRecord | null; organizationId: string; subject: string }> {
   let record: RecruitmentRecord | null = null;
   let organizationId: string;
   let subject: string;
@@ -187,13 +202,31 @@ export async function previewImport(opts: {
     organizationId = j.organizationId;
     subject = `${j.title} — ${j.organizationName}`;
   }
+  return { record, organizationId, subject };
+}
 
-  // Read every source together, but through one gate: at most AI_CONCURRENCY
-  // AI requests of this import at a time, and a request refused for load is
-  // resent after a wait, each resend counted against the daily allowance.
-  const paced = retryingFetch(opts.fetchFn ?? ((input, init) => globalThis.fetch(input, init)), { backoffMs: opts.retryBackoffMs });
-  const gate = createGate(AI_CONCURRENCY);
-  const read = await Promise.all(opts.sources.map((s) => readOne(s, organizationId, subject, opts.apiKey, paced.fetch, opts.fetchSourceFn ?? fetchSource, { gate, deadline: opts.deadline })));
+/** A source as read: what came in (with its fingerprint and size, when not computed here from its bytes) and its reading. */
+export interface ReadInput {
+  input: SourceInput;
+  reading: SourceReading;
+  obtained: { method: NewRetrieval["method"]; finalUrl: string | null; kind: "PDF" | "HTML" | "TEXT" | "IMAGE"; bytes: Buffer; text: string; pages: number | null;
+    sha256?: string; byteSize?: number;
+    /** The fingerprint was computed in the admin's browser (a file uploaded in pieces): it can never confirm a match with a server fetch. */
+    shaFromBrowser?: boolean };
+}
+
+/**
+ * From the sources as read to the stored preview: retrievals, vacancy
+ * tables, the proposal, warnings and duplicates. The one-request preview and
+ * a finished reading job both end here.
+ */
+export async function assemblePreview(opts: {
+  adminId: string; mode: "NEW" | "EXISTING"; newJob?: NewJobInput; apiKey: string | undefined;
+  record: RecruitmentRecord | null; organizationId: string; read: ReadInput[];
+  aiFetch?: typeof fetch; aiStats?: { sent: number; retried: number; failed: number };
+}) {
+  const { record, organizationId, read } = opts;
+  const paced = { fetch: opts.aiFetch, stats: opts.aiStats ?? { sent: 0, retried: 0, failed: 0 } };
 
   // Retrievals: fetches first, so an upload of the same file can point at one.
   const order = [...read].sort((a, b) => (a.obtained.method === "FETCHED" ? 0 : 1) - (b.obtained.method === "FETCHED" ? 0 : 1));
@@ -204,14 +237,14 @@ export async function previewImport(opts: {
     const originUrl = obtained.finalUrl ?? input.url ?? null;
     const host = hostOf(originUrl);
     const origin = originFor(organizationId, host);
-    const sha = contentHash(obtained.bytes);
+    const sha = obtained.sha256 ?? contentHash(obtained.bytes);
     let authenticity: NewRetrieval["authenticity"] = "UNCONFIRMED";
     let method: NewRetrieval["authenticityMethod"] = null;
     let matched: string | null = null;
     let note: string | null = null;
     if (research) authenticity = "NOT_APPLICABLE";
     else if (obtained.method === "FETCHED") { authenticity = "CONFIRMED"; method = "FETCHED_BY_SERVER"; }
-    else if (obtained.method === "UPLOADED" && host) {
+    else if (obtained.method === "UPLOADED" && host && !obtained.shaFromBrowser) {
       matched = sources.find((s) => s.retrieval.method === "FETCHED" && s.retrieval.source.sha256 === sha && s.retrieval.originHost === host)?.retrieval.id
         ?? await findServerFetch(sha, host);
       if (matched) { authenticity = "CONFIRMED"; method = "HASH_MATCHES_SERVER_FETCH"; }
@@ -224,7 +257,7 @@ export async function previewImport(opts: {
       method: obtained.method, originUrl, originHost: host, originRole: research ? "NONE" : origin.role,
       originPurposes: research ? [] : origin.purposes, authenticity, authenticityMethod: method, matchedRetrievalId: matched,
       attestationNote: note,
-      source: { sha256: sha, kind: obtained.kind, byteSize: obtained.bytes.byteLength, pageCount: obtained.pages,
+      source: { sha256: sha, kind: obtained.kind, byteSize: obtained.byteSize ?? obtained.bytes.byteLength, pageCount: obtained.pages,
                 text: (obtained.kind === "HTML" ? htmlToText(obtained.text) : obtained.text).slice(0, 1_000_000) },
     };
     sources.push({
@@ -328,6 +361,9 @@ export async function previewImport(opts: {
     const unread = cov.batches.filter((b) => b.status !== "read");
     if (cov.mode === "batches" && unread.length > 0) {
       proposal.warnings.push(`${s.summary.label}: pages ${unread.map((b) => b.first === b.last ? `${b.first}` : `${b.first}–${b.last}`).join(", ")} of ${cov.pages} were not read (${[...new Set(unread.map((b) => b.reason))].join("; ")}). What those pages state is missing from this preview.`);
+    }
+    for (const u of cov.unavailable ?? []) {
+      proposal.warnings.push(`${s.summary.label}: ${u.first === u.last ? `page ${u.first}` : `pages ${u.first}–${u.last}`} of ${cov.pages} ${u.reason === "not uploaded" ? "were not uploaded" : `could not be read (${u.reason})`}. What those pages state is missing from this preview.`);
     }
     if (cov.noTextPages.length > 0) {
       proposal.warnings.push(`${s.summary.label}: pages ${cov.noTextPages.join(", ")} have no text (scanned pages); they were not read.`);

@@ -653,3 +653,81 @@ $fn$;
 REVOKE ALL ON FUNCTION public.cms_apply_import(UUID, UUID, TEXT[], JSONB, JSONB) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cms_create_job_checked(JSONB, TEXT, INTEGER, BOOLEAN, UUID) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cms_create_job_from_draft(JSONB, TEXT, TEXT, INTEGER, TEXT, BOOLEAN, UUID) FROM PUBLIC;
+
+-- ─── Reading jobs (stage B2.3) ──────────────────────────────
+-- A long document is read in steps of well under a minute, driven by the
+-- importer page while it is open. Everything a step finishes is written
+-- here before the step returns, so a closed tab, a refresh or a dropped
+-- connection loses nothing. A task is taken with a lease; its result is
+-- saved only by the step that still holds that lease.
+
+CREATE TABLE IF NOT EXISTS recruitment_import_jobs (
+  job_id      UUID         PRIMARY KEY,
+  created_by  UUID         NOT NULL REFERENCES admins(id),
+  mode        VARCHAR(10)  NOT NULL CHECK (mode IN ('NEW', 'EXISTING')),
+  recruitment_id UUID      REFERENCES recruitments(id),
+  new_job     JSONB,
+  -- UPLOADING: pieces arriving; READING: steps take tasks; PAUSED: waits for the
+  -- admin (paused, allowance used up, or failed tasks to retry or accept);
+  -- FINISHING: one step builds the preview; DONE: preview stored.
+  state       VARCHAR(10)  NOT NULL DEFAULT 'UPLOADING'
+              CHECK (state IN ('UPLOADING', 'READING', 'PAUSED', 'FINISHING', 'DONE', 'CANCELLED', 'FAILED')),
+  state_note  TEXT,
+  sources     JSONB        NOT NULL,
+  estimate    INTEGER,
+  ai_sent     INTEGER      NOT NULL DEFAULT 0,
+  ai_retried  INTEGER      NOT NULL DEFAULT 0,
+  ai_failed   INTEGER      NOT NULL DEFAULT 0,
+  import_id   UUID         REFERENCES recruitment_imports(import_id),
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  CHECK (jsonb_typeof(sources) = 'array'),
+  CHECK (mode = 'NEW' OR recruitment_id IS NOT NULL),
+  CHECK ((state = 'DONE') = (import_id IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_import_jobs_owner ON recruitment_import_jobs(created_by, updated_at DESC);
+
+-- One uploaded piece of a PDF: whole pages, numbered as in the original.
+-- The server reads its text on arrival. The piece itself is kept only while
+-- a page of it has no text (a scanned page still to be read from the image),
+-- and dropped when the job ends, is cancelled or is abandoned.
+CREATE TABLE IF NOT EXISTS recruitment_import_job_parts (
+  job_id      UUID         NOT NULL REFERENCES recruitment_import_jobs(job_id) ON DELETE CASCADE,
+  source_no   SMALLINT     NOT NULL,
+  first_page  INTEGER      NOT NULL,
+  last_page   INTEGER      NOT NULL,
+  status      VARCHAR(8)   NOT NULL CHECK (status IN ('READ', 'FAILED')),
+  reason      TEXT,
+  sha256      CHAR(64),
+  byte_size   INTEGER      NOT NULL DEFAULT 0,
+  pdf_base64  TEXT,
+  text        TEXT,
+  no_text_pages INTEGER[]  NOT NULL DEFAULT '{}',
+  uploaded_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  PRIMARY KEY (job_id, source_no, first_page),
+  CHECK (first_page >= 1 AND last_page >= first_page),
+  CHECK ((status = 'READ') = (text IS NOT NULL)),
+  CHECK (status = 'READ' OR reason IS NOT NULL)
+);
+
+-- One unit of reading, well under a minute: a page batch, or one section reader.
+CREATE TABLE IF NOT EXISTS recruitment_import_job_tasks (
+  job_id      UUID         NOT NULL REFERENCES recruitment_import_jobs(job_id) ON DELETE CASCADE,
+  task_no     INTEGER      NOT NULL,
+  source_no   SMALLINT     NOT NULL,
+  kind        VARCHAR(16)  NOT NULL CHECK (kind IN ('TEXT_BATCH', 'SECTION_AI', 'SECTION_DETAILS', 'SECTION_PATTERN')),
+  first_page  INTEGER,
+  last_page   INTEGER,
+  status      VARCHAR(8)   NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'RUNNING', 'DONE', 'FAILED')),
+  attempts    INTEGER      NOT NULL DEFAULT 0,
+  lease_owner UUID,
+  lease_until TIMESTAMPTZ,
+  result      JSONB,
+  reason      TEXT,
+  ai_requests INTEGER      NOT NULL DEFAULT 0,
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  PRIMARY KEY (job_id, task_no),
+  CHECK ((status = 'RUNNING') = (lease_owner IS NOT NULL AND lease_until IS NOT NULL)),
+  CHECK (status <> 'DONE' OR result IS NOT NULL),
+  CHECK (status <> 'FAILED' OR reason IS NOT NULL)
+);
