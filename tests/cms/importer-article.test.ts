@@ -242,3 +242,14 @@ test("IA13 a long notice is sent whole: an annexure past 60,000 characters reach
   assert.ok(buildArticlePrompt(text, "IBPS RRB CRP-XV").includes(annexure));
   assert.ok(!buildArticlePrompt("x".repeat(250_000), "s").includes("x".repeat(200_001)), "still capped at Smart intake's own limit");
 });
+
+test("IA14 a quote shortened with \"...\" or \"…\" is not the notice's own words: the value is not taken", () => {
+  const text = "Selection Process: Written Examination followed by Interview of shortlisted candidates.\nLast date for online registration 21.09.2026.";
+  const stage = (quote: string) => judgeArticle({ selectionStages: [{ name: "Written Examination", type: "WRITTEN", quote }] }, text).values.some((v) => v.fieldPath === "selection");
+  assert.equal(stage("Selection Process: Written Examination followed by Interview"), true);
+  assert.equal(stage("Selection Process: Written Examination followed..."), false);
+  assert.equal(stage("Selection Process: Written Examination followed…"), false);
+  assert.equal(stage("Written Examination ... Interview of shortlisted candidates"), false);
+  const date = judgeArticle({ dates: { applicationCloseDate: { value: "2026-09-21", quote: "Last date for online registration 21.09.2026..." } } }, text);
+  assert.equal(date.values.some((v) => v.fieldPath === "dates.applicationCloseDate"), false);
+});

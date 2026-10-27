@@ -455,6 +455,20 @@ test("SE12: verifyEvidence rejects evidence string shorter than 3 chars", () => 
   assert.ok(result.reason?.includes("short"), `reason: "${result.reason}"`);
 });
 
+test("SE12b: verifyEvidence refuses a quote shortened with an ellipsis; accepts one the page prints", () => {
+  const html = `<html><body>
+    <h2>Important Dates</h2><p>Last date for online registration of application is 21.09.2026 for all posts.</p>
+    <h2>Selection</h2><p>Written Test... followed by Interview.</p>
+  </body></html>`;
+  const doc = structureDocument(html, "https://example.com/");
+  const check = (evidence: string, sectionHeading: string) => verifyEvidence({ value: "2026-09-21", evidence, sectionHeading, confidence: "high" }, doc.sections);
+  assert.ok(check("Last date for online registration of application is 21.09.2026", "Important Dates").valid);
+  const cut = check("Last date for online registration of application is 21.09.2026...", "Important Dates");
+  assert.ok(!cut.valid && /ellipsis/.test(cut.reason ?? ""), cut.reason);
+  assert.ok(!check("Last date for online registration… 21.09.2026", "Important Dates").valid);
+  assert.ok(check("Written Test... followed by Interview", "Selection").valid, "printed as such");
+});
+
 // ─── SE13: provenance integrity regression ─────────────────────
 //
 // Deterministic-only and missing fields must carry no provenance.

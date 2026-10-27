@@ -102,8 +102,15 @@ export function verifyEvidence(
       reason: `evidence not found in section "${candidate.sectionHeading}"`,
     };
   }
+  // Matching ignores punctuation, so a quote cut short with "..." would match the
+  // sentence it was cut from. Accepted only when the section prints it so.
+  if (/\.{3,}|…/.test(candidate.evidence) && !withPunctuation(section.text).includes(withPunctuation(candidate.evidence))) {
+    return { valid: false, reason: "evidence is shortened with an ellipsis, not quoted as printed" };
+  }
   return { valid: true };
 }
+
+const withPunctuation = (s: string) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/\s+/g, " ").trim().toLowerCase();
 
 // Per-row evidence verification for vacancy breakdowns.
 // Each item must carry its own evidence that appears in the named section.

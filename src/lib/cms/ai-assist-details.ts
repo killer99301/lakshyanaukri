@@ -158,6 +158,8 @@ export interface Evidence {
   text: string;
   /** Every number that appears in those passages. */
   numbers: Set<string>;
+  /** The passages with their punctuation, only case and spacing evened out: for quotes whose punctuation matters. */
+  raw?: string;
 }
 
 function numbersIn(text: string): string[] {
@@ -166,8 +168,13 @@ function numbersIn(text: string): string[] {
 
 export function buildEvidence(sections: PageSection[]): Evidence {
   const joined = sections.map((s) => s.text).join("\n");
-  return { text: normalizeForMatching(joined), numbers: new Set(numbersIn(joined)) };
+  return { text: normalizeForMatching(joined), numbers: new Set(numbersIn(joined)), raw: keepPunctuation(joined) };
 }
+
+/** Case, spacing and typographic quotes and dashes evened out; every other mark kept. */
+const keepPunctuation = (s: string) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/\s+/g, " ").trim().toLowerCase();
+/** "..." or "…": a quote shortened by the model, unless the source prints it. */
+const ELLIPSIS = /\.{3,}|…/;
 
 const str = (v: unknown, max: number): string | null => {
   if (typeof v !== "string") return null;
@@ -178,7 +185,10 @@ const str = (v: unknown, max: number): string | null => {
 export function quoteFound(quote: unknown, ev: Evidence): quote is string {
   if (typeof quote !== "string") return false;
   const q = normalizeForMatching(quote);
-  return q.length >= 8 && ev.text.includes(q);
+  if (q.length < 8 || !ev.text.includes(q)) return false;
+  // Matching ignores punctuation, so a quote cut short with "..." would match the sentence it was cut from:
+  // it is accepted only when the source prints the same words with the same marks, contiguously.
+  return !ELLIPSIS.test(quote) || (ev.raw !== undefined && ev.raw.includes(keepPunctuation(quote)));
 }
 
 /** Every number in a model-written value must appear somewhere in the source passages. */

@@ -525,3 +525,30 @@ is built, and each waits for a decision:
 
 Scan transcription can still misread or omit rows. The B2.4 safeguards are
 unchanged. Stage C and B2.6 are not started.
+
+---
+
+## Quote fix — a quote shortened with "..." is not verbatim (done)
+
+- **Where:** the details reader (`quoteFound` in
+  `src/lib/cms/ai-assist-details.ts`, shared with the CMS AI Assist and the
+  exam-pattern reader) and `verifyEvidence` in
+  `src/intelligence/structured-extractor.ts` (dates and fees).
+- **The problem:** both match quotes with punctuation removed, so a quote
+  cut short with "..." or "…" matched the sentence it was cut from.
+- **The fix:** a quote containing an ellipsis is accepted only when the
+  source prints the same words with the same marks, contiguously. Only case,
+  spacing, and typographic quotes and dashes are evened out. Every other
+  quote is checked exactly as before.
+- **Smart intake's whole-text reader** already kept punctuation. A new test
+  now pins that.
+- **Tests:**
+  - AI Assist details 21/21 (QV01, QV02);
+  - structured extractor 22/22 (SE12b);
+  - Smart intake article 14/14 (IA14).
+- **Regression:**
+  - 20 local-stack suites pass; `cms:test` 45/45 suites; intake 332/332;
+    PostgreSQL 35/35;
+  - `tsc` clean;
+  - intelligence 12/13 and lint 7 / 26, the same baseline failures as
+    before.

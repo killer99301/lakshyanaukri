@@ -296,6 +296,22 @@ test("LD05 promotional wording, links, and too-short or too-long text are refuse
   assert.equal(kept.value.shortDescription, "Mine");
 });
 
+suite("Details — shortened quotes");
+
+test("QV01 a quote shortened with \"...\" or \"…\" is not verbatim: refused, though its words are in the source", () => {
+  const sel = (evidence: string) => judgeSelection({ stages: [{ name: "Tier-I Computer Based Examination", type: "CBT", evidence }] }, ev);
+  assert.equal(sel("Selection: Tier-I Computer Based Examination of 100 questions, 200 marks, 60 minutes.").status, "accepted");
+  assert.notEqual(sel("Selection: Tier-I Computer Based Examination of 100 questions...").status, "accepted");
+  assert.notEqual(sel("Selection: Tier-I Computer Based Examination of 100 questions…").status, "accepted");
+  assert.notEqual(sel("...Tier-I Computer Based Examination of 100 questions, 200 marks").status, "accepted");
+  assert.equal(judgeHowToApply({ steps: ["Complete One-Time Registration"], evidence: "How to Apply: Complete One-Time Registration. Login..." }, ev).status, "rejected");
+});
+test("QV02 an ellipsis the source itself prints is quoted as printed and accepted", () => {
+  const src = [{ type: "other", heading: "d", text: "Selection: Written Test... followed by Interview for shortlisted candidates.", rawHtml: "", tables: [], lists: [], links: [], paragraphs: [] }] as never;
+  const out = judgeSelection({ stages: [{ name: "Written Test", type: "WRITTEN", evidence: "Selection: Written Test... followed by Interview" }] }, buildEvidence(src));
+  assert.equal(out.status, "accepted");
+});
+
 suite("Readable values in the editor");
 
 test("DV01 describeAiValue formats each kind of value", () => {
