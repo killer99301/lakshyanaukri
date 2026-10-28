@@ -5,6 +5,7 @@ import type React from "react";
 import { describeAiValue } from "@/lib/cms/ai-assist-apply";
 import { STAGE_KIND_LABEL } from "@/lib/exam-stage-kind";
 import type { ExamStageKind } from "@/types";
+import type { AgeCriteria } from "@/types/recruitment-record";
 
 export const C = {
   bg: "#070b16",
@@ -76,6 +77,21 @@ export function showValue(value: unknown, fieldPath?: string): string {
     }).join("\n");
   }
   if (fieldPath === "conditions" && Array.isArray(value)) return (value as string[]).map((n, i) => `${i + 1}. ${n}`).join("\n");
+  // Ages: the overall range if there is one, upper ages as printed, then each post with its own rules.
+  if (fieldPath === "age" && value && typeof value === "object") {
+    const a = value as AgeCriteria;
+    const range = (p: { min?: number; max?: number }) => (p.min != null && p.max != null ? `${p.min} to ${p.max} years` : p.max != null ? `up to ${p.max} years` : p.min != null ? `${p.min} years and above` : "");
+    const lines = [describeAiValue({ ...a, postWise: undefined, categoryMax: undefined, evidence: undefined })].filter(Boolean);
+    if (a.asOf && !lines.some((l) => l.includes(a.asOf!))) lines.push(`Age counted on ${a.asOf}`);
+    if (a.categoryMax?.length) lines.push(`Upper age as printed — ${a.categoryMax.map((c) => `${c.category}: ${c.max}`).join("; ")}`);
+    for (const p of a.postWise ?? []) {
+      const born = p.bornFrom || p.bornTo ? `born ${p.bornFrom ?? "(earliest date not read)"} to ${p.bornTo ?? "(latest date not read)"}` : "";
+      lines.push(`${p.post}: ${[range(p), born, p.asOf ? `age as on ${p.asOf}` : "",
+        p.relaxations?.length ? `own relaxations ${p.relaxations.map((r) => `${r.category} ${r.years ?? r.text}`).join(", ")}` : "",
+        p.categoryMax?.length ? `upper age ${p.categoryMax.map((c) => `${c.category} ${c.max}`).join(", ")}` : ""].filter(Boolean).join("; ")}`);
+    }
+    return readableDates(lines.join("\n"));
+  }
   return readableDates(describeAiValue(value));
 }
 

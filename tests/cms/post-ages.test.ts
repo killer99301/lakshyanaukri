@@ -184,3 +184,10 @@ test("PA14 a post with only one date of birth read is flagged on the age item", 
   const flags = p.items.find((i) => i.fieldPath === "age")!.flags;
   assert.ok(flags.some((f) => /only one date of birth was read for “Officer Scale- II \(Manager\)” \(the latest is missing\)/.test(f)), flags);
 });
+test("PA15 the import review shows ages post by post (it showed nothing for an age with no overall range)", async () => {
+  const { showValue } = await import("@/app/admin/cms/import/ui");
+  const age = ageOf(ANSWER).values.find((v) => v.fieldPath === "age")!.value;
+  const text = showValue(age, "age");
+  assert.ok(text.startsWith("Age counted on 1 Sep 2026\nOffice Assistants (Multipurpose): 18 to 28 years; born 2 Sep 1998 to 1 Sep 2008"), text);
+  assert.equal(text.split("\n").length, 5, "the date, then one line per post");
+});
