@@ -1,6 +1,6 @@
 # Smart intake — B2.6 final acceptance report
 
-Updated 2026-10-28, 23:00 IST.
+Updated 2026-10-29, 01:30 IST. Part 2 (SSC, UPSC and BPSC) is at the end: read it first.
 
 **Status: NOT ACCEPTED YET.**
 - **Supplied sources:** IBPS, LIC and BTSC have been run twice with the real
@@ -282,3 +282,187 @@ Incomplete or unverified information stays visible throughout:
 2. **A clean run of the scan suite**, or your decision that 3.2 (a model
    correcting a printed spelling, flagged for human checking) is an
    acceptable known limitation. The check itself stays strict either way.
+
+
+---
+---
+
+# Part 2 — SSC CGL, UPSC CSE and BPSC 72nd (2026-10-28 night)
+
+**Status: B2 NOT ACCEPTED.**
+- **Passes:** SSC CGL and its reopening notice, as an update to an existing
+  job, in the script and in the browser. UPSC is read with its pattern
+  correctly flagged incomplete.
+- **Fails — the BPSC corrigendum:** Smart intake cannot yet remove a deleted
+  post's vacancies. A design for that is below, for your decision.
+- **Fails — BPSC's Hindi vacancy table:** not read by code. Correctly
+  reported as unread.
+
+## P2.1 Source documents (copies in the scratchpad; the originals in `D:\b2-sources` untouched)
+
+| File | Pages | Size | Opens | Text layer | Tested |
+|---|---|---|---|---|---|
+| SSC_cgl_2026.pdf (CGL 2026 notification) | 132 | 4.05 MB | yes | yes; pages 65–70, 76–80 scanned (11); Hindi parts garbled in the text layer | 2 real runs; browser |
+| CGLE_Reopen_23062026.pdf (reopening notice) | 1 | 0.57 MB | yes | yes | 2 real runs as an update; browser as an update |
+| UPSC-CSP-2026-Engl-060226Rev.pdf (CSE 2026) | 159 | 2.76 MB | yes | yes (page 156 blank) | 2 real runs |
+| Advertisement-Integrated-72th-CCE…pdf (BPSC 72nd) | 16 | 1.05 MB | yes, with stream-length faults (poppler recovers; pdf-lib splits it) | **none**: all pages are images, in Hindi | 2 real runs (plus one stopped run) |
+| Corrigendum…Sugarcane-Officer-deleted…pdf | 1 | 0.03 MB | yes | **none**: one Hindi image | 2 real runs as an update |
+
+**Requests:**
+
+| Run | Requests |
+|---|---|
+| SSC notification | 34 |
+| SSC reopening notice | 3 |
+| UPSC | 24–25 |
+| BPSC notification | 19–21 |
+| BPSC corrigendum | 2–3 |
+| **A full pass** | **about 85** |
+| The browser SSC run, with its update | 36 |
+| Probes | 3 |
+
+In total about 400 of the day's 500 were used (the quota resets at 12:30
+IST). No request failed for quota.
+
+## P2.2 Results against the notices
+
+### SSC CGL 2026
+
+- **Correct:**
+  - dates 21.05–22.06.2026, fee by 23.06;
+  - fee ₹100, with women, SC, ST, PwBD and ESM exempt (₹0);
+  - about 12,256 tentative vacancies;
+  - Tier-I August–September and Tier-II December 2026, both as selection
+    stages.
+- **Pattern** (after the fix): Tier-I read by code (4 subjects, 25 questions
+  and 50 marks each). Tier-II's three-level table is counted and named as
+  not read (page 25). The item is flagged "incomplete: 1 of 2", left
+  unticked, and the job is not complete.
+- **Ages:** not read post by post. SSC prints age groups mapped to posts in
+  an annexure. "PwBD (SC/ST): 15" was offered as an upper age in run 1; it
+  is now refused (it's relaxation years).
+- **Selection process:** six conflicting readings (one per post group), all
+  unticked.
+- **Scanned page 79:** almost nothing found, twice; flagged, so the job is
+  not complete.
+
+### SSC reopening notice, as an update to the SSC job
+
+- **Run 1:** the new last date and fee deadline were offered but left
+  unticked, so saving changed nothing. The notice's file number was saved as
+  the notification number.
+- **Fixed (`263f28e`):**
+  - an official corrigendum's replacement of a single unverified value (a
+    date, a fee, the total) starts ticked;
+  - lists and verified values still wait for the admin;
+  - a corrigendum's own file number is not used as the notification number.
+- **Run 2 and the browser:**
+  - last date 22.06 → **25.06**, fee 23.06 → **26.06**, correction window
+    end 01.07 → **03.07**, each shown as "Replaces …" and superseding the
+    old claim;
+  - the 10 other fields are unchanged;
+  - the job stays a DRAFT and NOT_VERIFIED, with everything Pending. ✓
+
+### UPSC CSE 2026
+
+- **Correct:**
+  - dates 04.02–24.02.2026;
+  - fee ₹100 with exemptions;
+  - 933 vacancies;
+  - age 21–32;
+  - selection Preliminary → Main → interview.
+- **Pattern:** the AI gave only the two Preliminary papers. Code now counts
+  the papers the notice states: Preliminary 2 (stated twice, counted once)
+  and Main 9, so 11. The pattern is flagged "incomplete: 2 of 11" and the job
+  is not complete.
+- **Not right:**
+  - the notification number picked was an internal file number (F.No.
+    1/2/2025-E.I(B)) instead of 05/2026-CSE;
+  - the age reference date ("1st of August, 2026") and the relaxations were
+    not read.
+
+### BPSC 72nd CCE (Hindi, scanned)
+
+- **Read from the images:** dates 07.05–31.05.2026, fee ₹100, minimum age
+  20/21, the printed upper ages by category, Hindi conditions and how to
+  apply.
+- **Vacancy table not built.** Table I has 22 posts × two rows (all and
+  women) with Hindi category headings, and Table II has 3 posts. 20–60 table
+  lines are reported as unread, and the job is not complete.
+- **The AI's post list and total disagree:** 18 posts making 1205, or 1004
+  in run 2; the total offered is 1077 (Table I only), while the notice's is
+  1230. Both are now flagged "the posts add up to X, the total says Y" and
+  left unticked.
+- **Ages:** the overall maximum was read as 42, the SC/ST figure. It is now
+  refused, because it is above the lowest printed upper age (37).
+- **Public age checker:** it did not know the Hindi category names, and
+  dropped rows printed "(Male and Female)". Fixed: a general candidate gets
+  37, BC/EBC 40, SC/ST 42. The English BTSC row "(Male and Female)" is fixed
+  by the same change.
+- **Run 1, page 11:** the model returned an unreadable answer twice. A
+  direct re-request was fine, and pressing Retry (as an admin would) worked.
+
+### BPSC corrigendum (Sugarcane Officer, 44 posts deleted), as an update — **FAILS**
+
+- **Correct:** the new total, **1186** (1230 − 44, as printed), is offered
+  and superseded the old total.
+- **What failed:**
+  - the deleted post (serial 11, ईख पदाधिकारी, 44 posts; 14 for women) is
+    **not removed** from the job's posts or vacancy table;
+  - the model wrote the deleted post as a one-row "breakdown". Ticked, that
+    would have replaced the job's whole list with the deleted post.
+- **Now prevented (`3f78735`):** a corrigendum's post list is never ticked
+  by default, and is flagged "lists only the posts it adds, changes or
+  deletes". In run 2 nothing was saved, and the job was not damaged.
+
+## P2.3 Proposal for your decision: removing a deleted post
+
+1. **Reading.** The whole-text reading of a corrigendum gains
+   `removedPosts: [{ post as printed, count?, quote }]`. Each needs its own
+   quote, and the count, if given, must be in the quote.
+2. **Matching, by code.** Each removed post is matched to the job's posts
+   (post-wise breakdown and vacancy-table posts), by the same word rule as
+   the age check. An unmatched name is reported, never guessed. If a count
+   is stated, it must equal the job's figure for that post (44). Otherwise
+   the removal is flagged and left unticked.
+3. **Check against the total.** The job's total minus the removed posts must
+   equal the corrigendum's stated total (1230 − 44 = 1186). If not, the item
+   is flagged.
+4. **Review.** One item, "Remove: Sugarcane Officer (44 posts, page 1)",
+   with its quote. It shows exactly which breakdown rows and table rows go.
+   **Your decision:** ticked by default or not. I'd suggest unticked, because
+   it removes data.
+5. **Saving.** It removes those rows through the normal field route, so the
+   change history keeps them and one restore brings them back. The claims
+   they came from are superseded by the corrigendum's.
+6. **Tests:** the BPSC corrigendum (real), a deletion with a wrong count, an
+   unknown post name, and a corrigendum that both adds and removes.
+
+## P2.4 Fixed in B2.6 part 2 (all local, regression green: 20 stack suites, 49 CMS suites, intake 332/332, PostgreSQL 35/35; baselines unchanged)
+
+- **`263f28e`:**
+  - corrigendum replacements of single values start ticked;
+  - a corrigendum's file number is not the notification number;
+  - SSC's tier tables are read;
+  - UPSC's stated paper counts are used;
+  - Hindi categories and "(Male and Female)" rows are matched;
+  - an overall maximum above the lowest printed upper age is refused;
+  - a breakdown that doesn't match the total is flagged;
+  - an upper age below 18 is refused.
+- **`3f78735`:** a corrigendum's post list is never saved over the job's by
+  default.
+
+## P2.5 What is needed to accept B2
+
+1. **Your decision on P2.3,** then its build and a real BPSC corrigendum run
+   that removes exactly the 44 Sugarcane Officer posts and leaves everything
+   else intact.
+2. **BPSC's Hindi two-level vacancy table.** Either read it (Hindi category
+   headings and the women's sub-rows), or accept that such a scanned table
+   stays "not read" for hand entry.
+3. **Your call on the earlier limitation:** the AI correcting a printed
+   spelling on scanned pages.
+4. **Smaller open points:**
+   - UPSC's notification number and age reference date;
+   - SSC's post-wise ages;
+   - the review's wording "printed total disagrees: … no printed total".
