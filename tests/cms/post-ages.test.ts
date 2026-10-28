@@ -191,3 +191,38 @@ test("PA15 the import review shows ages post by post (it showed nothing for an a
   assert.ok(text.startsWith("Age counted on 1 Sep 2026\nOffice Assistants (Multipurpose): 18 to 28 years; born 2 Sep 1998 to 1 Sep 2008"), text);
   assert.equal(text.split("\n").length, 5, "the date, then one line per post");
 });
+
+suite("BPSC 72nd CCE (B2.6): Hindi categories, rows for several groups, and a category's figure offered as the maximum");
+
+// The printed upper ages as the model read BPSC's Hindi notice (page 5).
+const BPSC_MAX = [
+  { category: "अनारक्षित (पुरुष)", max: 37 },
+  { category: "अनारक्षित (महिला), पिछड़ा वर्ग एवं अत्यंत पिछड़ा वर्ग (पुरुष एवं महिला)", max: 40 },
+  { category: "अनुसूचित जाति एवं अनुसूचित जनजाति (पुरुष एवं महिला)", max: 42 },
+];
+test("PA16 Hindi category names are matched: UR 37, BC/EBC 40 (the women's part of the row is not used for UR), SC and ST 42", () => {
+  assert.equal(findCategoryMax(BPSC_MAX, "GEN", false)?.max, 37);
+  assert.equal(findCategoryMax(BPSC_MAX, "OBC", false)?.max, 40);
+  assert.equal(findCategoryMax(BPSC_MAX, "SC", false)?.max, 42);
+  assert.equal(findCategoryMax(BPSC_MAX, "ST", false)?.max, 42);
+  // "अनुसूचित जनजाति" (ST) contains "जाति": it is not read as SC alone.
+  assert.equal(findCategoryMax([{ category: "अनुसूचित जनजाति", max: 45 }], "SC", false), undefined);
+  // A general candidate aged 40 on the cut-off date is over 37, whatever "maximum" was offered.
+  const born = "1985-06-01";
+  assert.equal(checkAge({ min: 21, max: 42, asOf: "2026-08-01", categoryMax: BPSC_MAX }, born, "GEN", false).verdict, "TOO_OLD");
+});
+test("PA17 an English row \"(Male and Female)\" is open to both: BTSC's backward classes 40 applies to an OBC candidate", () => {
+  const btsc = [{ category: "Unreserved (Male)", max: 37 }, { category: "Unreserved (Female)", max: 40 }, { category: "Backward Class / Extremely Backward Class (Male and Female)", max: 40 }];
+  assert.equal(findCategoryMax(btsc, "OBC", false)?.max, 40);
+  assert.equal(findCategoryMax(btsc, "GEN", false)?.max, 37);
+});
+test("PA18 an overall maximum above the lowest printed upper age is a category's figure: not taken, and said", () => {
+  const text = "आयु सीमा 01.08.2026 को: न्यूनतम आयु 21 वर्ष। अधिकतम आयु: अनारक्षित (पुरुष) 37 वर्ष, अनुसूचित जाति एवं अनुसूचित जनजाति (पुरुष एवं महिला) 42 वर्ष।";
+  const r = judgeArticle({ age: { min: 21, max: 42, asOf: "2026-08-01", quote: text, categoryMax: [
+    { category: "अनारक्षित (पुरुष)", max: 37, quote: "अनारक्षित (पुरुष) 37 वर्ष" },
+    { category: "अनुसूचित जाति एवं अनुसूचित जनजाति (पुरुष एवं महिला)", max: 42, quote: "अनुसूचित जाति एवं अनुसूचित जनजाति (पुरुष एवं महिला) 42 वर्ष" },
+  ] } } as never, text);
+  const age = r.values.find((v) => v.fieldPath === "age")!.value as AgeCriteria;
+  assert.deepEqual([age.min, age.max, age.categoryMax?.length], [21, undefined, 2]);
+  assert.ok(r.refused.some((x) => /overall maximum 42 is above the lowest printed upper age \(37\)/.test(x.reason)), JSON.stringify(r.refused));
+});

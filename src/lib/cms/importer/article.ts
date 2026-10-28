@@ -121,8 +121,8 @@ const DATE_EVENT: Record<(typeof DATE_KEYS)[number], RegExp> = {
 };
 /** The editor's limit on an exam stage's name. */
 const STAGE_NAME_MAX = 80;
-/** The editor's lowest age: a smaller "maximum age" is relaxation years, not an age. */
-const MIN_PRINTED_AGE = 14;
+/** No upper age limit is below 18 (the usual minimum): a smaller "maximum age" is relaxation years ("PwBD (SC/ST): 15", SSC CGL), not an age. */
+const MIN_PRINTED_AGE = 18;
 const STAGE_TYPES: SelectionStageType[] = ["WRITTEN", "CBT", "INTERVIEW", "SKILL_TEST", "DOCUMENT_VERIFICATION", "PHYSICAL", "OTHER"];
 
 /**
@@ -292,6 +292,15 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
     if (limits.length) {
       value.categoryMax = limits.map((c) => ({ category: c.category, max: c.max }));
       overallEvidence.push(...limits.map((c) => evidence(`categoryMax: ${c.category}`, c.max, c.quote)));
+      // The general (unrelaxed) upper age is the lowest printed one: an "overall maximum" above it is a
+      // category's figure (BPSC: SC/ST 42 offered as the maximum), not the limit for everyone.
+      const lowest = Math.min(...limits.map((c) => c.max));
+      if (value.max !== undefined && value.max > lowest) {
+        refuse("age", `the overall maximum ${value.max} is above the lowest printed upper age (${lowest}): it is a category's figure, not the general limit; not taken`);
+        delete value.max;
+        const at = overallEvidence.findIndex((e) => e.about === "max");
+        if (at >= 0) overallEvidence.splice(at, 1);
+      }
     }
 
     // Ages post by post: each post's figures from its own quote, each with its own evidence.

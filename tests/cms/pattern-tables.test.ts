@@ -112,3 +112,27 @@ test("PT10 no pattern table in the text: the AI's papers stay, and no coverage i
   assert.equal((r.values.find((v) => v.fieldPath === "examPattern")!.value as ExamPatternPaper[]).length, 2);
   assert.equal(r.patternCoverage, undefined);
 });
+
+suite("SSC CGL 2026 (B2.6): a scheme code can only partly read is never shown whole");
+
+test("PT11 SSC CGL: Tier-I read by code (the tier numeral, part letters and the time column's wrapped remarks passed over); Tier-II's three-level table counted and named as not read", () => {
+  const r = readPatternTables(fixture("ssc-cgl-2026-pages-25-26.txt"));
+  assert.deepEqual([r.coverage.expected, r.coverage.read], [2, 1]);
+  assert.equal(brief(r.papers[0]), "13.8 Scheme of Tier-I Examination | undefined/undefined - min | General Intelligence and Reasoning 25/50; General Awareness 25/50; Quantitative Aptitude 25/50; English Comprehension 25/50");
+  assert.deepEqual(r.coverage.tables.filter((t) => !t.read).map((t) => [t.heading, t.page]), [["13.9 Scheme of Tier-II Examination", 25]]);
+  assert.deepEqual(r.coverage.problems, ["13.8 Scheme of Tier-I Examination: no printed total under the table"], "no total is made up");
+});
+
+suite("UPSC CSE 2026 (B2.6): no pattern table, but the notice says how many papers");
+
+test("PT12 UPSC: Preliminary's two papers (stated twice, counted once) and Main's nine; an optional subject's two papers are not the exam's", async () => {
+  const { statedPaperCounts, statedCoverage } = await import("@/lib/cms/importer/pattern-tables");
+  const t = fixture("upsc-cse-2026-scheme-excerpt.txt");
+  assert.deepEqual(findPatternTables(t), []);
+  assert.deepEqual(statedPaperCounts(t).map((s) => [s.stage, s.count]), [["Preliminary", 2], [null, 9]]);
+  // The real model's reading (B2.6 pass 1): the two Preliminary papers only.
+  const c = statedCoverage(t, 2)!;
+  assert.deepEqual([c.expected, c.read], [11, 2]);
+  assert.deepEqual(c.tables.map((x) => [x.read, x.heading.slice(0, 22)]), [[true, "Preliminary: 2 papers "], [false, "9 papers (“consist of "]]);
+  assert.equal(statedCoverage(t, 11)!.tables.every((x) => x.read), true, "all eleven: complete");
+});

@@ -64,6 +64,9 @@ export interface CurrentField {
 
 export type ItemAction = "FILL" | "MATCHES" | "REPLACE" | "REPLACE_VERIFIED";
 
+/** Fields whose one value an official corrigendum restates in full, so its replacement starts ticked (B2.6). */
+const CORRIGENDUM_REPLACES = /^(?:dates\.|financial\.fee|vacancies\.total$)/;
+
 export interface ItemClaim {
   retrievalId: string;
   quote?: string;
@@ -133,8 +136,9 @@ export function buildProposal(input: {
   for (const ex of input.extractions) {
     for (const v of ex.values) {
       if (isEmpty(v.value)) continue;
-      // A corrigendum's heading ("Corrigendum 1 to …") is not the job's title.
-      if (ex.retrieval.declaredKind === "OFFICIAL_CORRIGENDUM" && (v.fieldPath === "identity.title" || v.fieldPath === "identity.shortTitle")) continue;
+      // A corrigendum's heading ("Corrigendum 1 to …") is not the job's title, and its own file or reference
+      // number ("F. No. HQ-C11018/1/2026-C-1") is not the recruitment's notification number (B2.6, SSC CGL).
+      if (ex.retrieval.declaredKind === "OFFICIAL_CORRIGENDUM" && (v.fieldPath === "identity.title" || v.fieldPath === "identity.shortTitle" || v.fieldPath === "identity.notificationNumber")) continue;
       const perField = groups.get(v.fieldPath) ?? new Map();
       const h = shortHash(v.fieldPath, v.value);
       const g = perField.get(h) ?? { value: v.value, claims: [] };
@@ -186,7 +190,11 @@ export function buildProposal(input: {
         supersedes: conflict ? [] : supersedes,
         // A critical value that only research gives, while the official
         // document in this import is silent on it, waits for the admin's tick.
-        defaultTicked: !conflict && (action === "FILL" || action === "MATCHES")
+        // An official corrigendum states the current value: its replacement of
+        // a value nobody has verified starts ticked (B2.6: SSC CGL's reopened
+        // window). Replacing a verified value still waits for the admin.
+        // Only single values: a corrigendum's few sentences or rows do not restate a whole list (BPSC: its notes as "conditions").
+        defaultTicked: !conflict && (action === "FILL" || action === "MATCHES" || (action === "REPLACE" && fromCorrigendum.length > 0 && CORRIGENDUM_REPLACES.test(fieldPath)))
           && !(officialInImport && !sources.some(eligibleRetrieval) && fieldDef(fieldPath).tier !== undefined),
         flags,
         ...(cur && !isEmpty(cur.value) ? { current: cur.value } : {}),
@@ -222,6 +230,18 @@ export function buildProposal(input: {
   }
 
   items.sort((a, b) => a.fieldPath.localeCompare(b.fieldPath) || a.id.localeCompare(b.id));
+
+  // Posts that do not add up to the stated total: one of them is wrong (BPSC: 18 posts making 1205, a total
+  // of 1077, the notice's 1230). Both are said and left for the admin, not saved by default.
+  const totals = items.filter((i) => i.fieldPath === "vacancies.total" && typeof i.value === "number");
+  const splits = items.filter((i) => i.fieldPath === "vacancies.breakdown" && Array.isArray(i.value));
+  for (const b of splits) {
+    const sum = (b.value as Array<{ count?: number }>).reduce((n, r) => n + (typeof r.count === "number" ? r.count : 0), 0);
+    for (const t of totals.filter((x) => x.value !== sum)) {
+      const note = `the posts add up to ${sum}, the total says ${t.value} — check both against the notice`;
+      for (const i of [b, t]) { if (!i.flags.includes(note)) i.flags.push(note); i.defaultTicked = false; }
+    }
+  }
 
   // A schedule entry whose name no rule recognises is not guessed: the admin chooses its class.
   for (const i of items) {

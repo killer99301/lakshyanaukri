@@ -58,17 +58,21 @@ export function ageOn(dobIso: string, asOfIso: string): ExactAge | null {
   return { years: Math.floor(totalMonths / 12), months: totalMonths % 12, days };
 }
 
-const DISABILITY = /pwbd|pwd|\bph\b|benchmark|disab|handicap|divyang/i;
+// Hindi notices (BPSC) name categories in Hindi: दिव्यांग, महिला, भूतपूर्व सैनिक, अनारक्षित… (B2.6).
+const DISABILITY = /pwbd|pwd|\bph\b|benchmark|disab|handicap|divyang|दिव्यांग|निःशक्त/i;
 // Relaxations that depend on things the checker does not ask about.
-const OTHER_GROUNDS = /ex-?\s?service|widow|divorc|women|female|department|in-?service|employee|sports|apprentice|domicile|resident|j\s?&\s?k|kashmir|riot|contract/i;
+const OTHER_GROUNDS = /ex-?\s?service|widow|divorc|women|female|department|in-?service|employee|sports|apprentice|domicile|resident|j\s?&\s?k|kashmir|riot|contract|महिला|भूतपूर्व सैनिक|विधवा|तलाकशुदा|सरकारी सेवक|कर्मी/i;
+/** "(Male and Female)" opens a row to both: it does not make it a women's row. */
+const BOTH = /\(?\s*(?:male\s*(?:and|&)\s*female|men\s*(?:and|&)\s*women|पुरुष\s*(?:एवं|और|व)\s*महिला)\s*\)?/gi;
 
 const CATEGORY_PATTERNS: Record<CasteCategory, RegExp> = {
-  GEN: /\bur\b|unreserved|un-reserved|general/i,
-  EWS: /\bews\b|economically weaker/i,
-  // Karnataka names its backward classes "Category-1, 2A, 2B, 3A and 3B".
-  OBC: /\bobc\b|\bbc\b|\bmbc\b|\bebc\b|backward|\bcategory[\s-]*(?:1|i)\b|\b[23][ab]\b/i,
-  SC: /\bsc\b|scheduled castes?/i,
-  ST: /\bst\b|scheduled tribes?/i,
+  GEN: /\bur\b|unreserved|un-reserved|general|अनारक्षित|सामान्य/i,
+  EWS: /\bews\b|economically weaker|आर्थिक\s*रूप\s*से\s*कमजोर/i,
+  // Karnataka names its backward classes "Category-1, 2A, 2B, 3A and 3B"; Bihar पिछड़ा वर्ग / अत्यंत पिछड़ा वर्ग.
+  OBC: /\bobc\b|\bbc\b|\bmbc\b|\bebc\b|backward|\bcategory[\s-]*(?:1|i)\b|\b[23][ab]\b|पिछ(?:ड़|ड़)ा/i,
+  // "अनुसूचित जनजाति" (ST) contains "जाति": SC is the whole phrase "अनुसूचित जाति".
+  SC: /\bsc\b|scheduled castes?|अनुसूचित\s*जाति/i,
+  ST: /\bst\b|scheduled tribes?|अनुसूचित\s*जन\s*जाति/i,
 };
 
 const namesAnyCategory = (text: string) =>
@@ -108,8 +112,11 @@ export function findCategoryMax(
   category: CasteCategory,
   pwbd: boolean,
 ): CategoryMaxAge | undefined {
-  const usable = (rows ?? []).filter((r) => !OTHER_GROUNDS.test(r.category));
-  const forCategory = (r: CategoryMaxAge) => CATEGORY_PATTERNS[category].test(r.category);
+  // A row may name several groups ("अनारक्षित (महिला), पिछड़ा वर्ग … (पुरुष एवं महिला)"): each part is judged on its own,
+  // a women-only or other-grounds part is left out, and "(Male and Female)" opens a part to both.
+  const parts = (r: CategoryMaxAge) => r.category.split(/[,;]/).map((p) => p.replace(BOTH, " ").trim()).filter(Boolean);
+  const usable = (rows ?? []).filter((r) => parts(r).some((p) => !OTHER_GROUNDS.test(p)));
+  const forCategory = (r: CategoryMaxAge) => parts(r).some((p) => !OTHER_GROUNDS.test(p) && CATEGORY_PATTERNS[category].test(p));
   const found = pwbd
     ? (() => {
         const disability = usable.filter((r) => DISABILITY.test(r.category));

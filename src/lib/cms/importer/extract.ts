@@ -23,7 +23,7 @@ import { pageOf } from "@/lib/cms/importer/evidence-text";
 import { linksInText, type FoundLink } from "@/lib/cms/importer/links";
 import { readArticleInBatches, type ArticleReading, type ReadingCoverage } from "@/lib/cms/importer/article";
 import type { ExtractedValue } from "@/lib/cms/importer/proposal";
-import { readPatternTables, type PatternCoverage } from "@/lib/cms/importer/pattern-tables";
+import { readPatternTables, statedCoverage, type PatternCoverage } from "@/lib/cms/importer/pattern-tables";
 
 export interface SourceReading {
   values: ExtractedValue[];
@@ -192,6 +192,9 @@ export function combineReading(opts: {
   // listed as missing, with their pages. The AI's pattern stays only where
   // the text has no pattern table (prose, or a scan not written out as one).
   const byCode = readPatternTables(plain);
+  // No pattern table: the AI's papers stand, counted against the number of papers the notice states.
+  const aiPattern = values.find((v) => v.fieldPath === "examPattern");
+  const stated = byCode.coverage.expected === 0 ? statedCoverage(plain, Array.isArray(aiPattern?.value) ? aiPattern!.value.length : 0) : null;
   if (byCode.coverage.expected > 0) {
     for (let i = values.length - 1; i >= 0; i--) if (values[i].fieldPath === "examPattern") values.splice(i, 1);
     for (let i = refused.length - 1; i >= 0; i--) if (refused[i].fieldPath === "examPattern") refused.splice(i, 1);
@@ -202,5 +205,5 @@ export function combineReading(opts: {
 
   return { values, links: linksInText(plain, opts.organizationId), notFound: stillMissing, refused, summary: details.summary,
            ...(article.skipped ? { articleSkipped: article.skipped } : {}), readingCoverage: article.coverage,
-           ...(byCode.coverage.expected > 0 ? { patternCoverage: byCode.coverage } : {}) };
+           ...(byCode.coverage.expected > 0 ? { patternCoverage: byCode.coverage } : stated ? { patternCoverage: stated } : {}) };
 }

@@ -57,7 +57,7 @@ function linesWithPages(text: string): Line[] {
 }
 
 // Words a pattern table's header is made of, and nothing else.
-const HEADER_WORD = /^(?:sr|s|sl|no|name|of|the|tests?|subjects?|sections?|papers?|parts?|medium|exam|examination|number|qs?|questions?|maximum|maximu|m|max|marks?|duration|time|allotted|minutes|mins?|in|version|sl\.no|s\.no|sr\.no|&|\/|-)$/i;
+const HEADER_WORD = /^(?:sr|s|sl|no|name|of|the|tests?|subjects?|sections?|papers?|parts?|medium|exam|examination|number|qs?|questions?|maximum|maximu|m|max|marks?|duration|time|allotted|allowed|minutes|mins?|in|version|tier|session|sl\.no|s\.no|sr\.no|&|\/|-)$/i;
 const isHeaderLine = (t: string) => {
   const words = t.toLowerCase().replace(/[.:()|]/g, " ").split(/\s+/).filter(Boolean);
   return words.length > 0 && words.every((w) => HEADER_WORD.test(w));
@@ -66,7 +66,10 @@ const headerComplete = (h: string) => /\b(?:tests?|subjects?|sections?|papers?|p
 
 const MEDIUM = /\s+(?:\*|(?:hindi|english|bilingual)(?:\s*\/\s*(?:hindi|english))*)$/i;
 /** The figures at the end of a row: questions, marks, and maybe a duration. */
-const TAIL = /\s(\d{1,3})\s+(\d{1,3}(?:\.\d+)?)(?:\s+(\d{1,3})\s*(?:minutes?|mins?))?\s*$/i;
+// The figures may be followed by the time column's own words ("25 50 1 hour (with sectional"): SSC CGL Tier-I.
+const TAIL = /\s(\d{1,3})\s+(\d{1,3}(?:\.\d+)?)(?:\s+(\d{1,3})\s*(?:minutes?|mins?)\b)?(?:\s+\d{1,2}\s*(?:hours?|hrs?)\b.*|\s+\(.*)?\s*$/i;
+/** A line of the time or remarks column wrapped under a row ("timer of 15 minutes for", "(with sectional", "scribe as per Para-7.1"). */
+const REMARK = /^[(a-z]|\b(?:timer|scribe|minutes|hours?|sectional)\b/;
 const TOTAL = /^total\b/i;
 const minutesIn = (s: string): number | undefined => {
   const m = /(\d{1,3})\s*(minutes?|mins?)\b/i.exec(s);
@@ -78,7 +81,9 @@ const minutesIn = (s: string): number | undefined => {
 // A heading that names a stage of the exam, and a short title line (a post's name).
 const STAGE = /\b(?:preliminary|prelims?|main|mains|single\s+level|tier|phase|stage|paper|exam|examination|test|cbt|pattern)\b/i;
 // A sentence ("The written examination structure is as follows:") is not a title.
-const isTitle = (t: string) => t.length <= 70 && !/[.;]$/.test(t) && !/\b(?:is|are|will|shall|as follows|should|must)\b/i.test(t)
+// A clause number in front ("13.8 Scheme of Tier-I Examination:") does not stop a line being a heading.
+const isTitle = (raw: string) => isTitleText(raw.replace(/^\d+(?:\.\d+)*\s+/, ""));
+const isTitleText = (t: string) => t.length <= 70 && !/[.;]$/.test(t) && !/\b(?:is|are|will|shall|as follows|should|must)\b/i.test(t)
   && !/\d{2,}\s+\d{2,}/.test(t) && /^[A-Z(“"]/.test(t) && !TOTAL.test(t) && !isHeaderLine(t);
 const clean = (t: string) => t.replace(/[*:]+\s*$/g, "").replace(/\s*\*+\s*/g, " ").replace(/\s+/g, " ").trim();
 
@@ -87,7 +92,7 @@ export function findPatternTables(text: string): PatternTable[] {
   const lines = linesWithPages(text);
   const out: PatternTable[] = [];
   let stage: string | null = null;
-  let titles: string[] = []; // short titles seen since the last table, not yet given to one
+  let titles: Array<{ text: string; at: number; listed?: boolean }> = []; // short titles seen since the last table, not yet given to one
   let i = 0;
   while (i < lines.length) {
     // A header: consecutive lines of header words, together naming the tests, the questions and the marks.
@@ -98,7 +103,7 @@ export function findPatternTables(text: string): PatternTable[] {
       const t = lines[i].text;
       if (isTitle(t)) {
         if (STAGE.test(t) && t.length <= 70) { stage = clean(t); titles = []; }
-        else titles.push(clean(t));
+        else titles.push({ text: clean(t), at: i });
       } else if (t.length > 70) {
         // A sentence between headings and their tables does not end the list of titles waiting for a table.
       }
@@ -110,12 +115,15 @@ export function findPatternTables(text: string): PatternTable[] {
     // Questions before marks, unless the header prints marks first.
     const marksFirst = header.search(/\bmarks?\b/i) < header.search(/\b(?:questions?|qs)\b/i);
     const [qi, mi] = marksFirst ? [2, 1] : [1, 2];
-    const partColumn = /\b(?:part|section)\b/i.test(header);
+    const partColumn = /\b(?:part|section|tier)\b/i.test(header);
     // The title just above the header is this table's; otherwise the first one waiting (titles listed before their tables).
     const before = lines[i - 1]?.text;
     let title: string | null = null;
-    if (before && titles.length && clean(before) === titles[titles.length - 1]) title = titles.pop()!;
-    else if (titles.length) title = titles.shift()!;
+    // Titles printed far above the table (more than 30 lines) belong to something else, unless they are
+    // the rest of a list whose first title a table has already taken (IBPS: three posts, then three tables).
+    titles = titles.filter((x) => x.listed || x.at >= i - 30);
+    if (before && titles.length && clean(before) === titles[titles.length - 1].text) title = titles.pop()!.text;
+    else if (titles.length) { title = titles.shift()!.text; titles = titles.map((x) => ({ ...x, listed: true })); }
     const heading = [stage, title].filter(Boolean).join(" – ") || null;
 
     // Rows until the total.
@@ -133,6 +141,8 @@ export function findPatternTables(text: string): PatternTable[] {
         break;
       }
       if (hasMedium && buffer.length === 0 && MEDIUM.test(` ${t}`) && !/\d/.test(t)) continue; // a medium printed on its own line
+      // Right after a row, the time column's wrapped words are passed over, not taken as the next row's name.
+      if (buffer.length === 0 && sections.length > 0 && REMARK.test(t) && !TAIL.test(` ${t}`)) continue;
       buffer.push(lines[k]);
       const joined = buffer.map((b) => b.text).join(" ");
       const tail = TAIL.exec(` ${joined}`);
@@ -142,6 +152,8 @@ export function findPatternTables(text: string): PatternTable[] {
       }
       let name = joined.slice(0, joined.length - tail[0].length + 1).trim();
       // "1", "4 a", or, under a Part or Section column, a part letter ("A General Awareness").
+      // Under a Tier column the first row also carries the tier's numeral ("I A. General Intelligence…"): dropped.
+      if (partColumn) name = name.replace(/^[IVX]{1,4}\s+(?=[A-H][.)]\s)/, "");
       const serialM = /^(\d{1,2}\s*[a-z]?)\s*[•.)]?\s+/i.exec(name) ?? (partColumn ? /^([A-H])[.)]?\s+(?=[A-Z])/.exec(name) : null);
       const serial = serialM ? serialM[1].replace(/\s+/g, "") : null;
       if (serialM) name = name.slice(serialM[0].length);
@@ -205,4 +217,64 @@ export function readPatternTables(text: string): { papers: ExamPatternPaper[]; q
       problems: tables.flatMap((t) => t.problems),
     },
   };
+}
+
+// ─── Papers counted from the notice's own words ─────────────
+//
+// Where a notice prints no pattern table (UPSC CSE: "The Examination shall
+// comprise of two compulsory Papers", "The Written Examination will consist
+// of 9 papers"), its sentences still say how many papers there are. The AI
+// reads such a pattern; code counts the papers the notice states, so a reading
+// with papers missing is said to be incomplete (B2.6).
+
+const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+const STATED = /\b(?:consists?\s+of|comprises?(?:\s+of)?)\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(?:compulsory\s+|objective\s+type\s+|conventional\s+(?:essay\s+)?type\s+|written\s+)?(?:question\s+)?papers?\b/i;
+
+const STAGE_WORD = /\b(preliminary|prelims?|main|mains|tier[\s-]*(?:[ivx]+|\d+)|phase[\s-]*(?:[ivx]+|\d+)|stage[\s-]*(?:[ivx]+|\d+))\b/i;
+
+/**
+ * Each examination's stated number of papers, once per stage, with its page,
+ * in the notice's order. Only a sentence about an examination counts ("The
+ * Written Examination will consist of 9 papers", not "The syllabus consists
+ * of two papers"); its stage comes from the sentence or the heading above, so
+ * the same stage restated (UPSC states Preliminary's two papers twice) counts once.
+ */
+export function statedPaperCounts(text: string): Array<{ count: number; quote: string; page: number | null; stage: string | null }> {
+  const lines = linesWithPages(text);
+  const out: Array<{ count: number; quote: string; page: number | null; stage: string | null }> = [];
+  for (let i = 0; i < lines.length; i++) {
+    // A sentence may wrap: the line and the next are read together.
+    const joined = `${lines[i].text} ${lines[i + 1]?.text ?? ""}`;
+    const m = STATED.exec(joined);
+    if (!m || m.index >= lines[i].text.length) continue;
+    // What consists of the papers: the words just before, back to the sentence's start.
+    const before = `${lines[i - 1]?.text ?? ""} ${joined.slice(0, m.index)}`;
+    const subject = before.split(/[.;:](?=\s|$)/).pop() ?? "";
+    if (!/\bexamination\b|\bexam\b|\btest\b/i.test(subject)) continue;
+    let stage = STAGE_WORD.exec(subject)?.[1] ?? null;
+    for (let b = i - 1; !stage && b >= Math.max(0, i - 6); b--) if (isTitle(lines[b].text) && STAGE_WORD.test(lines[b].text)) stage = STAGE_WORD.exec(lines[b].text)![1];
+    const count = /^\d+$/.test(m[1]) ? Number(m[1]) : NUMBER_WORDS[m[1].toLowerCase()];
+    const key = (stage ?? "").toLowerCase().replace(/^prelims?$/, "preliminary").replace(/^mains$/, "main");
+    if (out.some((o) => (o.stage ?? "").toLowerCase().replace(/^prelims?$/, "preliminary").replace(/^mains$/, "main") === key && o.count === count)) continue;
+    out.push({ count, quote: m[0], page: lines[i].page, stage });
+  }
+  return out;
+}
+
+/**
+ * The papers the notice states, against the AI's papers: statements are
+ * covered in order while the AI gave enough papers; the rest are not read.
+ * Null when the notice states no number of papers.
+ */
+export function statedCoverage(text: string, aiPapers: number): PatternCoverage | null {
+  const stated = statedPaperCounts(text);
+  if (stated.length === 0) return null;
+  let left = aiPapers;
+  const tables = stated.map((s) => {
+    const read = left >= s.count;
+    left = Math.max(0, left - s.count);
+    return { heading: `${s.stage ? `${s.stage[0].toUpperCase()}${s.stage.slice(1).toLowerCase()}: ` : ""}${s.count} paper${s.count === 1 ? "" : "s"} (“${s.quote}”)`, page: s.page, read, ...(read ? {} : { why: "the AI's reading has fewer papers than the notice states" }) };
+  });
+  const expected = stated.reduce((n, s) => n + s.count, 0);
+  return { expected, read: Math.min(aiPapers, expected), tables, problems: [] };
 }
