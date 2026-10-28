@@ -182,6 +182,12 @@ function checkBornWindow(limit: AgeLimit, dobIso: string, category: CasteCategor
   const withAge = age ? { age } : {};
 
   if (limit.bornTo && dobIso > limit.bornTo) return { verdict: "TOO_YOUNG", ...withAge };
+  // Half a window (one date of birth on record): the printed age on the other side still applies (B2.6).
+  if (!limit.bornTo && limit.min != null) {
+    if (!age) return { verdict: "UNKNOWN", reason: "The latest date of birth allowed is not on record, and neither is the date age is counted on." };
+    if (age.years < limit.min) return { verdict: "TOO_YOUNG", age };
+  }
+  if (!limit.bornFrom && limit.max != null) return checkAge({ ...limit, bornFrom: undefined, bornTo: undefined }, dobIso, category, pwbd);
   if (!limit.bornFrom || dobIso >= limit.bornFrom) return { verdict: "WITHIN", ...withAge };
 
   const relaxation = findRelaxation(limit.relaxation, category, pwbd);

@@ -35,6 +35,15 @@ export function nearlyEmpty(p: TranscribedPage): boolean {
   return !p.blank && p.tables.length === 0 && p.lines.join("").replace(/\s+/g, "").length < 30;
 }
 
+/**
+ * The model wrote out a new table (one that does not continue from the page
+ * before) with rows but without its column headings: its rows cannot be
+ * placed, so the page is worth reading again (B2.6: LIC Table E's first page).
+ */
+export function headless(p: TranscribedPage): boolean {
+  return p.tables.some((t) => !t.continues && (t.columns ?? []).length === 0 && t.rows.length > 0);
+}
+
 const MAX_LINES = 400, MAX_TABLES = 20, MAX_COLUMNS = 60, MAX_ROWS = 300, MAX_CELL = 300;
 const TRANSCRIBE_TIMEOUT_MS = 45_000;
 

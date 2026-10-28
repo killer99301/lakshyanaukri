@@ -312,6 +312,30 @@ if (!PDF) { console.error("usage: … importer-jobs.test.ts <ibps-crp-rrb-xv.pdf
     && ((thImp?.proposal as unknown as { warnings: string[] }).warnings).some((w) => /on scanned page 78 the AI found almost nothing, twice/.test(w)), th.sources[0]);
   emptyScript = {};
 
+  section("A scanned table written out without its headings is read once more (B2.6)");
+  // Page 77: the first answer has the rows but no column headings (as Gemini once answered LIC Table E's first page); the second is whole.
+  emptyScript = { 77: [{ lines: [], tables: [{ title: "", continues: false, columns: [], rows: [["Bihar", "Patna", "3"], ["Bihar", "Gaya", "2"]] }] }, SCAN_ANSWERS[77]] };
+  scanCalls.clear();
+  const { jobId: hl } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD headless table", "hl-job"), sources: [{ ...source, pages: pages + 3 }] });
+  for (const p of pieces) await upload(hl, p);
+  await jobs.uploadJobPart({ adminId, jobId: hl, sourceNo: 1, first: pages + 1, last: pages + 3, bytes: blankBytes });
+  for (const n of [77, 78, 79]) await scanPage(hl, n);
+  await jobs.startJob({ adminId, jobId: hl, confirm: true });
+  const hlDone = await run(hl, 60);
+  const hlTask = (await q("SELECT attempts, status FROM recruitment_import_job_tasks WHERE job_id = $1 AND kind = 'SCAN_PAGE' AND first_page = 77", [hl]))[0];
+  const hlTable = ((await getImport(hlDone.importId!))?.proposal as unknown as { items: Array<{ fieldPath: string; value: unknown }> }).items.find((i) => i.fieldPath === "vacancies.table")?.value as { rows: Array<{ at: Record<string, string>; source: { page: number } }> } | undefined;
+  check("the page was read twice, and the second, whole answer was used: Patna and Gaya from page 77", Number(hlTask.attempts) === 2 && hlTask.status === "DONE"
+    && ["Patna", "Gaya"].every((c) => hlTable?.rows.some((r) => r.at.city === c && r.source.page === 77)), { hlTask, rows: hlTable?.rows.filter((r) => r.source.page === 77).map((r) => r.at.city) });
+  emptyScript = { 77: [{ lines: [], tables: [{ title: "", continues: false, columns: [], rows: [["Bihar", "Patna", "3"]] }] }] };
+  const { jobId: hl2 } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD headless twice", "hl2-job"), sources: [{ ...source, pages: pages + 3 }] });
+  for (const p of pieces) await upload(hl2, p);
+  await jobs.uploadJobPart({ adminId, jobId: hl2, sourceNo: 1, first: pages + 1, last: pages + 3, bytes: blankBytes });
+  for (const n of [77, 78, 79]) await scanPage(hl2, n);
+  await jobs.startJob({ adminId, jobId: hl2, confirm: true });
+  const hl2Done = await run(hl2, 60);
+  check("headless twice: the page is kept, its rows are reported as not read, and the reading is never called complete", hl2Done.state === "DONE" && !hl2Done.complete && /could not be read as rows/.test(hl2Done.stateNote ?? ""), hl2Done.stateNote);
+  emptyScript = {};
+
   section("Abandoned readings are cleaned up");
   const { jobId: old } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: newJob("TEST RECORD abandoned", "old-job"), sources: [{ ...source, pages: 3 }] });
   await jobs.uploadJobPart({ adminId, jobId: old, sourceNo: 1, first: 1, last: 3, bytes: blankBytes });

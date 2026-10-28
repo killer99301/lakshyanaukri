@@ -243,6 +243,9 @@ export function buildProposal(input: {
     if (i.fieldPath !== "age" || !ages?.length) continue;
     const missing = [...new Set(posts)].filter((p) => !ages.some((a) => covers(a.post, p)));
     if (missing.length) i.flags.push(`no age was read for ${missing.map((p) => `“${p}”`).join(", ")} — check the notice; another post's range is not used for it`);
+    // Half a date-of-birth window read: said, so the other date is entered from the notice (the age check then uses the printed age).
+    const half = (ages as Array<{ post: string; bornFrom?: string; bornTo?: string }>).filter((a) => !!a.bornFrom !== !!a.bornTo);
+    if (half.length) i.flags.push(`only one date of birth was read for ${half.map((a) => `“${a.post}” (${a.bornFrom ? "the latest" : "the earliest"} is missing)`).join(", ")} — check the notice`);
   }
 
   if (input.today) {

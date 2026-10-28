@@ -28,7 +28,7 @@ import {
 } from "@/lib/cms/importer/article";
 import { combineReading, readSectionPart, skippedSection, type SectionOutcomes, type SectionPart } from "@/lib/cms/importer/extract";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
-import { nearlyEmpty, pageText, transcribePage, type TranscribedPage } from "@/lib/cms/importer/scan-tables";
+import { headless, nearlyEmpty, pageText, transcribePage, type TranscribedPage } from "@/lib/cms/importer/scan-tables";
 import type { DeclaredKind } from "@/lib/cms/importer/proposal";
 import {
   ImportInputError, MAX_SOURCES, MAX_TEXT_CHARS, assemblePreview, finishSourceReading, resolveTarget,
@@ -422,8 +422,9 @@ export async function startJob(opts: { adminId: string; jobId: string; confirm: 
 // ─── A step: take tasks with a lease, read, save under the lease ──
 
 /** A reading that failed for a reason worth another try (not a missing key or the daily allowance). */
-const RETRYABLE = /unavailable|incomplete|took too long|rate limit|timed out|aborted|found almost nothing/i;
+const RETRYABLE = /unavailable|incomplete|took too long|rate limit|timed out|aborted|found almost nothing|without its column headings/i;
 const NEARLY_EMPTY = "the AI found almost nothing on this scanned page";
+const HEADLESS = "the AI wrote a table out without its column headings";
 // The site's own daily allowance, or the AI provider's daily quota: the task is not at fault, so it waits.
 const CAP_REACHED = /AI limit for the site|daily request quota is used up/i;
 
@@ -448,6 +449,8 @@ async function runTask(task: J, ctx: { job: J; sources: JobSource[]; texts: Map<
     if (!r.ok) return { skipped: r.reason };
     // Almost nothing found on a page not called blank: read once more; then kept, but said to be checked.
     if (nearlyEmpty(r.page)) return Number(task.attempts) < MAX_ATTEMPTS ? { skipped: NEARLY_EMPTY } : { page: r.page, suspect: true };
+    // A new table with rows but no headings: read once more. Kept as it is after that: its rows are reported as not read.
+    if (headless(r.page) && Number(task.attempts) < MAX_ATTEMPTS) return { skipped: HEADLESS };
     return { page: r.page };
   }
   if (kind !== "TEXT_BATCH") {

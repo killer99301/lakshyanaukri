@@ -165,3 +165,22 @@ test("PA12 a quote whose curly quote mark the model wrote straight still finds i
   const age = ageOf(answer).values.find((v) => v.fieldPath === "age")!.value as Read;
   assert.ok(age.postWise[0].evidence!.every((e) => e.page === 7), JSON.stringify(age.postWise[0].evidence!.map((e) => e.page)));
 });
+test("PA13 half a date-of-birth window (only the earliest date read): the printed minimum age still applies; never \"within\" for someone too young", () => {
+  // As run 2 of B2.6 read IBPS Officer Scale-II: 21 to 32, born on or after 2 Sep 1994, the latest date not read.
+  const half: AgeLimit = { asOf: "2026-09-01", postWise: [{ post: "Officer Scale- II (Manager)", min: 21, max: 32, bornFrom: "1994-09-02" }] };
+  const l = limitForPost(half, half.postWise![0]);
+  assert.equal(checkAge(l, "2007-01-01", "GEN", false).verdict, "TOO_YOUNG", "19 on the cut-off date: below 21");
+  assert.equal(checkAge(l, "2000-01-01", "GEN", false).verdict, "WITHIN");
+  assert.equal(checkAge(l, "1990-01-01", "GEN", false).verdict, "TOO_OLD", "born before the earliest date");
+  assert.equal(checkAge({ min: 21, bornFrom: "1994-09-02" }, "2007-01-01", "GEN", false).verdict, "UNKNOWN", "no cut-off date: not answered");
+  // Only the latest date read: the printed maximum age applies.
+  assert.equal(checkAge({ asOf: "2026-09-01", min: 21, max: 32, bornTo: "2005-09-01" }, "1980-01-01", "GEN", false).verdict, "TOO_OLD");
+});
+test("PA14 a post with only one date of birth read is flagged on the age item", () => {
+  const wrong = structuredClone(ANSWER) as unknown as { age: { postWise: Array<Record<string, unknown>> } };
+  delete wrong.age.postWise[2].bornTo;
+  const r = ageOf(wrong);
+  const p = buildProposal({ extractions: [{ retrieval: { id: "r1", declaredKind: "OFFICIAL_NOTIFICATION", authenticity: "ATTESTED", originRole: "NONE", originPurposes: [], label: "notice" }, values: r.values, links: [] }], current: () => undefined });
+  const flags = p.items.find((i) => i.fieldPath === "age")!.flags;
+  assert.ok(flags.some((f) => /only one date of birth was read for “Officer Scale- II \(Manager\)” \(the latest is missing\)/.test(f)), flags);
+});
