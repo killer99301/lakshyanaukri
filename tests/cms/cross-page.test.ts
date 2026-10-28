@@ -94,3 +94,26 @@ test("CP07 figures at the top of a page with no table before it (an index of cla
   assert.equal(r.table, null);
   assert.deepEqual([r.coverage.problems ?? [], r.coverage.unreadLines], [[], []]);
 });
+
+suite("Printed spellings are kept; the AI's corrections are suggestions (B2.6)");
+
+test("CP08 the model wrote the corrected spelling but listed it: the printed name goes back, the suggestion is kept beside it and said", async () => {
+  const { parseTranscription } = await import("@/lib/cms/importer/scan-tables");
+  const { analyseVacancyTable, vacancyTableShapeErrors } = await import("@/lib/vacancy-table");
+  // As in B2.6: page 7 prints "Thiruvananthpuram"; the model wrote "Thiruvananthapuram".
+  const p7 = scanned(7, (rows) => { for (const r of rows) if (r[1] === "Thiruvananthpuram") r[1] = "Thiruvananthapuram"; });
+  const raw = { lines: p7.lines, tables: p7.tables, corrections: [{ printed: "Thiruvananthpuram", suggested: "Thiruvananthapuram" }] };
+  const page7 = parseTranscription(raw as never, 7);
+  assert.ok(page7.tables[0].rows.some((r) => r[1] === "Thiruvananthpuram") && !page7.tables[0].rows.some((r) => r[1] === "Thiruvananthapuram"));
+  const r = await read([scanned(6), page7]);
+  const row = r.table!.rows.find((x) => x.at.city === "Thiruvananthpuram")!;
+  assert.deepEqual([row.at.city, row.suggested, row.source.page], ["Thiruvananthpuram", { city: "Thiruvananthapuram" }, 7]);
+  assert.equal(r.table!.rows.length, 181);
+  assert.ok(analyseVacancyTable(r.table!).issues.some((i) => i.code === "SUGGESTED_SPELLING" && /“Thiruvananthpuram” is kept as printed \(page 7\); the AI suggests “Thiruvananthapuram”/.test(i.message)));
+  assert.deepEqual(vacancyTableShapeErrors({ ...r.table!, rows: r.table!.rows.map((x) => (x.id === row.id ? { ...x, at: { ...x.at, city: "Thiruvananthapuram" }, printedAt: { city: "Thiruvananthpuram" }, suggested: undefined } : x)) }), [], "applied by an admin, the printed name kept: a valid table");
+});
+test("CP09 a suggestion that names no printed word, or the same spelling, is dropped", async () => {
+  const { parseTranscription } = await import("@/lib/cms/importer/scan-tables");
+  const p = parseTranscription({ lines: ["Patna"], tables: [], corrections: [{ printed: "Patna", suggested: "Patna" }, { printed: "", suggested: "X" }] } as never, 3);
+  assert.equal(p.corrections, undefined);
+});

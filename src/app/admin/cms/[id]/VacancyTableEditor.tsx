@@ -461,6 +461,19 @@ export function VacancyTableEditor({ record, onSaved }: { record: RecruitmentRec
                             {!hasEvidence(r) && <span style={chip(C.amber)} title="No page of a document behind these figures">entered by hand</span>}
                             {r.source.readBy === "AI_IMAGE" && <span style={chip(C.amber)} title="This page had no text: the AI wrote this row out from the page image. Check every figure against the page.">AI-read from image</span>}
                             {r.unclear?.length ? <span style={chip(C.red)} title="Printed, but not made out on the scanned page; never filled in">unreadable: {r.unclear.join(", ")}</span> : null}
+                            {/* A spelling the AI suggests for a printed name: shown, applied only by the admin; the printed name is kept. */}
+                            {Object.entries(r.suggested ?? {}).map(([k, v]) => (
+                              <span key={`s-${k}`} style={chip(C.amber)} title={`Printed “${r.at[k]}”. The AI suggests “${v}”: a suggestion, not what the notice prints.`}>
+                                AI suggests “{v}”
+                                {editable && (
+                                  <button aria-label={`Use the suggested spelling ${v}`} style={{ ...quiet, border: "none", padding: "0 4px" }} onClick={() => {
+                                    const { [k]: _done, ...rest } = r.suggested ?? {}; void _done;
+                                    updateRow(r.id, { at: { ...r.at, [k]: v }, printedAt: { ...(r.printedAt ?? {}), [k]: r.printedAt?.[k] ?? r.at[k] }, suggested: Object.keys(rest).length ? rest : undefined });
+                                  }}>use it</button>
+                                )}
+                              </span>
+                            ))}
+                            {Object.entries(r.printedAt ?? {}).map(([k, v]) => <span key={`p-${k}`} style={chip(C.muted)} title="The name as printed in the notice, kept after a suggested spelling was applied">printed: {v}</span>)}
                             {r.source.line && <button onClick={() => setSourceOf(sourceOf === r.id ? null : r.id)} style={{ ...quiet, border: "none", padding: "0 4px" }} title={r.source.line}>line</button>}
                           </td>
                           <td style={cell}>

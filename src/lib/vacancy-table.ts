@@ -67,6 +67,10 @@ export interface VacancyTableRow {
   cells: Record<string, number>;
   /** Columns ("total" or a category key) printed with a figure the reader could not make out on a scanned page; never filled in. */
   unclear?: string[];
+  /** Dimension key → a spelling the AI suggests for the printed name. Shown, never applied by itself. */
+  suggested?: Record<string, string>;
+  /** Dimension key → the name as printed, kept once an admin applies a suggested spelling. */
+  printedAt?: Record<string, string>;
   source: SourceRef;
 }
 
@@ -104,7 +108,7 @@ export interface Figure {
 
 export type IssueCode =
   | "DUPLICATE_ROW" | "MISSING_DIMENSION" | "BAD_FIGURE" | "ROW_TOTAL_MISMATCH" | "HORIZONTAL_EXCEEDS_TOTAL"
-  | "NOT_REPORTED" | "NO_FIGURE" | "UNDETERMINED_COLUMN" | "STATED_TOTAL_MISMATCH" | "NO_SOURCE" | "FIGURES_NOT_IN_LINE" | "UNCLEAR_FIGURE";
+  | "NOT_REPORTED" | "NO_FIGURE" | "UNDETERMINED_COLUMN" | "STATED_TOTAL_MISMATCH" | "NO_SOURCE" | "FIGURES_NOT_IN_LINE" | "UNCLEAR_FIGURE" | "SUGGESTED_SPELLING";
 
 export interface TableIssue {
   code: IssueCode;
@@ -250,6 +254,11 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
     else seen.set(k, r.id);
     if (!hasEvidence(r)) issues.push({ code: "NO_SOURCE", severity: "WARNING", message: `${dims.map((d) => r.at[d.key]).join(", ")}: entered by hand, with no page of a document behind it.`, rowIds: [r.id] });
     if (r.status === "NOT_REPORTED") { issues.push({ code: "NOT_REPORTED", severity: "WARNING", message: `${dims.map((d) => r.at[d.key]).join(", ")}: not reported in the notice.`, rowIds: [r.id], group: r.at[groupDim] }); continue; }
+    // A spelling the AI suggests for a printed name: kept as printed until an admin applies it (B2.6).
+    for (const [k, v] of Object.entries(r.suggested ?? {})) {
+      issues.push({ code: "SUGGESTED_SPELLING", severity: "WARNING", rowIds: [r.id], group: r.at[groupDim],
+        message: `“${r.at[k]}” is kept as printed${r.source.page != null ? ` (page ${r.source.page})` : ""}; the AI suggests “${v}”. Apply it in the editor if the notice means that.` });
+    }
     if (r.unclear?.length) {
       issues.push({ code: "UNCLEAR_FIGURE", severity: "ERROR", rowIds: [r.id], group: r.at[groupDim],
         message: `${dims.map((d) => r.at[d.key]).join(", ")}: ${r.unclear.map(columnName).join(", ")} could not be read on the scanned page${r.source.page != null ? ` (page ${r.source.page})` : ""}. Read it on the page and enter it; it is never filled in.` });
@@ -472,6 +481,11 @@ export function vacancyTableShapeErrors(t: unknown): string[] {
     if (!r.source || typeof r.source !== "object" || typeof r.source.line !== "string") errors.push(`row "${r.id}" has no source`);
     else if (r.source.readBy !== undefined && r.source.readBy !== "AI_IMAGE") errors.push(`row "${r.id}" says it was read in an unknown way`);
     if (r.unclear !== undefined && (!Array.isArray(r.unclear) || r.unclear.some((k) => k !== "total" && !catKeys.has(k)))) errors.push(`row "${r.id}" marks an unknown column as unreadable`);
+    for (const [name, map] of [["suggested", r.suggested], ["printedAt", r.printedAt]] as const) {
+      if (map !== undefined && (!map || typeof map !== "object" || Object.entries(map).some(([k, v]) => !dimKeys.has(k) || typeof v !== "string" || !v.trim() || v.length > 300))) {
+        errors.push(`row "${r.id}" has a ${name === "suggested" ? "suggested spelling" : "printed name"} for a dimension the table does not have`);
+      }
+    }
   }
   return errors.slice(0, 20);
 }

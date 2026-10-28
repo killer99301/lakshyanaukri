@@ -423,7 +423,7 @@ const titleCase = (s: string) => (s === s.toUpperCase() && /[A-Z]{3}/.test(s)
  * notice gives in one table and not in another (a bank's state) is filled
  * from the tables that do give it, never invented.
  */
-export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: string | null; fallbackPost: string }): { table: VacancyTable | null; coverage: Omit<CoverageReport, "pages"> } {
+export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: string | null; fallbackPost: string; /** Page → spellings the model suggested for printed names on scanned pages (B2.6). */ spelling?: Map<number, Array<{ printed: string; suggested: string }>> }): { table: VacancyTable | null; coverage: Omit<CoverageReport, "pages"> } {
   const coverage: Omit<CoverageReport, "pages"> = { tables: [], unreadLines: [] };
   const usable = found.filter((t) => t.columns);
   for (const t of found) {
@@ -476,11 +476,17 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
   for (const { t, ti, post, own } of parsed) {
     t.rows.forEach((r, ri) => {
       const at: Record<string, string> = { post };
+      const suggested: Record<string, string> = {};
       const postDim = t.dimensions.find((d) => d.key === "post");
       let words = r.words;
       if (r.dimCells) {
         // A transcribed row's cells are its dimensions, each as printed: no words to split.
         for (const [k, v] of Object.entries(r.dimCells)) at[k] = k === "post" ? titleCase(v) : v;
+        // A spelling the model suggested for a printed name on this page: kept beside it, not used (B2.6).
+        for (const [k, v] of Object.entries(r.dimCells)) {
+          const fix = (opts.spelling?.get(r.page ?? -1) ?? []).find((c) => c.printed === v);
+          if (fix) suggested[k] = k === "post" ? titleCase(fix.suggested) : fix.suggested;
+        }
       } else if (postDim && !own.length) { at.post = titleCase(words); words = ""; }
       if (r.dimCells) {
         // placed above
@@ -509,8 +515,8 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
       const rb = r.readBy ?? t.readBy;
       const source = { retrievalId: opts.retrievalId, page: r.page, line: r.printed, ...(rb === "AI_IMAGE" ? { readBy: rb } : {}) };
       const id = `t${ti + 1}r${ri + 1}`;
-      const marks = unclear.length ? { unclear } : {};
-      if (nr > 0 && nr + blank === t.columns!.length) rows.push({ id, at, status: "NOT_REPORTED", cells: {}, source });
+      const marks = { ...(unclear.length ? { unclear } : {}), ...(Object.keys(suggested).length ? { suggested } : {}) };
+      if (nr > 0 && nr + blank === t.columns!.length) rows.push({ id, at, status: "NOT_REPORTED", cells: {}, ...(Object.keys(suggested).length ? { suggested } : {}), source });
       else if (blank + unclear.length === t.columns!.length) rows.push({ id, at, status: "NO_FIGURE", cells: {}, ...marks, source });
       else {
         const all = [...Object.values(cells), ...(total !== undefined ? [total] : [])];
@@ -584,7 +590,7 @@ export async function readVacancyTables(text: string, opts: {
     }
   }
   const pages = all.reduce((m, l) => Math.max(m, l.page ?? 0), 0) || null;
-  const { table, coverage } = buildVacancyTable(found, opts);
+  const { table, coverage } = buildVacancyTable(found, { ...opts, spelling: new Map((opts.scanPages ?? []).map((p) => [p.page, p.corrections ?? []])) });
   coverage.unreadLines.push(...unread.map((l) => ({ page: l.page, text: l.text })));
   return { table, coverage: { pages, ...coverage, ...(problems.length ? { problems } : {}) } };
 }

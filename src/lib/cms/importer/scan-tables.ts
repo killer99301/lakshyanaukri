@@ -28,6 +28,12 @@ export interface TranscribedPage {
   page: number; lines: string[]; tables: TranscribedTable[];
   /** The model says nothing is printed on the page but a page number or a running header. */
   blank?: boolean;
+  /**
+   * Spellings the model thinks are misprinted, as it listed them: the page's
+   * text keeps the printed form; the suggestion is shown, never applied by
+   * itself (B2.6: "Thiruvananthpuram" kept, "Thiruvananthapuram" suggested).
+   */
+  corrections?: Array<{ printed: string; suggested: string }>;
 }
 
 /** The model found almost nothing on a page it did not call blank: it may have missed what is printed. */
@@ -71,6 +77,7 @@ Rules for every cell:
 - A cell you cannot read with certainty is "[unclear]". Never guess a figure, never correct one, never add up, never fill a cell from the others.
 - A note printed in a cell stays with its figure, for example "01 (VH)".
 - A row printed over two lines is one row, and text that wraps inside one cell ("Jammu And" over "Kashmir") is one cell: every row has exactly as many cells as the table has columns. Do not leave out any row, and do not repeat one.
+Copy every word exactly as printed, in its own script and spelling, even when it is misspelt: never correct a name of a place, post, bank or organisation. When you think a printed word is misspelt, also list it in "corrections": [ { "printed": as printed, "suggested": your spelling } ] (top level, next to "lines"); the printed form still goes in the line or cell.
 Do not translate, summarise or explain anything.`;
 }
 
@@ -90,7 +97,16 @@ export function parseTranscription(data: Record<string, unknown>, page: number):
     if (columns.length === 0 && rows.length === 0) continue;
     tables.push({ title: str(o.title).replace(/:$/, ""), continues, columns, rows });
   }
-  return { page, lines, tables, ...(data.blank === true ? { blank: true } : {}) };
+  // Spelling suggestions: the printed form stays in the text. Where the model wrote its own spelling in place of
+  // what it says is printed, the printed form is put back; the suggestion is kept beside it, to be shown.
+  const corrections = (Array.isArray(data.corrections) ? data.corrections : []).slice(0, 40).flatMap((c) => {
+    const o = (c ?? {}) as Record<string, unknown>;
+    const printed = str(o.printed), suggested = str(o.suggested);
+    return printed && suggested && printed !== suggested ? [{ printed, suggested }] : [];
+  });
+  const back = (v: string) => corrections.find((c) => c.suggested === v)?.printed ?? v;
+  const restored = corrections.length ? tables.map((t) => ({ ...t, rows: t.rows.map((r) => r.map(back)) })) : tables;
+  return { page, lines: corrections.length ? lines.map(back) : lines, tables: restored, ...(data.blank === true ? { blank: true } : {}), ...(corrections.length ? { corrections } : {}) };
 }
 
 /** One scanned page, written out by the model from its image. Never throws. */

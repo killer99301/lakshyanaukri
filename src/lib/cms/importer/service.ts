@@ -399,6 +399,13 @@ export async function assemblePreview(opts: {
       proposal.warnings.push(`${s.summary.label}: pages ${cov.noTextPages.join(", ")} have no text (scanned pages); they were not read.`);
     }
   }
+  // Spellings the AI thinks are misprinted on scanned pages: kept as printed, the suggestions said, never applied (B2.6).
+  for (const s of sources) {
+    for (const p of s.scan?.pages ?? []) {
+      if (!p.corrections?.length) continue;
+      proposal.warnings.push(`${s.summary.label}: on scanned page ${p.page} the AI suggests other spellings for ${p.corrections.length === 1 ? "a word" : "words"} — kept exactly as printed; apply a suggestion only if the notice means it: ${p.corrections.map((c) => `“${c.printed}” → “${c.suggested}”`).join("; ")}.`);
+    }
+  }
 
   // Keys for the duplicate lock and check of a new job.
   let identityKey: string | null = null;
