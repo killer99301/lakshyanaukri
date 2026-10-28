@@ -234,7 +234,14 @@ export function buildProposal(input: {
   // Posts that do not add up to the stated total: one of them is wrong (BPSC: 18 posts making 1205, a total
   // of 1077, the notice's 1230). Both are said and left for the admin, not saved by default.
   const totals = items.filter((i) => i.fieldPath === "vacancies.total" && typeof i.value === "number");
-  const splits = items.filter((i) => i.fieldPath === "vacancies.breakdown" && Array.isArray(i.value));
+  const fromCorr = (i: ProposalItem) => i.claims.some((c) => byRetrieval.get(c.retrievalId)?.declaredKind === "OFFICIAL_CORRIGENDUM");
+  // A corrigendum's posts are only those it adds, changes or deletes (BPSC: the deleted Sugarcane Officer, 44):
+  // never the whole list, so never saved by default, and not summed against the total.
+  for (const b of items.filter((i) => i.fieldPath === "vacancies.breakdown" && fromCorr(i))) {
+    b.defaultTicked = false;
+    b.flags.push("a corrigendum lists only the posts it adds, changes or deletes — check in the notice whether each is added, changed or deleted before saving; ticked, it would replace the whole list");
+  }
+  const splits = items.filter((i) => i.fieldPath === "vacancies.breakdown" && Array.isArray(i.value) && !fromCorr(i));
   for (const b of splits) {
     const sum = (b.value as Array<{ count?: number }>).reduce((n, r) => n + (typeof r.count === "number" ? r.count : 0), 0);
     for (const t of totals.filter((x) => x.value !== sum)) {

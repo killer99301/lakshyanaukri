@@ -80,3 +80,19 @@ test("CG06 posts that do not add up to the stated total: both flagged and left u
     assert.ok(i.flags.includes("the posts add up to 1205, the total says 1077 — check both against the notice"), i.flags);
   }
 });
+
+test("CG07 BPSC: the corrigendum's one-post 'breakdown' (the deleted Sugarcane Officer, 44) is never saved by default; its new total 1186 is", () => {
+  const corr: RetrievalSummary = { ...reopen, id: "r-bpsc" };
+  const p = buildProposal({
+    extractions: [{ retrieval: corr, values: [
+      { fieldPath: "vacancies.breakdown", value: [{ post: "ईख पदाधिकारी (गन्ना उद्योग विभाग)", count: 44 }], quote: "ईख पदाधिकारी (गन्ना उद्योग विभाग) का कोटिवार कुल 44 पद", page: 1 },
+      { fieldPath: "vacancies.total", value: 1186, quote: "1230-44 = 1186", page: 1 },
+    ], links: [] }],
+    current: (path) => (path === "vacancies.total" ? { value: 1230, verified: false } : undefined),
+  });
+  const b = p.items.find((i) => i.fieldPath === "vacancies.breakdown")!;
+  const t = p.items.find((i) => i.fieldPath === "vacancies.total")!;
+  assert.equal(b.defaultTicked, false);
+  assert.ok(b.flags.some((f) => /lists only the posts it adds, changes or deletes/.test(f)), b.flags);
+  assert.deepEqual([t.action, t.defaultTicked, t.flags.some((f) => /add up to/.test(f))], ["REPLACE", true, false]);
+});

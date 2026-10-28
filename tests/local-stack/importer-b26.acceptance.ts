@@ -129,6 +129,8 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
   /** Saves the ticked items of a preview, as the review's button does. */
   async function save(importId: string, proposal: Proposal) {
     const selected = proposal.items.filter((i) => i.defaultTicked).map((i) => i.id);
+    // Nothing ticked by default: nothing is saved, and the job stays as it was. Said, not forced.
+    if (selected.length === 0) { note("nothing is ticked by default: nothing saved; the job is unchanged"); return null; }
     const res = await service.applyImportFlow({ importId, adminId, selected, confirmReplaceVerified: false, override: null });
     note(`saved ${selected.length} values into job ${res.recruitmentId}`);
     return String(res.recruitmentId);
@@ -146,7 +148,7 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
   if (CASES.has("ssc")) {
     const n = await read("ssc-cgl-2026", "ssc-cgl-2026.pdf", { kind: "OFFICIAL_NOTIFICATION", title: "TEST RECORD SSC CGL 2026", org: "ssc-b26" });
     if (n) {
-      const id = await save(n.p.importId!, n.proposal);
+      const id = (await save(n.p.importId!, n.proposal))!;
       const before = await snapshot(id);
       writeFileSync(join(OUT, "ssc-before.json"), JSON.stringify(before, null, 1));
       const u = await read("ssc-cgl-reopen", "ssc-cgl-reopen.pdf", { kind: "OFFICIAL_CORRIGENDUM", recruitmentId: id, title: "", org: "" });
@@ -164,7 +166,7 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
   if (CASES.has("bpsc")) {
     const n = await read("bpsc-72-cce", "bpsc-72-cce.pdf", { kind: "OFFICIAL_NOTIFICATION", title: "TEST RECORD BPSC 72nd CCE", org: "bpsc-b26" });
     if (n) {
-      const id = await save(n.p.importId!, n.proposal);
+      const id = (await save(n.p.importId!, n.proposal))!;
       const before = await snapshot(id);
       writeFileSync(join(OUT, "bpsc-before.json"), JSON.stringify(before, null, 1));
       const u = await read("bpsc-72-corrigendum", "bpsc-72-corrigendum.pdf", { kind: "OFFICIAL_CORRIGENDUM", recruitmentId: id, title: "", org: "" });
