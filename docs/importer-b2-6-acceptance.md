@@ -466,3 +466,136 @@ IST). No request failed for quota.
    - UPSC's notification number and age reference date;
    - SSC's post-wise ages;
    - the review's wording "printed total disagrees: … no printed total".
+
+---
+
+# Part 3 — the owner's decisions and the fixes (2026-10-29)
+
+## P3.1 Decisions
+
+- **Difficult tables come in prepared.** BPSC's Hindi tables go through the
+  paste route, not a new scan parser. The criteria are revised in
+  `docs/importer-b2-plan.md` §6.
+- **P2.3 approved, with safeguards.** A post a corrigendum deletes:
+  - is matched exactly;
+  - is offered unticked;
+  - can be restored in one click;
+  - refuses whenever anything is uncertain.
+- **Spelling on scanned pages.** The AI's correction is a suggestion. The
+  printed form stays until an admin applies it, and the original is kept.
+
+## P3.2 Commits (local, `feature/importer`)
+
+| Commit | What |
+|---|---|
+| `b9d1089` | Printed spellings kept; the AI's corrections shown as suggestions, applied only by an admin, the printed form kept |
+| `8f2d65a` | Paste route: Hindi and bilingual headings, women's share as a group, PwBD parts, "Total" lines as printed totals checked column by column, "prepared outside" marking; the unfinished scan parser parked |
+| `e6bf352` | Corrigendum post removal (P2.3), by code, checked against the job's table, unticked, restorable |
+| `5b701b7` | UPSC: labelled notice number over a file number; "1st of August, 2026" read as a date; lettered relaxations read by code |
+| `fa1358a` | SSC: ages post by post from the table of posts; merged rows said, not guessed; coded relaxations, PwBD + OBC kept apart |
+| `ce9c53d` | Selection process checked against stage names and the schedule; every change shown on the item |
+| `067b538` | Review wording: warnings say what they mean; ✓ notes look done; months shown, not "not declared" |
+| `24f8455` | A scanned corrigendum's removal marked as read from the image; the upload hint points to the right reader |
+
+## P3.3 Results
+
+### BPSC 72nd vacancy tables (paste route)
+
+- **How:** both tables written out from the page images, pasted in two parts
+  (page 1, then page 2) and marked "prepared outside".
+- **Counts:** 22 + 3 posts; 1,077 + 153 = 1,230. Sugarcane Officer 44, of
+  which 14 are for women.
+- **सारणी I** agrees with its printed Total line in every column.
+- **The notice's own inconsistencies in सारणी II are reported, not
+  corrected:**
+  - post 02's categories add up to 30 against a printed 32;
+  - the women-only post 03 prints its categories on the women's line.
+- **Rows that needed reading from the page images:** the AI's own
+  transcription of the scan had misread rows 4 and 17 of सारणी I.
+- **Status:** the table stays "Prepared outside, to check" and is not ready
+  until compared with the notice.
+- **Browser:** pasted, saved and reopened on the local test copy.
+
+### BPSC corrigendum (Sugarcane Officer, 44 posts)
+
+- **Pasted text:** the review showed the removal unticked, with both
+  sentences and the 1,230 − 44 = 1,186 check.
+  - Ticked, saved and reopened: 1,186, every other post and field untouched.
+  - Restored from the change history in one click: 1,230.
+- **The real one-page scanned PDF, uploaded** (about 6 Gemini requests): the
+  same result.
+  - Gemini wrote the page out as printed; code found serial 11 of Table I,
+    44 posts, the quotes on page 1, and the revised total.
+  - Saved, reopened at 1,186, restored to 1,230.
+- **Refusals tested:** wrong count; unknown post; a name that fits two
+  posts; the wrong table; a revised total that doesn't add up; one that
+  doesn't start from the job's total; a job with no table.
+- **A corrigendum that adds and removes:** the new post is kept and the
+  deleted one removed.
+- **Found in this run:** the "Read the scan" button is the older translating
+  summary reader and refused this short scan. The upload hint now points to
+  Smart intake's own page-by-page reading.
+
+### UPSC CSE 2026
+
+- **Notification number:** `05/2026-CSE` from its labelled line, in both
+  runs' readings. Run 1's file number "F.No. 1/2/2025-E.I(B)" gives way.
+- **Age:** 21–32 as on 1 August 2026. The date had been dropped because
+  neither date reader took "1st of August".
+- **Relaxations:** read by code from the lettered list, with their clauses
+  as quotes:
+  - SC/ST 5, OBC 3, Defence 3, ex-servicemen 5, ECOs/SSCOs 5, PwBD 10.
+- **The public checker:** 36 on 1 August 2026 is too old for General and
+  OBC, and within the limit for SC/ST and PwBD.
+
+### SSC CGL 2026
+
+- **Ages by post:** 38 posts read from the table of posts, each with its
+  own range (18–27, 18–30, 20–30, and 18–32 for the Junior Statistical
+  Officer), in five pay levels.
+- **Posts 10 and 11 of Pay Level-7** print no age of their own (merged
+  cells). They are reported and not given post 12's range.
+- **No overall range:** run 2's single 18–32 for every post is dropped, and
+  the review says so.
+- **Relaxations:** eight rows of the coded table read. "Up to 40 years of
+  age" rows are upper ages, not relaxations. PwBD (OBC) 13 stays apart from
+  PwBD 10.
+
+### Selection process and schedule (real runs' readings)
+
+- **IBPS:** the officers' interview, dated in the schedule, is added when
+  the reading left it out, as printed: "Conduct of interview (For Officers
+  Scale I, II and III)".
+- **LIC:** Document Verification read as an interview is corrected to
+  document verification.
+- **BTSC:** "Appointment and Training" is taken out of the selection stages.
+- **SSC:** a generic "Computer Based Examination" beside Tier-I and Tier-II
+  is flagged, not removed.
+- **Every change is shown on the item.**
+
+## P3.4 Tests added
+
+- `bpsc-paste`, 11 tests.
+- `post-removal`: 12 tests, plus 20 checks in the stack test.
+- `upsc-age`, 12 tests.
+- `ssc-post-ages`, 9 tests.
+- `selection-check`, 7 tests.
+- `exam-summary`, one new case.
+
+After each commit, these passed:
+- all CMS suites;
+- intake 332/332;
+- the import-flow, table, jobs and restore stack tests.
+
+## P3.5 Still to do before B2 can be accepted
+
+1. **Two full real-Gemini runs** (Gemini 3.5 Flash-Lite) over:
+   - IBPS, LIC (text and scan), BTSC, SSC CGL, UPSC CSE and the BPSC
+     corrigendum against a local BPSC record;
+   - after the 12:30 IST reset, within the 500-a-day quota.
+2. **Browser:** save, reopen, history and restore with the real model.
+3. **Full regression:**
+   - every stack suite, CMS, intake and intelligence;
+   - PostgreSQL concurrency;
+   - type check and lint;
+   - the production build.
