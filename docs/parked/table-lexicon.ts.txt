@@ -1,0 +1,208 @@
+// ═══════════════════════════════════════════════════════════
+// Vacancy-table headings in Indian languages (after B2.6)
+// ═══════════════════════════════════════════════════════════
+//
+// A notice in Hindi (BPSC 72nd CCE) prints its vacancy table with Hindi
+// headings: अनारक्षित, अनुसूचित जाति, कुल पद… This module says what each
+// heading means, in the reader's own terms (the English headings it already
+// reads), keeping the printed heading as the column's label. It is a lexicon,
+// not a parser for one notice: another language is added as more entries.
+//
+// Only a heading recognised with confidence is mapped; anything else is left
+// as printed, and the reader treats it as it treats any unknown heading (a
+// category whose kind is not established, and said).
+//
+// It also turns two shapes of a Hindi table into the reader's shape:
+//   - a second line of figures under each entry (the women's share of each
+//     category: "महिलाओं के लिए आरक्षित रिक्तियों की संख्या") becomes the
+//     entry's "women" columns, a part of each category, never added to it;
+//   - a disability cell written as text ("VI - 01 DD - 01") becomes one
+//     column per disability, and a minimum-age column is set aside (it is
+//     not a vacancy figure).
+
+import type { TranscribedTable } from "@/lib/cms/importer/scan-tables";
+
+export type HeadingRole = "serial" | "post" | "dim" | "category" | "total" | "pwbd_text" | "age";
+
+export interface HeadingMeaning {
+  role: HeadingRole;
+  /** The column's key in the table (Latin), for a category or a dimension. */
+  key?: string;
+  /** The heading the reader knows, in its own (English) terms. */
+  canonical: string;
+  language: "hi";
+}
+
+/** Devanagari letters with a nukta, written either way, compared as one. */
+const fold = (s: string) => s.normalize("NFC").replace(/ड़/g, "ड़").replace(/ढ़/g, "ढ़").replace(/\s+/g, " ").trim();
+
+// Group headings printed over the category columns ("category-wise reserved vacancies"): not part of a column's meaning.
+const GROUP_PREFIX = /^(?:आरक्षण\s*कोटिवार\s*रिक्तिया[ँं]?|कोटिवार\s*रिक्तिया[ँं]?)\s*/;
+
+// Order matters: ST before SC (जनजाति contains जाति), BC women and EBC before BC.
+const HINDI: Array<[RegExp, HeadingMeaning]> = [
+  [/^क्र[\s.०o]*सं[\s.०o]*$|^क्रम\s*संख्या$|^क्रमांक$/, { role: "serial", canonical: "S. No.", language: "hi" }],
+  [/वेतनमान|वेतन\s*स्तर/, { role: "dim", key: "pay", canonical: "Pay level", language: "hi" }],
+  [/^(?:विभाग\s*\/\s*)?पद.*नाम$|संवर्ग\s*का\s*नाम$|^पद\s*का\s*नाम$|^पदनाम$/, { role: "post", key: "post", canonical: "Name of Post", language: "hi" }],
+  [/अनुसूचित\s*जन\s*जाति/, { role: "category", key: "st", canonical: "ST", language: "hi" }],
+  [/अनुसूचित\s*जाति/, { role: "category", key: "sc", canonical: "SC", language: "hi" }],
+  [/आर्थिक\s*रूप\s*से\s*कमजोर/, { role: "category", key: "ews", canonical: "EWS", language: "hi" }],
+  [/^अनारक्षित$|^सामान्य$/, { role: "category", key: "ur", canonical: "UR", language: "hi" }],
+  [/पिछड़े\s*वर्गों\s*की\s*महिला/, { role: "category", key: "bc_women", canonical: "BC Women", language: "hi" }],
+  [/अत्य(?:न्त|ंत)\s*पिछड़ा/, { role: "category", key: "ebc", canonical: "EBC", language: "hi" }],
+  [/पिछड़ा\s*वर्ग/, { role: "category", key: "bc", canonical: "BC", language: "hi" }],
+  [/^कुल(?:\s*पद)?$|^कुल\s*रिक्तिया[ँं]?$/, { role: "total", canonical: "Total", language: "hi" }],
+  [/स्वत(?:ं|न्)?त्रता\s*सेनानी/, { role: "category", key: "freedom_fighter", canonical: "Freedom fighters' descendants", language: "hi" }],
+  [/भूतपूर्व\s*सैनिक/, { role: "category", key: "esm", canonical: "ESM", language: "hi" }],
+  [/^दिव्यांग|निःशक्त/, { role: "pwbd_text", canonical: "PwBD", language: "hi" }],
+  [/न्यूनतम\s*(?:उम्र|आयु)|आयु\s*सीमा|^उम्र$/, { role: "age", canonical: "Minimum age", language: "hi" }],
+];
+
+/** What a printed heading means, when it is recognised with confidence; null otherwise. */
+export function interpretHeading(heading: string): HeadingMeaning | null {
+  const h = fold(heading).replace(GROUP_PREFIX, "");
+  for (const [re, m] of HINDI) if (re.test(h)) return m;
+  return null;
+}
+
+const DEVANAGARI = /[ऀ-ॿ]/;
+
+/** A column's meaning to the reader: its key, the label as printed, and (for women's parts) its kind as the notice states it. */
+export interface ColumnHint {
+  /** What the column holds: a row's name or serial, or a figure (a category, the total, a women's or disability part). */
+  role: "serial" | "dim" | "category" | "total" | "part";
+  key: string;
+  label: string;
+  partOf?: string;
+  kind?: "HORIZONTAL";
+  established?: { by: "SOURCE"; note: string };
+}
+
+/** The women's sub-heading, when the page prints it: "vacancies reserved for women". */
+const WOMEN_HEADING = /महिलाओं\s*के\s*लिए\s*आरक्षित/;
+// One disability's figure in a disability cell ("VI - 01", "DD-01").
+const PWBD_PART = /\b(VI|HH|HI|OH|OC|LD|DD|ID|MD|MI|SLD|AAV)\s*[-–:]\s*(\d{1,3})\b/gi;
+
+const isBlank = (c: string) => c.trim() === "" || c === "[blank]";
+/** A disability cell that says there are none ("00", "-", "शून्य"). */
+const NONE = /^(?:0+|[-–—]|शून्य|nil)$/i;
+/** A row's name that says it is the table's total line. */
+export const TOTAL_ROW = /^(?:grand\s+)?total\b|^कुल(?:\s*योग)?$|^योग$|^महायोग$/i;
+
+/**
+ * A transcribed table whose headings are in an Indian language, in the
+ * reader's terms. Unchanged (and no hints) when no heading is in a script the
+ * lexicon knows. Problems are what could not be placed, said rather than guessed.
+ */
+export function normaliseTable(t: TranscribedTable, context: { lines: string[]; pages: string; rowPages: number[] }, problems: string[]): TranscribedTable & {
+  hints?: Array<ColumnHint | null>;
+  /** For each row: the index of its first row in `t.rows`, and the line(s) as printed (the entry and its women's line). */
+  sources?: Array<{ index: number; printed: string }>;
+} {
+  if (t.columns.length === 0 || !t.columns.some((c) => DEVANAGARI.test(c))) return t;
+  const page = { page: context.pages };
+  const meanings = t.columns.map(interpretHeading);
+  const label = (ci: number) => t.columns[ci];
+  const unknown = t.columns.filter((c, ci) => !meanings[ci] && DEVANAGARI.test(c));
+  if (unknown.length) problems.push(`page ${page.page}: heading${unknown.length === 1 ? "" : "s"} not recognised, kept as printed and not interpreted: ${unknown.map((c) => `“${c}”`).join(", ")}`);
+
+  const keep = t.columns.map((_, ci) => meanings[ci]?.role !== "pwbd_text" && meanings[ci]?.role !== "age");
+  const pwbdCol = meanings.findIndex((m) => m?.role === "pwbd_text");
+  const firstName = meanings.findIndex((m) => m?.role === "post");
+  const figureCols = t.columns.map((_, ci) => ci).filter((ci) => keep[ci] && (meanings[ci]?.role === "category" || meanings[ci]?.role === "total"));
+  const womenStated = context.lines.some((l) => WOMEN_HEADING.test(fold(l))) || WOMEN_HEADING.test(fold(t.title));
+
+  // Rows: an entry, then (when printed) its women's line: no serial and no name, figures only.
+  const entries: Array<{ cells: string[]; women: string[] | null; index: number }> = [];
+  const short: Array<{ entry: number; row: string[]; index: number }> = [];
+  const isWomenLine = (r: string[]) => firstName >= 0 && isBlank(r[firstName]) && (meanings[0]?.role !== "serial" || isBlank(r[0])) && figureCols.some((ci) => !isBlank(r[ci] ?? ""));
+  t.rows.forEach((r, index) => {
+    const prev = entries[entries.length - 1];
+    // On the same page as its entry: a women's line is printed right under it, with no serial and no name.
+    const under = prev && !prev.women && context.rowPages[prev.index] === context.rowPages[index];
+    if (under && r.length === t.columns.length && isWomenLine(r)) { prev.women = r; return; }
+    // A line under an entry, a cell or two short, that starts blank: placed below if its figures can only sit one way.
+    if (under && r.length < t.columns.length && r.length >= t.columns.length - 2 && isBlank(r[0])) { short.push({ entry: entries.length - 1, row: r, index }); return; }
+    entries.push({ cells: r, women: null, index });
+  });
+  // Where the full women's lines print their figures: the columns a short line must fill, and only those.
+  const filled = (r: string[]) => r.map((c, ci) => (isBlank(c) ? -1 : ci)).filter((ci) => ci >= 0).join(",");
+  const patterns = new Set(entries.filter((e) => e.women).map((e) => filled(e.women!)));
+  for (const s of short) {
+    const gap = t.columns.length - s.row.length;
+    const blanks = Array<string>(gap).fill("[blank]");
+    const fits = [[...blanks, ...s.row], [...s.row, ...blanks]].filter((r) => patterns.has(filled(r)) && isWomenLine(r));
+    const e = entries[s.entry];
+    if (fits.length === 1 && !e.women) {
+      e.women = fits[0];
+      problems.push(`page ${context.rowPages[s.index]}: the line under “${e.cells[firstName]}” was written out ${gap} cell${gap === 1 ? "" : "s"} short; its figures fit the women's columns only one way, and are read so`);
+    } else {
+      entries.push({ cells: s.row, women: null, index: s.index }); // the wrong width: reported as not read
+    }
+  }
+  entries.sort((a, b) => a.index - b.index);
+  const anyWomen = entries.some((e) => e.women);
+  // The women's line's figures against its printed total: a difference is said, never corrected.
+  const totalCi = figureCols.find((ci) => meanings[ci]?.role === "total");
+  const asNum = (c: string | undefined) => (c && /^\d+$/.test(c.trim()) ? Number(c.trim()) : isBlank(c ?? "") ? 0 : null);
+  if (totalCi !== undefined) for (const e of entries) {
+    if (!e.women) continue;
+    const parts = figureCols.filter((ci) => ci !== totalCi).map((ci) => asNum(e.women![ci]));
+    const total = asNum(e.women[totalCi]);
+    if (total === null || parts.some((v) => v === null)) continue;
+    const sum = (parts as number[]).reduce((n, v) => n + v, 0);
+    if (sum !== total) problems.push(`page ${context.rowPages[e.index]}, ${e.cells[firstName]}: the women's figures add up to ${sum}; the printed women's total is ${total}. Check the figures against the page.`);
+  }
+
+  // Disability parts present in the table, in first-seen order.
+  const parts: string[] = [];
+  if (pwbdCol >= 0) for (const e of entries) for (const m of (e.cells[pwbdCol] ?? "").matchAll(PWBD_PART)) { const k = m[1].toUpperCase(); if (!parts.includes(k)) parts.push(k); }
+
+  const columns: string[] = [];
+  const hints: Array<ColumnHint | null> = [];
+  t.columns.forEach((c, ci) => {
+    if (!keep[ci]) return;
+    const m = meanings[ci];
+    columns.push(m ? m.canonical : c);
+    const role = !m ? null : m.role === "post" || m.role === "dim" ? "dim" : m.role === "serial" ? "serial" : m.role === "total" ? "total" : "category";
+    hints.push(m && role ? { role, key: m.key ?? m.role, label: label(ci) } : null);
+  });
+  // The women's share of each category: a part of it, never added to the total. Its kind is the notice's word, when printed.
+  const womenCols = anyWomen ? figureCols : [];
+  for (const ci of womenCols) {
+    const m = meanings[ci]!;
+    const key = m.role === "total" ? "women" : `women_${m.key}`;
+    columns.push(m.role === "total" ? "Women (all)" : `Women ${m.canonical}`);
+    hints.push({
+      role: "part", key, label: `${label(ci)} — महिला`, ...(m.role === "total" ? {} : { partOf: "women" }),
+      ...(womenStated ? { kind: "HORIZONTAL" as const, established: { by: "SOURCE" as const, note: `the line under each entry is headed “महिलाओं के लिए आरक्षित रिक्तियों की संख्या” (vacancies reserved for women), page ${page.page}: the women's share of each category, inside it` } } : {}),
+    });
+  }
+  for (const k of parts) { columns.push(`PwBD ${k}`); hints.push({ role: "part", key: `pwbd_${k.toLowerCase()}`, label: `${pwbdCol >= 0 ? label(pwbdCol) : "दिव्यांग"} ${k}`, partOf: "pwbd" }); }
+
+  const rows = entries.map((e) => {
+    // A row of the wrong width cannot be placed: left as it is, so the reader reports it as not read.
+    if (e.cells.length !== t.columns.length) return e.cells;
+    const cells = e.cells.filter((_, ci) => keep[ci]);
+    // The total line often prints both figures in one cell ("466 158": all posts, then women): split only when
+    // the table has women's lines and the cell holds exactly two figures.
+    const isTotal = firstName >= 0 && TOTAL_ROW.test((e.cells[firstName] ?? "").trim());
+    const pairs = isTotal && anyWomen ? womenCols.map((ci) => /^(\d+)\s+(\d+)$/.exec((e.cells[ci] ?? "").trim())) : [];
+    const split = pairs.filter(Boolean).length >= Math.max(2, Math.ceil(womenCols.length / 2));
+    if (split) {
+      womenCols.forEach((ci, i) => { const m = pairs[i]; if (m) cells[keep.slice(0, ci).filter(Boolean).length] = m[1]; });
+      problems.push(`page ${context.rowPages[e.index]}: the ${e.cells[firstName]} line prints two figures in a cell (“${pairs.find(Boolean)![0]}”): read as all posts, then women`);
+    }
+    for (const [i, ci] of womenCols.entries()) cells.push(split ? pairs[i]?.[2] ?? "[blank]" : e.women ? e.women[ci] ?? "[blank]" : "[blank]");
+    const text = pwbdCol >= 0 ? e.cells[pwbdCol] ?? "" : "";
+    const found = new Map([...text.matchAll(PWBD_PART)].map((m) => [m[1].toUpperCase(), m[2]]));
+    // A disability cell that is not only parts ("… (DD - 01 एवं MD - 01)"): the parts are read, the rest said.
+    if (text && !isBlank(text) && !NONE.test(text.trim()) && text.replace(PWBD_PART, "").replace(/[\s,;]/g, "").length > 0) {
+      problems.push(`page ${context.rowPages[e.index]}: “${text}” in ${label(pwbdCol)}: only the disability figures (${[...found].map(([k, v]) => `${k} ${v}`).join(", ") || "none"}) are read; the rest is kept in the row as printed`);
+    }
+    for (const k of parts) cells.push(found.get(k) ?? "[blank]");
+    return cells;
+  });
+  const sources = entries.map((e) => ({ index: e.index, printed: [e.cells, ...(e.women ? [e.women] : [])].map((r) => r.join(" | ")).join("\n") }));
+  return { ...t, columns, rows, hints, sources };
+}

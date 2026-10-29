@@ -1,0 +1,64 @@
+diff --git a/src/lib/cms/importer/scan-tables.ts b/src/lib/cms/importer/scan-tables.ts
+index 9afcff1..9aedd17 100644
+--- a/src/lib/cms/importer/scan-tables.ts
++++ b/src/lib/cms/importer/scan-tables.ts
+@@ -22,6 +22,7 @@
+ import { callAiJson } from "@/lib/cms/ai-assist";
+ import type { VacancyDimension } from "@/lib/vacancy-table";
+ import type { ColumnSpec, FoundTable, Line } from "@/lib/cms/importer/vacancy-tables";
++import { normaliseTable } from "@/lib/cms/importer/table-lexicon";
+ 
+ export interface TranscribedTable { title: string; continues: boolean; columns: string[]; rows: string[][] }
+ export interface TranscribedPage {
+@@ -260,7 +261,14 @@ export function foundTablesFromTranscription(pages: TranscribedPage[], opts: {
+   }
+ 
+   const found: FoundTable[] = [];
+-  for (const run of runs) {
++  const linesOf = new Map(pages.map((p) => [p.page, p.lines]));
++  for (const raw of runs) {
++    // Headings in an Indian language: mapped to the reader's terms by the lexicon, the printed heading kept as the label.
++    const norm = normaliseTable({ ...raw.t, rows: raw.rows.map((r) => r.cells) }, { lines: raw.pages.flatMap((n) => linesOf.get(n) ?? []), pages: raw.pages.join(", "), rowPages: raw.rows.map((r) => r.page) }, problems);
++    const hints = norm.hints ?? null;
++    const run: Open & { rows: Array<{ cells: string[]; page: number; printed?: string }> } = hints
++      ? { ...raw, t: { ...raw.t, columns: norm.columns }, rows: norm.rows.map((cells, i) => ({ cells, page: raw.rows[norm.sources![i].index].page, printed: norm.sources![i].printed })) }
++      : raw;
+     const { columns, title } = run.t;
+     const good = run.rows.filter((r) => {
+       if (r.cells.length === columns.length) return true;
+@@ -301,7 +309,13 @@ export function foundTablesFromTranscription(pages: TranscribedPage[], opts: {
+     const keys = new Set<string>();
+     const specs: Array<{ ci: number; spec: ColumnSpec }> = [];
+     for (const ci of [...categoryCols, ...(totalCol !== null ? [totalCol] : [])].sort((a, b) => a - b)) {
+-      if (ci === totalCol) { specs.push({ ci, spec: { key: "total", label: "Total", role: "total" } }); continue; }
++      if (ci === totalCol) { specs.push({ ci, spec: { key: "total", label: hints?.[ci]?.label ?? "Total", role: "total" } }); continue; }
++      const hint = hints?.[ci];
++      if (hint && !keys.has(hint.key)) {
++        keys.add(hint.key);
++        specs.push({ ci, spec: { key: hint.key, label: hint.label, role: "category", ...(hint.partOf ? { partOf: hint.partOf } : {}), ...(hint.kind ? { kind: hint.kind, established: hint.established } : {}) } });
++        continue;
++      }
+       let key = STANDARD[columns[ci].toLowerCase()] ?? slug(columns[ci]);
+       if (key === "total") key = "total_column";
+       for (let n = 2; keys.has(key); n++) key = `${slug(columns[ci])}_${n}`;
+@@ -313,9 +327,9 @@ export function foundTablesFromTranscription(pages: TranscribedPage[], opts: {
+     const dimKeyOf = new Map<number, string>();
+     for (const ci of dimCols) {
+       const h = columns[ci];
+-      let key = POST_COLUMN.test(h) ? "post" : DIM_COLUMNS.find(([re]) => re.test(h))?.[1] ?? slug(h);
++      let key = hints?.[ci]?.key && hints[ci]!.key !== "serial" ? hints[ci]!.key : POST_COLUMN.test(h) ? "post" : DIM_COLUMNS.find(([re]) => re.test(h))?.[1] ?? slug(h);
+       for (let n = 2; dimensions.some((d) => d.key === key); n++) key = `${slug(h)}_${n}`;
+-      dimensions.push({ key, label: h });
++      dimensions.push({ key, label: hints?.[ci]?.label ?? h });
+       dimKeyOf.set(ci, key);
+     }
+ 
+@@ -324,7 +338,7 @@ export function foundTablesFromTranscription(pages: TranscribedPage[], opts: {
+     // Every category column must belong to exactly one printed subtotal for the subtotals to say anything.
+     let holds = subtotalCols.length > 0 && categoryCols.every((ci) => subtotalCols.filter((sc) => groupOf(columns[sc]) === groupOf(columns[ci], true)).length === 1);
+     for (const r of good) {
+-      const printed = r.cells.join(" | ");
++      const printed = (r as { printed?: string }).printed ?? r.cells.join(" | ");
+       const figures = specs.map(({ ci }) => figureToken(r.cells[ci]) ?? "-");
+       const name = dimCols.map((ci) => r.cells[ci]).join(" ").trim();
+       if (/^(?:grand\s+)?total\b/i.test(name)) { totalsRows.push({ label: name, figures, page: r.page, printed }); continue; }

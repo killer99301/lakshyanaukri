@@ -50,8 +50,12 @@ export interface SourceRef {
    * image (there was no text to read). Its figures are the AI's reading of
    * a picture: they stay to be checked against the page, whatever the
    * arithmetic says.
+   *
+   * "PREPARED": the rows were prepared outside the notice (by an AI, a
+   * person, or copied from another website) and pasted in. They are research,
+   * not the notice: they stay to be checked against it, page by page.
    */
-  readBy?: "AI_IMAGE";
+  readBy?: "AI_IMAGE" | "PREPARED";
 }
 
 export type RowStatus = "STATED" | "NIL" | "NOT_REPORTED" | "NO_FIGURE";
@@ -108,7 +112,8 @@ export interface Figure {
 
 export type IssueCode =
   | "DUPLICATE_ROW" | "MISSING_DIMENSION" | "BAD_FIGURE" | "ROW_TOTAL_MISMATCH" | "HORIZONTAL_EXCEEDS_TOTAL"
-  | "NOT_REPORTED" | "NO_FIGURE" | "UNDETERMINED_COLUMN" | "STATED_TOTAL_MISMATCH" | "NO_SOURCE" | "FIGURES_NOT_IN_LINE" | "UNCLEAR_FIGURE" | "SUGGESTED_SPELLING";
+  | "NOT_REPORTED" | "NO_FIGURE" | "UNDETERMINED_COLUMN" | "STATED_TOTAL_MISMATCH" | "NO_SOURCE" | "FIGURES_NOT_IN_LINE" | "UNCLEAR_FIGURE" | "SUGGESTED_SPELLING"
+  | "PARTS_TOTAL_MISMATCH";
 
 export interface TableIssue {
   code: IssueCode;
@@ -211,7 +216,7 @@ function inferFromPrintedTotals(rows: VacancyTableRow[], vertical: string[], und
 /** A figure taken as given: printed in a document when a page or source backs it, otherwise entered by hand. */
 function printedOrEntered(source: SourceRef): Pick<Figure, "basis" | "method"> {
   return source && (source.page != null || !!source.retrievalId)
-    ? { basis: "STATED", method: `printed in the notice${source.page != null ? ` (page ${source.page})` : ""}` }
+    ? { basis: "STATED", method: `${source.readBy === "PREPARED" ? "prepared outside from the notice, to be checked" : "printed in the notice"}${source.page != null ? ` (page ${source.page})` : ""}` }
     : { basis: "ENTERED", method: "entered by hand" };
 }
 
@@ -244,6 +249,7 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
   }
 
   // Row checks.
+  const partGroups = new Set(categories.filter((c) => c.partOf && categories.some((x) => x.key === c.partOf)).map((c) => c.partOf!));
   const columnName = (key: string) => key === "total" ? "the total" : categories.find((c) => c.key === key)?.label ?? key;
   const seen = new Map<string, string>();
   for (const r of table.rows) {
@@ -285,9 +291,18 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
     }
     const rowTotal = isCount(r.total) ? r.total : hasVertical ? sumOf(r.cells, vertical) : undefined;
     if (rowTotal !== undefined) {
-      // A horizontal group (all PwBD parts together) cannot exceed the row.
+      // A horizontal group (all PwBD parts together) cannot exceed the row. A column whose key is a
+      // group's name is that group's printed total (BPSC: women's total over the women's share of each
+      // category): it is not added to its parts, and its parts must add up to it.
       const groups = new Map<string, number>();
-      for (const c of horizontal) if (isCount(r.cells[c.key])) groups.set(c.partOf ?? c.key, (groups.get(c.partOf ?? c.key) ?? 0) + r.cells[c.key]);
+      for (const c of horizontal) if (!partGroups.has(c.key) && isCount(r.cells[c.key])) groups.set(c.partOf ?? c.key, (groups.get(c.partOf ?? c.key) ?? 0) + r.cells[c.key]);
+      for (const g of partGroups) {
+        const parts = categories.filter((c) => c.partOf === g);
+        if (!isCount(r.cells[g]) || parts.some((c) => !isCount(r.cells[c.key]))) continue;
+        const s = sumOf(r.cells, parts.map((c) => c.key));
+        if (s !== r.cells[g]) issues.push({ code: "PARTS_TOTAL_MISMATCH", severity: "ERROR", rowIds: [r.id], group: r.at[groupDim],
+          message: `${dims.map((d) => r.at[d.key]).join(", ")}: ${parts.map((c) => c.label).join(" + ")} add up to ${s}; the printed ${columnName(g)} is ${r.cells[g]}.` });
+      }
       for (const [g, n] of groups) {
         if (n > rowTotal) issues.push({ code: "HORIZONTAL_EXCEEDS_TOTAL", severity: "ERROR", message: `${dims.map((d) => r.at[d.key]).join(", ")}: ${g} seats (${n}) exceed the row total (${rowTotal}).`, rowIds: [r.id] });
       }
@@ -385,6 +400,32 @@ export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
     grandTotal = { value: statedGrand.total, ...printedOrEntered(statedGrand.source), complete: true, inputs: [], fingerprint: fingerprintOf(statedGrand) };
   }
 
+  // Printed totals against the rows they cover, column by column: the grand total, a post's, or a
+  // subtotal of the rows sharing a value (BPSC: सारणी I's Total line). A column is compared only when
+  // every row it covers gives that column; a difference is said, never corrected.
+  for (const s of table.statedTotals) {
+    const covered = table.rows.filter((r) => Object.entries(s.at).every(([k, v]) => (r.at[k] ?? "").replace(/\s+/g, " ").trim().toLowerCase() === v.replace(/\s+/g, " ").trim().toLowerCase()));
+    const counted = covered.filter(usable);
+    if (counted.length === 0 || counted.length !== covered.length || counted.some((r) => r.status !== "STATED" && r.status !== "NIL")) continue;
+    const where = Object.values(s.at).join(", ") || "The table";
+    const checks: Array<[string, number, number | null]> = [];
+    const isFirstDimOnly = Object.keys(s.at).length === 1 && Object.keys(s.at)[0] === groupDim;
+    if (Object.keys(s.at).length > 0 && !isFirstDimOnly && isCount(s.total)) {
+      const totals = counted.map((r) => (r.status === "NIL" ? 0 : rowValue(r)));
+      checks.push(["the total", s.total, totals.every((v) => v !== null) ? (totals as number[]).reduce((a, b) => a + b, 0) : null]);
+    }
+    for (const [k, n] of Object.entries(s.cells ?? {})) {
+      if (!isCount(n)) continue;
+      const vals = counted.map((r) => (r.status === "NIL" ? 0 : r.cells[k]));
+      checks.push([columnName(k), n, vals.every(isCount) ? vals.reduce((a, b) => a + b, 0) : null]);
+    }
+    for (const [name, printed, sum] of checks) {
+      if (sum === null || sum === printed) continue;
+      issues.push({ code: "STATED_TOTAL_MISMATCH", severity: "ERROR", ...(isFirstDimOnly ? { group: s.at[groupDim] } : {}),
+        message: `${where}: ${hasEvidence(s) ? "the notice prints" : "the figure entered by hand is"} ${printed} for ${name}${s.source.page != null ? ` (page ${s.source.page})` : ""}; its ${counted.length} rows add up to ${sum}. Decide which is right.` });
+    }
+  }
+
   return { categories, groups, grandTotal, issues, fingerprint: fingerprintOf({ table }) };
 }
 
@@ -479,7 +520,7 @@ export function vacancyTableShapeErrors(t: unknown): string[] {
     if (!r.at || typeof r.at !== "object" || Object.keys(r.at).some((k) => !dimKeys.has(k))) errors.push(`row "${r.id}" names a dimension the table does not have`);
     if (!r.cells || typeof r.cells !== "object" || Object.keys(r.cells).some((k) => !catKeys.has(k))) errors.push(`row "${r.id}" has a figure for a category the table does not have`);
     if (!r.source || typeof r.source !== "object" || typeof r.source.line !== "string") errors.push(`row "${r.id}" has no source`);
-    else if (r.source.readBy !== undefined && r.source.readBy !== "AI_IMAGE") errors.push(`row "${r.id}" says it was read in an unknown way`);
+    else if (r.source.readBy !== undefined && r.source.readBy !== "AI_IMAGE" && r.source.readBy !== "PREPARED") errors.push(`row "${r.id}" says it was read in an unknown way`);
     if (r.unclear !== undefined && (!Array.isArray(r.unclear) || r.unclear.some((k) => k !== "total" && !catKeys.has(k)))) errors.push(`row "${r.id}" marks an unknown column as unreadable`);
     for (const [name, map] of [["suggested", r.suggested], ["printedAt", r.printedAt]] as const) {
       if (map !== undefined && (!map || typeof map !== "object" || Object.entries(map).some(([k, v]) => !dimKeys.has(k) || typeof v !== "string" || !v.trim() || v.length > 300))) {
@@ -544,13 +585,16 @@ export function calculatedTotalReady(
   else if (a.grandTotal.basis === "STATED") reasons.push("the total is printed in the notice; check it as usual");
   else if (a.grandTotal.basis === "ENTERED") reasons.push("the total was entered by hand, with no page of a document behind it");
   if (a.grandTotal && !a.grandTotal.complete) reasons.push("the total is incomplete");
-  for (const code of ["NO_SOURCE", "FIGURES_NOT_IN_LINE", "NOT_REPORTED", "NO_FIGURE", "UNCLEAR_FIGURE", "DUPLICATE_ROW", "MISSING_DIMENSION", "BAD_FIGURE", "UNDETERMINED_COLUMN", "ROW_TOTAL_MISMATCH", "STATED_TOTAL_MISMATCH", "HORIZONTAL_EXCEEDS_TOTAL"] as IssueCode[]) {
+  for (const code of ["NO_SOURCE", "FIGURES_NOT_IN_LINE", "NOT_REPORTED", "NO_FIGURE", "UNCLEAR_FIGURE", "DUPLICATE_ROW", "MISSING_DIMENSION", "BAD_FIGURE", "UNDETERMINED_COLUMN", "ROW_TOTAL_MISMATCH", "STATED_TOTAL_MISMATCH", "HORIZONTAL_EXCEEDS_TOTAL", "PARTS_TOTAL_MISMATCH"] as IssueCode[]) {
     const n = a.issues.filter((i) => i.code === code).length;
     if (n > 0) reasons.push(`${n} × ${code.toLowerCase().replace(/_/g, " ")}`);
   }
   // Figures the AI read from a picture: their arithmetic agreeing proves nothing about the page.
   const fromImage = table.rows.filter((r) => r.source?.readBy === "AI_IMAGE").length;
   if (fromImage > 0 && !opts.tableChecked) reasons.push(`${fromImage} row${fromImage === 1 ? " was" : "s were"} read from scanned page images by AI; check them against the pages`);
+  // Rows prepared outside (an AI, a person, another website) are research until checked against the notice.
+  const prepared = table.rows.filter((r) => r.source?.readBy === "PREPARED").length;
+  if (prepared > 0 && !opts.tableChecked) reasons.push(`${prepared} row${prepared === 1 ? " was" : "s were"} prepared outside the notice (by an AI, a person or another website); check them against the notice's pages`);
   if (!opts.tableChecked) reasons.push("the table has not been checked against the notice");
   if (opts.stored && a.grandTotal && (opts.stored.value !== a.grandTotal.value || opts.stored.fingerprint !== a.grandTotal.fingerprint)) {
     reasons.push("the stored total no longer matches a recalculation from the rows");

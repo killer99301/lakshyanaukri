@@ -40,9 +40,11 @@ let idCounter = 0;
 const newId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
 function FigureBadges({ f }: { f: Figure }) {
+  // A figure from rows prepared outside the notice is research until checked: never shown as printed in it.
+  const prepared = f.basis === "STATED" && f.method.startsWith("prepared outside");
   return (
     <>
-      <span style={chip(f.basis === "STATED" ? C.accent : f.basis === "ENTERED" ? C.amber : C.green)} title={f.method}>{f.basis === "STATED" ? "Printed in the notice" : f.basis === "ENTERED" ? "Entered by hand" : "Calculated"}</span>
+      <span style={chip(prepared || f.basis === "ENTERED" ? C.amber : f.basis === "STATED" ? C.accent : C.green)} title={f.method}>{prepared ? "Prepared outside, to check" : f.basis === "STATED" ? "Printed in the notice" : f.basis === "ENTERED" ? "Entered by hand" : "Calculated"}</span>
       {!f.complete && <span style={chip(C.amber)} title="Some rows it depends on are not reported, have no figure, or a column's place is not decided.">Incomplete</span>}
     </>
   );
@@ -58,6 +60,8 @@ function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onA
   const [fixed, setFixed] = useState<Record<string, string>>({});
   const [page, setPage] = useState("");
   const [replace, setReplace] = useState(false);
+  // Where the pasted rows come from: copied from the notice itself, or prepared outside it (research, to be checked).
+  const [prepared, setPrepared] = useState(false);
 
   const read = () => {
     const g = readPasted(text);
@@ -80,8 +84,8 @@ function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onA
     return { ...grid, headerLines, headers };
   }, [grid, headerLines]);
   const built = useMemo(() => effectiveGrid
-    ? buildRows(effectiveGrid, roles, { constants, page: page ? Number(page) : null, idPrefix: newId("p") + "-" })
-    : null, [effectiveGrid, roles, constants, page]);
+    ? buildRows(effectiveGrid, roles, { constants, page: page ? Number(page) : null, prepared, idPrefix: newId("p") + "-" })
+    : null, [effectiveGrid, roles, constants, page, prepared]);
   // The table's own dimension order: fixed values and pasted columns arranged to match it.
   const ordered = useMemo(() => {
     if (!built || !table) return built;
@@ -126,6 +130,12 @@ function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onA
             ))}
           </div>
           {!page && <div style={{ fontSize: 11, color: C.amber, marginTop: 6 }}>Without a page, these rows are marked “entered by hand” and cannot count as checked against the notice.</div>}
+          <fieldset data-paste-origin style={{ border: "none", padding: 0, margin: "8px 0 0", fontSize: 12, display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <legend style={{ ...label, padding: 0 }}>Where are these rows from?</legend>
+            <label><input type="radio" name="paste-origin" checked={!prepared} onChange={() => setPrepared(false)} /> Copied from the official notice</label>
+            <label><input type="radio" name="paste-origin" checked={prepared} onChange={() => setPrepared(true)} /> Prepared outside it (by an AI, a person or another website)</label>
+          </fieldset>
+          {prepared && <div style={{ fontSize: 11, color: C.amber, marginTop: 4 }}>Marked “prepared outside”: research, not the notice. The table cannot be published as checked until every row is compared with the notice’s pages.</div>}
 
           <div style={{ overflowX: "auto", marginTop: 12 }}>
             <table style={{ borderCollapse: "collapse", fontSize: 12 }}>
@@ -194,6 +204,7 @@ function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onA
                 <>
                   <div data-paste-summary>
                     <b>{ordered.rows.length}</b> rows read: <b>{plan.added.length}</b> new, <b>{plan.same.length}</b> already in the table with the same figures, <b>{plan.differ.length}</b> already in the table with different figures.
+                    {ordered.statedTotals.length > 0 && <> <b>{ordered.statedTotals.length}</b> total line{ordered.statedTotals.length === 1 ? "" : "s"} kept as the notice’s printed total{ordered.statedTotals.length === 1 ? "" : "s"}.</>}
                   </div>
                   {plan.differ.length > 0 && (
                     <div style={{ marginTop: 6, padding: 8, border: `1px solid ${C.amber}55`, borderRadius: 6 }}>
@@ -206,8 +217,8 @@ function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onA
                       </label>
                     </div>
                   )}
-                  <button style={{ ...primary, marginTop: 10 }} disabled={plan.added.length === 0 && !(replace && plan.differ.length > 0)}
-                    onClick={() => onAdd(plan.table, `Pasted ${plan.added.length} new row${plan.added.length === 1 ? "" : "s"}${replace && plan.differ.length ? ` and replaced ${plan.differ.length}` : ""}${page ? ` from page ${page}` : ""}`)}>
+                  <button style={{ ...primary, marginTop: 10 }} disabled={plan.added.length === 0 && !(replace && plan.differ.length > 0) && ordered.statedTotals.length === 0}
+                    onClick={() => onAdd(plan.table, `Pasted ${plan.added.length} new row${plan.added.length === 1 ? "" : "s"}${replace && plan.differ.length ? ` and replaced ${plan.differ.length}` : ""}${ordered.statedTotals.length ? `, ${ordered.statedTotals.length} printed total${ordered.statedTotals.length === 1 ? "" : "s"}` : ""}${page ? ` from page ${page}` : ""}${prepared ? " (prepared outside the notice)" : ""}`)}>
                     Put them in the table
                   </button>
                   <span style={{ fontSize: 11, color: C.muted, marginLeft: 8 }}>Nothing is saved until you click “Save table”.</span>
@@ -460,6 +471,7 @@ export function VacancyTableEditor({ record, onSaved }: { record: RecruitmentRec
                               onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateRow(r.id, { source: { ...r.source, page: v ? Number(v) : null } }); }} />
                             {!hasEvidence(r) && <span style={chip(C.amber)} title="No page of a document behind these figures">entered by hand</span>}
                             {r.source.readBy === "AI_IMAGE" && <span style={chip(C.amber)} title="This page had no text: the AI wrote this row out from the page image. Check every figure against the page.">AI-read from image</span>}
+                            {r.source.readBy === "PREPARED" && <span style={chip(C.amber)} title="Prepared outside the notice (by an AI, a person or another website) and pasted in: research until checked against the notice's page.">prepared outside</span>}
                             {r.unclear?.length ? <span style={chip(C.red)} title="Printed, but not made out on the scanned page; never filled in">unreadable: {r.unclear.join(", ")}</span> : null}
                             {/* A spelling the AI suggests for a printed name: shown, applied only by the admin; the printed name is kept. */}
                             {Object.entries(r.suggested ?? {}).map(([k, v]) => (
