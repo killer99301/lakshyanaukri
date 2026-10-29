@@ -1,6 +1,6 @@
 # Smart intake — B2.6 final acceptance report
 
-Updated 2026-10-29, 01:30 IST. Part 2 (SSC, UPSC and BPSC) is at the end: read it first.
+Updated 2026-10-29, 11:30 IST. Part 3 (the decisions and fixes of 29 October) is at the end: read it first. The final real-Gemini runs follow after the daily quota resets (12:30 IST).
 
 **Status: NOT ACCEPTED YET.**
 - **Supplied sources:** IBPS, LIC and BTSC have been run twice with the real

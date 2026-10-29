@@ -94,6 +94,45 @@ Please put the PDFs in one folder (for example `D:\b2-sources`) and tell me the 
 | B2.3 | Background reading job with progress; browser-side PDF splitting (if D2/D3 approved) | 76-page IBPS PDF and a >4 MB scan imported in the browser; leave and reopen mid-read |
 | B2.4 | Scan pages: AI transcription into the B1 table reader, arithmetic checks | LIC scan Table E: 181 rows, 232, with every row's page; any rows that fail the checks flagged rather than corrected |
 | B2.5 | Tables across pages and batches | Made-up split tables (heading not repeated, a row repeated at the break) and IBPS/LIC unchanged |
-| B2.6 | Real-source acceptance and regression | Two real-Gemini runs over IBPS, LIC (text and scan), BTSC, SSC CGL + corrigendum, UPSC CSE, BPSC 72nd; differences reported; browser save and reopen; full regression |
+| B2.6 | Real-source acceptance and regression | See §6: revised 2026-10-29 |
 
 Each step is committed locally only when its tests pass. Tests are not loosened to get a pass. Stage C, the publishing gate, production, migration, push and deploy are untouched.
+
+## 6. Revised 2026-10-29: one Smart intake, several ways in
+
+The owner's decision, after B2.6 part 2.
+
+**The goal** is to reduce the owner's workload, not to build an OCR engine for every layout. Whatever way a notice comes in, it reaches the same organised draft and the same review and publishing safeguards:
+
+> information received → fields organised → vacancy table prepared → evidence attached → reviewed → published.
+
+**Supported ways in**, each a legitimate route:
+
+1. the official PDF, uploaded (text, scanned or mixed);
+2. the official page's address;
+3. text copied from the browser's reading mode and pasted;
+4. a table prepared outside (by ChatGPT, Claude or a person, or copied from another website) and pasted into **Paste a vacancy table**;
+5. a table typed or pasted by hand, with each column's meaning chosen.
+
+**Scanned pages stay best-effort.** The scan reader (§2.4) and all its checks stay: unreadable or uncertain figures are never accepted silently. A universal Hindi or Indian-language scan-table reader is **not** a B2 requirement. The unfinished one is parked in `docs/parked/`, not wired in.
+
+**Prepared tables are research until checked:**
+- rows pasted as "prepared outside" are marked `PREPARED`;
+- they show "Prepared outside, to check", never "Printed in the notice";
+- they keep the notice's page and printed line;
+- the table cannot be marked ready until compared with the notice;
+- a pasted "Total" line is kept as the notice's printed total and checked against the rows.
+
+**Paid OCR services and new OCR infrastructure are out of scope.**
+
+### Revised B2.6 acceptance criteria
+
+| Area | Accepted when |
+|---|---|
+| BPSC 72nd vacancy tables (Hindi) | Entered through the paste route from a prepared table: 22 + 3 posts, 1,077 + 153 = 1,230, Hindi labels kept, women's share within each category, printed totals checked, the notice's own inconsistencies reported, every row "prepared outside" and not verified |
+| BPSC corrigendum (Sugarcane Officer) | Through the real scanned PDF: the 44 posts found by code with quotes and page, matched to the job's row, 1,230 − 44 = 1,186 checked, offered unticked, the row and its women's share removed together, saved, reopened, restored in one click; wrong count, unknown post, ambiguous name, wrong table and bad total refuse |
+| UPSC CSE | 05/2026-CSE; age 21–32 as on 1 August 2026; SC/ST, OBC, ex-servicemen and PwBD relaxations with their clauses; the public age checker answers |
+| SSC CGL | Each post's own age from the table of posts; posts printing no age of their own said, not guessed; no one range for every post; coded relaxations kept apart (PwBD + OBC is not PwBD) |
+| Selection and schedule | No announcement counted as a selection stage; types match names; an interview the schedule dates is never silently lost; every change shown on the item |
+| Review wording | Warnings say what is wrong; done-in-full notes look done; months are not "not declared" |
+| All sources | Two real-Gemini runs (Gemini 3.5 Flash-Lite) over IBPS, LIC, BTSC, SSC, UPSC and BPSC within the daily quota; corrigenda against local records; browser save, reopen, history and restore; full regression, PostgreSQL concurrency, type check, lint and production build. Incomplete or unverified information stays flagged. |
