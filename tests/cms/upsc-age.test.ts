@@ -91,7 +91,7 @@ test("UN09 an AI figure that differs from the clause is corrected to the clause,
   const r = read({ aiNumber: "05/2026-CSE", aiNumberQuote: "EXAMINATION NOTICE NO 05/2026-CSE DATE: 04.02.2026", relaxations: [{ category: "OBC", years: 5 }] });
   const age = value(r, "age")!.value as AgeCriteria;
   assert.deepEqual(age.relaxations.filter((x) => /OBC/.test(x.category)).map((x) => x.years), [3]);
-  assert.ok(r.refused.some((x) => x.fieldPath === "age" && /the reading gave 5 years for OBC; the notice's clause says 3/.test(x.reason)));
+  assert.ok(r.refused.some((x) => x.fieldPath === "age" && /the reading gave 5 years for OBC; the notice prints 3/.test(x.reason)));
 });
 
 suite("The public age checker on UPSC's reading");

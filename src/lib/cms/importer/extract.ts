@@ -26,6 +26,7 @@ import { readArticleInBatches, type ArticleReading, type ReadingCoverage } from 
 import type { ExtractedValue } from "@/lib/cms/importer/proposal";
 import { readPatternTables, statedCoverage, type PatternCoverage } from "@/lib/cms/importer/pattern-tables";
 import { relaxationMembers, statedRelaxations } from "@/lib/cms/importer/age-relaxations";
+import { readPostAgeTable } from "@/lib/cms/importer/post-age-table";
 import type { AgeCriteria } from "@/types/recruitment-record";
 
 export interface SourceReading {
@@ -194,9 +195,41 @@ export function combineReading(opts: {
     "dates.correctionWindowEnd": /^Correction Window End/, "dates.applicationOpenDate": /^Application Opens/,
     "dates.applicationCloseDate": /^Application Closes/,
   };
-  // Relaxations the notice prints as a lettered list, read by code (UPSC): a group the reading left out is
-  // added with its clause as the quote; a group it gave a different number of years is corrected to the
-  // clause, and said. Groups the list does not print stay as read.
+  // Ages printed in the notice's list of posts, read by code (SSC CGL): each post's own range, with its row as
+  // the quote. They are the post-wise ages; where they differ, no one range is applied to every post. A row
+  // with no age of its own is said, never given a neighbour's range.
+  const postTable = readPostAgeTable(plain);
+  if (postTable) {
+    const at = values.findIndex((v) => v.fieldPath === "age");
+    const before = at >= 0 ? (values[at].value as AgeCriteria) : { relaxations: [] } as AgeCriteria;
+    const names = postTable.rows.map((r) => r.post);
+    const postWise = postTable.rows.map((r) => {
+      const level = r.group?.replace(/\s*\(.*$/, "") ?? null;
+      const post = names.filter((n) => n === r.post).length > 1 && level ? `${r.post} — ${level}` : r.post;
+      const page = pageOf(plain, r.quote);
+      return { post, min: r.min, max: r.max, evidence: [{ about: "post", value: post, quote: r.quote, page }, { about: "min", value: String(r.min), quote: r.quote, page }, { about: "max", value: String(r.max), quote: r.quote, page }] };
+    });
+    const ranges = new Set(postTable.rows.map((r) => `${r.min}-${r.max}`));
+    const next: AgeCriteria = { ...before, postWise };
+    if (before.postWise?.length) refused.push({ fieldPath: "age", reason: `the reading's ${before.postWise.length} post-wise age rows are set aside: the notice's own table of posts gives each post's age (${postWise.length} posts, read by code)` });
+    if (ranges.size > 1) {
+      if (before.min !== undefined || before.max !== undefined) refused.push({ fieldPath: "age", reason: `one range (${before.min ?? "?"}-${before.max ?? "?"}) is not applied to every post: the notice prints each post's own age (${[...ranges].sort().join(", ")} years)` });
+      delete next.min;
+      delete next.max;
+    } else {
+      [next.min, next.max] = postTable.rows[0] ? [postTable.rows[0].min, postTable.rows[0].max] : [next.min, next.max];
+    }
+    for (const u of postTable.unread) {
+      refused.push({ fieldPath: "age", reason: `post ${u.serial}${u.group ? ` (${u.group})` : ""}, “${u.text.slice(0, 100)}”: no age in its own row of the table of posts (a merged cell?); not given another post's range — enter it from the notice` });
+    }
+    const quote = postTable.rows[0].quote;
+    if (at >= 0) values[at] = { ...values[at], value: next };
+    else values.push({ fieldPath: "age", value: next, quote, page: pageOf(plain, quote) });
+  }
+
+  // Relaxations the notice prints as a lettered list (UPSC) or a coded table (SSC), read by code: a group the
+  // reading left out is added with its clause or row as the quote; a group it gave a different number of years
+  // is corrected to the printed figure, and said. Groups the notice's list does not print stay as read.
   const ageAt = values.findIndex((v) => v.fieldPath === "age");
   // The date the age is counted on, when the reading left it out but its own quote prints exactly one date
   // ("must not have attained the age of 32 years on the 1st of August, 2026").
@@ -213,15 +246,18 @@ export function combineReading(opts: {
     const age = values[ageAt].value as AgeCriteria;
     const relaxations = [...(age.relaxations ?? [])];
     const evidence = [...(age.evidence ?? [])];
+    const key = (c: string) => relaxationMembers(c).join("+");
     for (const s of listed) {
       const members = relaxationMembers(s.category);
-      const had = relaxations.findIndex((r) => relaxationMembers(r.category).some((m) => members.includes(m)));
-      if (had >= 0 && relaxations[had].years === s.years) continue;
-      if (had >= 0) {
-        refused.push({ fieldPath: "age", reason: `the reading gave ${relaxations[had].years ?? "no number of"} years for ${relaxations[had].category}; the notice's clause says ${s.years} (“${s.quote.slice(0, 120)}”): the printed figure is kept` });
-        relaxations.splice(had, 1);
+      if (!members.length) continue;
+      // The reading's rows for exactly the same groups: "PwBD (OBC)" (both at once) is not "PwBD" or "OBC".
+      const same = relaxations.filter((r) => key(r.category) === key(s.category));
+      if (same.some((r) => r.years === s.years)) continue;
+      for (const r of same) {
+        refused.push({ fieldPath: "age", reason: `the reading gave ${r.years ?? "no number of"} years for ${r.category}; the notice prints ${s.years} (“${s.quote.replace(/\s+/g, " ").slice(0, 120)}”): the printed figure is kept` });
+        relaxations.splice(relaxations.indexOf(r), 1);
       }
-      relaxations.push({ category: s.category, years: s.years });
+      relaxations.push({ category: s.category, years: s.years, ...(s.text ? { text: s.text } : {}) });
       evidence.push({ about: `relaxation: ${s.category} (read by code)`, value: String(s.years), quote: s.quote, page: pageOf(plain, s.quote) });
     }
     values[ageAt] = { ...values[ageAt], value: { ...age, relaxations, evidence } };
