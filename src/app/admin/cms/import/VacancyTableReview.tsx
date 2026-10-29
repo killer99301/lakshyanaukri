@@ -22,6 +22,17 @@ export interface VacancyTableNote {
   problems?: string[];
   removalsHeld?: number;
   diff?: { added: number; changed: number; removed: number; same: number; untouchedPosts: string[]; addedRows: Brief[]; changedRows: Array<{ before: Brief; after: Brief }>; removedRows: Brief[] };
+  /** Posts a corrigendum deletes, as matched against the job's table (P2.3). */
+  removal?: {
+    removals: Array<{
+      post: string; count: number; printedCount: number | null; serial: string | null; table: string | null;
+      quotes: Array<{ text: string; page: number | null }>;
+      rows: Array<{ at: Record<string, string>; total: number | null; page: number | null; line: string; prepared: boolean; cells: Array<{ label: string; value: number; within: boolean }> }>;
+    }>;
+    total: { before: number; removed: number; after: number; quote: string; page: number | null } | null;
+    droppedTotals: Array<{ at: Record<string, string>; total: number; page: number | null }>;
+    refused: Array<{ quote: string; reason: string }>;
+  };
 }
 
 const n = (v: number | null | undefined) => (typeof v === "number" ? v.toLocaleString("en-IN") : "—");
@@ -120,6 +131,38 @@ export function VacancyTableReview({ table, note, pageImageUrl }: {
           {byAi.map((t) => <div key={t.title + t.pages.join()} style={{ fontSize: 12 }}>• {t.title} ({t.pages.map((p) => `p. ${p}`).join(", ")}): code could not match the columns to the heading; the AI read them as {t.columns?.join(", ")}. The figures are as printed.</div>)}
           {undetermined.map((c) => <div key={c.key} style={{ fontSize: 12 }}>• Column {c.label}: not known whether it counts towards the total or is within the others. Decide it in the job editor.</div>)}
           {warnings.map((i, k) => <div key={k} style={{ fontSize: 12 }}>• {i.message}</div>)}
+        </div>
+      )}
+
+      {/* What a corrigendum deletes: exactly the rows and figures that go, with its words */}
+      {note?.removal && note.removal.removals.length > 0 && (
+        <div data-vacancy-removal style={box(C.red)}>
+          <strong style={{ fontSize: 12, color: C.red }}>The corrigendum deletes {plural(note.removal.removals.length, "post")}. Ticked, these rows leave the job&apos;s table:</strong>
+          {note.removal.removals.map((x) => (
+            <div key={x.post} style={{ display: "grid", gap: 3, fontSize: 12 }}>
+              <div style={{ color: C.text }}>
+                <strong>{x.post}</strong>{x.table ? `, table ${x.table}` : ""}{x.serial ? `, serial ${x.serial}` : ""}: {n(x.count)} posts in the job&apos;s table{x.printedCount !== null ? `, ${n(x.printedCount)} as the corrigendum prints them` : "; the corrigendum prints no count"}.
+              </div>
+              {x.rows.map((r, k) => (
+                <div key={k} style={{ paddingLeft: 10 }}>
+                  Row ({pageOf(r.page)}{r.prepared ? ", prepared outside" : ""}): total {n(r.total)} — {r.cells.map((c) => `${c.label} ${n(c.value)}${c.within ? " (within)" : ""}`).join(", ")}
+                </div>
+              ))}
+              <div style={{ paddingLeft: 10, color: C.muted }}>Every figure in {x.rows.length === 1 ? "this row goes with it" : "these rows goes with them"}. A share marked “within” (women, PwBD) is part of the {n(x.count)}: it is not taken away again.</div>
+              {x.quotes.map((q, k) => <div key={`q${k}`} style={{ paddingLeft: 10, fontStyle: "italic", overflowWrap: "anywhere" }}>“{q.text}” ({pageOf(q.page)})</div>)}
+            </div>
+          ))}
+          {note.removal.total
+            ? <div style={{ fontSize: 12 }}>Total: the job&apos;s table adds up to {n(note.removal.total.before)}; less {n(note.removal.total.removed)} is <strong>{n(note.removal.total.after)}</strong>, as the corrigendum prints it (“{note.removal.total.quote}”, {pageOf(note.removal.total.page)}).</div>
+            : <div style={{ fontSize: 12, color: C.amber }}>The corrigendum prints no revised total: the job&apos;s total is worked out again from the rows that stay.</div>}
+          {note.removal.droppedTotals.map((d, k) => <div key={`d${k}`} style={{ fontSize: 12 }}>The printed total for {Object.values(d.at).join(", ") || "the whole table"} ({n(d.total)}, {pageOf(d.page)}) included {note.removal!.removals.length === 1 ? "this post" : "these posts"}: set aside with it.</div>)}
+          <div style={small}>Left unticked: nothing is removed until you tick it. Every other post and figure stays as it is; the table before is kept in the job&apos;s history and can be restored in one click.</div>
+        </div>
+      )}
+      {note?.removal && note.removal.removals.length === 0 && note.removal.refused.length > 0 && (
+        <div data-vacancy-removal-refused style={box(C.amber)}>
+          <strong style={{ fontSize: 12, color: C.amber }}>The corrigendum deletes something, but nothing is removed</strong>
+          {note.removal.refused.map((x, k) => <div key={k} style={{ fontSize: 12 }}>• {x.reason} (“{x.quote.slice(0, 200)}”)</div>)}
         </div>
       )}
 

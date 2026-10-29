@@ -25,6 +25,8 @@ import { CRITICAL_FIELDS, FIELD_DEFS, fieldDef, revisionPath } from "@/lib/cms/i
 import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-domains";
 import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
 import { mergeTables, readVacancyTables, tableFromSplit } from "@/lib/cms/importer/vacancy-tables";
+import { readRemovals, type RemovalReading } from "@/lib/cms/importer/post-removal";
+import type { VacancyTable } from "@/lib/vacancy-table";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
 import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
 import {
@@ -280,6 +282,7 @@ export async function assemblePreview(opts: {
   // document prints no table; then brought into the job's own table by row
   // identity. What was read, merged and left out goes to the preview.
   const tableNotes = new Map<string, unknown>();
+  const removals = new Map<string, RemovalReading>();
   for (const s of sources) {
     const breakdown = s.reading.values.find((v) => v.fieldPath === "vacancies.breakdown");
     const totalValue = s.reading.values.find((v) => v.fieldPath === "vacancies.total")?.value;
@@ -320,6 +323,27 @@ export async function assemblePreview(opts: {
         changedRows: merged.diff.changed.slice(0, 60).map((c) => ({ before: brief(c.before), after: brief(c.after) })),
         removedRows: merged.diff.removed.slice(0, 60).map(brief),
       } };
+    }
+    // Posts a corrigendum deletes (P2.3): read by code against the job's table (with what this corrigendum's
+    // own table adds or changes), checked, and offered as the job's table without them. Never by a guess.
+    if (s.input.declaredKind === "OFFICIAL_CORRIGENDUM" && record) {
+      const at = s.reading.values.findIndex((v) => v.fieldPath === "vacancies.table");
+      const base = at >= 0 ? (s.reading.values[at].value as VacancyTable) : record.vacancies.table?.value ?? null;
+      const removal = readRemovals(s.retrieval.source.text, base, { retrievalId: s.retrieval.id });
+      if (removal.found > 0) {
+        note = { ...note, removal: removalNote(removal, base) };
+        removals.set(s.retrieval.id, removal);
+        if (removal.table) {
+          const stored = editorValue("vacancies.table", removal.table);
+          const quote = removal.removals[0].quotes[removal.removals[0].quotes.length - 1];
+          if (stored.ok) {
+            const value = { fieldPath: "vacancies.table", value: stored.value, quote: quote.text, page: quote.page };
+            if (at >= 0) s.reading.values[at] = value; else s.reading.values.push(value);
+          } else {
+            s.reading.refused.push({ fieldPath: "vacancies.table", reason: `the editor would refuse it: ${stored.reason}` });
+          }
+        }
+      }
     }
     tableNotes.set(s.retrieval.id, note);
   }
@@ -381,6 +405,23 @@ export async function assemblePreview(opts: {
     }
     if (note?.coverage?.unreadLines.length) proposal.warnings.push(`${note.coverage.unreadLines.length} line(s) inside a vacancy table could not be read as rows; check them in the preview.`);
   }
+  // A corrigendum's deletion: the job's table without the posts is offered unticked, saying exactly what goes;
+  // one that could not be matched for certain removes nothing, and says why.
+  for (const s of sources) {
+    const removal = removals.get(s.retrieval.id);
+    if (!removal) continue;
+    if (removal.table) {
+      const item = proposal.items.find((i) => i.fieldPath === "vacancies.table" && i.claims.some((c) => c.retrievalId === s.retrieval.id));
+      const what = removal.removals.map((r) => `${r.post} (${r.count} post${r.count === 1 ? "" : "s"}${r.table ? `, table ${r.table}` : ""}${r.serial ? `, serial ${r.serial}` : ""})`).join("; ");
+      if (item) {
+        item.defaultTicked = false;
+        item.flags = [...item.flags, `removes what the corrigendum deletes: ${what} — every figure in ${removal.removals.length === 1 ? "its rows goes with it" : "their rows goes with them"}${removal.total ? `; the total becomes ${removal.total.before} − ${removal.total.removed} = ${removal.total.after}, as printed` : ""}. Tick to remove; the table before is kept in its history and can be restored.`];
+      }
+    } else if (removal.refused.length > 0) {
+      proposal.warnings.push(`${s.summary.label} deletes ${removal.found === 1 ? "a post" : "posts"}, but nothing is removed: ${removal.refused.map((x) => `${x.reason} (“${x.quote.slice(0, 160)}”)`).join("; ")}. Check the corrigendum and remove ${removal.found === 1 ? "it" : "them"} in the job editor if it means that.`);
+    }
+  }
+
   // Pages the whole-text reading did not read are said, page range by page range.
   for (const s of sources) {
     const cov = s.reading.readingCoverage;
@@ -586,4 +627,18 @@ export async function decide(opts: {
 
 export async function revoke(opts: { recruitmentId: string; adminId: string; fieldPath: string; decisionId: string }) {
   return revokeDecision(opts);
+}
+
+/** A corrigendum's deletion for the review: each post with its rows and every figure in them, the quotes, the totals. */
+function removalNote(r: RemovalReading, table: VacancyTable | null) {
+  return {
+    removals: r.removals.map((x) => ({
+      post: x.post, count: x.count, printedCount: x.printedCount, serial: x.serial, table: x.table, quotes: x.quotes,
+      rows: x.rows.map((row) => ({ at: row.at, total: row.total ?? null, page: row.source.page, line: row.source.line,
+        prepared: row.source.readBy === "PREPARED", cells: (table?.categories ?? []).filter((c) => typeof row.cells[c.key] === "number").map((c) => ({ label: c.label, value: row.cells[c.key], within: c.kind === "HORIZONTAL" })) })),
+    })),
+    total: r.total,
+    droppedTotals: r.droppedTotals.map((s) => ({ at: s.at, total: s.total, page: s.source.page })),
+    refused: r.refused,
+  };
 }
