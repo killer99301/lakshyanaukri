@@ -15,12 +15,21 @@
 //
 // <sources dir> holds ssc-cgl-2026.pdf, ssc-cgl-reopen.pdf, upsc-cse-2026.pdf,
 // bpsc-72-cce.pdf, bpsc-72-corrigendum.pdf (copies of the owner's files).
+//
+// Since 2026-10-29 (the owner's decision, docs/importer-b2-plan.md §6) BPSC's
+// Hindi tables come in through the paste route: case "bpsc" builds the job
+// from the prepared table (tests/fixtures/paste), marked prepared outside,
+// then reads the real scanned corrigendum against it, removes the deleted
+// post when ticked, and restores it. Case "bpsc-notice" still reads the whole
+// notification, best-effort, for its other fields.
 // The key is never printed. Requests are counted per job and in total, and
 // no job starts once MAX_REQUESTS would be passed by its estimate.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { boot, check, note, section, summary } from "./boot";
+import { NextRequest } from "next/server";
+import { boot, check, note, section, summary, ORIGIN } from "./boot";
+import { bpscTable } from "../fixtures/paste/bpsc-72";
 
 const [SRC, OUT] = process.argv.slice(2);
 const KEY = process.env.GEMINI_API_KEY ?? "";
@@ -37,7 +46,7 @@ type Item = { id: string; fieldPath: string; value: unknown; flags: string[]; de
 type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[]; meta: { sources: Array<Record<string, unknown>> } };
 
 (async () => {
-  const { adminId } = await boot();
+  const { adminId, token } = await boot();
   const jobs = await import("@/lib/cms/importer/jobs");
   const service = await import("@/lib/cms/importer/service");
   const { openPdf, splitPdf, onePage, sha256Hex } = await import("@/lib/cms/importer/pdf-split");
@@ -126,9 +135,9 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
     return out;
   }
 
-  /** Saves the ticked items of a preview, as the review's button does. */
-  async function save(importId: string, proposal: Proposal) {
-    const selected = proposal.items.filter((i) => i.defaultTicked).map((i) => i.id);
+  /** Saves the ticked items of a preview, as the review's button does; `tick` adds what the admin ticks by hand. */
+  async function save(importId: string, proposal: Proposal, tick: string[] = []) {
+    const selected = [...new Set([...proposal.items.filter((i) => i.defaultTicked).map((i) => i.id), ...tick])];
     // Nothing ticked by default: nothing is saved, and the job stays as it was. Said, not forced.
     if (selected.length === 0) { note("nothing is ticked by default: nothing saved; the job is unchanged"); return null; }
     const res = await service.applyImportFlow({ importId, adminId, selected, confirmReplaceVerified: false, override: null });
@@ -145,9 +154,28 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
     note(`unchanged fields: ${keys.filter((k) => before[k] === after[k]).length} of ${keys.length}`);
   }
 
+  const item = (p: Proposal, path: string) => p.items.find((i) => i.fieldPath === path);
+  const { classifyStageName } = await import("@/lib/exam-stage-kind");
+  /** The selection process holds stages of selection only, whatever the run (B2.6 part 3). */
+  const selectionChecks = (name: string, p: Proposal) => {
+    for (const s of p.items.filter((i) => i.fieldPath === "selection")) {
+      const stages = (s.value as { stages?: Array<{ name: string }> }).stages ?? [];
+      check(`${name}: no announcement among the selection stages`, stages.every((x) => ["SELECTION", "UNCLASSIFIED"].includes(classifyStageName(x.name))), stages.map((x) => x.name));
+    }
+  };
+
   if (CASES.has("ssc")) {
     const n = await read("ssc-cgl-2026", "ssc-cgl-2026.pdf", { kind: "OFFICIAL_NOTIFICATION", title: "TEST RECORD SSC CGL 2026", org: "ssc-b26" });
     if (n) {
+      // Ages post by post from the table of posts (B2.6 part 3), never one range for every post.
+      const age = item(n.proposal, "age")?.value as { min?: number; max?: number; asOf?: string; postWise?: Array<{ post: string; min?: number; max?: number }>; relaxations?: Array<{ category: string; years?: number }> } | undefined;
+      check("SSC: ages post by post, at least 36 posts, from the table of posts", (age?.postWise?.length ?? 0) >= 36, age?.postWise?.length);
+      check("SSC: no one range applied to every post", age?.min === undefined && age?.max === undefined, [age?.min, age?.max]);
+      check("SSC: the Junior Statistical Officer's own 18-32", age?.postWise?.some((x) => /^Junior Statistical Officer/.test(x.post) && x.min === 18 && x.max === 32) === true);
+      check("SSC: an Auditor's own 18-27", age?.postWise?.some((x) => /^Auditor Offices under C&AG/.test(x.post) && x.min === 18 && x.max === 27) === true);
+      check("SSC: age counted on 1 August 2026", age?.asOf === "2026-08-01", age?.asOf);
+      check("SSC: PwBD (OBC) 13 kept apart from PwBD 10", age?.relaxations?.some((r) => r.category === "PwBD (OBC)" && r.years === 13) === true && age?.relaxations?.some((r) => r.category === "PwBD" && r.years === 10) === true, age?.relaxations);
+      selectionChecks("SSC", n.proposal);
       const id = (await save(n.p.importId!, n.proposal))!;
       const before = await snapshot(id);
       writeFileSync(join(OUT, "ssc-before.json"), JSON.stringify(before, null, 1));
@@ -157,13 +185,77 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
         const after = await snapshot(id);
         writeFileSync(join(OUT, "ssc-after.json"), JSON.stringify(after, null, 1));
         compare(before, after);
+        check("SSC reopened: the last date to apply is now 25 June 2026", /"2026-06-25"/.test(after["dates.applicationCloseDate"] ?? ""), after["dates.applicationCloseDate"]);
       }
     } else if (PHASE !== "run") {
       await read("ssc-cgl-reopen (estimate only)", "ssc-cgl-reopen.pdf", { kind: "OFFICIAL_NOTIFICATION", title: "estimate", org: "ssc-est" });
     }
   }
-  if (CASES.has("upsc")) await read("upsc-cse-2026", "upsc-cse-2026.pdf", { kind: "OFFICIAL_NOTIFICATION", title: "TEST RECORD UPSC CSE 2026", org: "upsc-b26" });
+  if (CASES.has("upsc")) {
+    const u = await read("upsc-cse-2026", "upsc-cse-2026.pdf", { kind: "OFFICIAL_NOTIFICATION", title: "TEST RECORD UPSC CSE 2026", org: "upsc-b26" });
+    if (u) {
+      // A new job's number is what the admin typed when one was; this job was made with none, so the notice's is offered.
+      const nn = item(u.proposal, "identity.notificationNumber");
+      check("UPSC: notification number 05/2026-CSE, not the file number", nn?.value === "05/2026-CSE", nn?.value);
+      const age = item(u.proposal, "age")?.value as { min?: number; max?: number; asOf?: string; relaxations?: Array<{ category: string; years?: number }> } | undefined;
+      check("UPSC: age 21-32 as on 1 August 2026", age?.min === 21 && age?.max === 32 && age?.asOf === "2026-08-01", [age?.min, age?.max, age?.asOf]);
+      const years = (re: RegExp) => age?.relaxations?.find((r) => re.test(r.category))?.years;
+      check("UPSC: relaxations SC/ST 5, OBC 3, PwBD 10", years(/SC\/ST|Scheduled Caste/) === 5 && years(/OBC|Other Backward/) === 3 && years(/PwBD|Benchmark/) === 10, age?.relaxations);
+      selectionChecks("UPSC", u.proposal);
+    }
+  }
   if (CASES.has("bpsc")) {
+    // The job as the paste route makes it: BPSC's two tables, prepared outside (1,230), saved through the field route.
+    section("BPSC 72nd CCE: the job with its pasted tables");
+    const records = await import("@/app/api/admin/cms/records/route");
+    const fields = await import("@/app/api/admin/cms/records/[id]/fields/route");
+    const { restorable } = await import("@/lib/cms/restore-value");
+    const { analyseVacancyTable } = await import("@/lib/vacancy-table");
+    const req = (path: string, method: string, body?: unknown) =>
+      new NextRequest(`${ORIGIN}${path}`, { method, headers: { "content-type": "application/json", origin: ORIGIN, cookie: `admin_sid=${token}` }, body: body === undefined ? undefined : JSON.stringify(body) });
+    const r0 = await records.POST(req("/api/admin/cms/records", "POST", { organizationId: "bpsc-b26", organizationName: "Bihar Public Service Commission", govType: "State Govt", title: "TEST RECORD BPSC 72nd CCE (pasted tables)", recruitmentYear: 2026 }));
+    const id: string = (await r0.json()).record.id;
+    const rev = async () => (await getRecruitmentById(id))!.recordRevision;
+    const put = async (field: unknown) => {
+      const r = await fields.PATCH(req(`/api/admin/cms/records/${id}/fields`, "PATCH", { fieldPath: "vacancies.table", field, clientRevision: await rev(), reason: "acceptance" }), { params: Promise.resolve({ id }) });
+      return { status: r.status, body: await r.json() };
+    };
+    const pasted = await put({ value: bpscTable(), status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true });
+    check("BPSC: the pasted tables saved, 25 posts, 1,230", pasted.status === 200 && pasted.body.record.vacancies.total.value === 1230, pasted.body.error);
+    const before = await snapshot(id);
+    const u = await read("bpsc-72-corrigendum", "bpsc-72-corrigendum.pdf", { kind: "OFFICIAL_CORRIGENDUM", recruitmentId: id, title: "", org: "" });
+    if (u) {
+      const t = item(u.proposal, "vacancies.table");
+      const offered = t?.value as Parameters<typeof analyseVacancyTable>[0] | undefined;
+      check("BPSC corrigendum: the table without the deleted post is offered, unticked", !!t && t.defaultTicked === false, t && [t.defaultTicked, t.flags]);
+      check("BPSC corrigendum: 24 posts, 1,186", offered?.rows.length === 24 && analyseVacancyTable(offered).grandTotal?.value === 1186, offered && [offered.rows.length, analyseVacancyTable(offered).grandTotal?.value]);
+      check("BPSC corrigendum: Sugarcane Officer is the one removed", !!offered && !offered.rows.some((r) => /ईख पदाधिकारी/.test(r.at.post)));
+      check("BPSC corrigendum: says what it removes and the total, 1230 − 44 = 1186", t?.flags.some((f) => /removes what the corrigendum deletes: ईख पदाधिकारी.*44 posts.*1230 − 44 = 1186/.test(f)) === true, t?.flags);
+      check("BPSC corrigendum: its evidence is marked as read from the page image", t?.claims.every((c) => c.fromImage === true && c.page === 1) === true, t?.claims);
+      const removal = (u.proposal.meta.sources[0]?.vacancyTables as { removal?: { removals: Array<{ quotes: Array<{ text: string }> }> } } | null)?.removal;
+      check("BPSC corrigendum: both sentences quoted (the post at serial 11; its deletion)", removal?.removals[0]?.quotes.length === 2 && /विलोपित/.test(removal.removals[0].quotes[1].text), removal?.removals[0]?.quotes.map((q) => q.text.slice(0, 80)));
+      // Nothing is removed by the default ticks; ticked by the admin, it is.
+      await save(u.p.importId!, u.proposal);
+      check("BPSC corrigendum: the default ticks leave the 25 posts", (await getRecruitmentById(id))!.vacancies.table!.value!.rows.length === 25);
+      if (t) {
+        const u2 = await read("bpsc-72-corrigendum (ticked)", "bpsc-72-corrigendum.pdf", { kind: "OFFICIAL_CORRIGENDUM", recruitmentId: id, title: "", org: "" });
+        const t2 = u2 ? item(u2.proposal, "vacancies.table") : undefined;
+        if (u2 && t2) await save(u2.p.importId!, u2.proposal, [t2.id]);
+        const job = (await getRecruitmentById(id))!;
+        check("BPSC corrigendum ticked: saved and reopened at 1,186, Sugarcane Officer gone", job.vacancies.total?.value === 1186 && job.vacancies.table!.value!.rows.length === 24, job.vacancies.total?.value);
+        check("BPSC corrigendum ticked: the rows left are still prepared outside", job.vacancies.table!.value!.rows.every((r) => r.source.readBy === "PREPARED"));
+        const after = await snapshot(id);
+        writeFileSync(join(OUT, "bpsc-after.json"), JSON.stringify(after, null, 1));
+        compare(before, after);
+        const { sql } = await import("@/lib/db");
+        const history = (await sql`SELECT old_value FROM field_revisions WHERE recruitment_id = ${id} AND field_path = 'vacancies.table' ORDER BY revised_at DESC LIMIT 1`) as Array<{ old_value: unknown }>;
+        const back = restorable(history[0]?.old_value);
+        const restored = back.ok ? await put(back.field) : { status: 0, body: { error: back } };
+        check("BPSC: restored from the history in one step, 1,230 and 25 posts", restored.status === 200 && restored.body.record.vacancies.total.value === 1230 && restored.body.record.vacancies.table.value.rows.length === 25, restored.body.error);
+      }
+    }
+  }
+  if (CASES.has("bpsc-notice")) {
     const n = await read("bpsc-72-cce", "bpsc-72-cce.pdf", { kind: "OFFICIAL_NOTIFICATION", title: "TEST RECORD BPSC 72nd CCE", org: "bpsc-b26" });
     if (n) {
       const id = (await save(n.p.importId!, n.proposal))!;

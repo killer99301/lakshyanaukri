@@ -237,6 +237,14 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
       "Single level Examination (objective) – Officer Scale- III | 200/200 120 min | Reasoning 40/50; Computer Knowledge 40/20; Financial Awareness 40/40; English Language 40/40; Hindi Language 40/40; Quantitative Aptitude & Data Interpretation 40/50",
     ]), papers.length);
     check("IBPS: the pattern says it is complete (7 of 7 read by code)", ibps.items.find((i) => i.fieldPath === "examPattern")?.flags.some((f) => /all 7 papers read by code/.test(f)) === true);
+    // The officers' interview is never lost: read, or added from the schedule that dates it (B2.6 part 3).
+    const selections = ibps.items.filter((i) => i.fieldPath === "selection").map((i) => ((i.value as { stages?: Array<{ name: string; type: string }> }).stages ?? []));
+    check("IBPS: every selection reading has the officers' interview", selections.length > 0 && selections.every((st) => st.some((s) => s.type === "INTERVIEW")), selections.map((st) => st.map((s) => `${s.type}:${s.name}`)));
+    const { classifyStageName } = await import("@/lib/exam-stage-kind");
+    for (const [name, p] of [["IBPS", ibps], ["LIC", lic], ["BTSC", btsc]] as const) {
+      const stages = p.items.filter((i) => i.fieldPath === "selection").flatMap((i) => (i.value as { stages?: Array<{ name: string }> }).stages ?? []);
+      check(`${name}: no announcement among the selection stages`, stages.every((s) => ["SELECTION", "UNCLASSIFIED"].includes(classifyStageName(s.name))), stages.map((s) => s.name));
+    }
     // The vacancies are bank by bank in Annexure I, past the first 60,000 characters.
     const vac = val(ibps.items, "vacancies.breakdown")[0] as Array<{ post: string; count: number; breakdown?: Record<string, number> }> | undefined;
     note(`IBPS vacancy rows: ${JSON.stringify(vac ?? null).slice(0, 400)}`);
