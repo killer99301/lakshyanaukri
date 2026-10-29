@@ -27,7 +27,9 @@ import type { ExtractedValue } from "@/lib/cms/importer/proposal";
 import { readPatternTables, statedCoverage, type PatternCoverage } from "@/lib/cms/importer/pattern-tables";
 import { relaxationMembers, statedRelaxations } from "@/lib/cms/importer/age-relaxations";
 import { readPostAgeTable } from "@/lib/cms/importer/post-age-table";
-import type { AgeCriteria } from "@/types/recruitment-record";
+import type { AgeCriteria, CmsSelectionInformation, CmsSelectionStage, SelectionStageType } from "@/types/recruitment-record";
+import type { ExamStage } from "@/types";
+import { classifyStageName, STAGE_KIND_LABEL } from "@/lib/exam-stage-kind";
 
 export interface SourceReading {
   values: ExtractedValue[];
@@ -279,8 +281,65 @@ export function combineReading(opts: {
     if (byCode.coverage.read > 0) filled.push("examPattern");
   }
   const stillMissing = notFound.filter((label) => !filled.some((p) => NOT_FOUND_LABEL[p]?.test(label)));
+  checkSelection(values, plain);
 
   return { values, links: linksInText(plain, opts.organizationId), notFound: stillMissing, refused, summary: details.summary,
            ...(article.skipped ? { articleSkipped: article.skipped } : {}), readingCoverage: article.coverage,
            ...(byCode.coverage.expected > 0 ? { patternCoverage: byCode.coverage } : stated ? { patternCoverage: stated } : {}) };
+}
+
+// A stage's type as its printed name states it; null when the name does not say (written or computer-based).
+const TYPE_BY_NAME: Array<[SelectionStageType, RegExp]> = [
+  ["DOCUMENT_VERIFICATION", /\bdocument\s+verification\b|\bdv\b|\bverification\s+of\s+(?:documents|certificates)\b/i],
+  ["INTERVIEW", /\binterviews?\b|\bpersonality\s+test\b|\bviva\b/i],
+  ["SKILL_TEST", /\bskill\s+test\b|\btyping\b|\bstenography\b|\btrade\s+test\b/i],
+  ["PHYSICAL", /\bphysical\b|\bp\.?e\.?t\b|\bp\.?s\.?t\b|\bp\.?m\.?t\b/i],
+];
+const GENERIC_EXAM = /^(?:computer[\s-]*based|online|written|offline)\s+(?:examination|exam|test)s?$/i;
+
+/**
+ * The selection process against the stage names and the notice's own schedule (B2.6), by code. Every change
+ * is said on the item:
+ *   - a "stage" whose printed name is an announcement or a step after selection (an admit card, a result,
+ *     training, appointment, allotment) is not a stage of selection: taken out (it stays in the schedule
+ *     when the notice dates it);
+ *   - a type its name contradicts ("Document Verification" read as an interview) is set to what the name says;
+ *   - an interview the schedule dates but the selection process left out (IBPS's officers) is added from
+ *     the schedule, to be checked for which posts it is for;
+ *   - a generic "Computer Based Examination" beside named tiers of the same kind is flagged, not removed.
+ */
+function checkSelection(values: ExtractedValue[], plain: string): void {
+  const at = values.findIndex((v) => v.fieldPath === "selection");
+  if (at < 0) return;
+  const info = values[at].value as CmsSelectionInformation;
+  if (!info?.stages?.length) return;
+  const notes: string[] = [];
+  const stages: CmsSelectionStage[] = [];
+  for (const s of info.stages) {
+    const kind = classifyStageName(s.name);
+    if (kind !== "SELECTION" && kind !== "UNCLASSIFIED") {
+      notes.push(`“${s.name}” is left out of the selection process: ${STAGE_KIND_LABEL[kind].toLowerCase()} is not a stage of selection (it stays in the schedule if the notice dates it)`);
+      continue;
+    }
+    const named = TYPE_BY_NAME.find(([, re]) => re.test(s.name))?.[0];
+    if (named && named !== s.type) {
+      notes.push(`“${s.name}” was read as ${s.type.toLowerCase().replace(/_/g, " ")}; its name says ${named.toLowerCase().replace(/_/g, " ")}: set so`);
+      stages.push({ ...s, type: named });
+    } else stages.push(s);
+  }
+  const schedule = values.find((v) => v.fieldPath === "examStages");
+  const interview = (Array.isArray(schedule?.value) ? (schedule!.value as ExamStage[]) : []).find((e) => classifyStageName(e.name) === "SELECTION" && TYPE_BY_NAME[1][1].test(e.name));
+  if (interview && !stages.some((s) => s.type === "INTERVIEW")) {
+    stages.push({ name: interview.name, order: stages.length + 1, type: "INTERVIEW" });
+    const page = schedule?.quote ? pageOf(plain, schedule.quote) : null;
+    notes.push(`“${interview.name}” added from the notice's schedule${page ? ` (page ${page})` : ""}: the selection process read did not include it — check which posts it is for`);
+  }
+  for (const s of stages) {
+    const sameKind = stages.filter((x) => x !== s && x.type === s.type && !GENERIC_EXAM.test(x.name));
+    if (GENERIC_EXAM.test(s.name) && sameKind.length >= 2) {
+      notes.push(`“${s.name}” may be the same as ${sameKind.map((x) => `“${x.name}”`).join(" and ")}: check, and remove it if so`);
+    }
+  }
+  if (!notes.length) return;
+  values[at] = { ...values[at], value: { ...info, stages: stages.map((s, i) => ({ ...s, order: i + 1 })) }, notes };
 }

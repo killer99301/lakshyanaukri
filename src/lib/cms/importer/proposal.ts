@@ -40,6 +40,8 @@ export interface ExtractedValue {
   tableCell?: { page?: number; table?: number; row?: string; column?: string; text: string };
   /** Read from a scanned page that the AI wrote out from its image (stage B2.4): its quote is the AI's reading, not printed text. */
   fromImage?: boolean;
+  /** What code did to the reading, for the admin to see on the item (B2.6: a stage added from the schedule, a type corrected). */
+  notes?: string[];
 }
 
 export interface SourceExtraction {
@@ -132,7 +134,7 @@ export function buildProposal(input: {
   const byRetrieval = new Map(input.extractions.map((e) => [e.retrieval.id, e.retrieval]));
 
   // ── Fields ──
-  const groups = new Map<string, Map<string, { value: unknown; claims: ItemClaim[] }>>();
+  const groups = new Map<string, Map<string, { value: unknown; claims: ItemClaim[]; notes: string[] }>>();
   for (const ex of input.extractions) {
     for (const v of ex.values) {
       if (isEmpty(v.value)) continue;
@@ -141,7 +143,8 @@ export function buildProposal(input: {
       if (ex.retrieval.declaredKind === "OFFICIAL_CORRIGENDUM" && (v.fieldPath === "identity.title" || v.fieldPath === "identity.shortTitle" || v.fieldPath === "identity.notificationNumber")) continue;
       const perField = groups.get(v.fieldPath) ?? new Map();
       const h = shortHash(v.fieldPath, v.value);
-      const g = perField.get(h) ?? { value: v.value, claims: [] };
+      const g = perField.get(h) ?? { value: v.value, claims: [], notes: [] };
+      for (const n of v.notes ?? []) if (!g.notes.includes(n)) g.notes.push(n);
       g.claims.push({ retrievalId: ex.retrieval.id, quote: v.quote, page: v.page ?? null, ...(v.tableCell ? { tableCell: v.tableCell } : {}), ...(v.fromImage ? { fromImage: true } : {}) });
       perField.set(h, g);
       groups.set(v.fieldPath, perField);
@@ -172,6 +175,7 @@ export function buildProposal(input: {
       const officialInImport = input.extractions.some((e) => e.retrieval.declaredKind !== "RESEARCH" && eligibleRetrieval(e.retrieval));
       if (officialInImport && !sources.some(eligibleRetrieval)) flags.push("the official document in this import does not state this");
       if (g.claims.some((c) => c.fromImage)) flags.push("read from a scanned page by AI — check it against the page image");
+      flags.push(...g.notes);
 
       let action: ItemAction;
       if (!cur || isEmpty(cur.value)) action = "FILL";
