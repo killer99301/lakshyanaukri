@@ -420,7 +420,7 @@ export async function assemblePreview(opts: {
     if (!removal) continue;
     if (removal.table) {
       const item = proposal.items.find((i) => i.fieldPath === "vacancies.table" && i.claims.some((c) => c.retrievalId === s.retrieval.id));
-      const what = removal.removals.map((r) => `${r.post} (${r.count} post${r.count === 1 ? "" : "s"}${r.table ? `, table ${r.table}` : ""}${r.serial ? `, serial ${r.serial}` : ""})`).join("; ");
+      const what = removal.removals.map((r) => `${r.post} (${r.count} post${r.count === 1 ? "" : "s"}${r.table ? `, table ${r.table}` : ""}${r.serial ? `, serial ${r.serial}` : ""}${r.readAs ? `; its name was read as “${r.readAs}” — check it on the page` : ""})`).join("; ");
       if (item) {
         item.defaultTicked = false;
         item.flags = [...item.flags, `removes what the corrigendum deletes: ${what} — every figure in ${removal.removals.length === 1 ? "its rows goes with it" : "their rows goes with them"}${removal.total ? `; the total becomes ${removal.total.before} − ${removal.total.removed} = ${removal.total.after}, as printed` : ""}. Tick to remove; the table before is kept in its history and can be restored.`];
@@ -641,7 +641,7 @@ export async function revoke(opts: { recruitmentId: string; adminId: string; fie
 function removalNote(r: RemovalReading, table: VacancyTable | null) {
   return {
     removals: r.removals.map((x) => ({
-      post: x.post, count: x.count, printedCount: x.printedCount, serial: x.serial, table: x.table, quotes: x.quotes,
+      post: x.post, count: x.count, printedCount: x.printedCount, serial: x.serial, table: x.table, quotes: x.quotes, ...(x.readAs ? { readAs: x.readAs } : {}),
       rows: x.rows.map((row) => ({ at: row.at, total: row.total ?? null, page: row.source.page, line: row.source.line,
         prepared: row.source.readBy === "PREPARED", cells: (table?.categories ?? []).filter((c) => typeof row.cells[c.key] === "number").map((c) => ({ label: c.label, value: row.cells[c.key], within: c.kind === "HORIZONTAL" })) })),
     })),

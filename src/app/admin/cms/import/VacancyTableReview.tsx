@@ -25,7 +25,7 @@ export interface VacancyTableNote {
   /** Posts a corrigendum deletes, as matched against the job's table (P2.3). */
   removal?: {
     removals: Array<{
-      post: string; count: number; printedCount: number | null; serial: string | null; table: string | null;
+      post: string; count: number; printedCount: number | null; serial: string | null; table: string | null; readAs?: string;
       quotes: Array<{ text: string; page: number | null }>;
       rows: Array<{ at: Record<string, string>; total: number | null; page: number | null; line: string; prepared: boolean; cells: Array<{ label: string; value: number; within: boolean }> }>;
     }>;
@@ -143,6 +143,7 @@ export function VacancyTableReview({ table, note, pageImageUrl }: {
               <div style={{ color: C.text }}>
                 <strong>{x.post}</strong>{x.table ? `, table ${x.table}` : ""}{x.serial ? `, serial ${x.serial}` : ""}: {n(x.count)} posts in the job&apos;s table{x.printedCount !== null ? `, ${n(x.printedCount)} as the corrigendum prints them` : "; the corrigendum prints no count"}.
               </div>
+              {x.readAs && <div style={{ paddingLeft: 10, color: C.amber }}>The corrigendum&apos;s name for it was read as “{x.readAs}”: taken as this post because its serial, table and count all match. Check the name on the page.</div>}
               {x.rows.map((r, k) => (
                 <div key={k} style={{ paddingLeft: 10 }}>
                   Row ({pageOf(r.page)}{r.prepared ? ", prepared outside" : ""}): total {n(r.total)} — {r.cells.map((c) => `${c.label} ${n(c.value)}${c.within ? " (within)" : ""}`).join(", ")}

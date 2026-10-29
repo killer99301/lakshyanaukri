@@ -122,3 +122,30 @@ test("PR12 a new post from the corrigendum's table is added and the deleted one 
   assert.deepEqual([r.table!.rows.length, r.table!.rows.some((x) => x.id === "n1"), r.table!.rows.some((x) => x.at.post === SUGARCANE)], [25, true, false]);
   assert.equal(analyseVacancyTable(r.table!).grandTotal?.value, 1230 + 44 - 44);
 });
+
+suite("A scan reads the name a little differently (B2.6 final run 1: “ईंख” for “ईख”)");
+
+/** The corrigendum as the second real read wrote it: the post's name with a dot too many. */
+const READ_AS = CORRIGENDUM.replace("पर ईख पदाधिकारी", "पर ईंख पदाधिकारी");
+test("PR13 serial 11 of सारणी-I is exactly one post, its count 44 matches, its name is within two characters: removed, and the spelling said", () => {
+  assert.ok(READ_AS !== CORRIGENDUM);
+  const r = read(READ_AS);
+  assert.deepEqual(r.refused, []);
+  assert.deepEqual([r.removals[0]?.post, r.removals[0]?.readAs, r.removals[0]?.printedCount, r.table?.rows.length], [SUGARCANE, "ईंख पदाधिकारी", 44, 24]);
+  assert.equal(r.total?.after, 1186);
+});
+test("PR14 the same, but no count printed to confirm it: nothing removed", () => {
+  const r = read(READ_AS.replace("का कोटिवार कुल 44 पद प्रकाशित", "का पद प्रकाशित").replace("1230-44 = 1186", ""));
+  assert.equal(r.table, null);
+  assert.ok(r.refused.some((x) => /reads “ईंख पदाधिकारी”, not quite “ईख पदाधिकारी, गन्ना उद्योग विभाग”, and it prints no count to confirm it/.test(x.reason)), JSON.stringify(r.refused));
+});
+test("PR15 a near name at a serial where the job printed another post: nothing removed", () => {
+  const r = read(READ_AS.replaceAll("क्रम संख्या–11", "क्रम संख्या–12"));
+  assert.equal(r.table, null);
+  assert.ok(r.refused.length > 0);
+});
+test("PR16 a name more than two characters off is no match: nothing removed", () => {
+  const r = read(CORRIGENDUM.replace("पर ईख पदाधिकारी", "पर ईखरस अधिकारी"));
+  assert.equal(r.table, null);
+  assert.ok(r.refused.some((x) => /serial 11 of table I names no post of this job/.test(x.reason)), JSON.stringify(r.refused));
+});

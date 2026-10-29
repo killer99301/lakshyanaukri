@@ -50,6 +50,8 @@ export interface RemovedPost {
   quotes: Array<{ text: string; page: number | null }>;
   serial: string | null;
   table: string | null;
+  /** The post's name as the corrigendum was read, when it differs slightly from the job's (a scan read "ईंख" for "ईख"). */
+  readAs?: string;
 }
 
 export interface RemovalReading {
@@ -92,6 +94,39 @@ function postsNamed(sentence: string, posts: string[]): { posts: string[]; ambig
   return { posts: keys.flatMap((k) => cores.get(k)!), ambiguous: null };
 }
 
+/** Edit distance between two short strings. */
+function distance(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const up = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diag = up;
+    }
+  }
+  return prev[b.length];
+}
+
+/** Where a sentence names the post with at most two characters read differently: the words as read, or null. */
+function nearName(sentence: string, post: string): string | null {
+  const core = norm(post.split(/[,(/]/)[0]);
+  if (core.length < 6) return null;
+  const s = norm(sentence);
+  let best: { d: number; at: string } | null = null;
+  for (let len = core.length - 2; len <= core.length + 2; len++) {
+    for (let i = 0; i + len <= s.length; i++) {
+      // Whole words only: the name as read is reported as it stands in the sentence, never cut mid-word.
+      if ((i > 0 && s[i - 1] !== " ") || (i + len < s.length && s[i + len] !== " ")) continue;
+      const w = s.slice(i, i + len);
+      const d = distance(w, core);
+      if (!best || d < best.d) best = { d, at: w };
+    }
+  }
+  return best && best.d <= 2 ? best.at.trim() : null;
+}
+
 /** The count printed for a post in a sentence: the one count after its name, or the only count in the sentence. */
 function countFor(sentence: string, post: string): number | null {
   const all = [...sentence.matchAll(COUNT)].map((m) => ({ n: Number(m[1]), at: m.index! }));
@@ -128,6 +163,7 @@ export function readRemovals(text: string, existing: VacancyTable | null, opts: 
     let named = postsNamed(d, posts);
     const quotes = [{ text: d, page: page(d) }];
     let describing = d;
+    let nearly: string | null = null;
     // Named only by its place ("the post at serial 11 of Table I"): the sentence that gives that place a name.
     if (named.posts.length === 0 && !named.ambiguous && serial) {
       const same = sentences.filter((s) => s !== d && SERIAL.exec(s)?.[1] === serial && (!tableRef || TABLE.exec(s)?.[1]?.toLowerCase() === tableRef.toLowerCase()));
@@ -136,6 +172,20 @@ export function readRemovals(text: string, existing: VacancyTable | null, opts: 
       if (found.some((x) => x.n.ambiguous)) named = { posts: [], ambiguous: found.find((x) => x.n.ambiguous)!.n.ambiguous };
       else if (names.length > 1) named = { posts: [], ambiguous: `serial ${serial}${tableRef ? ` of table ${tableRef}` : ""} is given to more than one post (${names.join("; ")})` };
       else if (names.length === 1) { named = { posts: names, ambiguous: null }; describing = found[0].s; quotes.unshift({ text: found[0].s, page: page(found[0].s) }); }
+      // The name read a character or two differently (a scanned page: "ईंख" for "ईख"). Taken only when three things
+      // agree: exactly one of the job's posts was printed at that serial (in that table), the sentence names it
+      // within two characters, and the count it prints is the post's own (checked below; required here).
+      if (named.posts.length === 0 && !named.ambiguous) {
+        const atSerial = existing.rows.filter((r) => printedSerial(r) === String(Number(serial))
+          && (!tableRef || !tableDim || tableNo((r.at[tableDim] ?? "").replace(/^(?:सारणी|तालिका|table)\s*[-–:]?\s*/i, "").trim()) === tableNo(tableRef)));
+        const there = [...new Set(atSerial.map((r) => r.at.post))];
+        const hit = there.length === 1 ? [d, ...same].map((s) => ({ s, as: nearName(s, there[0]) })).find((x) => x.as) : undefined;
+        if (hit) {
+          named = { posts: there, ambiguous: null };
+          nearly = hit.as;
+          if (hit.s !== d) { describing = hit.s; quotes.unshift({ text: hit.s, page: page(hit.s) }); }
+        }
+      }
     }
     if (named.ambiguous) { refuse(d, `the post cannot be told for certain: ${named.ambiguous}`); continue; }
     if (named.posts.length === 0) {
@@ -161,9 +211,10 @@ export function readRemovals(text: string, existing: VacancyTable | null, opts: 
       const count = (totals as number[]).reduce((a, b) => a + b, 0);
       const printedCount = countFor(describing, post);
       if (printedCount !== null && printedCount !== count) { refuse(d, `the corrigendum says “${post}” had ${printedCount} posts; the job's table has ${count}`); continue; }
+      if (nearly && printedCount === null) { refuse(d, `the corrigendum's name for the post at serial ${serial} reads “${nearly}”, not quite “${post}”, and it prints no count to confirm it`); continue; }
       const had = byPost.get(post);
       if (had) { for (const q of quotes) if (!had.quotes.some((x) => x.text === q.text)) had.quotes.push(q); continue; }
-      byPost.set(post, { post, rows, count, printedCount, quotes: [...quotes], serial, table: tableRef });
+      byPost.set(post, { post, rows, count, printedCount, quotes: [...quotes], serial, table: tableRef, ...(nearly ? { readAs: nearly } : {}) });
     }
   }
   out.removals = [...byPost.values()];
