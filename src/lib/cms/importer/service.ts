@@ -337,7 +337,9 @@ export async function assemblePreview(opts: {
           const stored = editorValue("vacancies.table", removal.table);
           const quote = removal.removals[0].quotes[removal.removals[0].quotes.length - 1];
           if (stored.ok) {
-            const value = { fieldPath: "vacancies.table", value: stored.value, quote: quote.text, page: quote.page };
+            // A scanned corrigendum's words are the AI's reading of the page image: marked so, to be checked against it.
+            const fromImage = !!s.scan?.pages.some((p) => p.page === quote.page);
+            const value = { fieldPath: "vacancies.table", value: stored.value, quote: quote.text, page: quote.page, ...(fromImage ? { fromImage: true } : {}) };
             if (at >= 0) s.reading.values[at] = value; else s.reading.values.push(value);
           } else {
             s.reading.refused.push({ fieldPath: "vacancies.table", reason: `the editor would refuse it: ${stored.reason}` });

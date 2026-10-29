@@ -159,7 +159,8 @@ function SourceEditor({ s, onChange, onRemove, subject }: { s: SourceDraft; onCh
             <span style={{ fontSize: 11, color: C.muted }}>Up to 4 MB. The AI writes out what the image shows when you make the preview; compare every value with the image before checking it.</span>
           ) : (
             <span style={{ fontSize: 11, color: C.muted }}>
-              Up to 4 MB. A scan without a text layer needs reading first:{" "}
+              Up to 4 MB. Scanned pages are written out by the AI exactly as printed when you read the job, page by page, with the page images kept for checking.
+              {" "}Only for a quick English summary instead (translated, not the notice&apos;s own words):{" "}
               <button onClick={() => { void readScan(); }} disabled={!s.file || reading} style={{ ...quietBtn, padding: "2px 8px" }}>{reading ? "Reading…" : "Read the scan"}</button>
               {s.scanText && <span style={{ color: C.green }}> — read ({s.scanText.length.toLocaleString("en-IN")} characters)</span>}
             </span>
