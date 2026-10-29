@@ -73,3 +73,10 @@ export const decisionRevisionPaths = (fieldPath: string): string[] =>
 
 /** Where a decision writes its own revision. */
 export const decisionRevisionPath = (fieldPath: string): string => (fieldPath.includes("#") ? fieldPath : revisionPath(fieldPath));
+
+/**
+ * A review flag that reports something done in full ("✓ all 7 papers read by code"), not something to look at:
+ * shown in green without a warning mark, and never on its own a reason to review an item.
+ */
+export const POSITIVE_FLAG = "✓ ";
+export const isPositiveFlag = (flag: string): boolean => flag.startsWith(POSITIVE_FLAG);

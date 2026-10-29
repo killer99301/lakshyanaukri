@@ -12,6 +12,7 @@ import { VacancyTableReview, type VacancyTableNote } from "./VacancyTableReview"
 import { ScanPageImage } from "./ScanPage";
 import { analyseVacancyTable, type VacancyTable } from "@/lib/vacancy-table";
 import type { ReadingCoverage } from "@/lib/cms/importer/article";
+import { POSITIVE_FLAG, isPositiveFlag } from "@/lib/cms/importer/fields";
 
 export interface ReviewItem {
   id: string; kind: "FIELD" | "LINK"; fieldPath: string; label: string; value: unknown;
@@ -172,7 +173,8 @@ export function ReviewPanel(props: {
       {/* Sections */}
       {sections.map((s) => {
         const fields = [...new Set(s.items.map((i) => i.fieldPath))];
-        const review = s.items.some((i) => i.conflict || ownFlags(i).length > 0 || i.action === "REPLACE" || i.action === "REPLACE_VERIFIED");
+        // A note that something was done in full ("✓ all 7 papers read") is no reason to review.
+        const review = s.items.some((i) => i.conflict || ownFlags(i).some((f) => !isPositiveFlag(f)) || i.action === "REPLACE" || i.action === "REPLACE_VERIFIED");
         return (
           <section key={s.name} data-review-section={s.name} style={{ ...PANEL, padding: "12px 16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 6 }}>
@@ -202,7 +204,9 @@ export function ReviewPanel(props: {
                           </div>
                         )}
                         {i.action === "MATCHES" && <div style={{ fontSize: 11, color: C.muted }}>Same as the job has now — adds this source as evidence.</div>}
-                        {ownFlags(i).map((f) => <div key={f} style={{ fontSize: 12, color: C.amber, marginTop: 2 }}>⚠ {f}</div>)}
+                        {ownFlags(i).map((f) => isPositiveFlag(f)
+                          ? <div key={f} data-flag-positive style={{ fontSize: 12, color: C.green, marginTop: 2 }}>✓ {f.slice(POSITIVE_FLAG.length)}</div>
+                          : <div key={f} data-flag-warning style={{ fontSize: 12, color: C.amber, marginTop: 2 }}>⚠ {f}</div>)}
                         <details style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
                           <summary style={{ cursor: "pointer" }}>View evidence</summary>
                           {i.claims.map((c, n) => {

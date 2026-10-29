@@ -117,7 +117,11 @@ export function getCurrentExamSummary(allStages: ExamStage[], now: Date): string
 
   const latest = currentExamStage(stages, now);
 
-  if (!latest) return "Exam date not declared";
+  if (!latest) {
+    // No date yet, but the notice prints when (SSC: Tier-I "August-September, 2026"): said as printed, never as "not declared".
+    const expected = stages.slice().sort((a, b) => a.order - b.order).find((s) => s.dateDisplay?.trim());
+    return expected ? `${expected.name}: ${expected.dateDisplay!.trim()} (tentative)` : "Exam date not declared";
+  }
 
   switch (latest.status) {
     case "POSTPONED":

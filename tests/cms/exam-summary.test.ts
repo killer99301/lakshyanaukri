@@ -37,6 +37,13 @@ test("ES06 held, with the next stage scheduled: the next stage is named", () => 
   ];
   assert.equal(getCurrentExamSummary(stages, on("2026-10-22")), "Mains: Jan 2027");
 });
+test("ES08 no date yet, but the notice prints the months (SSC CGL 2026): the months, as printed, marked tentative", () => {
+  const ssc: ExamStage[] = [
+    { name: "Tier-I (Computer Based Examination)", order: 1, status: "NOT_DECLARED", certainty: "TENTATIVE", dateDisplay: "August-September, 2026", kind: "SELECTION" },
+    { name: "Tier-II (Computer Based Examination)", order: 2, status: "NOT_DECLARED", certainty: "TENTATIVE", dateDisplay: "December, 2026", kind: "SELECTION" },
+  ];
+  assert.equal(getCurrentExamSummary(ssc, on("2026-07-10")), "Tier-I (Computer Based Examination): August-September, 2026 (tentative)");
+});
 test("ES07 nothing declared", () => {
   assert.equal(getCurrentExamSummary([{ name: "Exam", order: 1, status: "NOT_DECLARED" }], on("2026-10-22")), "Exam date not declared");
   assert.equal(getCurrentExamSummary([], on("2026-10-22")), "To be announced");

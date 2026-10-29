@@ -21,7 +21,7 @@ import { sourceOwnLink } from "@/lib/cms/importer/links";
 import { buildProposal, comparable, type DeclaredKind, type RetrievalSummary } from "@/lib/cms/importer/proposal";
 import { classifyField, effectiveDecision, publishGate, type FieldVerdict } from "@/lib/cms/importer/classify";
 import { contentHash, valueHash } from "@/lib/cms/importer/evidence-text";
-import { CRITICAL_FIELDS, FIELD_DEFS, fieldDef, revisionPath } from "@/lib/cms/importer/fields";
+import { CRITICAL_FIELDS, FIELD_DEFS, POSITIVE_FLAG, fieldDef, revisionPath } from "@/lib/cms/importer/fields";
 import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-domains";
 import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
 import { mergeTables, readVacancyTables, tableFromSplit } from "@/lib/cms/importer/vacancy-tables";
@@ -393,9 +393,15 @@ export async function assemblePreview(opts: {
       proposal.warnings.push(`${s.summary.label}: the notice prints ${pc.expected} exam-pattern table(s); ${pc.read} read. Not read: ${missing.join(", ")}. Enter ${missing.length === 1 ? "it" : "them"} in the editor's exam pattern.`);
       if (item) { item.defaultTicked = false; item.flags = [...item.flags, `incomplete: ${pc.read} of ${pc.expected} papers read — not read: ${missing.join(", ")}`]; }
     } else if (item) {
-      item.flags = [...item.flags, `all ${pc.expected} papers read by code from the notice's tables`];
+      item.flags = [...item.flags, `${POSITIVE_FLAG}all ${pc.expected} papers read by code from the notice's tables`];
     }
-    if (item && pc.problems.length) item.flags = [...item.flags, ...pc.problems.map((p) => `printed total disagrees: ${p}`)];
+    // A paper's figures against its printed total: a difference is a warning; a paper that prints no total has
+    // nothing to check against, which is said as that, not as a disagreement.
+    if (item && pc.problems.length) {
+      item.flags = [...item.flags, ...pc.problems.map((p) => /: no printed total under the table$/.test(p)
+        ? `${p.replace(/: no printed total under the table$/, "")} prints no total under its table: its questions and marks could not be checked against one`
+        : `the figures do not match the printed total — ${p}`)];
+    }
   }
   // Tables found but not read, and lines in a table that were not read, are said.
   for (const s of sources) {
