@@ -151,6 +151,14 @@ test("RD14 seven category rows from the model become one post; its quoted split 
   assert.deepEqual(a.issues, [], "EBC, BC and Backward Class Women settled by the printed 105");
   assert.equal(tableFromSplit([{ post: "Clerk", count: 9 }], 9, { retrievalId: null, page: null, line: "" }), null, "no split, no table");
 });
+test("RD14b the model quotes the overview over three lines (B2.6 final run 1): the evidence still reaches every figure of the split", () => {
+  const article = readFileSync("tests/fixtures/notice-text/btsc-fso-article.txt", "utf8");
+  const split = [{ post: "Food Safety Officer (FSO)", count: 105, breakdown: { ur: 41, ews: 11, sc: 17, st: 2, "Extremely Backward Class (EBC)": 18, "Backward Class (BC)": 12, "Backward Class Women": 4 } }];
+  const t = tableFromSplit(split as never, 105, { retrievalId: "article", page: null, line: "Post Name Food Safety Officer (FSO)\nAdvertisement Number 29/2026\nTotal Vacancies 105" }, article)!;
+  const line = t.rows[0].source.line;
+  assert.ok([41, 11, 17, 2, 18, 12, 4, 105].every((n) => new RegExp(`\\b${n}\\b`).test(line)), line);
+  assert.match(line, /^Post Name\tFood Safety Officer \(FSO\)/, "from the quote's own first line");
+});
 test("RD15 merging: rows matched by every dimension; a notice replaces its posts, a corrigendum removes nothing; other posts untouched", () => {
   const row = (post: string, bank: string, total: number) => ({ id: `${post}-${bank}`, at: { post, bank }, status: "STATED" as const, total, cells: {}, source: { retrievalId: "d", page: 1, line: `${bank} ${total}` } });
   const dims = [{ key: "post", label: "Post" }, { key: "bank", label: "Bank" }];

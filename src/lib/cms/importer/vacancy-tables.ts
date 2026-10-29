@@ -635,7 +635,9 @@ export function tableFromSplit(rows: Array<{ post: string; count: number; breakd
     if (!text) return quoted.line;
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const norm = (s: string) => s.replace(/\s+/g, " ").toLowerCase();
-    const start = Math.max(0, lines.findIndex((l) => quoted.line && norm(l).includes(norm(quoted.line).slice(0, 40))));
+    // A quote over several lines ("Post Name …\nTotal Vacancies 105") is found by its first line: the text's lines are single.
+    const head = norm(quoted.line.split(/\r?\n/).map((l) => l.trim()).find(Boolean) ?? "").slice(0, 40);
+    const start = Math.max(0, lines.findIndex((l) => head && norm(l).includes(head)));
     const need = new Set(figs.map(String));
     for (let end = start; end < Math.min(lines.length, start + 40); end++) {
       for (const n of lines[end].replace(/(\d),(\d)/g, "$1$2").match(/\d+/g) ?? []) need.delete(n);
