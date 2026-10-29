@@ -91,6 +91,16 @@ test("SG07 run 1 had none: all eight are added with their rows as evidence; run 
     ["SC/ST", 5], ["OBC", 3], ["PwBD", 10], ["PwBD (OBC)", 13], ["PwBD (SC/ST)", 15], ["Ex-Servicemen (ESM)", 3], ["Defence Personnel disa", 3], ["Defence Personnel disa", 8]]);
   assert.ok(!run2().refused.some((x) => /the reading gave/.test(x.reason)), "nothing to correct");
 });
+test("SG07b the job's age field accepts the whole reading (B2.6 final run 1: a 150-character Defence category refused all of it)", async () => {
+  // The rule the job's age field applies on save (the one that refused it in run 1).
+  const { cleanAge } = await import("@/lib/cms/record-ops");
+  for (const r of [run1(), run2()]) assert.doesNotThrow(() => cleanAge(ageOf(r)));
+  // …and keeps every relaxation's evidence: a label over its 120 characters would be dropped without a word.
+  assert.equal(cleanAge(ageOf(run1())).evidence?.filter((e) => /^relaxation/.test(e.about)).length, 8);
+  const defence = ageOf(run1()).relaxations.filter((x) => x.category.startsWith("Defence"));
+  assert.ok(defence.every((x) => x.category.length <= 120), defence.map((x) => x.category.length).join());
+  assert.deepEqual(defence.map((x) => [x.years, x.category.endsWith("(SC/ST)")]), [[3, false], [8, true]], "the two Defence rows stay apart");
+});
 
 suite("The public age checker, post by post");
 

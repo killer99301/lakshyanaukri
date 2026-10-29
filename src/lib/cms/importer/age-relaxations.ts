@@ -75,6 +75,23 @@ function listed(window: string): StatedRelaxation[] {
   return out;
 }
 
+/** The longest category the job's age field keeps (record-ops: a longer one refuses the whole age). */
+export const MAX_CATEGORY = 120;
+
+/**
+ * A printed category longer than the age field keeps (SSC's "Defence Personnel disabled in operation during
+ * hostilities … (SC/ST)", about 150 characters), shortened at a word with "…", its closing bracket kept so two
+ * rows that differ only there stay apart. The row's full words stay in its quote.
+ */
+export function fitCategory(category: string): string {
+  if (category.length <= MAX_CATEGORY) return category;
+  const tail = /\s*\([^()]{1,30}\)$/.exec(category)?.[0] ?? "";
+  const head = category.slice(0, category.length - tail.length);
+  const room = MAX_CATEGORY - tail.length - 2;
+  const cut = head.slice(0, room).replace(/\s+\S*$/, "");
+  return `${cut} …${tail}`;
+}
+
 /**
  * A table of category codes (SSC): "01 SC/ST 5 years"; a category written over
  * several lines ends at its line of years ("3 years"). The category is kept
@@ -113,7 +130,7 @@ function coded(window: string): StatedRelaxation[] {
       years = Number(/^\d{1,2}/.exec(row[alone])![0]);
       used = alone + 1;
     } else continue;
-    category = category.replace(/\s+/g, " ").replace(/[.\s]+$/, "").trim();
+    category = fitCategory(category.replace(/\s+/g, " ").replace(/[.\s]+$/, "").trim());
     out.push({ category, years, ...(rest ? { text: `${years} years ${rest.replace(/\s+/g, " ").trim()}` } : {}), quote: row.slice(0, used).join("\n") });
   }
   return out;

@@ -260,7 +260,8 @@ export function combineReading(opts: {
         relaxations.splice(relaxations.indexOf(r), 1);
       }
       relaxations.push({ category: s.category, years: s.years, ...(s.text ? { text: s.text } : {}) });
-      evidence.push({ about: `relaxation: ${s.category} (read by code)`, value: String(s.years), quote: s.quote, page: pageOf(plain, s.quote) });
+      // The age field keeps an evidence label of up to 120 characters and drops a longer one: kept within it.
+      evidence.push({ about: `relaxation (read by code): ${s.category}`.slice(0, 120), value: String(s.years), quote: s.quote.slice(0, 600), page: pageOf(plain, s.quote) });
     }
     values[ageAt] = { ...values[ageAt], value: { ...age, relaxations, evidence } };
   }
