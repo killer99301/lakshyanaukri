@@ -289,7 +289,8 @@ export function buildAssistCandidates(
   const extraction = extractIntakeFields(content, url);
   const flagged: AssistFlag[] = [];
 
-  let notificationNumber: string | null = extraction.notificationNumber ?? null;
+  // UPSC labels its number "EXAMINATION NOTICE NO 05/2026-CSE": read when no other label is found (B2.6).
+  let notificationNumber: string | null = extraction.notificationNumber ?? labelledNoticeNumber(content) ?? null;
   const numberIssue = notificationNumber !== null ? notificationNumberIssue(notificationNumber) : null;
   if (numberIssue) {
     flagged.push({ label: "Notification Number", value: notificationNumber, reason: `${numberIssue} — not applied` });
@@ -515,7 +516,7 @@ export function parseDatesInText(text: string): string[] {
   for (const m of text.matchAll(/(?<!\d)(20\d{2})-(\d{2})-(\d{2})(?!\d)/g)) add(m[3], m[2], m[1]);
   for (const m of text.matchAll(/(?<!\d)(\d{1,2})[./-](\d{1,2})[./-](20\d{2})(?!\d)/g)) add(m[1], m[2], m[3]);
   // "7th September 2026", "07 Sep, 2026"
-  for (const m of text.matchAll(new RegExp(`(?<!\\d)(\\d{1,2})${ORD}[\\s.,-]*([A-Za-z]{3,9})\\.?,?\\s*(20\\d{2})(?!\\d)`, "g"))) {
+  for (const m of text.matchAll(new RegExp(`(?<!\\d)(\\d{1,2})${ORD}(?:\\s+of)?[\\s.,-]*([A-Za-z]{3,9})\\.?,?\\s*(20\\d{2})(?!\\d)`, "g"))) {
     if (month(m[2])) add(m[1], month(m[2]), m[3]);
   }
   // "September 7, 2026"
@@ -636,7 +637,7 @@ Fields:
 - "applicationCloseDate": last day to submit the online application. "YYYY-MM-DD".
 - "feePaymentCloseDate": last day to pay the application fee, only if stated separately. "YYYY-MM-DD".
 - "correctionWindowEnd": last day of the application correction/edit window. "YYYY-MM-DD".
-- "notificationNumber": the official notification, advertisement or file number exactly as written (for example "CEN 05/2026" or "F. No. HQ-C1102/5/2026-C-1"). Not the exam name.
+- "notificationNumber": the official notification, notice or advertisement number exactly as written (for example "CEN 05/2026" or "05/2026-CSE"). A file number ("F. No. HQ-C1102/5/2026-C-1") only when the document prints no notification, notice or advertisement number. Not the exam name.
 
 Return one JSON object, not a list.
 
@@ -842,6 +843,15 @@ export function buildNumberSection(content: string, kind: SourceKind, url: strin
 }
 
 // Deterministic and AI values must agree; where only one exists it is used.
+/** A file number ("F. No. …", "File No. …"): an office reference, not the notice's own number. */
+const FILE_NUMBER = /^\s*(?:f\.?\s*no\.?|file\s+no\.?)(?![a-z])/i;
+
+/** A number printed under a notice label: "EXAMINATION NOTICE NO 05/2026-CSE", "Notice No.: 12/2026". */
+export function labelledNoticeNumber(text: string): string | null {
+  const m = /(?:^|\n)\s*(?:examination\s+|recruitment\s+)?notice\s+no(?![a-z])\.?\s*[:\-]?\s*([A-Z0-9][A-Z0-9()\-\/.]{2,30})/i.exec(text.slice(0, 20_000));
+  return m && /\d/.test(m[1]) ? m[1].replace(/[.,]+$/, "") : null;
+}
+
 export function mergeAiNotificationNumber(
   base: { candidates: AssistCandidate[]; flagged: AssistFlag[] },
   outcome: DateOutcome,
@@ -859,7 +869,10 @@ export function mergeAiNotificationNumber(
 
   let value: string | null = deterministic || aiValue || null;
   const same = (a: string, b: string) => normalizeForMatching(a) === normalizeForMatching(b);
-  if (deterministic && aiValue && !same(deterministic, aiValue)) {
+  // A file number is not the notification number when the notice prints one under its own label (UPSC: "F.No.
+  // 1/2/2025-E.I(B)" against "EXAMINATION NOTICE NO 05/2026-CSE"): the labelled number stands, nothing to resolve.
+  const fileNumberOnly = !!aiValue && !!deterministic && FILE_NUMBER.test(aiValue) && !FILE_NUMBER.test(deterministic);
+  if (deterministic && aiValue && !same(deterministic, aiValue) && !fileNumberOnly) {
     flagged.push({ label, value: `${deterministic} or ${aiValue}`, reason: "two extraction methods disagree — check the notification and enter manually" });
     value = null;
   }

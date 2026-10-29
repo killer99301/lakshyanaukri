@@ -14,6 +14,7 @@ import {
   extractWithAi,
   mergeAiDates,
   mergeAiNotificationNumber,
+  parseDatesInText,
   type FeeOutcome,
   type SourceKind,
 } from "@/lib/cms/ai-assist";
@@ -24,6 +25,8 @@ import { linksInText, type FoundLink } from "@/lib/cms/importer/links";
 import { readArticleInBatches, type ArticleReading, type ReadingCoverage } from "@/lib/cms/importer/article";
 import type { ExtractedValue } from "@/lib/cms/importer/proposal";
 import { readPatternTables, statedCoverage, type PatternCoverage } from "@/lib/cms/importer/pattern-tables";
+import { relaxationMembers, statedRelaxations } from "@/lib/cms/importer/age-relaxations";
+import type { AgeCriteria } from "@/types/recruitment-record";
 
 export interface SourceReading {
   values: ExtractedValue[];
@@ -128,7 +131,12 @@ export function combineReading(opts: {
   const merged = mergeAiDates(mergeAiNotificationNumber(base, ai.notificationNumber), ai.dates);
   for (const f of merged.flagged) refused.push({ fieldPath: f.label, reason: f.reason });
   const quoteFor = (fieldPath: string): string | undefined => {
-    if (fieldPath === "identity.notificationNumber" && ai.notificationNumber.status === "accepted") return ai.notificationNumber.quote;
+    if (fieldPath === "identity.notificationNumber") {
+      // The AI's quote only for the AI's own number; a labelled number that stood over the AI's file number is quoted from its own line.
+      const value = merged.candidates.find((c) => c.fieldPath === fieldPath)?.value;
+      if (ai.notificationNumber.status === "accepted" && ai.notificationNumber.value === value) return ai.notificationNumber.quote;
+      return typeof value === "string" ? plain.split("\n").find((l) => l.includes(value))?.trim() : undefined;
+    }
     const key = fieldPath.startsWith("dates.") ? fieldPath.slice(6) as keyof typeof ai.dates : null;
     const d = key ? ai.dates[key] : undefined;
     return d && d.status === "accepted" ? d.quote : undefined;
@@ -186,6 +194,39 @@ export function combineReading(opts: {
     "dates.correctionWindowEnd": /^Correction Window End/, "dates.applicationOpenDate": /^Application Opens/,
     "dates.applicationCloseDate": /^Application Closes/,
   };
+  // Relaxations the notice prints as a lettered list, read by code (UPSC): a group the reading left out is
+  // added with its clause as the quote; a group it gave a different number of years is corrected to the
+  // clause, and said. Groups the list does not print stay as read.
+  const ageAt = values.findIndex((v) => v.fieldPath === "age");
+  // The date the age is counted on, when the reading left it out but its own quote prints exactly one date
+  // ("must not have attained the age of 32 years on the 1st of August, 2026").
+  const ageQuote = ageAt >= 0 ? values[ageAt].quote : undefined;
+  const ageNow = ageAt >= 0 ? (values[ageAt].value as AgeCriteria) : null;
+  if (ageNow && !ageNow.asOf && ageQuote && (ageNow.min !== undefined || ageNow.max !== undefined)) {
+    const dates = parseDatesInText(ageQuote);
+    if (dates.length === 1 && /\b(?:as\s+on|as\s+of|on|by)\s+(?:the\s+)?\d/i.test(ageQuote)) {
+      values[ageAt] = { ...values[ageAt], value: { ...ageNow, asOf: dates[0], evidence: [...(ageNow.evidence ?? []), { about: "asOf (read by code)", value: dates[0], quote: ageQuote, page: pageOf(plain, ageQuote) }] } };
+    }
+  }
+  const listed = ageAt >= 0 ? statedRelaxations(plain) : [];
+  if (listed.length) {
+    const age = values[ageAt].value as AgeCriteria;
+    const relaxations = [...(age.relaxations ?? [])];
+    const evidence = [...(age.evidence ?? [])];
+    for (const s of listed) {
+      const members = relaxationMembers(s.category);
+      const had = relaxations.findIndex((r) => relaxationMembers(r.category).some((m) => members.includes(m)));
+      if (had >= 0 && relaxations[had].years === s.years) continue;
+      if (had >= 0) {
+        refused.push({ fieldPath: "age", reason: `the reading gave ${relaxations[had].years ?? "no number of"} years for ${relaxations[had].category}; the notice's clause says ${s.years} (“${s.quote.slice(0, 120)}”): the printed figure is kept` });
+        relaxations.splice(had, 1);
+      }
+      relaxations.push({ category: s.category, years: s.years });
+      evidence.push({ about: `relaxation: ${s.category} (read by code)`, value: String(s.years), quote: s.quote, page: pageOf(plain, s.quote) });
+    }
+    values[ageAt] = { ...values[ageAt], value: { ...age, relaxations, evidence } };
+  }
+
   // The exam pattern from the notice's own tables, read by code: where the text
   // prints pattern tables, they are the pattern, and the AI's papers are not
   // used (they come and go between readings). Tables code could not read are

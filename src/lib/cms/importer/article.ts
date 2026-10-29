@@ -90,7 +90,7 @@ export function dateInQuote(iso: string, quote: string): boolean {
   if (!q.includes(y) && !q.includes(`-${y.slice(2)}`) && !q.includes(`/${y.slice(2)}`)) return false;
   const day = `0?${d}`;
   const numeric = new RegExp(`\\b${day}[./-]0?${mo}[./-]`).test(q) || new RegExp(`\\b${y}-0?${mo}-${day}\\b`).test(q);
-  const named = new RegExp(`\\b${day}(st|nd|rd|th)?\\s+${MONTHS[mo - 1]}`).test(q) || new RegExp(`${MONTHS[mo - 1]}[a-z]*\\.?\\s+${day}(st|nd|rd|th)?\\b`).test(q);
+  const named = new RegExp(`\\b${day}(st|nd|rd|th)?\\s+(?:of\\s+)?${MONTHS[mo - 1]}`).test(q) || new RegExp(`${MONTHS[mo - 1]}[a-z]*\\.?\\s+${day}(st|nd|rd|th)?\\b`).test(q);
   return numeric || named;
 }
 
