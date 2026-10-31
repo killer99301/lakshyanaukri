@@ -172,12 +172,14 @@ export function readRemovals(text: string, existing: VacancyTable | null, opts: 
       if (found.some((x) => x.n.ambiguous)) named = { posts: [], ambiguous: found.find((x) => x.n.ambiguous)!.n.ambiguous };
       else if (names.length > 1) named = { posts: [], ambiguous: `serial ${serial}${tableRef ? ` of table ${tableRef}` : ""} is given to more than one post (${names.join("; ")})` };
       else if (names.length === 1) { named = { posts: names, ambiguous: null }; describing = found[0].s; quotes.unshift({ text: found[0].s, page: page(found[0].s) }); }
-      // The name read a character or two differently (a scanned page: "ईंख" for "ईख"). Taken only when three things
-      // agree: exactly one of the job's posts was printed at that serial (in that table), the sentence names it
-      // within two characters, and the count it prints is the post's own (checked below; required here).
-      if (named.posts.length === 0 && !named.ambiguous) {
+      // The name read a character or two differently (a scanned page: "ईंख" for "ईख"). Taken only when all agree:
+      // the corrigendum names the table and the job's table records which table each post is in, exactly one of
+      // the job's posts was printed at that serial in that table, the sentence names it within two characters,
+      // and the count it prints is the post's own (checked below; required here). The name as read is kept apart
+      // (readAs); the job's printed name and the corrigendum's words are never changed.
+      if (named.posts.length === 0 && !named.ambiguous && tableRef && tableDim) {
         const atSerial = existing.rows.filter((r) => printedSerial(r) === String(Number(serial))
-          && (!tableRef || !tableDim || tableNo((r.at[tableDim] ?? "").replace(/^(?:सारणी|तालिका|table)\s*[-–:]?\s*/i, "").trim()) === tableNo(tableRef)));
+          && tableNo((r.at[tableDim] ?? "").replace(/^(?:सारणी|तालिका|table)\s*[-–:]?\s*/i, "").trim()) === tableNo(tableRef));
         const there = [...new Set(atSerial.map((r) => r.at.post))];
         const hit = there.length === 1 ? [d, ...same].map((s) => ({ s, as: nearName(s, there[0]) })).find((x) => x.as) : undefined;
         if (hit) {

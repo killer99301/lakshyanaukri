@@ -149,3 +149,13 @@ test("PR16 a name more than two characters off is no match: nothing removed", ()
   assert.equal(r.table, null);
   assert.ok(r.refused.some((x) => /serial 11 of table I names no post of this job/.test(x.reason)), JSON.stringify(r.refused));
 });
+test("PR17 the same near name with no table named: nothing removed (the table must match too)", () => {
+  const r = read(READ_AS.replaceAll("सारणी–I में ", ""));
+  assert.equal(r.table, null);
+  assert.ok(r.refused.some((x) => /serial 11 names no post of this job/.test(x.reason)), JSON.stringify(r.refused));
+});
+test("PR18 the corrigendum's words and the job's printed name are kept as they are: the name as read is beside them", () => {
+  const r = read(READ_AS);
+  assert.ok(r.removals[0].quotes.some((q) => q.text.includes("ईंख पदाधिकारी")), "the transcription, word for word");
+  assert.deepEqual([r.removals[0].post, r.removals[0].rows[0].at.post, r.removals[0].readAs], [SUGARCANE, SUGARCANE, "ईंख पदाधिकारी"]);
+});
