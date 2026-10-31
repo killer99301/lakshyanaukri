@@ -243,6 +243,16 @@ export function combineReading(opts: {
       values[ageAt] = { ...values[ageAt], value: { ...ageNow, asOf: dates[0], evidence: [...(ageNow.evidence ?? []), { about: "asOf (read by code)", value: dates[0], quote: ageQuote, page: pageOf(plain, ageQuote) }] } };
     }
   }
+  // Still no date, and the notice prints it in its age heading ("5. Age limit (As on 01-08-2026):", SSC CGL, where
+  // the ages come from the table of posts): read by code from that one heading, when it prints exactly one date.
+  const ageThen = ageAt >= 0 ? (values[ageAt].value as AgeCriteria) : null;
+  if (ageThen && !ageThen.asOf) {
+    const headings = plain.split("\n").map((l) => l.trim()).filter((l) => /^(?:\d+(?:\.\d+)*\.?\s+)?age\s*limits?\b[^\n]{0,20}\(?\s*as\s+(?:on|of)\b/i.test(l) && l.length <= 120);
+    const dates = [...new Set(headings.flatMap((h) => parseDatesInText(h)))];
+    if (headings.length >= 1 && dates.length === 1) {
+      values[ageAt] = { ...values[ageAt], value: { ...ageThen, asOf: dates[0], evidence: [...(ageThen.evidence ?? []), { about: "asOf (read by code, from the age heading)", value: dates[0], quote: headings[0], page: pageOf(plain, headings[0]) }] } };
+    }
+  }
   const listed = ageAt >= 0 ? statedRelaxations(plain) : [];
   if (listed.length) {
     const age = values[ageAt].value as AgeCriteria;

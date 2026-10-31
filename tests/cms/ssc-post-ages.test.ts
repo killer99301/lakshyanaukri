@@ -116,3 +116,18 @@ test("SG09 an OBC candidate with a benchmark disability gets 13 years, not PwBD'
   const r = checkAge(post("Auditor Offices under C&AG"), "1987-01-15", "OBC", true);
   assert.deepEqual([r.verdict, (r as { relaxation?: { category: string } }).relaxation?.category], ["WITHIN_RELAXED", "PwBD (OBC)"]);
 });
+
+suite("When the AI's age reading is refused (B2.6 final run 2)");
+
+test("SG10 no age from the AI at all: the table of posts still gives each post's age, and the date comes from the age heading, with its page", () => {
+  const r = combineReading({
+    content: SSC, kind: "pdf", url: "https://ssc.gov.in/notice.pdf", organizationId: "ssc",
+    ai: skippedSection("ai", "test"), details: skippedSection("details", "test"),
+    pattern: { examPattern: { status: "not_stated" }, syllabus: { status: "not_stated" } } as never,
+    article: { values: [], refused: [{ fieldPath: "age", reason: "age limit does not appear in the quoted source text" }] },
+  });
+  const age = ageOf(r);
+  assert.deepEqual([age.postWise?.length, age.asOf], [38, "2026-08-01"]);
+  const ev = age.evidence?.find((e) => /from the age heading/.test(e.about));
+  assert.deepEqual([ev?.quote, ev?.page], ["5. Age limit (As on 01-08-2026):", 6]);
+});
