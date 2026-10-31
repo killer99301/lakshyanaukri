@@ -291,6 +291,7 @@ export function combineReading(opts: {
     if (byCode.papers.length) add("examPattern", byCode.papers, byCode.quote ?? undefined);
     if (byCode.coverage.read > 0) filled.push("examPattern");
   }
+  if (selectionFromSchedule(values, plain)) filled.push("selection");
   const stillMissing = notFound.filter((label) => !filled.some((p) => NOT_FOUND_LABEL[p]?.test(label)));
   checkSelection(values, plain);
 
@@ -319,6 +320,34 @@ const GENERIC_EXAM = /^(?:computer[\s-]*based|online|written|offline)\s+(?:exami
  *     the schedule, to be checked for which posts it is for;
  *   - a generic "Computer Based Examination" beside named tiers of the same kind is flagged, not removed.
  */
+/**
+ * No selection process from the reading, but the notice's own schedule dates its selection stages (B2.6: IBPS,
+ * whose reading once left the selection process out): the process is built from those schedule entries, by code.
+ * Only entries the stage classifier calls selection stages, each as printed (so "(For Officers Scale I, II and
+ * III)" stays with its interview), in the schedule's order, the schedule's quote and page as the evidence, and a
+ * note that it was built from the schedule. Nothing the schedule does not print; a reading's own selection process
+ * is never replaced. True when built.
+ */
+function selectionFromSchedule(values: ExtractedValue[], plain: string): boolean {
+  const had = values.find((v) => v.fieldPath === "selection");
+  if (had && ((had.value as CmsSelectionInformation)?.stages?.length ?? 0) > 0) return false;
+  const schedule = values.find((v) => v.fieldPath === "examStages");
+  const entries = (Array.isArray(schedule?.value) ? (schedule!.value as ExamStage[]) : [])
+    .filter((e) => classifyStageName(e.name) === "SELECTION")
+    .sort((a, b) => a.order - b.order);
+  if (!schedule || entries.length === 0) return false;
+  const typeOf = (name: string): SelectionStageType =>
+    TYPE_BY_NAME.find(([, re]) => re.test(name))?.[0]
+    ?? (/\bonline\b|\bcomputer[\s-]*based\b|\bcbt\b/i.test(name) ? "CBT" : /\bwritten\b|\boffline\b|\bpen[\s-]*and[\s-]*paper\b/i.test(name) ? "WRITTEN" : "OTHER");
+  const stages: CmsSelectionStage[] = entries.map((e, i) => ({ name: e.name, order: i + 1, type: typeOf(e.name) }));
+  const page = schedule.page ?? (schedule.quote ? pageOf(plain, schedule.quote) : null);
+  const note = `built from the notice's schedule${page ? ` (page ${page})` : ""}: the reading gave no selection process, so its ${stages.length} selection stage${stages.length === 1 ? "" : "s"} are the schedule's own entries, as printed — check them against the notice`;
+  const value = { fieldPath: "selection", value: { stages } satisfies CmsSelectionInformation, ...(schedule.quote ? { quote: schedule.quote } : {}), page,
+    ...(schedule.fromImage ? { fromImage: true } : {}), notes: [note] };
+  if (had) values[values.indexOf(had)] = value; else values.push(value);
+  return true;
+}
+
 function checkSelection(values: ExtractedValue[], plain: string): void {
   const at = values.findIndex((v) => v.fieldPath === "selection");
   if (at < 0) return;
@@ -352,5 +381,5 @@ function checkSelection(values: ExtractedValue[], plain: string): void {
     }
   }
   if (!notes.length) return;
-  values[at] = { ...values[at], value: { ...info, stages: stages.map((s, i) => ({ ...s, order: i + 1 })) }, notes };
+  values[at] = { ...values[at], value: { ...info, stages: stages.map((s, i) => ({ ...s, order: i + 1 })) }, notes: [...(values[at].notes ?? []), ...notes] };
 }

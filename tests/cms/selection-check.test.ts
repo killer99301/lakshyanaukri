@@ -74,3 +74,49 @@ test("SC07 the notes are flags on the review item, next to the other flags", () 
   const item = p.items.find((i) => i.fieldPath === "selection")!;
   assert.ok(item.flags.includes("“Document Verification” was read as interview; its name says document verification: set so"), JSON.stringify(item.flags));
 });
+
+suite("No selection process from the reading: built from the notice's schedule (B2.6 decision 3)");
+
+/** A reading with a schedule and no selection process, as the IBPS browser read gave it. */
+function readNoSelection(schedule: string[], withEmptySelection = false) {
+  const values: ExtractedValue[] = [{ fieldPath: "examStages", value: schedule.map((name, i) => ({ name, order: i + 1, status: "UPCOMING" }) as unknown as ExamStage), quote: "Tentative Schedule", page: 1 }];
+  if (withEmptySelection) values.push({ fieldPath: "selection", value: { stages: [] }, quote: "Selection" });
+  return combineReading({
+    content: "Tentative Schedule\nSelection\n-- 1 of 2 --\nGeneral instructions\n-- 2 of 2 --", kind: "pdf", url: "https://example.gov.in/n.pdf", organizationId: "x",
+    ai: skippedSection("ai", "test"), details: { ...skippedSection("details", "test"), selection: { status: "not_found" } } as never,
+    pattern: { examPattern: { status: "not_stated" }, syllabus: { status: "not_stated" } } as never,
+    article: { values, refused: [] },
+  });
+}
+
+test("SC08 IBPS without a selection process: its schedule's three selection stages, as printed, in order; the announcements left out", () => {
+  const r = readNoSelection(IBPS_SCHEDULE);
+  assert.deepEqual(names(r), [
+    "1 CBT: Online Examination – Preliminary (Officers/OA)", "2 CBT: Online Examination – Main / Single (Officers/OA)",
+    "3 INTERVIEW: Conduct of interview (For Officers Scale I, II and III)",
+  ], "post-specific applicability kept in the names; training, call letters and results are not stages");
+});
+test("SC09 it says it was built from the schedule, with the schedule's quote and page as its evidence", () => {
+  const sel = selection(readNoSelection(IBPS_SCHEDULE));
+  assert.deepEqual([sel.quote, sel.page], ["Tentative Schedule", 1]);
+  assert.deepEqual(sel.notes, ["built from the notice's schedule (page 1): the reading gave no selection process, so its 3 selection stages are the schedule's own entries, as printed — check them against the notice"]);
+});
+test("SC10 a reading's own selection process is never replaced by the schedule's (the ordinary path)", () => {
+  const r = read([stage("Preliminary Examination", "CBT", 1), stage("Main Examination", "CBT", 2), stage("Common Interview", "INTERVIEW", 3)], IBPS_SCHEDULE);
+  assert.deepEqual(names(r), ["1 CBT: Preliminary Examination", "2 CBT: Main Examination", "3 INTERVIEW: Common Interview"]);
+  assert.ok(!(selection(r).notes ?? []).some((n) => /built from the notice's schedule/.test(n)));
+});
+test("SC11 an empty selection process from the reading is filled from the schedule too", () => {
+  assert.equal(names(readNoSelection(IBPS_SCHEDULE, true)).length, 3);
+});
+test("SC12 a schedule of announcements only (call letters, results, training): nothing is built", () => {
+  const r = readNoSelection(["Conduct of Pre-Exam Training (PET)", "Download of call letters for online examination", "Declaration of Result"]);
+  assert.equal(r.values.find((v) => v.fieldPath === "selection"), undefined);
+});
+test("SC13 built from the schedule, it is no longer listed as missing, and on the review item it is flagged for checking (Pending)", () => {
+  const r = readNoSelection(IBPS_SCHEDULE);
+  assert.ok(!r.notFound.some((l) => /^Selection Process/.test(l)), JSON.stringify(r.notFound));
+  const retrieval: RetrievalSummary = { id: "r1", declaredKind: "OFFICIAL_NOTIFICATION", authenticity: "ATTESTED", originRole: "AUTHORITY", originPurposes: [], label: "notice" };
+  const item = buildProposal({ extractions: [{ retrieval, values: r.values, links: [] }], current: () => undefined }).items.find((i) => i.fieldPath === "selection")!;
+  assert.ok(item.flags.some((f) => /^built from the notice's schedule/.test(f)), JSON.stringify(item.flags));
+});
