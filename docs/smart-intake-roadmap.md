@@ -126,6 +126,38 @@ in Stage C, before anything else in it.
    - inspect the exact failing assertion and document it;
    - treat that workflow as not fully verified until then.
 
+   **Inspected, 1 November 2026 (read only, nothing changed).**
+   - **The failing assertion:** `tests/intelligence/review-queue-e2e.test.ts`,
+     `assert.equal(proposal.appliedFieldDiffs.length, 1, "one diff applied")`,
+     which gives 0 where 1 is expected. The assertions before it pass: no
+     production write, the review item and the job id.
+   - **The cause:** the test approves a change to `ssc-cgl-2026` against
+     `getAllOpportunities()`. Since `bf6b84f` (24 September 2026, "retire
+     legacy government recruitment source") that dataset has no government
+     jobs: it now returns 0 opportunities in all. So `approveItem`
+     (`src/intelligence/review-queue.ts`) finds no job and takes its "not in
+     the canonical dataset" branch. That branch:
+     - returns a proposal with no applied diffs;
+     - does not run the Trust Gate;
+     - still marks the item APPROVED.
+
+     The test expected `null` in that case, so its guard does not catch it.
+     The checks after the failing line never run: the item APPROVED, the
+     notes, no production write attempted.
+   - **What this means:**
+     - It is not a fault in Smart intake or the CMS. The CMS approval and
+       publishing safeguards are a separate path: the importer's claims,
+       `classifyField` and `publishGate`, covered by the CMS and stack suites.
+     - Nothing is written anywhere.
+     - The old file-based intelligence review queue
+       (`src/intelligence/review-cli.ts` → `approveItem`) is the workflow
+       that is **not verified**. While government jobs live only in the CMS,
+       approving a change there to a government job records the approval,
+       applies nothing and skips the Trust Gate.
+     - Stage C must not rely on that queue. Before any change to it, decide
+       whether to retire it or point it at the CMS; that is the owner's
+       decision.
+
 **After Stage C, the next priorities.** These are not new OCR work, and each
 is planned and approved separately:
 
