@@ -1,0 +1,126 @@
+
+── 1. printed total
+  PASS  1. printed total: imported, gated and the table saved
+  ....  stored total: 30 — basis STATED, complete true, method "printed in the notice (page 1)"
+  ....  approved rule (calculatedTotalReady, table not checked): not ready — the total is printed in the notice; check it as usual; the table has not been checked against the notice
+  ....  gate before any decision: total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no
+  ....  verify the total citing a single row ("Officer A Bank 10"): accepted; then total VERIFIED (checked against the official document); blocks publishing: no; the table is in the gate: no
+
+── 2. calculated total
+  PASS  2. calculated total: imported, gated and the table saved
+  ....  stored total: 30 — basis CALCULATED, complete true, method "sum of 3 rows by bank (page 1)"
+  ....  approved rule (calculatedTotalReady, table not checked): not ready — the table has not been checked against the notice
+  ....  gate before any decision: total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no
+  ....  verify the total citing a single row ("Officer A Bank 10"): accepted; then total VERIFIED (checked against the official document); blocks publishing: no; the table is in the gate: no
+  ....  after editing a row (10 → 11, saved 200): total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no
+
+── 3. incomplete total
+  PASS  3. incomplete total: imported, gated and the table saved
+  ....  stored total: 22 — basis CALCULATED, complete false, method "sum of 2 rows by bank (page 1)"
+  ....  approved rule (calculatedTotalReady, table not checked): not ready — the total is incomplete; 1 × not reported; the table has not been checked against the notice
+  ....  gate before any decision: total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no
+  ....  verify the total citing a single row ("Officer A Bank 10"): accepted; then total VERIFIED (checked against the official document); blocks publishing: no; the table is in the gate: no
+  PASS  3b. a second incomplete job saved
+  ....  record the incomplete total as "not stated": refused: vacancies.total is not an editable field while the job has a vacancy table: it is calculated from the table. Edit the table instead.; then total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no; total afterwards 22, table rows 3
+
+── 4. AI-read rows, printed total
+  PASS  4. AI-read rows, printed total: imported, gated and the table saved
+  ....  stored total: 30 — basis STATED, complete true, method "printed in the notice (page 1)"
+  ....  approved rule (calculatedTotalReady, table not checked): not ready — the total is printed in the notice; check it as usual; 3 rows were read from scanned page images by AI; check them against the pages; the table has not been checked against the notice
+  ....  gate before any decision: total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no
+  ....  verify the total citing a single row ("Officer A Bank 10"): accepted; then total VERIFIED (checked against the official document); blocks publishing: no; the table is in the gate: no
+
+── 5. prepared rows, printed total
+  PASS  5. prepared rows, printed total: imported, gated and the table saved
+  ....  stored total: 30 — basis STATED, complete true, method "printed in the notice (page 1)"
+  ....  approved rule (calculatedTotalReady, table not checked): not ready — the total is printed in the notice; check it as usual; 3 rows were prepared outside the notice (by an AI, a person or another website); check them against the notice's pages; the table has not been checked against the notice
+  ....  gate before any decision: total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no
+  ....  verify the total citing a single row ("Officer A Bank 10"): accepted; then total VERIFIED (checked against the official document); blocks publishing: no; the table is in the gate: no
+
+C0 BASELINE (JSON)
+[
+  {
+    "case": "1. printed total",
+    "total": 30,
+    "basis": "STATED",
+    "complete": true,
+    "analysedTotal": 30,
+    "ruleReady": false,
+    "ruleReasons": [
+      "the total is printed in the notice; check it as usual",
+      "the table has not been checked against the notice"
+    ],
+    "before": "total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no",
+    "verifyByRowLine": "accepted",
+    "afterVerify": "total VERIFIED (checked against the official document); blocks publishing: no; the table is in the gate: no"
+  },
+  {
+    "case": "2. calculated total",
+    "total": 30,
+    "basis": "CALCULATED",
+    "complete": true,
+    "analysedTotal": 30,
+    "ruleReady": false,
+    "ruleReasons": [
+      "the table has not been checked against the notice"
+    ],
+    "before": "total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no",
+    "verifyByRowLine": "accepted",
+    "afterVerify": "total VERIFIED (checked against the official document); blocks publishing: no; the table is in the gate: no",
+    "afterRowEdit": "total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no"
+  },
+  {
+    "case": "3. incomplete total",
+    "total": 22,
+    "basis": "CALCULATED",
+    "complete": false,
+    "analysedTotal": 22,
+    "ruleReady": false,
+    "ruleReasons": [
+      "the total is incomplete",
+      "1 × not reported",
+      "the table has not been checked against the notice"
+    ],
+    "before": "total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no",
+    "verifyByRowLine": "accepted",
+    "afterVerify": "total VERIFIED (checked against the official document); blocks publishing: no; the table is in the gate: no",
+    "notStated": "refused: vacancies.total is not an editable field while the job has a vacancy table: it is calculated from the table. Edit the table instead.",
+    "afterNotStated": "total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no",
+    "totalAfterNotStated": 22,
+    "tableAfterNotStated": 3
+  },
+  {
+    "case": "4. AI-read rows, printed total",
+    "total": 30,
+    "basis": "STATED",
+    "complete": true,
+    "analysedTotal": 30,
+    "ruleReady": false,
+    "ruleReasons": [
+      "the total is printed in the notice; check it as usual",
+      "3 rows were read from scanned page images by AI; check them against the pages",
+      "the table has not been checked against the notice"
+    ],
+    "before": "total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no",
+    "verifyByRowLine": "accepted",
+    "afterVerify": "total VERIFIED (checked against the official document); blocks publishing: no; the table is in the gate: no"
+  },
+  {
+    "case": "5. prepared rows, printed total",
+    "total": 30,
+    "basis": "STATED",
+    "complete": true,
+    "analysedTotal": 30,
+    "ruleReady": false,
+    "ruleReasons": [
+      "the total is printed in the notice; check it as usual",
+      "3 rows were prepared outside the notice (by an AI, a person or another website); check them against the notice's pages",
+      "the table has not been checked against the notice"
+    ],
+    "before": "total UNSUPPORTED (no source states this value); blocks publishing: yes; the table is in the gate: no",
+    "verifyByRowLine": "accepted",
+    "afterVerify": "total VERIFIED (checked against the official document); blocks publishing: no; the table is in the gate: no"
+  }
+]
+
+ALL PASS: 6 passed, 0 failed

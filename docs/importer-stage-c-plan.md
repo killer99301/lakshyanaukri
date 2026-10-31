@@ -63,3 +63,35 @@ Step C0 confirms this with a test before anything changes.
 - A schema change, if C1 needs one, stays in the local schema file and is listed for the release migration. It is never applied anywhere but the test database.
 - No verification is automatic. Code only refuses or explains; a person checks.
 - Each step is its own local commit, made only when its tests pass. Tests are never loosened to get a pass.
+
+## 6. Approved, 1 November 2026
+
+The owner approved this plan and C-D1 to C-D4 as recommended, with one more safeguard for C-D3:
+- recording "not stated in full" resolves only the incomplete-total condition;
+- it never clears another blocker: missing row evidence, an open conflict, invalid data, or a table check required for another reason.
+
+Order: C0, report, then C1 to C4. Each step is its own local commit.
+
+## 7. C0 baseline, 1 November 2026 (no product code changed)
+
+The test is `tests/local-stack/stage-c-baseline.test.ts`. The raw output is in `docs/acceptance-runs/stage-c-c0-2026-11-01/c0.log`.
+
+| Table | Stored total | Gate before a decision | "Verify" citing one row's line (not the total) | Afterwards |
+|---|---|---|---|---|
+| 1. Printed total | 30, STATED, complete | total UNSUPPORTED, blocks | **accepted** | total VERIFIED, does not block |
+| 2. Calculated total | 30, CALCULATED, complete | UNSUPPORTED, blocks | **accepted** | VERIFIED; a row edit reopens it (UNSUPPORTED again) |
+| 3. Incomplete total | 22, CALCULATED, incomplete | UNSUPPORTED, blocks | **accepted** | **VERIFIED**, does not block |
+| 3b. Incomplete, "not stated" | 22 | UNSUPPORTED, blocks | "not stated" **refused** ("not an editable field while the job has a vacancy table") | still blocks |
+| 4. AI-read rows, printed total | 30, STATED | UNSUPPORTED, blocks | **accepted** | VERIFIED, does not block |
+| 5. Prepared rows, printed total | 30, STATED | UNSUPPORTED, blocks | **accepted** | VERIFIED, does not block |
+
+**What the baseline shows:**
+- **Any quote verifies the total.** The decision route accepts any words that are in the document. A single row's "Officer A Bank 10" marks a total of 30 as checked. Nothing compares the quote with the figure, or with the table.
+- **The table is not in the gate** in any case, and nothing records a check of it.
+- **An incomplete total can become VERIFIED.** That breaks decision 1 and C-D3.
+- **"Not stated" is refused for a table total,** so the honest route for an incomplete total does not exist yet.
+- **AI-read and prepared rows** reach VERIFIED through the total alone, and the table is never checked.
+- **Already right:** an edit to a row reopens the check on the total, because the check is bound to the revision.
+- **`calculatedTotalReady`** gives the right reasons in every case, but nothing calls it.
+
+**Limitation of the measurement:** the tables were saved through the editor's field route, not proposed by the import. So the total starts as UNSUPPORTED, not SUPPORTED. That does not change what a decision can do.
