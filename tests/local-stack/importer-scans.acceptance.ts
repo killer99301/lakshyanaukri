@@ -24,18 +24,28 @@ import { blocked, boot, check, expectChecks, note, section, summary } from "./bo
 
 const [SRC, OUT] = process.argv.slice(2);
 const KEY = process.env.GEMINI_API_KEY ?? "";
+// REPLAY=<dir of a run's saved previews>: the same assertions on that run's saved readings, with no AI request.
+const REPLAY = process.env.REPLAY ?? "";
 if (!SRC || !OUT) { console.error("usage: … <sources dir> <out dir>"); process.exit(2); }
-if (KEY.length < 20) { console.error("GEMINI_API_KEY is not set (expected in .env.local)"); process.exit(2); }
+if (!REPLAY && KEY.length < 20) { console.error("GEMINI_API_KEY is not set (expected in .env.local)"); process.exit(2); }
 if (!/@localhost\//.test(process.env.DATABASE_URL ?? "")) { console.error("Refusing to run: DATABASE_URL is not the local test database."); process.exit(2); }
 const scrub = (s: string) => (KEY ? s.split(KEY).join("<key>") : s);
 mkdirSync(OUT, { recursive: true });
 
 // Every check that must run, by section, declared before anything runs (B2.6): one that did not run makes the
 // suite INCOMPLETE, never "ALL PASS".
+//
+// The scan criterion as the owner revised it (B2.6 decision 1): the model may misread or split a cell on a page
+// image — a documented limitation, with the prepared-outside paste route for difficult tables. What must hold is
+// that such an error is caught wherever the page offers a check, a row not read is said and never filled in, a
+// reading with anything unread is never complete, and AI-read rows keep the table from being marked ready until a
+// person checks it. Whether every cell was read as a person read it is still reported, as a note, never hidden.
 const LIC_CHECKS = (name: string, scanned: number[]) => [
-  `${name}: 181 cities, each with its figure and page as a person read them`, `${name}: Ananthapur 1`, `${name}: Total Vacancies 232, complete`,
+  `${name}: every city read has its figure and page as a person read them`, `${name}: a city not read is listed as not read, never filled in`,
+  `${name}: Ananthapur 1`, `${name}: Total Vacancies 232, complete`,
   `${name}: Table E rows on scanned pages (${scanned.join(", ")}) marked as read from the image by AI, and only those`,
-  `${name}: the page images of Table E's scanned pages are there to compare`, `${name}: one table, nothing left unread in it, the reading complete`,
+  `${name}: the page images of Table E's scanned pages are there to compare`, `${name}: the reading is complete only when nothing in the table is left unread`,
+  `${name}: AI-read rows keep the table from being marked ready until a person checks it`,
 ];
 const CROSS_ONLY = process.env.ONLY_CROSS === "1";
 if (!CROSS_ONLY) expectChecks("lic-scan", LIC_CHECKS("lic-scan", [5, 6, 7, 8, 9]));
@@ -43,7 +53,8 @@ expectChecks("lic-text-then-scan", LIC_CHECKS("lic-text-then-scan", [8, 9]));
 expectChecks("lic-scan-then-text", LIC_CHECKS("lic-scan-then-text", [6, 7]));
 if (!CROSS_ONLY) {
   expectChecks("lic-mixed", [...LIC_CHECKS("lic-mixed", [5, 6, 7, 8, 9]), "lic-mixed: values from the text pages are not marked as AI-read from an image"]);
-  expectChecks("tg-page23", ["tg-page23: posts 14, 15, 16 with totals 1, 26, 2", "tg-page23: every category cell as printed (a person's reading)", "tg-page23: every row marked as read from the image by AI"]);
+  expectChecks("tg-page23", ["tg-page23: posts 14, 15, 16 with totals 1, 26, 2", "tg-page23: every cell read differently from the page is caught by a printed subtotal (its post is flagged)",
+    "tg-page23: every row marked as read from the image by AI", "tg-page23: AI-read rows keep the table from being marked ready until a person checks it"]);
 }
 
 type Row = { at: Record<string, string>; status: string; total?: number; cells: Record<string, number>; unclear?: string[]; source: { page: number | null; readBy?: string } };
@@ -53,13 +64,20 @@ type Row = { at: Record<string, string>; status: string; total?: number; cells: 
   const jobs = await import("@/lib/cms/importer/jobs");
   const { openPdf, splitPdf, onePage, sha256Hex } = await import("@/lib/cms/importer/pdf-split");
   const { getImport } = await import("@/lib/cms/importer/repository");
-  const { analyseVacancyTable } = await import("@/lib/vacancy-table");
+  const { analyseVacancyTable, calculatedTotalReady } = await import("@/lib/vacancy-table");
+  /** AI-read rows: the table is not ready to publish as checked until a person has compared it with the pages. */
+  const heldForChecking = (t: unknown) => { const r = calculatedTotalReady(t as never, { tableChecked: false }); return !r.ready && r.reasons.some((x) => /read from scanned page images by AI/.test(x)); };
   const { LIC_TABLE_E_ROWS } = await import("../fixtures/vacancy-tables");
   note(`model: ${process.env.GEMINI_MODEL}`);
 
   /** The whole reading, as the browser and the step route do it; returns the preview. */
   async function read(name: string, file: string, title: string, org: string) {
     section(name);
+    if (REPLAY) {
+      const saved = JSON.parse(readFileSync(join(REPLAY, `${name}.json`), "utf8")) as { progress: Awaited<ReturnType<typeof jobs.jobProgress>>; proposal: Parameters<typeof replayed>[0] };
+      note(`replayed from ${REPLAY}/${name}.json: no AI request`);
+      return replayed(saved.proposal, saved.progress);
+    }
     const bytes = new Uint8Array(readFileSync(join(SRC, file)));
     const { doc, pages } = await openPdf(bytes);
     const { jobId } = await jobs.createReadingJob({ adminId, mode: "NEW", newJob: { organizationId: org, organizationName: org.toUpperCase(), recruitmentYear: 2026, title, govType: "PSU" } as never,
@@ -80,10 +98,15 @@ type Row = { at: Record<string, string>; status: string; total?: number; cells: 
     const proposal = imp!.proposal as unknown as { items: Array<{ fieldPath: string; value: unknown; flags: string[]; claims: Array<{ page: number | null; fromImage?: boolean }> }>; warnings: string[];
       meta: { sources: Array<{ vacancyTables: { problems?: string[] }; pageImages?: { pages: number[] } }> } };
     writeFileSync(join(OUT, `${name}.json`), scrub(JSON.stringify({ progress: p, proposal }, null, 1)));
+    return replayed(proposal, p);
+  }
+  function replayed(proposal: { items: Array<{ fieldPath: string; value: unknown; flags: string[]; claims: Array<{ page: number | null; fromImage?: boolean }> }>; warnings: string[];
+    meta: { sources: Array<{ vacancyTables: { problems?: string[]; coverage?: { unreadLines: Array<{ page: number | null; text: string }> } }; pageImages?: { pages: number[] } }> } }, p: Awaited<ReturnType<typeof jobs.jobProgress>>) {
     const table = proposal.items.find((i) => i.fieldPath === "vacancies.table")?.value as { rows: Row[] } | undefined;
     const problems = proposal.meta.sources[0].vacancyTables?.problems ?? [];
+    const unreadLines = proposal.meta.sources[0].vacancyTables?.coverage?.unreadLines ?? [];
     if (problems.length) note(`problems: ${problems.join(" | ")}`);
-    return { p, proposal, table, problems };
+    return { p, proposal, table, problems, unreadLines };
   }
 
   /** `offset`: the file's page number is the notice's page minus this (the scan-only file starts at the notice's page 5). */
@@ -97,7 +120,13 @@ type Row = { at: Record<string, string>; status: string; total?: number; cells: 
       if (got && got.total === want.n && got.source.page === want.page - offset) ok++; else bad.push(`${want.city} p${want.page - offset}: want ${want.n}, got ${got?.total ?? got?.status} p${got?.source.page}`);
     }
     note(`against the person-checked rows: ${ok}/181${bad.length ? ` — ${bad.slice(0, 6).join("; ")}` : ""}`);
-    check(`${name}: 181 cities, each with its figure and page as a person read them`, ok === 181, bad.slice(0, 10));
+    // Cities the reading has, against a person's reading; cities it does not have must be said as not read.
+    const missing = LIC_TABLE_E_ROWS.filter((want) => !r.table!.rows.some((x) => (x.at.city ?? "").toLowerCase() === want.city.toLowerCase()));
+    const wrong = bad.filter((b) => !missing.some((m) => b.startsWith(`${m.city} `)));
+    if (missing.length) note(`KNOWN SCAN LIMITATION: ${missing.length} of 181 cities not read: ${missing.map((m) => m.city).join(", ")}`);
+    check(`${name}: every city read has its figure and page as a person read them`, wrong.length === 0, wrong.slice(0, 10));
+    check(`${name}: a city not read is listed as not read, never filled in`, missing.every((m) => r.unreadLines.some((l) => l.text.toLowerCase().includes(m.city.toLowerCase()))),
+      missing.map((m) => m.city));
     check(`${name}: Ananthapur 1`, r.table.rows.find((x) => x.at.city === "Ananthapur")?.total === 1);
     check(`${name}: Total Vacancies 232, complete`, an.grandTotal?.value === 232 && an.grandTotal.complete, an.grandTotal);
     const wrongMark = r.table.rows.filter((x) => x.at.city && (x.source.readBy === "AI_IMAGE") !== scanned.includes((x.source.page ?? 0) + offset));
@@ -105,7 +134,9 @@ type Row = { at: Record<string, string>; status: string; total?: number; cells: 
     const images = r.proposal.meta.sources[0].pageImages?.pages ?? [];
     note(`page images kept for the review: ${images.join(", ")}`);
     check(`${name}: the page images of Table E's scanned pages are there to compare`, scanned.every((n) => images.includes(n - offset)), images);
-    check(`${name}: one table, nothing left unread in it, the reading complete`, r.p.complete && !r.p.stateNote, r.p.stateNote);
+    const nothingUnread = missing.length === 0 && r.unreadLines.length === 0;
+    check(`${name}: the reading is complete only when nothing in the table is left unread`, (r.p.complete && !r.p.stateNote) === nothingUnread, [r.p.complete, r.p.stateNote, r.unreadLines.length]);
+    check(`${name}: AI-read rows keep the table from being marked ready until a person checks it`, heldForChecking(r.table));
   };
 
   // B2.5: one table running from text pages onto scanned ones, and from scanned pages onto text ones.
@@ -141,8 +172,12 @@ type Row = { at: Record<string, string>; status: string; total?: number; cells: 
         if (v !== expected) cellsWrong.push(`post ${14 + ti} ${c}: printed ${printed}, read ${v ?? "-"}`);
       });
     });
-    note(`cells read differently from the page: ${cellsWrong.length ? cellsWrong.join("; ") : "none"}`);
-    check("tg-page23: every category cell as printed (a person's reading)", cellsWrong.length === 0, cellsWrong);
+    note(`cells read differently from the page: ${cellsWrong.length ? `${cellsWrong.join("; ")} — KNOWN SCAN LIMITATION` : "none"}`);
+    // Each post with a cell read differently must have a printed subtotal that disagrees with it, flagged for checking.
+    const flagged = (post: number) => tg.problems.some((p) => new RegExp(`POST CODE:?\\s*${post}\\b[\\s\\S]*Check the figures against the page`, "i").test(p));
+    const wrongPosts = [...new Set(cellsWrong.map((c) => Number(/^post (\d+)/.exec(c)![1])))];
+    check("tg-page23: every cell read differently from the page is caught by a printed subtotal (its post is flagged)", wrongPosts.every(flagged), wrongPosts.filter((p) => !flagged(p)));
+    check("tg-page23: AI-read rows keep the table from being marked ready until a person checks it", heldForChecking(tg.table));
     check("tg-page23: every row marked as read from the image by AI", tg.table.rows.every((r) => r.source.readBy === "AI_IMAGE"));
   }
   summary();
