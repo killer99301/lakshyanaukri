@@ -18,7 +18,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { boot, check, note, section, summary } from "./boot";
+import { blocked, boot, check, expectChecks, note, notApplicableHere, section, skipped, summary } from "./boot";
 
 const [SRC, OUT] = process.argv.slice(2);
 const KEY = process.env.GEMINI_API_KEY ?? "";
@@ -40,6 +40,45 @@ const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 /** One paper as "name | questions/marks duration | subject q/m; …", to compare with the notice. */
 const paperBrief = (p: { name: string; totalQuestions?: number; totalMarks?: number; durationMinutes?: number; sections: Array<{ subject: string; questions?: number; marks?: number }> }) =>
   `${p.name} | ${p.totalQuestions}/${p.totalMarks} ${p.durationMinutes ?? "-"} min | ${p.sections.map((x) => `${x.subject} ${x.questions}/${x.marks}`).join("; ")}`;
+
+// Every check that must run, by section, declared before anything runs (B2.6): a check that did not run makes the
+// suite INCOMPLETE, never "ALL PASS". The few that do not apply to a source are said so where they would run.
+const REQUIRED: Record<string, string[]> = {
+  "btsc-article": [
+    "btsc-article: every schedule entry has a class", "btsc-article: every quote is in its source",
+    "BTSC: Advertisement No. 29/2026", "BTSC: applications open 25 Sep 2026", "BTSC: last date 24 Oct 2026", "BTSC: the passed last date is flagged",
+    "BTSC: research-only dates are flagged as research", "BTSC: 105 vacancies", "BTSC: category split UR 41, EWS 11, SC 17, ST 2",
+    "BTSC: EBC 18, BC 12, Backward Class Women 4 kept under their own names", "BTSC: no separate total or breakdown is ticked against the table",
+    "BTSC table: one row of 105 with the full split, from the quoted split", "BTSC table: every figure is in the row's evidence lines", "BTSC: fee ₹100",
+    "BTSC: warned research only / no official notification", "BTSC: exam date 'To be announced' is not turned into a date",
+    "BTSC: the article's posting date (15 Oct) is not used as any date", "BTSC: no portal (adda247) address offered as official",
+    "BTSC: the exam pattern table read by code as printed (the web page's tabs come through as spaces)",
+  ],
+  "lic-pdf": [
+    "lic-pdf: every schedule entry has a class", "lic-pdf: every quote is in its source", "LIC: no separate total or breakdown is ticked against the table",
+    "LIC table: 181 cities read by code, Ananthapur 1, total 232 complete", "LIC: applications open 20 Oct 2026", "LIC: last date 1 Nov 2026", "LIC: 232 apprentices",
+    "LIC: fee Rs.800 (General/OBC) and Rs.200 (SC/ST)", "LIC: age 20 to 25", "LIC: the NATS manual is not offered as the notification",
+    "LIC: entrance exam 7 Nov 2026 found (date or exam stage)", "LIC: an official document's values are not flagged as research", "LIC: the online test read by code as printed",
+  ],
+  "lic-scan: the AI writes the scan out as text": ["scan: read"],
+  "lic-scan": [
+    "lic-scan: every schedule entry has a class", "lic-scan: every quote is in its source", "scan: no separate total or breakdown is ticked against the table",
+    "scan table: every row's line is in the AI's write-up", "scan: age 20 to 25", "scan: 232 apprentices", "scan: applications open 20 Oct 2026", "scan: last date 1 Nov 2026", "scan: fee Rs.800 and Rs.200",
+  ],
+  "btsc-screenshot": [
+    "btsc-screenshot: every schedule entry has a class", "btsc-screenshot: every quote is in its source",
+    "screenshot: open 25 Sep and last date 24 Oct 2026", "screenshot: research only, so its dates are flagged as research",
+  ],
+  "ibps-pdf": [
+    "ibps-pdf: every schedule entry has a class", "ibps-pdf: every quote is in its source", "IBPS: exam stages found", "IBPS: exam pattern found",
+    "IBPS: all 7 papers, with their questions, marks and durations as printed", "IBPS: the pattern says it is complete (7 of 7 read by code)",
+    "IBPS: every selection reading has the officers' interview", "IBPS: no announcement among the selection stages", "LIC: no announcement among the selection stages",
+    "BTSC: no announcement among the selection stages", "IBPS: vacancies from the annexure found (the table, or the AI's breakdown)", "IBPS: read in page batches, every batch read",
+    "IBPS: no separate total or breakdown is ticked against the table", "IBPS table: 10 tables on pages 46-55 read by code, 280 rows, at least 13,706 (Tripura not reported)",
+    "IBPS table: General is UR, PwBD counted within", "IBPS: dates 1 to 21 Sep 2026 and fees 850 / 175",
+  ],
+};
+for (const [s, names] of Object.entries(REQUIRED)) expectChecks(s, names);
 
 const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : JSON.stringify(v); return s.length > n ? s.slice(0, n) + "…" : s; };
 
@@ -64,6 +103,7 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     } catch (e) {
       const msg = scrub(e instanceof Error ? e.message : String(e));
       check(`${name}: preview made`, false, msg);
+      blocked(`the preview was not made: ${msg.slice(0, 200)}`);
       results[name] = { error: msg };
       return null;
     }
@@ -79,6 +119,7 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     }
     for (const w of proposal.warnings) note(`warning: ${w}`);
     // Each schedule entry with the class code gave it, to compare with the notice by hand.
+    if (!items.some((i) => i.fieldPath === "examStages")) skipped(`${name}: every schedule entry has a class`, "the reading proposed no schedule");
     for (const st of items.filter((i) => i.fieldPath === "examStages")) {
       note(`stages by class: ${(st.value as Array<{ name: string; kind?: string }>).map((s) => `${s.name} [${s.kind ?? "none"}]`).join(" | ")}`);
       check(`${name}: every schedule entry has a class`, (st.value as Array<{ kind?: string }>).every((s) => !!s.kind));
@@ -110,13 +151,17 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
   type Row = { at: Record<string, string>; status: string; total?: number; cells: Record<string, number>; source: { page: number | null; line: string } };
   const tableOf = (items: Item[]) => val(items, "vacancies.table")[0] as { rows: Row[]; categories: Array<{ key: string; kind: string }> } | undefined;
   const { analyseVacancyTable } = await import("@/lib/vacancy-table");
-  const tableReport = (name: string, r: { items: Item[]; sources: J[] }) => {
+  /** `noTable`: why this source prints no vacancy table, when it prints none; otherwise a missing table is a skip. */
+  const tableReport = (name: string, r: { items: Item[]; sources: J[] }, noTable?: string) => {
     const t = tableOf(r.items);
     const n = (r.sources[0]?.vacancyTables ?? null) as { from?: string; coverage?: { tables: Array<{ title: string; read: boolean; columnsBy?: string }>; unreadLines: unknown[] } } | null;
     const g = t ? analyseVacancyTable(t as never).grandTotal : null;
     note(`${name} table: ${t ? `${t.rows.length} rows from ${n?.from}, total ${g ? `${g.complete ? "" : "≥ "}${g.value}` : "—"}` : "none"}; tables ${n?.coverage?.tables.map((x) => `${x.title}:${x.read ? x.columnsBy : "not read"}`).join(" | ") ?? "—"}; unread lines ${n?.coverage?.unreadLines.length ?? 0}`);
     const competing = r.items.filter((i) => (i.fieldPath === "vacancies.total" || i.fieldPath === "vacancies.breakdown") && i.defaultTicked);
-    if (t) check(`${name}: no separate total or breakdown is ticked against the table`, competing.length === 0, competing.map((i) => i.fieldPath));
+    const competingName = `${name}: no separate total or breakdown is ticked against the table`;
+    if (t) check(competingName, competing.length === 0, competing.map((i) => i.fieldPath));
+    else if (noTable) notApplicableHere(competingName, noTable);
+    else skipped(competingName, "no vacancy table was proposed");
     return { t, g, n };
   };
 
@@ -183,6 +228,7 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
   const reading = await readScannedNotice({ data: scan.toString("base64"), subject: "LIC HFL Apprentice Recruitment 2026 — LIC Housing Finance Limited", apiKey: KEY, feature: "import" });
   section("lic-scan: the AI writes the scan out as text");
   check("scan: read", reading.ok, reading.ok ? undefined : scrub(reading.reason));
+  if (!reading.ok) blocked(`the scan was not written out: ${scrub(reading.reason)}`, "lic-scan");
   if (reading.ok) {
     writeFileSync(join(OUT, "lic-scan-text.txt"), reading.text);
     note(`${reading.text.length} characters read`);
@@ -190,9 +236,12 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
       [{ declaredKind: "OFFICIAL_NOTIFICATION", method: "upload", bytes: scan, text: reading.text, url: LIC_URL, attestation: `Downloaded from ${LIC_URL} myself on 26 Oct 2026` }]);
     if (sc) {
       const age = val(sc.items, "age")[0] as { min?: number; max?: number } | undefined;
-      const st = tableReport("scan", sc);
+      // lic-scan.pdf is the notice's pages 1-5: Table E (the vacancies) starts on page 6.
+      const NO_TABLE = "lic-scan.pdf is pages 1-5; it prints no vacancy table (Table E starts on page 6)";
+      const st = tableReport("scan", sc, NO_TABLE);
       // The AI writes the scan out; any table read from that write-up is checked against it, never assumed.
       if (st.t) check("scan table: every row's line is in the AI's write-up", st.t.rows.every((r) => reading.text.includes(r.source.line.split("\n").pop()!)));
+      else notApplicableHere("scan table: every row's line is in the AI's write-up", NO_TABLE);
       check("scan: age 20 to 25", age?.min === 20 && age?.max === 25, age);
       check("scan: 232 apprentices", has(sc.items, "vacancies.total", 232), val(sc.items, "vacancies.total"));
       check("scan: applications open 20 Oct 2026", has(sc.items, "dates.applicationOpenDate", "2026-10-20"), val(sc.items, "dates.applicationOpenDate"));
@@ -242,6 +291,7 @@ const short = (v: unknown, n = 140) => { const s = typeof v === "string" ? v : J
     check("IBPS: every selection reading has the officers' interview", selections.length > 0 && selections.every((st) => st.some((s) => s.type === "INTERVIEW")), selections.map((st) => st.map((s) => `${s.type}:${s.name}`)));
     const { classifyStageName } = await import("@/lib/exam-stage-kind");
     for (const [name, p] of [["IBPS", ibps], ["LIC", lic], ["BTSC", btsc]] as const) {
+      if (!p) { skipped(`${name}: no announcement among the selection stages`, `${name}'s preview was not made`); continue; }
       const stages = p.items.filter((i) => i.fieldPath === "selection").flatMap((i) => (i.value as { stages?: Array<{ name: string }> }).stages ?? []);
       check(`${name}: no announcement among the selection stages`, stages.every((s) => ["SELECTION", "UNCLASSIFIED"].includes(classifyStageName(s.name))), stages.map((s) => s.name));
     }

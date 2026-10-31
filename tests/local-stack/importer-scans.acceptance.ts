@@ -20,7 +20,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { boot, check, note, section, summary } from "./boot";
+import { blocked, boot, check, expectChecks, note, section, summary } from "./boot";
 
 const [SRC, OUT] = process.argv.slice(2);
 const KEY = process.env.GEMINI_API_KEY ?? "";
@@ -29,6 +29,22 @@ if (KEY.length < 20) { console.error("GEMINI_API_KEY is not set (expected in .en
 if (!/@localhost\//.test(process.env.DATABASE_URL ?? "")) { console.error("Refusing to run: DATABASE_URL is not the local test database."); process.exit(2); }
 const scrub = (s: string) => (KEY ? s.split(KEY).join("<key>") : s);
 mkdirSync(OUT, { recursive: true });
+
+// Every check that must run, by section, declared before anything runs (B2.6): one that did not run makes the
+// suite INCOMPLETE, never "ALL PASS".
+const LIC_CHECKS = (name: string, scanned: number[]) => [
+  `${name}: 181 cities, each with its figure and page as a person read them`, `${name}: Ananthapur 1`, `${name}: Total Vacancies 232, complete`,
+  `${name}: Table E rows on scanned pages (${scanned.join(", ")}) marked as read from the image by AI, and only those`,
+  `${name}: the page images of Table E's scanned pages are there to compare`, `${name}: one table, nothing left unread in it, the reading complete`,
+];
+const CROSS_ONLY = process.env.ONLY_CROSS === "1";
+if (!CROSS_ONLY) expectChecks("lic-scan", LIC_CHECKS("lic-scan", [5, 6, 7, 8, 9]));
+expectChecks("lic-text-then-scan", LIC_CHECKS("lic-text-then-scan", [8, 9]));
+expectChecks("lic-scan-then-text", LIC_CHECKS("lic-scan-then-text", [6, 7]));
+if (!CROSS_ONLY) {
+  expectChecks("lic-mixed", [...LIC_CHECKS("lic-mixed", [5, 6, 7, 8, 9]), "lic-mixed: values from the text pages are not marked as AI-read from an image"]);
+  expectChecks("tg-page23", ["tg-page23: posts 14, 15, 16 with totals 1, 26, 2", "tg-page23: every category cell as printed (a person's reading)", "tg-page23: every row marked as read from the image by AI"]);
+}
 
 type Row = { at: Record<string, string>; status: string; total?: number; cells: Record<string, number>; unclear?: string[]; source: { page: number | null; readBy?: string } };
 
@@ -59,7 +75,7 @@ type Row = { at: Record<string, string>; status: string; total?: number; cells: 
     let p = await jobs.jobProgress({ adminId, jobId });
     for (let i = 0; i < 80 && (p.state === "READING" || p.state === "FINISHING"); i++) p = await jobs.stepJob({ adminId, jobId, apiKey: KEY });
     note(`${p.state}${p.complete ? ", complete" : ""} in ${Math.round((Date.now() - t0) / 1000)} s; ${p.ai.sent} requests (${p.ai.retried} resent); failed: ${p.failedTasks.map((f) => `${f.kind} ${f.first}: ${scrub(f.reason)}`).join("; ") || "none"}`);
-    if (!p.importId) { check(`${name}: preview built`, false, p.stateNote); return null; }
+    if (!p.importId) { check(`${name}: preview built`, false, p.stateNote); blocked(`no preview was built: ${p.stateNote ?? p.state}`); return null; }
     const imp = await getImport(p.importId);
     const proposal = imp!.proposal as unknown as { items: Array<{ fieldPath: string; value: unknown; flags: string[]; claims: Array<{ page: number | null; fromImage?: boolean }> }>; warnings: string[];
       meta: { sources: Array<{ vacancyTables: { problems?: string[] }; pageImages?: { pages: number[] } }> } };
@@ -73,7 +89,7 @@ type Row = { at: Record<string, string>; status: string; total?: number; cells: 
   /** `offset`: the file's page number is the notice's page minus this (the scan-only file starts at the notice's page 5). */
   /** `scanned`: the notice's pages that are images in this file (Table E's rows there are AI-read; elsewhere read from the text). */
   const licCheck = (name: string, r: Awaited<ReturnType<typeof read>>, offset: number, scanned = [5, 6, 7, 8, 9]) => {
-    if (!r?.table) { check(`${name}: a vacancy table`, false); return; }
+    if (!r?.table) { check(`${name}: a vacancy table`, false); blocked(r ? "the reading proposed no vacancy table" : "no preview was built", name); return; }
     const an = analyseVacancyTable(r.table as never);
     let ok = 0; const bad: string[] = [];
     for (const want of LIC_TABLE_E_ROWS) {
@@ -105,6 +121,7 @@ type Row = { at: Record<string, string>; status: string; total?: number; cells: 
   }
 
   const tg = await read("tg-page23", "tg-page23-scan.pdf", "TEST RECORD Telangana junior assistants", "tg-ja");
+  if (tg && !tg.table) blocked("the reading proposed no vacancy table", "tg-page23");
   if (tg?.table) {
     const an = analyseVacancyTable(tg.table as never);
     const want: Array<[string, number]> = [["14", 1], ["15", 26], ["16", 2]];

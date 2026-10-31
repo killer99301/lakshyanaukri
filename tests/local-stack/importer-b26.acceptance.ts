@@ -28,7 +28,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { NextRequest } from "next/server";
-import { boot, check, note, section, summary, ORIGIN } from "./boot";
+import { blocked, boot, check, expectChecks, note, section, skipped, summary, ORIGIN } from "./boot";
 import { bpscTable } from "../fixtures/paste/bpsc-72";
 
 const [SRC, OUT] = process.argv.slice(2);
@@ -41,6 +41,33 @@ if (PHASE === "run" && KEY.length < 20) { console.error("GEMINI_API_KEY is not s
 if (PHASE === "run" && !(MAX_REQUESTS > 0)) { console.error("Set MAX_REQUESTS for a run."); process.exit(2); }
 const scrub = (s: string) => (KEY ? s.split(KEY).join("<key>") : s);
 mkdirSync(OUT, { recursive: true });
+
+// Every check that must run in a real run, by section, declared before anything runs (B2.6): one that did not run
+// makes the suite INCOMPLETE, never "ALL PASS". Only the cases asked for are declared.
+if (PHASE === "run") {
+  if (CASES.has("ssc")) {
+    expectChecks("ssc-cgl-2026", [
+      "SSC: ages post by post, at least 36 posts, from the table of posts", "SSC: no one range applied to every post", "SSC: the Junior Statistical Officer's own 18-32",
+      "SSC: an Auditor's own 18-27", "SSC: age counted on 1 August 2026", "SSC: PwBD (OBC) 13 kept apart from PwBD 10", "SSC: no announcement among the selection stages",
+    ]);
+    expectChecks("ssc-cgl-reopen", ["SSC reopened: the last date to apply is now 25 June 2026"]);
+  }
+  if (CASES.has("upsc")) {
+    expectChecks("upsc-cse-2026", ["UPSC: notification number 05/2026-CSE, not the file number", "UPSC: age 21-32 as on 1 August 2026", "UPSC: relaxations SC/ST 5, OBC 3, PwBD 10", "UPSC: no announcement among the selection stages"]);
+  }
+  if (CASES.has("bpsc")) {
+    expectChecks("BPSC 72nd CCE: the job with its pasted tables", ["BPSC: the pasted tables saved, 25 posts, 1,230"]);
+    expectChecks("bpsc-72-corrigendum", [
+      "BPSC corrigendum: the table without the deleted post is offered, unticked", "BPSC corrigendum: 24 posts, 1,186", "BPSC corrigendum: Sugarcane Officer is the one removed",
+      "BPSC corrigendum: says what it removes and the total, 1230 − 44 = 1186", "BPSC corrigendum: its evidence is marked as read from the page image",
+      "BPSC corrigendum: both sentences quoted (the post at serial 11; its deletion)", "BPSC corrigendum: the default ticks leave the 25 posts",
+    ]);
+    expectChecks("bpsc-72-corrigendum (ticked)", [
+      "BPSC corrigendum ticked: saved and reopened at 1,186, Sugarcane Officer gone", "BPSC corrigendum ticked: the rows left are still prepared outside",
+      "BPSC: restored from the history in one step, 1,230 and 25 posts",
+    ]);
+  }
+}
 
 type Item = { id: string; fieldPath: string; value: unknown; flags: string[]; defaultTicked: boolean; supersedes: string[]; conflict: boolean; claims: Array<{ page: number | null; quote?: string; fromImage?: boolean }> };
 type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[]; meta: { sources: Array<Record<string, unknown>> } };
@@ -74,7 +101,7 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
     const est = await jobs.startJob({ adminId, jobId, confirm: false });
     note(`${pages} pages, ${est.scanPages} scanned; about ${est.estimate} requests${est.missing.length ? `; MISSING ${JSON.stringify(est.missing)}` : ""}`);
     if (PHASE !== "run") return null;
-    if (used + est.estimate > MAX_REQUESTS) { note(`NOT STARTED: ${used} used + ${est.estimate} would pass the budget of ${MAX_REQUESTS}`); return null; }
+    if (used + est.estimate > MAX_REQUESTS) { note(`NOT STARTED: ${used} used + ${est.estimate} would pass the budget of ${MAX_REQUESTS}`); blocked(`not started: ${used} requests used + about ${est.estimate} would pass the budget of ${MAX_REQUESTS}`); return null; }
     await jobs.startJob({ adminId, jobId, confirm: true });
     const t0 = Date.now();
     let p = await jobs.jobProgress({ adminId, jobId });
@@ -90,7 +117,7 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
     }
     used += p.ai.sent;
     note(`${p.state}${p.complete ? ", complete" : ", NOT complete"} in ${Math.round((Date.now() - t0) / 1000)} s; ${p.ai.sent} requests (${p.ai.retried} resent); total so far ${used}; note: ${p.stateNote ?? "-"}; failed: ${p.failedTasks.map((f) => `${f.kind} ${f.first}: ${scrub(f.reason)}`).join("; ") || "none"}`);
-    if (!p.importId) { check(`${name}: preview built`, false, p.stateNote); return null; }
+    if (!p.importId) { check(`${name}: preview built`, false, p.stateNote); blocked(`no preview was built: ${p.stateNote ?? p.state}`); return null; }
     const proposal = (await getImport(p.importId))!.proposal as unknown as Proposal;
     writeFileSync(join(OUT, `${name}.json`), scrub(JSON.stringify({ progress: p, proposal }, null, 1)));
     for (const w of proposal.warnings) note(`warning: ${w.slice(0, 300)}`);
@@ -158,6 +185,7 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
   const { classifyStageName } = await import("@/lib/exam-stage-kind");
   /** The selection process holds stages of selection only, whatever the run (B2.6 part 3). */
   const selectionChecks = (name: string, p: Proposal) => {
+    if (!p.items.some((i) => i.fieldPath === "selection")) skipped(`${name}: no announcement among the selection stages`, "the reading proposed no selection process");
     for (const s of p.items.filter((i) => i.fieldPath === "selection")) {
       const stages = (s.value as { stages?: Array<{ name: string }> }).stages ?? [];
       check(`${name}: no announcement among the selection stages`, stages.every((x) => ["SELECTION", "UNCLASSIFIED"].includes(classifyStageName(x.name))), stages.map((x) => x.name));
@@ -187,7 +215,10 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
         compare(before, after);
         check("SSC reopened: the last date to apply is now 25 June 2026", /"2026-06-25"/.test(after["dates.applicationCloseDate"] ?? ""), after["dates.applicationCloseDate"]);
       }
-    } else if (PHASE !== "run") {
+    } else if (PHASE === "run") {
+      blocked("the SSC notification was not read, so there is no job to apply its reopening notice to", "ssc-cgl-reopen");
+    }
+    if (!n && PHASE !== "run") {
       await read("ssc-cgl-reopen (estimate only)", "ssc-cgl-reopen.pdf", { kind: "OFFICIAL_NOTIFICATION", title: "estimate", org: "ssc-est" });
     }
   }
@@ -224,8 +255,10 @@ type Proposal = { items: Item[]; warnings: string[]; replacedInImport?: unknown[
     check("BPSC: the pasted tables saved, 25 posts, 1,230", pasted.status === 200 && pasted.body.record.vacancies.total.value === 1230, pasted.body.error);
     const before = await snapshot(id);
     const u = await read("bpsc-72-corrigendum", "bpsc-72-corrigendum.pdf", { kind: "OFFICIAL_CORRIGENDUM", recruitmentId: id, title: "", org: "" });
+    if (!u && PHASE === "run") blocked("the corrigendum was not read, so nothing was offered to tick", "bpsc-72-corrigendum (ticked)");
     if (u) {
       const t = item(u.proposal, "vacancies.table");
+      if (!t) blocked("no vacancy table was offered for the corrigendum, so there was nothing to tick", "bpsc-72-corrigendum (ticked)");
       const offered = t?.value as Parameters<typeof analyseVacancyTable>[0] | undefined;
       check("BPSC corrigendum: the table without the deleted post is offered, unticked", !!t && t.defaultTicked === false, t && [t.defaultTicked, t.flags]);
       check("BPSC corrigendum: 24 posts, 1,186", offered?.rows.length === 24 && analyseVacancyTable(offered).grandTotal?.value === 1186, offered && [offered.rows.length, analyseVacancyTable(offered).grandTotal?.value]);
