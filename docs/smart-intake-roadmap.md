@@ -89,6 +89,22 @@ unreliable:
 | Backup of `feature/importer` to GitHub | After the owner's go-ahead; separate from any production release |
 | Controlled production release (migration and deployment) | Only with the owner's explicit approval |
 
+**Stage C entry checklist.** Carried forward from the B2 report; done first
+in Stage C, before anything else in it.
+
+1. **IBPS selection fallback (`38b5593`).** It has unit tests but has not
+   run with the real model. A focused replay or integration check is to
+   verify:
+   - the selection process built from the schedule;
+   - its schedule evidence (quote and page);
+   - that it is Pending when saved;
+   - that a reading's own selection process is never overwritten.
+2. **The intelligence baseline E8** ("Approving vacancy change generates
+   ProposedChange without writing canonical data"). Before any change to the
+   approval workflow:
+   - inspect the exact failing assertion and document it;
+   - treat that workflow as not fully verified until then.
+
 **After Stage C, the next priorities.** These are not new OCR work, and each
 is planned and approved separately:
 
