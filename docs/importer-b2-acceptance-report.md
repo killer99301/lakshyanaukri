@@ -1,6 +1,8 @@
 # Smart intake — B2 formal acceptance report
 
-Dated 1 November 2026, ready for the owner's review.
+Dated 1 November 2026.
+
+> **ACCEPTED by the owner on 1 November 2026** ("Accept B2"), under the approved criteria and the documented limitations in section 4. The Stage C entry checklist in `docs/smart-intake-roadmap.md` carries two items forward.
 
 **Branch:** `feature/importer` in `D:\LakshyaNaukri-importer`.
 - Local only: nothing pushed, merged, migrated or deployed.

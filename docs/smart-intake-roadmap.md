@@ -83,7 +83,7 @@ unreliable:
 | A1–A3: vacancy tables | Done |
 | B1: tables read by code | Done |
 | B2.1–B2.5: long and scanned documents | Done |
-| B2.6: final acceptance | Closing; formal report in `docs/importer-b2-acceptance-report.md`; awaiting the owner's acceptance |
+| B2.6: final acceptance | **Accepted by the owner on 1 November 2026**; formal report in `docs/importer-b2-acceptance-report.md` |
 | **C: verification and publishing safeguards** | Next, only after B2 is formally accepted |
 | **Pre-release: admin CMS UI/UX redesign** | After Stage C, once core functions and publishing safeguards are stable; **required before the public launch** (see below) |
 | Backup of `feature/importer` to GitHub | After the owner's go-ahead; separate from any production release |
