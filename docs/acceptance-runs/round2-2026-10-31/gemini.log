@@ -1,0 +1,335 @@
+  ....  model: gemini-3.5-flash-lite
+
+── btsc-article
+  ....  18 items in 11 s
+  ....  [x] age = {"min":21,"asOf":"2026-08-01","relaxations":[],"categoryMax":[{"category":"Unreserved (Male)","max":37},{"category":"Unreserved (Female)","m…  flags: from research only — check it against the official notice
+         quote: The minimum age is 21 years as on 1 August 2026. The maximum age varies by category.
+  ....  [x] conditions = ["Meeting the minimum qualifying marks does not automatically guarantee selection. The final outcome will depend on the applicable selection…  flags: from research only — check it against the official notice
+         quote: Meeting the minimum qualifying marks does not automatically guarantee selection. The final outcome will depend on the applicable selection criteria, merit posit…
+  ....  [x] dates.applicationCloseDate = 2026-10-24  flags: from research only — check it against the official notice,this date has passed (today is 2026-10-31)
+         quote: Last Date to Apply 24 October 2026
+  ....  [x] dates.applicationOpenDate = 2026-09-25  flags: from research only — check it against the official notice
+         quote: Application Start Date 25 September 2026
+  ....  [x] eligibility = [{"post":"Food Safety Officer","qualification":["Bachelor’s, Master’s or Doctorate degrees in specified disciplines.","Food Technology, Dair…  flags: from research only — check it against the official notice
+         quote: Candidates must possess a recognised degree in one of the prescribed disciplines to be eligible for the Food Safety Officer post. The accepted qualifications in…
+  ....  [x] examPattern = [{"name":"BTSC FSO Exam Pattern 2026","durationMinutes":120,"sections":[{"subject":"Paper 1 General Studies and Mental Ability","questions":…  flags: from research only — check it against the official notice,✓ all 1 papers read by code from the notice's tables
+         quote: Paper 1 General Studies and Mental Ability 25 25
+  ....  [x] examStages = [{"name":"Notification Advertisement No. 29/2026","order":1,"status":"NOT_DECLARED","certainty":"TBA","notes":"September 2026","kind":"OTHER…  flags: from research only — check it against the official notice
+         quote: Notification Advertisement No. 29/2026 September 2026
+  ....  [x] financial.feeGeneral = 100  flags: from research only — check it against the official notice
+         quote: The notification prescribes an application fee of ₹100. Payment must be completed online.
+  ....  [x] financial.payScale = Pay Level 6, Grade Pay ₹4,200  flags: from research only — check it against the official notice
+         quote: The Food Safety Officer post carries a revised pay structure under Pay Level 6, with a grade pay of ₹4,200 as mentioned in the notification.
+  ....  [x] howToApply = ["Open the BTSC FSO Application Link.","Register or log in to the application portal.","Enter personal and educational details.","Upload the…  flags: from research only — check it against the official notice
+         quote: Open the BTSC FSO Application Link.
+  ....  [x] identity.notificationNumber = 29/2026  flags: from research only — check it against the official notice
+         quote: The Bihar Technical Service Commission (BTSC) has released the BTSC FSO Recruitment 2026 Notification for 105 Food Safety Officer (FSO) vacancies under the Heal…
+  ....  [ ] identity.title = BTSC FSO Recruitment 2026 Notification Out For 105 Posts, Apply Online  flags: from research only — check it against the official notice
+         quote: —
+  ....  [ ] links#OFFICIAL_WEBSITE = {"type":"OFFICIAL_WEBSITE","label":"Official Website","url":"https://btsc.bihar.gov.in/","official":true}  flags: found in research text
+         quote: fication Job Location Bihar Pay Level Level 6 Grade Pay ₹4,200 Official Website btsc.bihar.gov.in BTSC FSO Recruitment 2026 Notification
+  ....  [x] selection = {"stages":[{"name":"Computer-Based Test","order":1,"type":"CBT","description":"A 100-mark examination based on the prescribed syllabus."},{"…  flags: from research only — check it against the official notice,“Appointment and Training” is left out of the selection process: training is not a stage of selection (it stays in the schedule if the notice dates it)
+         quote: Computer-Based Test (CBT): A 100-mark examination based on the prescribed syllabus.
+  ....  [x] syllabus = [{"subject":"Food Technology","topics":["Food processing and preservation"]},{"subject":"Dairy Technology","topics":["Milk processing and da…  flags: from research only — check it against the official notice
+         quote: Food Technology Food processing and preservation
+  ....  [ ] vacancies.breakdown = [{"post":"Food Safety Officer (FSO)","count":105,"breakdown":{"ur":41,"ews":11,"sc":17,"st":2,"Extremely Backward Class (EBC)":18,"Backward …  flags: from research only — check it against the official notice,worked out from the vacancy table below when it is saved
+         quote: The Bihar Technical Service Commission (BTSC) has released the BTSC FSO Recruitment 2026 Notification for 105 Food Safety Officer (FSO) vacancies under the Heal…
+  ....  [x] vacancies.table = {"dimensions":[{"key":"post","label":"Post"}],"categories":[{"key":"ur","label":"UR","kind":"VERTICAL"},{"key":"ews","label":"EWS","kind":"V…  flags: from research only — check it against the official notice
+         quote: Backward Class Women	4
+  ....  [ ] vacancies.total = 105  flags: from research only — check it against the official notice,worked out from the vacancy table below when it is saved
+         quote: —
+  ....  not found: Notification Date, Fee Payment Deadline, Correction Window End, Application fee (SC/ST/PwBD) (nothing relevant found in the source)
+  ....  warning: No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.
+  ....  warning: No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.
+  ....  warning: Every source here is research. Its values are saved as Pending, but none can be checked until an official document is added.
+  ....  stages by class: Notification Advertisement No. 29/2026 [OTHER_MILESTONE] | Online Application Begins [OTHER_MILESTONE] | Last Date to Apply Online [OTHER_MILESTONE] | Last Date for Required Documents [DOCUMENT] | CBT Exam Date [SELECTION]
+  PASS  btsc-article: every schedule entry has a class
+  ....  age: overall 21–– as on 2026-08-01; printed by category Unreserved (Male) 37, Unreserved (Female) 40, Backward Class / Extremely Backward Class (Male and Female) 40, Scheduled Caste / Scheduled Tribe (Male and Female) 42; flags: from research only — check it against the official notice
+  PASS  btsc-article: every quote is in its source
+  ....  AI requests: {"sent":1,"retried":0,"failed":0}
+  PASS  BTSC: Advertisement No. 29/2026
+  PASS  BTSC: applications open 25 Sep 2026
+  PASS  BTSC: last date 24 Oct 2026
+  PASS  BTSC: the passed last date is flagged
+  PASS  BTSC: research-only dates are flagged as research
+  PASS  BTSC: 105 vacancies
+  PASS  BTSC: category split UR 41, EWS 11, SC 17, ST 2
+  PASS  BTSC: EBC 18, BC 12, Backward Class Women 4 kept under their own names
+  ....  BTSC table: 1 rows from split, total 105; tables ; unread lines 0
+  PASS  BTSC: no separate total or breakdown is ticked against the table
+  PASS  BTSC table: one row of 105 with the full split, from the quoted split
+  PASS  BTSC table: every figure is in the row's evidence lines
+  PASS  BTSC: fee ₹100
+  PASS  BTSC: warned research only / no official notification
+  PASS  BTSC: exam date 'To be announced' is not turned into a date
+  PASS  BTSC: the article's posting date (15 Oct) is not used as any date
+  ....  links: [{"type":"OFFICIAL_WEBSITE","label":"Official Website","url":"https://btsc.bihar.gov.in/","official":true}]
+  PASS  BTSC: no portal (adda247) address offered as official
+  PASS  BTSC: the exam pattern table read by code as printed (the web page's tabs come through as spaces)
+  ....  LIC PDF text layer: 16095 characters
+
+── lic-pdf
+  ....  24 items in 7 s
+  ....  [x] age = {"min":20,"max":25,"relaxations":[]}
+         quote: Age as on 01-Oct-2026 20 to 25 years
+  ....  [x] conditions = ["Apprenticeship is NOT an employment. Apprentices are NOT Employees. Apprentices are ONLY Trainees.","LIC Housing Finance Ltd is NOT oblige…
+         quote: Apprenticeship is NOT an employment. Apprentices are NOT Employees. Apprentices are ONLY Trainees.
+  ....  [x] dates.applicationCloseDate = 2026-11-01
+         quote: 20.10.2026 to
+01.11.2026
+  ....  [x] dates.applicationOpenDate = 2026-10-20
+         quote: Applications for apprenticeship
+will be invited during
+20.10.2026 to
+01.11.2026
+  ....  [x] dates.examDate = 2026-11-07
+         quote: Entrance Examination will be conducted by BFSI Sector Skill Council of India 07.11.2026
+  ....  [x] dates.feePaymentCloseDate = 2026-11-01
+         quote: Last Date to pay the examination
+fee to BFSI Sector Skill Council of
+India
+https://beep.bfsissc.com
+01.11.2026
+  ....  [x] dates.interviewDate = 2026-11-15
+         quote: Candidates shortlisted based on the entrance examination result will be invited for Document Verification & Personal Interview at LIC HFL offices 15.11.2026
+  ....  [x] eligibility = [{"post":"Apprentice","qualification":["Should have completed graduation in any stream as on 01-Oct-2026 but not before 1-Oct-2001"]}]
+         quote: Should have completed graduation in any stream as on 01-Oct-2026 but not before 1-Oct-2001
+  ....  [x] examPattern = [{"name":"Table D: Online test","durationMinutes":60,"sections":[{"subject":"General/Financial Awareness","questions":25,"marks":25},{"subje…  flags: ✓ all 1 papers read by code from the notice's tables
+         quote: General/Financial Awareness 25 25
+  ....  [x] examStages = [{"name":"Entrance Examination","order":1,"status":"SCHEDULED","certainty":"CONFIRMED","dateDisplay":"07.11.2026","dateIso":"2026-11-07","ki…
+         quote: Entrance Examination will be conducted by BFSI Sector Skill Council of India 07.11.2026
+  ....  [x] financial.feeGeneral = 800
+         quote: General, EWS and Other Backward Class (OBC)-Male
+candidates Rs.800/- plus G
+  ....  [x] financial.feeSCST = 200
+         quote: Scheduled Caste (SC) / Scheduled Tribe (ST) candidates Rs.200/-plus GST
+  ....  [x] financial.payScale = Rs.16,650/- Metro Cities and Rs.14,150/- Other Cities
+         quote: Rs.16,650/- Metro Cities: Ahmedabad, Bangalore, Chennai, Delhi, Hyderabad, Kolkata, Mumbai, Pune, Surat Rs.14,150/- Other Cities
+  ....  [x] howToApply = ["Register on the NATS portal of the Government of India","Receive an email invitation from BFSI SSC to fill up a detailed application and m…
+         quote: Candidates can apply online, and no other mode of application will be accepted. Candidates should first, mandatorily register themselves, if eligible, on the ap…
+  ....  [ ] identity.title = LICHFL Apprenticeship Program-010- Advertisement Notification
+         quote: —
+  ....  [x] links#APPLY_ONLINE = {"type":"APPLY_ONLINE","label":"Apply Online","url":"https://nats.education.gov.in/student_type.php","official":true}
+         quote: pprenticeship Advertisement of “LICHFL” after login into the portal by visiting https://nats.education.gov.in/student_type.php . It is very IMPORTANT for all ca…
+  ....  [x] links#OFFICIAL_NOTIFICATION = {"type":"OFFICIAL_NOTIFICATION","label":"Official Notification","url":"https://www.lichousing.com/static-assets/pdf/Apprentecis-Advertisemen…
+         quote: The address this document came from
+  ....  [ ] links#OFFICIAL_WEBSITE = {"type":"OFFICIAL_WEBSITE","label":"Official Website","url":"https://nats.education.gov.in.in/","official":false}
+         quote: eligible, on the apprenticeship portals of Government of India viz NATS portal https://nats.education.gov.in.in (Navigate to the “Student Register/Logi
+  ....  [x] links#OTHER = {"type":"OTHER","label":"Link","url":"https://nats.education.gov.in/assets/manual/student_manual.pdf","official":true}
+         quote: ive apprenticeship portals. For NATS portal refer to “Candidate User Manual” on https://nats.education.gov.in/assets/manual/student_manual.pdf d. Candidate will…
+  ....  [x] links#OTHER = {"type":"OTHER","label":"Link","url":"https://beep.bfsissc.com/","official":true}
+         quote: e candidates for online examination and submission of additional information at https://beep.bfsissc.com will be 01-Nov-2026 e. All candidates a
+  ....  [x] selection = {"stages":[{"name":"Online Examination","order":1,"type":"CBT"},{"name":"Document Verification & Personal Interview","order":2,"type":"DOCUM…  flags: “Document Verification & Personal Interview” was read as interview; its name says document verification: set so,“Document Verification & Personal Interview” added from the notice's schedule (page 5): the selection process read did not include it — check which posts it is for
+         quote: Candidate will receive an email from BFSI SSC inviting the candidate to fill up a detailed application and make payment, for Online Examination for “LIC HFL App…
+  ....  [ ] vacancies.breakdown = [{"post":"Apprentice","count":232}]  flags: worked out from the vacancy table below when it is saved
+         quote: Number of Apprentices required by LIC Housing Finance Ltd. (State & City wise vacancy as per Table E. 232
+  ....  [x] vacancies.table = {"dimensions":[{"key":"post","label":"Post"},{"key":"state","label":"State"},{"key":"city","label":"City"}],"categories":[],"rows":[{"id":"t…
+         quote: Andhra Pradesh Ananthapur 1
+  ....  [ ] vacancies.total = 232  flags: worked out from the vacancy table below when it is saved
+         quote: Grand Total 232
+  ....  refused examStages: whole-text reading: a stage name is longer than 80 characters: "Candidates who accept the offer letters will be asked to rep…"
+  ....  not found: Notification Number, Notification Date, Correction Window End, Syllabus
+  ....  warning: lichousing.com — notification, attested by admin: pages 10 have no text (scanned pages); they were not read.
+  ....  stages by class: Entrance Examination [SELECTION] | Document Verification & Personal Interview [SELECTION] | Final selected candidates will be issued engagement letters by LIC HFL [OTHER_MILESTONE]
+  PASS  lic-pdf: every schedule entry has a class
+  ....  age: overall 20–25 as on –
+  PASS  lic-pdf: every quote is in its source
+  ....  AI requests: {"sent":4,"retried":0,"failed":0}
+  ....  LIC table: 181 rows from tables, total 232; tables Table E:CODE; unread lines 0
+  PASS  LIC: no separate total or breakdown is ticked against the table
+  PASS  LIC table: 181 cities read by code, Ananthapur 1, total 232 complete
+  PASS  LIC: applications open 20 Oct 2026
+  PASS  LIC: last date 1 Nov 2026
+  PASS  LIC: 232 apprentices
+  PASS  LIC: fee Rs.800 (General/OBC) and Rs.200 (SC/ST)
+  PASS  LIC: age 20 to 25
+  PASS  LIC: the NATS manual is not offered as the notification
+  PASS  LIC: entrance exam 7 Nov 2026 found (date or exam stage)
+  PASS  LIC: an official document's values are not flagged as research
+  PASS  LIC: the online test read by code as printed
+
+── lic-scan: the AI writes the scan out as text
+  PASS  scan: read
+  ....  5739 characters read
+
+── lic-scan
+  ....  22 items in 7 s
+  ....  [x] age = {"min":20,"max":25,"relaxations":[]}
+         quote: Age as on 01-Oct-2026: 20 to 25 years
+  ....  [x] conditions = ["The candidate should NOT have a Running/Terminated/Completed Apprenticeship contract with any other organization."]
+         quote: The candidate should NOT have a Running/Terminated/Completed Apprenticeship contract with any other organization.
+  ....  [x] dates.applicationCloseDate = 2026-11-01
+         quote: Applications for apprenticeship will be invited during: 20-10-2026 to 01-11-2026
+  ....  [x] dates.applicationOpenDate = 2026-10-20
+         quote: Applications for apprenticeship will be invited during: 20-10-2026 to 01-11-2026
+  ....  [x] dates.examDate = 2026-11-07
+         quote: Entrance Examination will be conducted by BFSI Sector Skill Council of India: 07-11-2026
+  ....  [x] dates.feePaymentCloseDate = 2026-11-01
+         quote: Last Date to pay the examination fee to BFSI Sector Skill Council of India https://beep.bfsissc.com: 01-11-2026
+  ....  [x] eligibility = [{"post":"Apprentice","qualification":["Should have completed graduation in any stream as on 01-Oct-2026 but not before 1-Oct-2001"]}]
+         quote: Educational Qualification: Should have completed graduation in any stream as on 01-Oct-2026 but not before 1-Oct-2001
+  ....  [x] examStages = [{"name":"Entrance Examination","order":1,"status":"SCHEDULED","certainty":"CONFIRMED","dateDisplay":"07-11-2026","dateIso":"2026-11-07","ki…
+         quote: Entrance Examination will be conducted by BFSI Sector Skill Council of India: 07-11-2026
+  ....  [x] financial.feeGeneral = 800
+         quote: General, EWS and Other Backward Class (OBC)-Male candidates: Rs.800/- plus GST
+  ....  [x] financial.feeSCST = 200
+         quote: Scheduled Caste (SC) / Scheduled Tribe (ST) candidates: Rs.200/- plus GST
+  ....  [x] financial.payScale = Rs.16,650/- for Metro Cities and Rs.14,150/- for Other Cities
+         quote: Monthly Stipend: Rs.16,650/- Metro Cities: Ahmedabad, Bangalore, Chennai, Delhi, Hyderabad, Kolkata, Mumbai, Pune, Surat
+Rs.14,150/- Other Cities
+  ....  [x] howToApply = ["Register yourself on the apprenticeship portals of Government of India viz NATS portal https://nats.education.gov.in.in","View the Apprent…
+         quote: Candidates should first, mandatorily register themselves, if eligible, on the apprenticeship portals of Government of India viz NATS portal https://nats.educati…
+  ....  [x] identity.notificationNumber = LICFL Apprenticeship Program-010
+         quote: LICFL Apprenticeship Program-010- Advertisement Notification
+  ....  [ ] identity.title = RECRUITMENT TITLE, BODY AND NOTIFICATION NUMBER
+         quote: —
+  ....  [x] links#APPLY_ONLINE = {"type":"APPLY_ONLINE","label":"Apply Online","url":"https://nats.education.gov.in/student_type.php","official":true}
+         quote: pprenticeship Advertisement of "LICHFL" after login into the portal by visiting https://nats.education.gov.in/student_type.php. It is very IMPORTANT for all can…
+  ....  [x] links#APPLY_ONLINE = {"type":"APPLY_ONLINE","label":"Apply Online","url":"https://nats.education.gov.in/","official":true}
+         quote: training, etc. and make the payment of the Application Fees. Official website: https://nats.education.gov.in
+  ....  [x] links#OFFICIAL_NOTIFICATION = {"type":"OFFICIAL_NOTIFICATION","label":"Official Notification","url":"https://www.lichousing.com/static-assets/pdf/Apprentecis-Advertisemen…
+         quote: The address this document came from
+  ....  [ ] links#OFFICIAL_WEBSITE = {"type":"OFFICIAL_WEBSITE","label":"Official Website","url":"https://nats.education.gov.in.in/","official":false}
+         quote: eligible, on the apprenticeship portals of Government of India viz NATS portal https://nats.education.gov.in.in (Navigate to the "Student Register/Logi
+  ....  [x] links#OTHER = {"type":"OTHER","label":"Link","url":"https://nats.education.gov.in/assets/manual/student_manual.pdf","official":true}
+         quote: ive apprenticeship portals. For NATS portal refer to "Candidate User Manual" on https://nats.education.gov.in/assets/manual/student_manual.pdf Candidate will re…
+  ....  [x] links#OTHER = {"type":"OTHER","label":"Link","url":"https://beep.bfsissc.com/","official":true}
+         quote: 2026 Last Date to pay the examination fee to BFSI Sector Skill Council of India https://beep.bfsissc.com: 01-11-2026 Entrance Examination will b
+  ....  [x] selection = {"stages":[{"name":"Entrance Examination","order":1,"type":"WRITTEN","description":"Entrance Examination conducted by BFSI Sector Skill Coun…  flags: “Document Verification & Personal Interview” added from the notice's schedule: the selection process read did not include it — check which posts it is for
+         quote: Step 3: Entrance Examination will be conducted by BFSI Sector Skill Council of India: 07-11-2026
+  ....  [x] vacancies.total = 232
+         quote: —
+  ....  refused examPattern: no exam pattern item could be matched to the source text
+  ....  not found: Notification Date, Vacancy Breakdown, Correction Window End, Syllabus
+  ....  stages by class: Entrance Examination [SELECTION] | Document Verification & Personal Interview [SELECTION] | Engagement Letters Issuance [OTHER_MILESTONE] | Apprenticeship Training Program Reporting [TRAINING]
+  PASS  lic-scan: every schedule entry has a class
+  ....  age: overall 20–25 as on –
+  PASS  lic-scan: every quote is in its source
+  ....  AI requests: {"sent":4,"retried":0,"failed":0}
+  ....  scan table: none; tables ; unread lines 0
+  N/A   scan: no separate total or breakdown is ticked against the table — lic-scan.pdf is pages 1-5; it prints no vacancy table (Table E starts on page 6)
+  N/A   scan table: every row's line is in the AI's write-up — lic-scan.pdf is pages 1-5; it prints no vacancy table (Table E starts on page 6)
+  PASS  scan: age 20 to 25
+  PASS  scan: 232 apprentices
+  PASS  scan: applications open 20 Oct 2026
+  PASS  scan: last date 1 Nov 2026
+  PASS  scan: fee Rs.800 and Rs.200
+
+── btsc-screenshot
+  ....  6 items in 3 s
+  ....  [x] conditions = ["Last Date for Required Documents: 24-10-2026"]  flags: from research only — check it against the official notice
+         quote: Last Date for Required Documents: 24-10-2026
+  ....  [x] dates.applicationCloseDate = 2026-10-24  flags: from research only — check it against the official notice,this date has passed (today is 2026-10-31)
+         quote: —
+  ....  [x] dates.applicationOpenDate = 2026-09-25  flags: from research only — check it against the official notice
+         quote: —
+  ....  [x] examStages = [{"name":"CBT Exam","order":1,"status":"NOT_DECLARED","certainty":"TBA","notes":"To be announced","kind":"SELECTION"}]  flags: from research only — check it against the official notice
+         quote: CBT Exam Date: To be announced
+  ....  [x] identity.notificationNumber = 29/2026  flags: from research only — check it against the official notice
+         quote: Notification Advertisement No. 29/2026: September 2026
+  ....  [ ] identity.title = Notification Advertisement No. 29/2026: September 2026  flags: from research only — check it against the official notice
+         quote: —
+  ....  not found: Notification Date, Total Vacancies, Vacancy Breakdown, Fee Payment Deadline, Correction Window End, Application fee (General/OBC) (nothing relevant found in the source), Application fee (SC/ST/PwBD) (nothing relevant found in the source), Post-wise Eligibility (nothing relevant found in the source), Age Limit (nothing relevant found in the source), Selection Process (nothing relevant found in the source), How to Apply (nothing relevant found in the source), Pay Scale (nothing relevant found in the source), Exam Pattern, Syllabus
+  ....  warning: No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.
+  ....  warning: No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.
+  ....  warning: Every source here is research. Its values are saved as Pending, but none can be checked until an official document is added.
+  ....  stages by class: CBT Exam [SELECTION]
+  PASS  btsc-screenshot: every schedule entry has a class
+  PASS  btsc-screenshot: every quote is in its source
+  ....  AI requests: {"sent":2,"retried":0,"failed":0}
+  ....  image summary: 
+  PASS  screenshot: open 25 Sep and last date 24 Oct 2026
+  PASS  screenshot: research only, so its dates are flagged as research
+  ....  IBPS PDF text layer: 191963 characters
+
+── ibps-pdf
+  ....  17 items in 53 s
+  ....  [x] age = {"asOf":"2026-09-01","relaxations":[],"postWise":[{"post":"Office Assistants (Multipurpose)","min":18,"max":28,"bornFrom":"1998-09-02","born…  flags: no age was read for “Information Technology Officer”, “Chartered Accountant”, “Law Officer”, “Treasury Manager”, “Marketing Officer”, “Agricultural Officer” — check the notice; another post's range is not used for it
+         quote: II. Age (As on 01.09. 2026)
+Group Posts Age limit Remarks
+Group “B”
+Office Assistants
+(Multipurpose)
+Between 18 years
+and 28 years
+Candidates should not have be…
+  ....  [x] conditions = ["A candidate can apply for the Post of Office Assistants (Multipurpose) and can also apply for the Post of Officers. However, a candidate c…
+         quote: A candidate can apply for the Post of Office Assistants (Multipurpose) and can also apply for the Post of Officers. However, a candidate can apply for only one …
+  ....  [x] dates.applicationCloseDate = 2026-09-21  flags: this date has passed (today is 2026-10-31)
+         quote: Candidates can apply online only from 01.09.2026 to 21.09.2026 and no other mode of application
+  ....  [x] dates.applicationOpenDate = 2026-09-01
+         quote: Application Fees/ Intimation Charges (Online payment from 01.09.2026 to 21.09.2026 both dates
+  ....  [x] dates.feePaymentCloseDate = 2026-09-21  flags: this date has passed (today is 2026-10-31)
+         quote: [Payable from 01.09.2026 to 21.09.2026, (Only online payment) both dates inclusive] shall be as
+  ....  [x] eligibility = [{"post":"Office Assistants (Multipurpose)","qualification":["Bachelor’s degree in any discipline from a recognized University or its equiva…
+         quote: Office Assistants (Multipurpose) Bachelor’s degree in any discipline from a recognized University or its equivalent (a) Proficiency in local language as prescri…
+  ....  [x] examPattern = [{"name":"Preliminary Examination (objective) – Office Assistants (Multipurpose)","durationMinutes":45,"sections":[{"subject":"Reasoning","q…  flags: ✓ all 7 papers read by code from the notice's tables
+         quote: 1 Reasoning * 40 40 25 minutes
+  ....  [x] examStages = [{"name":"Conduct of Pre-Exam Training (PET)","order":1,"status":"NOT_DECLARED","certainty":"TBA","notes":"November, 2026","kind":"TRAINING"…
+         quote: Conduct of Pre-Exam Training (PET) November, 2026
+  ....  [x] financial.feeGeneral = 850
+         quote: Rs.850/- (Inclusive of GST) for all others
+  ....  [x] financial.feeSCST = 175
+         quote: Rs.175/- (Inclusive of GST) for SC/ST/ PwBD
+  ....  [x] howToApply = ["Prospective candidates will have to apply at official IBPS website www.ibps.in after carefully reading the notification regarding the proc…
+         quote: Prospective candidates will have to apply at official IBPS website www.ibps.in after carefully reading the notification regarding the process of examinations, i…
+  ....  [ ] identity.title = Common Recruitment Process for Recruitment of Officers (Scale-I, II & III) and Office Assistants (Multipurpose) in Regional Rural Banks (RRB…
+         quote: —
+  ....  [x] links#OFFICIAL_NOTIFICATION = {"type":"OFFICIAL_NOTIFICATION","label":"Official Notification","url":"https://www.ibps.in/wp-content/uploads/CRP-RRBs-XV-notification.pdf",…
+         quote: The address this document came from
+  ....  [x] links#OFFICIAL_WEBSITE = {"type":"OFFICIAL_WEBSITE","label":"Official Website","url":"https://cgrs.ibps.in/","official":true}
+         quote: Official Website: www.ibps.in In case of queries / complaints please log on to https://cgrs.ibps.in The online examinations for the upcomin
+  ....  [x] selection = {"stages":[{"name":"Preliminary Examination","order":1,"type":"CBT"},{"name":"Main Examination","order":2,"type":"CBT"},{"name":"Single leve…  flags: “Conduct of interview (For Officers Scale I, II and III)” added from the notice's schedule (page 1): the selection process read did not include it — check which posts it is for
+         quote: Preliminary Examination (objective)
+  ....  [ ] vacancies.breakdown = [{"post":"Officer Scale II (Treasury Manager)","count":18,"breakdown":{"sc":0,"st":0,"ews":1}},{"post":"Officer Scale II (Marketing Officer)…  flags: worked out from the vacancy table below when it is saved
+         quote: Officer Scale II (Treasury Manager)
+SR
+NO. BANK SC ST OBC (NCL) EWS GENERAL TOTAL
+PWBD (Out of Which)
+HI OC VI ID
+1 ANDHRA PRADESH GRAMEENA BANK 0 0 0 0 0 0 0 0…
+  ....  [x] vacancies.table = {"dimensions":[{"key":"post","label":"Post"},{"key":"state","label":"State"},{"key":"bank","label":"Bank"}],"categories":[{"key":"sc","label…
+         quote: GRAMEENA BANK 144 63 243 90 360 900 9 9 9 9 90 41
+  ....  refused Notification Number: two extraction methods disagree — check the notification and enter manually
+  ....  not found: Notification Date, Total Vacancies, Correction Window End, Pay Scale, Syllabus
+  ....  warning: No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.
+  ....  stages by class: Conduct of Pre-Exam Training (PET) [TRAINING] | Download of call letters for online examination – Preliminary (Officers/ OA) [ADMIT_CARD] | Online Examination – Preliminary (Officers/OA) [SELECTION] | Result of Online exam – Preliminary (Officers/ OA) [RESULT] | Download of Call letter for Online exam – Main / Single (Officers/ OA) [ADMIT_CARD] | Online Examination – Main / Single (Officers/OA) [SELECTION] | Declaration of Result – Main/ Single (For Officers Scale I, II and III) [RESULT] | Download of call letters for interview (For Officers Scale I, II and III) [ADMIT_CARD] | Conduct of interview (For Officers Scale I, II and III) [SELECTION]
+  PASS  ibps-pdf: every schedule entry has a class
+  ....  age: overall ––– as on 2026-09-01; flags: no age was read for “Information Technology Officer”, “Chartered Accountant”, “Law Officer”, “Treasury Manager”, “Marketing Officer”, “Agricultural Officer” — check the notice; another post's range is not used for it
+  ....    Office Assistants (Multipurpose): 18–28, born 1998-09-02 to 2008-09-01 (pages 7)
+  ....    Officer Scale- I (Assistant Manager): 18–30, born 1996-09-02 to 2008-09-01 (pages 7)
+  ....    Officer Scale- II (Manager): 21–32, born 1994-09-02 to 2005-09-01 (pages 7)
+  ....    Officer Scale- III (Senior Manager): 21–40, born 1986-09-02 to 2005-09-01 (pages 7)
+  PASS  ibps-pdf: every quote is in its source
+  ....  AI requests: {"sent":20,"retried":5,"failed":7}
+  ....  sections found: age, conditions, dates.applicationCloseDate, dates.applicationOpenDate, dates.feePaymentCloseDate, eligibility, examPattern, examStages, financial.feeGeneral, financial.feeSCST, howToApply, identity.title, links#OFFICIAL_NOTIFICATION, links#OFFICIAL_WEBSITE, selection, vacancies.breakdown, vacancies.table
+  PASS  IBPS: exam stages found
+  PASS  IBPS: exam pattern found
+  ....    paper: Preliminary Examination (objective) – Office Assistants (Multipurpose) | 80/80 45 min | Reasoning 40/40; Numerical Ability 40/40
+  ....    paper: Preliminary Examination (objective) – Officer Scale-I | 80/80 45 min | Reasoning 40/40; Quantitative Aptitude 40/40
+  ....    paper: Main Examination (objective) – Office Assistants (Multipurpose) | 200/200 120 min | Reasoning 40/50; Computer Knowledge 40/20; General Awareness 40/40; English Language 40/40; Hindi Language 40/40; Numerical Ability 40/50
+  ....    paper: Main Examination (objective) – Officer Scale-I | 200/200 120 min | Reasoning 40/50; Computer Knowledge 40/20; General Awareness 40/40; English Language 40/40; Hindi Language 40/40; Quantitative Aptitude 40/50
+  ....    paper: Single level Examination (objective) – Officer Scale-II (General Banking Officer) | 200/200 120 min | Reasoning 40/50; Computer Knowledge 40/20; Financial Awareness 40/40; English Language 40/40; Hindi Language 40/40; Quantitative Aptitude & Data Interpretation 40/50
+  ....    paper: Single level Examination (objective) – Officer Scale-II (Specialist Cadre) | 240/200 150 min | Professional Knowledge 40/40; Reasoning 40/40; Financial Awareness 40/40; English Language 40/20; Hindi Language 40/20; Computer Knowledge 40/20; Quantitative Aptitude & Data Interpretation 40/40
+  ....    paper: Single level Examination (objective) – Officer Scale- III | 200/200 120 min | Reasoning 40/50; Computer Knowledge 40/20; Financial Awareness 40/40; English Language 40/40; Hindi Language 40/40; Quantitative Aptitude & Data Interpretation 40/50
+  PASS  IBPS: all 7 papers, with their questions, marks and durations as printed
+  PASS  IBPS: the pattern says it is complete (7 of 7 read by code)
+  PASS  IBPS: every selection reading has the officers' interview
+  PASS  IBPS: no announcement among the selection stages
+  PASS  LIC: no announcement among the selection stages
+  PASS  BTSC: no announcement among the selection stages
+  ....  IBPS vacancy rows: [{"post":"Officer Scale II (Treasury Manager)","count":18,"breakdown":{"sc":0,"st":0,"ews":1}},{"post":"Officer Scale II (Marketing Officer)","count":19}]
+  PASS  IBPS: vacancies from the annexure found (the table, or the AI's breakdown)
+  ....  IBPS reading: batches, 1-8:read(8) 9-16:read(0) 17-24:read(8) 25-32:read(0) 33-40:read(6) 41-48:read(0) 49-56:read(1) 57-64:read(1) 65-72:read(0) 73-76:read(0); no text: none
+  PASS  IBPS: read in page batches, every batch read
+  ....  IBPS table: 280 rows from tables, total ≥ 13706; tables OFFICE ASSISTANTS (MULTIPURPOSE):CODE | OFFICER SCALE I:CODE | Officer Scale II (General Banking Officer):CODE | Officer Scale II (IT):CODE | Officer Scale II (CA):CODE | Officer Scale II (Law):CODE | Officer Scale II (Treasury Manager):CODE | Officer Scale II (Marketing Officer):CODE | Officer Scale II (Agriculture Officer):CODE | Officer Scale III:CODE; unread lines 0
+  PASS  IBPS: no separate total or breakdown is ticked against the table
+  PASS  IBPS table: 10 tables on pages 46-55 read by code, 280 rows, at least 13,706 (Tripura not reported)
+  PASS  IBPS table: General is UR, PwBD counted within
+  PASS  IBPS: dates 1 to 21 Sep 2026 and fees 850 / 175
+
+Required checks: 62; passed 60, failed 0, not run 0, not applicable 2
+  not applicable: [lic-scan] scan: no separate total or breakdown is ticked against the table — lic-scan.pdf is pages 1-5; it prints no vacancy table (Table E starts on page 6)
+  not applicable: [lic-scan] scan table: every row's line is in the AI's write-up — lic-scan.pdf is pages 1-5; it prints no vacancy table (Table E starts on page 6)
+
+ALL PASS: 60 passed, 0 failed, 0 not run

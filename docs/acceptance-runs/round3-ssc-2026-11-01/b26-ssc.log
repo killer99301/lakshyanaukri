@@ -1,0 +1,70 @@
+  ....  model: gemini-3.5-flash-lite; phase run; cases ssc; budget 60
+
+── ssc-cgl-2026
+  ....  132 pages, 11 scanned; about 32 requests
+  ....  DONE, NOT complete in 121 s; 38 requests (3 resent); total so far 38; note: 1 exam-pattern paper(s) printed in the notice could not be read; the review names them.; failed: none
+  ....  warning: No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.
+  ....  warning: No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.
+  ....  warning: upload — notification, not confirmed: the notice prints 2 exam-pattern table(s); 1 read. Not read: “13.9 Scheme of Tier-II Examination” (page 25). Enter it in the editor's exam pattern.
+  ....  warning: upload — notification, not confirmed: on scanned page 78 the AI found almost nothing, twice. Something printed there may be missing from this preview: check the page.
+  ....  [x] age = min undefined max undefined asOf 2026-08-01 catMax [] posts [["Assistant Audit Officer (Central Cadre) ",18,30,null,null],["Assistant Audit Officer (State Cadre) In",18,30,null,null],["Assistant Accounts Officer (State Cadre)",18,30,null,null],["Assistant Section Officer Central Secret",20,30,null,null],["Assistant Section Officer Intelligence B",18,30,null,null],["Assistant Section Officer Ministry of Ra",20,30,null,null],["Assistant Section Officer Ministry of Ex",20,30,null,null],["Assistant Section Officer AFHQ",20,30,null,null],["Assistant Section Officer Ministry of El",18,30,null,null],["Assistant / Assistant Section Officer Ot",18,30,null,null],["Inspector of Income Tax Central Board of",18,30,null,null],["Inspector, (Central Excise) Central Boar",18,30,null,null],["Assistant Enforcement Officer Directorat",18,30,null,null],["Sub Inspector Central Bureau of Investig",20,30,null,null],["Inspector Posts Department of Posts, Min",18,30,null,null],["Inspector Central Bureau of Narcotics, M",18,30,null,null],["Assistant / Assistant Section Officer Ot",18,30,null,null],["Executive Assistant Central Board of Ind",18,30,null,null],["Research Assistant National Human Rights",18,30,null,null],["Divisional Accountant Offices under C&AG",18,30,null,null],["Sub Inspector National Investigation Age",18,30,null,null],["Sub-Inspector/ Junior Intelligence Offic",18,30,null,null],["Junior Statistical Officer Ministry of S",18,32,null,null],["Statistical Investigator Grade-II Minist",18,30,null,null],["Office Superintendent Central Board of D",18,30,null,null],["Section Head Director General of Foreign",18,30,null,null],["Auditor Offices under C&AG",18,27,null,null],["Auditor Offices under CGDA",18,27,null,null],["Auditor Other Ministry/ Departments",18,27,null,null],["Accountant Offices under C&AG",18,27,null,null],["Accountant Controller General of Account",18,27,null,null],["Accountant/ Junior Accountant Other Mini",18,27,null,null],["Postal Assistant/ Sorting Assistant Depa",18,27,null,null],["Senior Secretariat Assistant/ Upper Divi",18,27,null,null],["Senior Administrative Assistant Military",18,27,null,null],["Tax Assistant Central Board of Direct Ta",18,27,null,null],["Tax Assistant Central Board of Indirect ",18,27,null,null],["Sub-Inspector Central Bureau of Narcotic",18,27,null,null]]  (p6)  flags: no confirmed official document states this
+  ....  [x] dates.applicationCloseDate = "2026-06-22"  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-11-01)
+  ....  [x] dates.applicationOpenDate = "2026-05-21"  (p1)  flags: no confirmed official document states this
+  ....  [x] dates.correctionWindowEnd = "2026-07-01"  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-11-01)
+  ....  [x] dates.feePaymentCloseDate = "2026-06-23"  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-11-01)
+  ....  [x] eligibility = [{"post":"Assistant Audit Officer (Central Cadre)","qualification":["Bachelor's Degree from a recognized University or Institute"]},{"post":"Assistant Audit Officer (State Cadre)","qualification":["Bachelor's Degree from a recognized University or Institute and proficiency in the Regional/official l  (p)  flags: no confirmed official document states this
+  ....  [ ] examPattern = 13.8 Scheme of Tier-I Examination undefined/undefined/-m  (p25)  flags: no confirmed official document states this / incomplete: 1 of 2 papers read — not read: “13.9 Scheme of Tier-II Examination” (page 25) / 13.8 Scheme of Tier-I Examination prints no total under its table: its questions and marks could not be checked against one
+  ....  [x] examStages = Tier-I (Computer Based Examination)[SELECTION]August-September, 2026 | Tier-II (Computer Based Examination)[SELECTION]December, 2026  (p1)  flags: no confirmed official document states this
+  ....  [x] financial.feeGeneral = 100  (p19)  flags: no confirmed official document states this
+  ....  [x] financial.feeSCST = 0  (p19)  flags: no confirmed official document states this
+  ....  [x] financial.payScale = "Pay Level-8 (₹ 47600 to 151100)"  (p2)  flags: no confirmed official document states this
+  ....  [x] howToApply = ["Submit applications only in online mode at the new website of SSC Headquarter i.e. https://ssc.gov.in or through my SSC mobile application","Generate One-Time Registration (OTR) on the new website if not already done","Proceed to fill the application for the examination subsequent to OTR"]  (p17)  flags: no confirmed official document states this
+  ....  [x] identity.notificationNumber = "No. 12"  (p1)  flags: no confirmed official document states this
+  ....  [ ] selection = {"stages":[{"name":"Physical Test","type":"PHYSICAL","order":1},{"name":"Physical Efficiency Test","type":"PHYSICAL","order":2}],"noWrittenExam":true}  CONFLICT  (p116)  flags: no confirmed official document states this
+  ....  [ ] selection = {"stages":[{"name":"Physical Efficiency Test","type":"PHYSICAL","order":1,"description":"ONE MILE RUN ONLY PASSING THE TEST IS MANDATORY 10 MINUTES"},{"name":"Medical Fitness Test","type":"OTHER","order":2,"description":"Medical Board detailed by Headquarters Director General Border Roads will carry  CONFLICT  (p124)  flags: no confirmed official document states this
+  ....  [ ] selection = {"stages":[{"name":"Tier-I Examination","type":"CBT","order":1,"description":"Computer Based Examination"},{"name":"Tier-II Examination","type":"WRITTEN","order":2,"description":"Tier-II Examination will be conducted for all the candidates qualified in Tier-I."}]}  CONFLICT  (p41)  flags: no confirmed official document states this
+  ....  [ ] selection = {"stages":[{"name":"Computer Based Examination","type":"CBT","order":1},{"name":"Document Verification","type":"DOCUMENT_VERIFICATION","order":2}]}  CONFLICT  (p36)  flags: no confirmed official document states this
+  ....  [ ] selection = {"stages":[{"name":"Tier-I Examination","type":"WRITTEN","order":1},{"name":"Tier-II Examination","type":"WRITTEN","order":2},{"name":"Computer Knowledge Test","type":"WRITTEN","order":3},{"name":"Data Entry Speed Test","type":"SKILL_TEST","order":4,"description":"One Data Entry Task"}]}  CONFLICT  (p25)  flags: no confirmed official document states this
+  ....  [x] syllabus = [{"paper":"Tier-II","topics":["Number Systems: Computation of Whole Number, Decimal and Fractions, Relationship between numbers.","Algebra: Basic algebraic identities of School Algebra and Elementary surds (simple problems) and Graphs of Linear Equations."],"subject":"Mathematical Abilities"},{"pape  (p31)  flags: no confirmed official document states this
+  ....  [x] vacancies.total = 12256  (p5)  flags: no confirmed official document states this
+  ....  vacancy tables: []; unread lines 0; diff null; problems 0
+  PASS  SSC: ages post by post, at least 36 posts, from the table of posts
+  PASS  SSC: no one range applied to every post
+  PASS  SSC: the Junior Statistical Officer's own 18-32
+  PASS  SSC: an Auditor's own 18-27
+  PASS  SSC: age counted on 1 August 2026
+  PASS  SSC: PwBD (OBC) 13 kept apart from PwBD 10
+  PASS  SSC: no announcement among the selection stages
+  PASS  SSC: no announcement among the selection stages
+  PASS  SSC: no announcement among the selection stages
+  PASS  SSC: no announcement among the selection stages
+  PASS  SSC: no announcement among the selection stages
+  ....  saved 14 values into job a37a155d-1c7b-4f1a-b79b-623c239fa511
+
+── ssc-cgl-reopen
+  ....  1 pages, 0 scanned; about 4 requests
+  ....  DONE, complete in 3 s; 3 requests (0 resent); total so far 41; note: -; failed: none
+  ....  warning: No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.
+  ....  warning: No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.
+  ....  [x] dates.applicationCloseDate = "2026-06-25"  SUPERSEDES 1  (p)  flags: no confirmed official document states this / this date has passed (today is 2026-11-01)
+  ....  [x] dates.applicationOpenDate = "2026-05-21"  (p1)  flags: no confirmed official document states this
+  ....  [x] dates.correctionWindowEnd = "2026-07-03"  SUPERSEDES 1  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-11-01)
+  ....  [x] dates.feePaymentCloseDate = "2026-06-26"  SUPERSEDES 1  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-11-01)
+  ....  vacancy tables: []; unread lines 0; diff null; problems 0
+  ....  saved 4 values into job a37a155d-1c7b-4f1a-b79b-623c239fa511
+  ....  CHANGED dates.applicationCloseDate:
+      before PENDING "2026-06-22"
+      after  PENDING "2026-06-25"
+  ....  CHANGED dates.correctionWindowEnd:
+      before PENDING "2026-07-01"
+      after  PENDING "2026-07-03"
+  ....  CHANGED dates.feePaymentCloseDate:
+      before PENDING "2026-06-23"
+      after  PENDING "2026-06-26"
+  ....  unchanged fields: 11 of 14
+  PASS  SSC reopened: the last date to apply is now 25 June 2026
+  ....  requests used in this run: 41
+
+Required checks: 8; passed 12, failed 0, not run 0, not applicable 0
+
+ALL PASS: 12 passed, 0 failed, 0 not run

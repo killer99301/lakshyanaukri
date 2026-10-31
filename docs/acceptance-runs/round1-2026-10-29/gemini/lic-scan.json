@@ -1,0 +1,570 @@
+{
+  "items": [
+    {
+      "id": "f:age:e87a06cccef4",
+      "kind": "FIELD",
+      "fieldPath": "age",
+      "label": "Age limit",
+      "value": {
+        "min": 20,
+        "max": 25,
+        "relaxations": []
+      },
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Age as on 01-Oct-2026: 20 to 25 years",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:conditions:5ccd7665c69a",
+      "kind": "FIELD",
+      "fieldPath": "conditions",
+      "label": "Notes (admin only, not published)",
+      "value": [
+        "Apprenticeship Period: 12 Months",
+        "The candidate should NOT have a Running/Terminated/Completed Apprenticeship contract with any other organization."
+      ],
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Apprenticeship Period: 12 Months",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:dates.applicationCloseDate:37e17f8cbb20",
+      "kind": "FIELD",
+      "fieldPath": "dates.applicationCloseDate",
+      "label": "Last date to apply",
+      "value": "2026-11-01",
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Last date of application: 01-11-2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:dates.applicationOpenDate:29f81dedb1b6",
+      "kind": "FIELD",
+      "fieldPath": "dates.applicationOpenDate",
+      "label": "Applications open",
+      "value": "2026-10-20",
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Start date of application: 20-10-2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:dates.examDate:f528027a3840",
+      "kind": "FIELD",
+      "fieldPath": "dates.examDate",
+      "label": "Exam date",
+      "value": "2026-11-07",
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Entrance Examination: 07-11-2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:dates.feePaymentCloseDate:37e17f8cbb20",
+      "kind": "FIELD",
+      "fieldPath": "dates.feePaymentCloseDate",
+      "label": "Fee payment deadline",
+      "value": "2026-11-01",
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Last Date to pay the examination fee to BFSI Sector Skill Council of India: 01-11-2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:dates.interviewDate:68bbad58a196",
+      "kind": "FIELD",
+      "fieldPath": "dates.interviewDate",
+      "label": "Interview date",
+      "value": "2026-11-15",
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Document Verification & Personal Interview at LIC HFL offices: 15-11-2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:eligibility:b2148ec0824f",
+      "kind": "FIELD",
+      "fieldPath": "eligibility",
+      "label": "Eligibility",
+      "value": [
+        {
+          "post": "Apprentice",
+          "qualification": [
+            "Should have completed graduation in any stream as on 01-Oct-2026 but not before 1-Oct-2001"
+          ]
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Educational Qualification: Should have completed graduation in any stream as on 01-Oct-2026 but not before 1-Oct-2001",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:examStages:a0bc568ee27b",
+      "kind": "FIELD",
+      "fieldPath": "examStages",
+      "label": "Exam stages",
+      "value": [
+        {
+          "name": "Entrance Examination",
+          "order": 1,
+          "status": "SCHEDULED",
+          "certainty": "CONFIRMED",
+          "dateIso": "2026-11-07",
+          "kind": "SELECTION"
+        },
+        {
+          "name": "Document Verification & Personal Interview at LIC HFL offices",
+          "order": 2,
+          "status": "SCHEDULED",
+          "certainty": "CONFIRMED",
+          "dateIso": "2026-11-15",
+          "kind": "SELECTION"
+        },
+        {
+          "name": "Issuance of engagement letters",
+          "order": 3,
+          "status": "NOT_DECLARED",
+          "certainty": "TBA",
+          "notes": "Tentatively 3rd week of November",
+          "kind": "OTHER_MILESTONE"
+        },
+        {
+          "name": "Reporting to the respective LIC HFL branch",
+          "order": 4,
+          "status": "NOT_DECLARED",
+          "certainty": "TBA",
+          "notes": "Tentatively 4th week of November",
+          "kind": "UNCLASSIFIED"
+        },
+        {
+          "name": "Apprenticeship Start Date/Month",
+          "order": 5,
+          "status": "NOT_DECLARED",
+          "certainty": "TBA",
+          "notes": "November (Tentative)",
+          "kind": "TRAINING"
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Entrance Examination: 07-11-2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "not classified as a selection stage or an announcement: “Reporting to the respective LIC HFL branch” — choose in the exam stages editor"
+      ]
+    },
+    {
+      "id": "f:financial.feeGeneral:1a1cf797fabe",
+      "kind": "FIELD",
+      "fieldPath": "financial.feeGeneral",
+      "label": "Fee (General / OBC)",
+      "value": 800,
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "General, EWS and Other Backward Class (OBC)-Male candidates: Rs.800/- plus GST",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:financial.feeSCST:27badc983df1",
+      "kind": "FIELD",
+      "fieldPath": "financial.feeSCST",
+      "label": "Fee (SC / ST / PwBD)",
+      "value": 200,
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Scheduled Caste (SC) / Scheduled Tribe (ST) candidates: Rs.200/- plus GST",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:financial.payScale:57fb435ec94b",
+      "kind": "FIELD",
+      "fieldPath": "financial.payScale",
+      "label": "Pay scale / stipend",
+      "value": "Rs.16,650/- Metro Cities, Rs.14,150/- Other Cities",
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Monthly Stipend: Rs.16,650/- Metro Cities: Ahmedabad, Bangalore, Chennai, Delhi, Hyderabad, Kolkata, Mumbai, Pune, Surat Rs.14,150/- Other Cities",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:howToApply:ed955994a6e6",
+      "kind": "FIELD",
+      "fieldPath": "howToApply",
+      "label": "How to apply",
+      "value": [
+        "Candidates should first, mandatorily register themselves, if eligible, on the apprenticeship portals of Government of India viz NATS portal https://nats.education.gov.in.in (Navigate to the \"Student Register/Login\" section)",
+        "Candidate will receive an email from BFSI SSC inviting the candidate to fill up a detailed application and make payment, for Online Examination for \"LIC HFL Apprenticeship Program\". Last date for payment for eligible candidates for online examination and submission of additional information at https://beep.bfsissc.com will be 01-Nov-2026",
+        "For NATS portal, candidates can view the Apprenticeship Advertisement of \"LICHFL\" after login into the portal by visiting https://nats.education.gov.in/student_type.php"
+      ],
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Candidates should first, mandatorily register themselves, if eligible, on the apprenticeship portals of Government of India viz NATS portal https://nats.education.gov.in.in (Navigate to the \"Student Register/Login\" section)",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:identity.notificationNumber:a12fd31dc1b8",
+      "kind": "FIELD",
+      "fieldPath": "identity.notificationNumber",
+      "label": "Notification number",
+      "value": "HFL Apprenticeship Program-010",
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "HFL Apprenticeship Program-010- Advertisement Notification",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "l:222c27601f6e",
+      "kind": "LINK",
+      "fieldPath": "links#APPLY_ONLINE",
+      "label": "Apply Online link",
+      "value": {
+        "type": "APPLY_ONLINE",
+        "label": "Apply Online",
+        "url": "https://nats.education.gov.in/student_type.php",
+        "official": true
+      },
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "pprenticeship Advertisement of \"LICHFL\" after login into the portal by visiting https://nats.education.gov.in/student_type.php Official websites: https://nats.educati"
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "l:072fef11c094",
+      "kind": "LINK",
+      "fieldPath": "links#OFFICIAL_NOTIFICATION",
+      "label": "Official notification link",
+      "value": {
+        "type": "OFFICIAL_NOTIFICATION",
+        "label": "Official Notification",
+        "url": "https://www.lichousing.com/static-assets/pdf/Apprentecis-Advertisement-Notification-Batch-10.pdf",
+        "official": true
+      },
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "The address this document came from"
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "l:12fdeadacf5a",
+      "kind": "LINK",
+      "fieldPath": "links#OFFICIAL_WEBSITE",
+      "label": "Official website link",
+      "value": {
+        "type": "OFFICIAL_WEBSITE",
+        "label": "Official Website",
+        "url": "https://nats.education.gov.in.in/",
+        "official": false
+      },
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "eligible, on the apprenticeship portals of Government of India viz NATS portal https://nats.education.gov.in.in (Navigate to the \"Student Register/Logi"
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": false,
+      "flags": []
+    },
+    {
+      "id": "l:a18539ffff23",
+      "kind": "LINK",
+      "fieldPath": "links#OTHER",
+      "label": "other link",
+      "value": {
+        "type": "OTHER",
+        "label": "Link",
+        "url": "https://beep.bfsissc.com/",
+        "official": true
+      },
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "2: Last Date to pay the examination fee to BFSI Sector Skill Council of India (https://beep.bfsissc.com): 01-11-2026 Stage 3: Entrance Examinat"
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:selection:480b025f6c08",
+      "kind": "FIELD",
+      "fieldPath": "selection",
+      "label": "Selection process",
+      "value": {
+        "stages": [
+          {
+            "name": "Stage 1",
+            "order": 1,
+            "type": "OTHER",
+            "description": "Applications for apprenticeship will be invited during 20-10-2026 to 01-11-2026"
+          },
+          {
+            "name": "Stage 2",
+            "order": 2,
+            "type": "OTHER",
+            "description": "Last Date to pay the examination fee to BFSI Sector Skill Council of India: 01-11-2026"
+          },
+          {
+            "name": "Stage 3",
+            "order": 3,
+            "type": "CBT",
+            "description": "Entrance Examination will be conducted by BFSI Sector Skill Council of India on 07-11-2026"
+          },
+          {
+            "name": "Stage 4",
+            "order": 4,
+            "type": "DOCUMENT_VERIFICATION",
+            "description": "Document Verification & Personal Interview at LIC HFL offices on 15-11-2026"
+          },
+          {
+            "name": "Stage 5",
+            "order": 5,
+            "type": "OTHER",
+            "description": "Final selected candidates will be issued engagement letters by LIC HFL"
+          },
+          {
+            "name": "Stage 6",
+            "order": 6,
+            "type": "OTHER",
+            "description": "Reporting to the respective LIC HFL branch for apprenticeship training program"
+          },
+          {
+            "name": "Document Verification & Personal Interview at LIC HFL offices",
+            "order": 7,
+            "type": "INTERVIEW"
+          }
+        ]
+      },
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "quote": "Stage 1: Applications for apprenticeship will be invited during 20-10-2026 to 01-11-2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "“Document Verification & Personal Interview at LIC HFL offices” added from the notice's schedule: the selection process read did not include it — check which posts it is for"
+      ]
+    },
+    {
+      "id": "f:vacancies.total:835d5e831434",
+      "kind": "FIELD",
+      "fieldPath": "vacancies.total",
+      "label": "Total vacancies",
+      "value": 232,
+      "claims": [
+        {
+          "retrievalId": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    }
+  ],
+  "warnings": [
+    "lichousing.com — notification, attested by admin: the notice prints 1 exam-pattern table(s); 0 read. Not read: “EXAMINATION PATTERN” (page ?). Enter it in the editor's exam pattern."
+  ],
+  "sources": [
+    {
+      "id": "9d5c6cd6-f611-42eb-8958-f92735c27f1b",
+      "declaredKind": "OFFICIAL_NOTIFICATION",
+      "authenticity": "ATTESTED",
+      "originRole": "AUTHORITY",
+      "originPurposes": [
+        "all"
+      ],
+      "label": "lichousing.com — notification, attested by admin",
+      "method": "UPLOADED",
+      "originUrl": "https://www.lichousing.com/static-assets/pdf/Apprentecis-Advertisement-Notification-Batch-10.pdf",
+      "notFound": [
+        "Notification Date",
+        "Vacancy Breakdown",
+        "Correction Window End",
+        "Syllabus"
+      ],
+      "refused": [
+        {
+          "fieldPath": "Title",
+          "reason": "does not look like a recruitment title — not applied"
+        }
+      ],
+      "summary": "LIC Housing Finance Limited recruits graduates aged 20 to 25 years as Apprentices for a 12-month training program with a monthly stipend.",
+      "vacancyTables": {
+        "coverage": {
+          "pages": null,
+          "tables": [],
+          "unreadLines": []
+        },
+        "from": null
+      },
+      "reading": {
+        "mode": "whole",
+        "pages": null,
+        "noTextPages": [],
+        "batches": [
+          {
+            "first": null,
+            "last": null,
+            "status": "read",
+            "values": 15
+          }
+        ]
+      },
+      "pattern": {
+        "expected": 1,
+        "read": 0,
+        "tables": [
+          {
+            "heading": "EXAMINATION PATTERN",
+            "page": null,
+            "read": false,
+            "why": "its rows could not be read"
+          }
+        ],
+        "problems": []
+      }
+    }
+  ]
+}

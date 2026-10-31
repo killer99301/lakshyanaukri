@@ -1,0 +1,196 @@
+{
+  "items": [
+    {
+      "id": "f:conditions:49b54f420a52",
+      "kind": "FIELD",
+      "fieldPath": "conditions",
+      "label": "Notes (admin only, not published)",
+      "value": [
+        "Last Date for Required Documents: 24-10-2026"
+      ],
+      "claims": [
+        {
+          "retrievalId": "aafd5ec4-8873-48b2-a408-a8e8c04c50fc",
+          "quote": "Last Date for Required Documents: 24-10-2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:dates.applicationCloseDate:6484fdf06f96",
+      "kind": "FIELD",
+      "fieldPath": "dates.applicationCloseDate",
+      "label": "Last date to apply",
+      "value": "2026-10-24",
+      "claims": [
+        {
+          "retrievalId": "aafd5ec4-8873-48b2-a408-a8e8c04c50fc",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice",
+        "this date has passed (today is 2026-10-31)"
+      ]
+    },
+    {
+      "id": "f:dates.applicationOpenDate:a9b0a25ae5ed",
+      "kind": "FIELD",
+      "fieldPath": "dates.applicationOpenDate",
+      "label": "Applications open",
+      "value": "2026-09-25",
+      "claims": [
+        {
+          "retrievalId": "aafd5ec4-8873-48b2-a408-a8e8c04c50fc",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:examStages:fcf89db71ef8",
+      "kind": "FIELD",
+      "fieldPath": "examStages",
+      "label": "Exam stages",
+      "value": [
+        {
+          "name": "CBT Exam",
+          "order": 1,
+          "status": "NOT_DECLARED",
+          "certainty": "TBA",
+          "notes": "To be announced",
+          "kind": "SELECTION"
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "aafd5ec4-8873-48b2-a408-a8e8c04c50fc",
+          "quote": "CBT Exam Date: To be announced",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:identity.notificationNumber:d60fe43ae03b",
+      "kind": "FIELD",
+      "fieldPath": "identity.notificationNumber",
+      "label": "Notification number",
+      "value": "29/2026",
+      "claims": [
+        {
+          "retrievalId": "aafd5ec4-8873-48b2-a408-a8e8c04c50fc",
+          "quote": "Notification Advertisement No. 29/2026: September 2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:identity.title:bfa8f3815965",
+      "kind": "FIELD",
+      "fieldPath": "identity.title",
+      "label": "Title",
+      "value": "Notification Advertisement No. 29/2026: September 2026",
+      "claims": [
+        {
+          "retrievalId": "aafd5ec4-8873-48b2-a408-a8e8c04c50fc",
+          "page": null
+        }
+      ],
+      "action": "REPLACE",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": false,
+      "flags": [
+        "from research only — check it against the official notice"
+      ],
+      "current": "BTSC FSO 2026 (screenshot)"
+    }
+  ],
+  "warnings": [
+    "No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.",
+    "No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.",
+    "Every source here is research. Its values are saved as Pending, but none can be checked until an official document is added."
+  ],
+  "sources": [
+    {
+      "id": "aafd5ec4-8873-48b2-a408-a8e8c04c50fc",
+      "declaredKind": "RESEARCH",
+      "authenticity": "NOT_APPLICABLE",
+      "originRole": "NONE",
+      "originPurposes": [],
+      "label": "upload — research (an image: its text was read by AI, compare with the image)",
+      "method": "UPLOADED",
+      "originUrl": null,
+      "notFound": [
+        "Notification Date",
+        "Total Vacancies",
+        "Vacancy Breakdown",
+        "Fee Payment Deadline",
+        "Correction Window End",
+        "Application fee (General/OBC) (nothing relevant found in the source)",
+        "Application fee (SC/ST/PwBD) (nothing relevant found in the source)",
+        "Post-wise Eligibility (nothing relevant found in the source)",
+        "Age Limit (nothing relevant found in the source)",
+        "Selection Process (nothing relevant found in the source)",
+        "How to Apply (nothing relevant found in the source)",
+        "Pay Scale (nothing relevant found in the source)",
+        "Exam Pattern",
+        "Syllabus"
+      ],
+      "refused": [],
+      "summary": null,
+      "vacancyTables": {
+        "coverage": {
+          "pages": null,
+          "tables": [],
+          "unreadLines": []
+        },
+        "from": null
+      },
+      "reading": {
+        "mode": "whole",
+        "pages": null,
+        "noTextPages": [],
+        "batches": [
+          {
+            "first": null,
+            "last": null,
+            "status": "read",
+            "values": 5
+          }
+        ]
+      }
+    }
+  ]
+}

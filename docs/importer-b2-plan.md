@@ -100,6 +100,8 @@ Each step is committed locally only when its tests pass. Tests are not loosened 
 
 ## 6. Revised 2026-10-29: one Smart intake, several ways in
 
+> Superseded as the guiding statement by the product vision of 1 November 2026: `docs/smart-intake-roadmap.md`. The criteria below stand, read in its light.
+
 The owner's decision, after B2.6 part 2.
 
 **The goal** is to reduce the owner's workload, not to build an OCR engine for every layout. Whatever way a notice comes in, it reaches the same organised draft and the same review and publishing safeguards:

@@ -1,0 +1,217 @@
+{
+ "progress": {
+  "jobId": "0cf04f38-4ecd-448b-bb7a-dd6f02282e0c",
+  "state": "DONE",
+  "stateNote": null,
+  "importId": "9a65a5c3-2fcd-48fa-85ef-eef6bb07f309",
+  "mode": "EXISTING",
+  "recruitmentId": "f215bfc0-304b-43cb-b01e-b222b4e3938d",
+  "title": null,
+  "sources": [
+   {
+    "no": 1,
+    "kind": "pdf",
+    "fileName": "ssc-cgl-reopen.pdf",
+    "sha256": "6a9f0cd5b4ecd3f027835567ab6a9a2a35a4b2446997b6ce4382d8bd6fcba563",
+    "pages": 1,
+    "uploadedPages": 1,
+    "noTextPages": [],
+    "unavailable": [],
+    "textPages": 1,
+    "processedPages": 1,
+    "scanImages": [],
+    "scanRead": [],
+    "scanSuspect": [],
+    "piecesKept": 0
+   }
+  ],
+  "tasks": {
+   "total": 4,
+   "done": 4,
+   "running": 0,
+   "pending": 0,
+   "failed": 0,
+   "split": 0
+  },
+  "failedTasks": [],
+  "ai": {
+   "estimate": 4,
+   "sent": 3,
+   "retried": 0,
+   "failed": 0
+  },
+  "allowance": {
+   "used": 40,
+   "cap": 150
+  },
+  "complete": true,
+  "updatedAt": "2026-10-29T10:58:30.228Z"
+ },
+ "proposal": {
+  "meta": {
+   "mode": "EXISTING",
+   "newJob": null,
+   "sources": [
+    {
+     "id": "d43cc83d-8537-4129-9079-75b1cd5df9a0",
+     "label": "upload — corrigendum, not confirmed",
+     "method": "UPLOADED",
+     "reading": {
+      "mode": "whole",
+      "pages": 1,
+      "batches": [
+       {
+        "last": 1,
+        "first": 1,
+        "status": "read",
+        "values": 5
+       }
+      ],
+      "noTextPages": [],
+      "unavailable": [],
+      "suspectPages": []
+     },
+     "refused": [],
+     "summary": null,
+     "notFound": [
+      "Notification Date",
+      "Total Vacancies",
+      "Vacancy Breakdown",
+      "Application fee (General/OBC)",
+      "Application fee (SC/ST/PwBD)",
+      "Post-wise Eligibility (nothing relevant found in the source)",
+      "Age Limit (nothing relevant found in the source)",
+      "Selection Process (nothing relevant found in the source)",
+      "How to Apply (nothing relevant found in the source)",
+      "Pay Scale (nothing relevant found in the source)",
+      "Exam Pattern",
+      "Syllabus"
+     ],
+     "originUrl": null,
+     "originRole": "NONE",
+     "authenticity": "UNCONFIRMED",
+     "declaredKind": "OFFICIAL_CORRIGENDUM",
+     "vacancyTables": {
+      "from": null,
+      "coverage": {
+       "pages": 1,
+       "tables": [],
+       "unreadLines": []
+      }
+     },
+     "originPurposes": []
+    }
+   ],
+   "aiRequests": {
+    "sent": 3,
+    "failed": 0,
+    "retried": 0
+   },
+   "duplicates": []
+  },
+  "items": [
+   {
+    "id": "f:dates.applicationCloseDate:9f80973810c4",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "this date has passed (today is 2026-10-29)"
+    ],
+    "label": "Last date to apply",
+    "value": "2026-06-25",
+    "action": "REPLACE",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "eligibility will now be as per the new closing date i.e.\n25.06.2026.",
+      "retrievalId": "d43cc83d-8537-4129-9079-75b1cd5df9a0"
+     }
+    ],
+    "current": "2026-06-22",
+    "conflict": false,
+    "fieldPath": "dates.applicationCloseDate",
+    "supersedes": [
+     "ac63242a-afcb-49a6-9938-24536fcc80f2"
+    ],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.applicationOpenDate:31a647a8ce06",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Applications open",
+    "value": "2026-05-21",
+    "action": "MATCHES",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "online application window was kept open from\n21.05.2026 to 22.06.2026",
+      "retrievalId": "d43cc83d-8537-4129-9079-75b1cd5df9a0"
+     }
+    ],
+    "current": "2026-05-21",
+    "conflict": false,
+    "fieldPath": "dates.applicationOpenDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.correctionWindowEnd:3552915e1a8c",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "this date has passed (today is 2026-10-29)"
+    ],
+    "label": "Correction window ends",
+    "value": "2026-07-03",
+    "action": "REPLACE",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Window for Application Form Correction’ will now be opened\nfrom 01.07.2026 to 03.07.2026 (23:00 hours)",
+      "retrievalId": "d43cc83d-8537-4129-9079-75b1cd5df9a0"
+     }
+    ],
+    "current": "2026-07-01",
+    "conflict": false,
+    "fieldPath": "dates.correctionWindowEnd",
+    "supersedes": [
+     "bb46f9ca-721b-41e5-83c7-f2c9ab314ccd"
+    ],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.feePaymentCloseDate:e5f85becb0ee",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "this date has passed (today is 2026-10-29)"
+    ],
+    "label": "Fee payment deadline",
+    "value": "2026-06-26",
+    "action": "REPLACE",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "The last date for making the online fee payment will be 26.06.2026 (23:00\nhours).",
+      "retrievalId": "d43cc83d-8537-4129-9079-75b1cd5df9a0"
+     }
+    ],
+    "current": "2026-06-23",
+    "conflict": false,
+    "fieldPath": "dates.feePaymentCloseDate",
+    "supersedes": [
+     "3a9d94ab-35d1-4671-937d-4a660d6a2bd5"
+    ],
+    "defaultTicked": true
+   }
+  ],
+  "warnings": [
+   "No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.",
+   "No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking."
+  ],
+  "replacedInImport": []
+ }
+}

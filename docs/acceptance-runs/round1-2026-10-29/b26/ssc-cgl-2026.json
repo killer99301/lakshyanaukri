@@ -1,0 +1,1029 @@
+{
+ "progress": {
+  "jobId": "57375c4a-051d-49e9-81d4-36b52a426815",
+  "state": "DONE",
+  "stateNote": "1 exam-pattern paper(s) printed in the notice could not be read; the review names them.",
+  "importId": "71e8dcb0-fbcf-4e2a-98fd-ce74ff090605",
+  "mode": "NEW",
+  "recruitmentId": null,
+  "title": "TEST RECORD SSC CGL 2026",
+  "sources": [
+   {
+    "no": 1,
+    "kind": "pdf",
+    "fileName": "ssc-cgl-2026.pdf",
+    "sha256": "54a01dda220cb8836f19983908e1f3fd14ddba8286781765a02765728a89e070",
+    "pages": 132,
+    "uploadedPages": 132,
+    "noTextPages": [
+     65,
+     66,
+     67,
+     68,
+     69,
+     70,
+     76,
+     77,
+     78,
+     79,
+     80
+    ],
+    "unavailable": [],
+    "textPages": 121,
+    "processedPages": 121,
+    "scanImages": [
+     65,
+     66,
+     67,
+     68,
+     69,
+     70,
+     76,
+     77,
+     78,
+     79,
+     80
+    ],
+    "scanRead": [
+     65,
+     66,
+     67,
+     68,
+     69,
+     70,
+     76,
+     77,
+     78,
+     79,
+     80
+    ],
+    "scanSuspect": [
+     67,
+     76,
+     78
+    ],
+    "piecesKept": 11
+   }
+  ],
+  "tasks": {
+   "total": 32,
+   "done": 32,
+   "running": 0,
+   "pending": 0,
+   "failed": 0,
+   "split": 0
+  },
+  "failedTasks": [],
+  "ai": {
+   "estimate": 32,
+   "sent": 37,
+   "retried": 2,
+   "failed": 2
+  },
+  "allowance": {
+   "used": 37,
+   "cap": 150
+  },
+  "complete": false,
+  "updatedAt": "2026-10-29T10:58:22.680Z"
+ },
+ "proposal": {
+  "meta": {
+   "mode": "NEW",
+   "newJob": {
+    "title": "TEST RECORD SSC CGL 2026",
+    "govType": "Central Govt",
+    "organizationId": "ssc-b26",
+    "recruitmentYear": 2026,
+    "organizationName": "SSC-B26"
+   },
+   "sources": [
+    {
+     "id": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b",
+     "label": "upload — notification, not confirmed",
+     "method": "UPLOADED",
+     "pattern": {
+      "read": 1,
+      "tables": [
+       {
+        "page": 25,
+        "read": true,
+        "heading": "13.8 Scheme of Tier-I Examination"
+       },
+       {
+        "why": "its rows could not be read",
+        "page": 25,
+        "read": false,
+        "heading": "13.9 Scheme of Tier-II Examination"
+       }
+      ],
+      "expected": 2,
+      "problems": [
+       "13.8 Scheme of Tier-I Examination: no printed total under the table"
+      ]
+     },
+     "reading": {
+      "mode": "batches",
+      "pages": 132,
+      "batches": [
+       {
+        "last": 8,
+        "first": 1,
+        "status": "read",
+        "values": 9
+       },
+       {
+        "last": 16,
+        "first": 9,
+        "status": "read",
+        "values": 2
+       },
+       {
+        "last": 24,
+        "first": 17,
+        "status": "read",
+        "values": 7
+       },
+       {
+        "last": 32,
+        "first": 25,
+        "status": "read",
+        "values": 4
+       },
+       {
+        "last": 40,
+        "first": 33,
+        "status": "read",
+        "values": 3
+       },
+       {
+        "last": 48,
+        "first": 41,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 56,
+        "first": 49,
+        "status": "read",
+        "values": 2
+       },
+       {
+        "last": 64,
+        "first": 57,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 75,
+        "first": 71,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 77,
+        "first": 77,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 79,
+        "first": 79,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 88,
+        "first": 81,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 96,
+        "first": 89,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 104,
+        "first": 97,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 112,
+        "first": 105,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 120,
+        "first": 113,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 128,
+        "first": 121,
+        "status": "read",
+        "values": 2
+       },
+       {
+        "last": 132,
+        "first": 129,
+        "status": "read",
+        "values": 1
+       }
+      ],
+      "noTextPages": [],
+      "unavailable": [],
+      "suspectPages": [
+       67,
+       76,
+       78
+      ]
+     },
+     "refused": [
+      {
+       "reason": "the reading's 4 post-wise age rows are set aside: the notice's own table of posts gives each post's age (38 posts, read by code)",
+       "fieldPath": "age"
+      },
+      {
+       "reason": "post 10 (Pay Level-7 (₹ 44900 to 142400)), “Inspector (Preventive Officer)”: no age in its own row of the table of posts (a merged cell?); not given another post's range — enter it from the notice",
+       "fieldPath": "age"
+      },
+      {
+       "reason": "post 11 (Pay Level-7 (₹ 44900 to 142400)), “Inspector (Examiner)”: no age in its own row of the table of posts (a merged cell?); not given another post's range — enter it from the notice",
+       "fieldPath": "age"
+      },
+      {
+       "reason": "the editor would refuse it: relaxation 7 needs a category",
+       "fieldPath": "age"
+      }
+     ],
+     "summary": "This recruitment notice is for TEST RECORD SSC CGL 2026 (SSC-B26), offering various posts across multiple pay levels for candidates meeting the specified age and educational criteria.",
+     "notFound": [
+      "Title",
+      "Notification Date",
+      "Vacancy Breakdown"
+     ],
+     "originUrl": null,
+     "originRole": "NONE",
+     "pageImages": {
+      "jobId": "57375c4a-051d-49e9-81d4-36b52a426815",
+      "pages": [
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       76,
+       77,
+       78,
+       79,
+       80
+      ],
+      "sourceNo": 1
+     },
+     "authenticity": "UNCONFIRMED",
+     "declaredKind": "OFFICIAL_NOTIFICATION",
+     "vacancyTables": {
+      "from": null,
+      "coverage": {
+       "pages": 132,
+       "tables": [],
+       "unreadLines": []
+      }
+     },
+     "originPurposes": []
+    }
+   ],
+   "aiRequests": {
+    "sent": 37,
+    "failed": 2,
+    "retried": 2
+   },
+   "duplicates": []
+  },
+  "items": [
+   {
+    "id": "f:conditions:6dd30a5c719f",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "read from a scanned page by AI — check it against the page image"
+    ],
+    "label": "Notes (admin only, not published)",
+    "value": [
+     "Measurement of Physical Standards and Physical and Medical Tests will be conducted by the User Department concerned after final selection and nomination of candidates to the User Departments.",
+     "Date of Birth filled by the candidate in the online application form and the same recorded in the Matriculation/Secondary Examination Certificate will be accepted by the Commission for determining the age and no subsequent request for change will be considered or granted.",
+     "Age relaxation/ ESM reservation is not admissible to sons, daughters and dependents of Ex-Servicemen. Therefore, such candidates should not indicate their category as ex-servicemen.",
+     "Crucial date for claim of SC/ST/OBC/PwBD/ESM status or any other benefit, viz., fee concession, reservation, age-relaxation, etc., where not specified otherwise, will be the closing date for receipt of online applications.",
+     "The Commission will not insist on candidates producing OBC certificate issued within crucial/cut-off date. The candidature of OBC candidate will remain provisional, subject to verification of his/her claim by the Appointing Authority.",
+     "Fee once paid shall not be refunded under any circumstances nor will it be adjusted against any other examination or selection.",
+     "A candidate will be allowed to correct and re-submit his modified/ corrected application two times during the „Window for Application Form Correction‟",
+     "The Commission will levy a uniform correction charge of ₹ 200/- for making correction(s) and re-submitting modified/ corrected application for the first time and ₹ 500/- for making correction(s) and re-submitting modified/ corrected application for the second time.",
+     "There shall be no provision for re-evaluation/ re-checking of the scores of any stage/ Tier(s) of the examination.",
+     "Paper-II will be for only those candidates who have applied and shortlisted for the posts of Junior Statistical Officer (JSO) in the Ministry of Statistics and Programme Implementation and Statistical Investigator Grade-II in the office of Registrar General and Census Commissioner of India (M/o Home Affairs) and who are shortlisted in Tier-I for these Posts.",
+     "Paper-III will be for only those candidates who are shortlisted in Tier-I for the posts of Assistant Audit Officer/ Assistant Accounts Officer.",
+     "It will be mandatory for the candidates to qualify all the Sections of Paper-I separately.",
+     "There will be negative marking of 1 mark for each wrong answer in Section-I, Section-II and Section-III of Paper-I and of 0.50 marks for each wrong answer in Paper-II and Paper-III.",
+     "The “Data Entry Speed Test” (DEST) Skill Test will be conducted for a passage of about 2000 (two thousand) key depressions for a duration of 15 (fifteen) minutes.",
+     "DEST will be mandatory for all the posts; however, it will be qualifying in nature.",
+     "Questions in Part A of Section- I of Paper-I (Mathematical Abilities) will be of Matriculation Level, in Part A of Section- II of Paper-I (English Language and Comprehension) of 10+2 Level and in Paper-II and Paper-III of Graduation Level.",
+     "As per policy of the commission, SSC does not maintain the waiting list/reserve list in respect of multi factor examinations conducted by it. However, the Commission has adopted a Sliding Mechanism.",
+     "All the posts carry All India Service Liability (AISL) i.e. the candidate, on selection, may be asked to serve anywhere in the country.",
+     "Note: Candidates who do not have their percentage mentioned on their marksheet due to COVID-19 or any other reasons for the years 2020 and 2021 can enter 'NA'",
+     "Note: The list is not exhaustive and the same will be updated as and when required.",
+     "Candidates declared Temporary UNFIT for being Below Physical Standards in weight or Chest measurement only will be given a reasonable time not exceeding two months from the date of initial Medical Examination for attaining the desired standards.",
+     "After re-measurement, if candidate is found FIT the whole process of induction shall be completed within a period of six months from the date of initial medical examination.",
+     "Candidates who are declared Permanent UNFIT by the Medical Board will be informed of their disability in writing by the Medical Board and Officer-In-Charge Recruiting or Board of Officers. Such candidates have a right to appeal against the present medical examination within a period of 60 days of their being declared permanently unfit.",
+     "Permanent body tattoos are only permitted on inner face of forearms i.e. from inside of elbow to the wrist and on the reverse side of palm/ back (dorsal) side of hand.",
+     "All cases of permanent unfit may be reviewed by higher medical authority and should declare him unfit/ fit within 01 month duration since the time of unfit declaration.",
+     "All temporary unfit cases may be reviewed by higher medical authority within 3 months (90 days) to clear him fit/ unfit since the time of unfit declaration."
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 4,
+      "quote": "Measurement of Physical Standards and Physical and Medical Tests will be conducted by the User Department concerned after final selection and nomination of candidates to the User Departments.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 10,
+      "quote": "Age relaxation/ ESM reservation is not admissible to sons, daughters and dependents of Ex-Servicemen. Therefore, such candidates should not indicate their category as ex-servicemen.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 20,
+      "quote": "Fee once paid shall not be refunded under any circumstances nor will it be adjusted against any other examination or selection.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 27,
+      "quote": "Paper-II will be for only those candidates who have applied and shortlisted for the posts of Junior Statistical Officer (JSO) in the Ministry of Statistics and Programme Implementation and Statistical Investigator Grade-II in the office of Registrar General and Census Commissioner of India (M/o Home Affairs) and who are shortlisted in Tier-I for these Posts.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 36,
+      "quote": "Questions in Part A of Section- I of Paper-I (Mathematical Abilities) will be of Matriculation Level, in Part A of Section- II of Paper-I (English Language and Comprehension) of 10+2 Level and in Paper-II and Paper-III of Graduation Level.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 53,
+      "quote": "All the posts carry All India Service Liability (AISL) i.e. the candidate, on selection, may be asked to serve anywhere in the country.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 77,
+      "quote": "Note: Candidates who do not have their percentage mentioned on their marksheet due to COVID-19 or any other reasons for the years 2020 and 2021 can enter 'NA'",
+      "fromImage": true,
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 100,
+      "quote": "Note: The list is not exhaustive and the same will be updated as and when required.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 121,
+      "quote": "Candidates declared Temporary UNFIT for being Below Physical Standards in weight or Chest measurement only will be given a reasonable time not exceeding two months from the date of initial Medical Examination for attaining the desired standards.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 130,
+      "quote": "Permanent body tattoos are only permitted on inner face of forearms i.e. from inside of elbow to the wrist and on the reverse side of palm/ back (dorsal) side of hand.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "conditions",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.applicationCloseDate:c2ffb377061d",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "this date has passed (today is 2026-10-29)"
+    ],
+    "label": "Last date to apply",
+    "value": "2026-06-22",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Last date and time for receipt of online applications 22.06.2026 (23:00 hours)",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.applicationCloseDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.applicationOpenDate:31a647a8ce06",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Applications open",
+    "value": "2026-05-21",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Dates for submission of online applications 21.05.2026 to 22.06.2026",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.applicationOpenDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.correctionWindowEnd:aeb2fef89701",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "this date has passed (today is 2026-10-29)"
+    ],
+    "label": "Correction window ends",
+    "value": "2026-07-01",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Dates of „Window for Application Form Correction‟\nincluding online payment.\n29.06.2026 to 01.07.2026",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.correctionWindowEnd",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.feePaymentCloseDate:ef139c551921",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "this date has passed (today is 2026-10-29)"
+    ],
+    "label": "Fee payment deadline",
+    "value": "2026-06-23",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Last date and time for making online fee payment 23.06.2026 (23:00 hours)",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.feePaymentCloseDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:eligibility:c56dfb386054",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Eligibility",
+    "value": [
+     {
+      "post": "Assistant Audit Officer (Central Cadre)",
+      "qualification": [
+       "Bachelor’s Degree from a recognized University or Institute"
+      ]
+     },
+     {
+      "post": "Assistant Audit Officer (State Cadre)",
+      "qualification": [
+       "Bachelor’s Degree from a recognized University or Institute and proficiency in Regional/official language of the State at matriculation level"
+      ]
+     },
+     {
+      "post": "Assistant Accounts Officer (State Cadre)",
+      "qualification": [
+       "Bachelor’s Degree from a recognized University or Institute and proficiency in Regional/official language of the State at matriculation level"
+      ]
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": null,
+      "quote": "8.1.1.1 Essential Qualifications: Bachelor’s Degree from a\nrecognized University or Institute.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "eligibility",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:examPattern:dbc7d6aa8fb1",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "incomplete: 1 of 2 papers read — not read: “13.9 Scheme of Tier-II Examination” (page 25)",
+     "13.8 Scheme of Tier-I Examination prints no total under its table: its questions and marks could not be checked against one"
+    ],
+    "label": "Exam pattern",
+    "value": [
+     {
+      "name": "13.8 Scheme of Tier-I Examination",
+      "note": "Some tests are a choice of one (printed with the same number, a and b)",
+      "sections": [
+       {
+        "marks": 50,
+        "subject": "General Intelligence and Reasoning",
+        "questions": 25
+       },
+       {
+        "marks": 50,
+        "subject": "General Awareness",
+        "questions": 25
+       },
+       {
+        "marks": 50,
+        "subject": "Quantitative Aptitude",
+        "questions": 25
+       },
+       {
+        "marks": 50,
+        "subject": "English Comprehension",
+        "questions": 25
+       }
+      ]
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 25,
+      "quote": "I\nA. General Intelligence\nand Reasoning 25 50 1 hour (with sectional",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "examPattern",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "f:examStages:6e84ce9aade4",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Exam stages",
+    "value": [
+     {
+      "kind": "SELECTION",
+      "name": "Tier-I (Computer Based Examination)",
+      "notes": "August-September, 2026",
+      "order": 1,
+      "status": "NOT_DECLARED",
+      "certainty": "TBA"
+     },
+     {
+      "kind": "SELECTION",
+      "name": "Tier-II (Computer Based Examination)",
+      "notes": "December, 2026",
+      "order": 2,
+      "status": "NOT_DECLARED",
+      "certainty": "TBA"
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Tentative Schedule of Tier-I (Computer Based\nExamination) August-September, 2026",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "examStages",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:financial.feeGeneral:ad5736686512",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Fee (General / OBC)",
+    "value": 100,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 19,
+      "quote": "10.1 Fee payable: ₹100/- (Rs one hundred only).",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.feeGeneral",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:financial.feeSCST:5feceb66ffc8",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Fee (SC / ST / PwBD)",
+    "value": 0,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 19,
+      "quote": "Women candidates and candidates belonging to Scheduled Castes\n(SC), Scheduled Tribes (ST), Persons with Benchmark Disabilities (PwBD) and\nEx-servicemen (ESM) eligible for reservation are exempted from payment of fee.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.feeSCST",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:financial.payScale:a2f277830393",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Pay scale / stipend",
+    "value": "Pay Level-8 (₹ 47600 to 151100)",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 2,
+      "quote": "2.1 Pay Level-8 (₹ 47600 to 151100):",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.payScale",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:howToApply:f1d767731b64",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "How to apply",
+    "value": [
+     "Visit the new website of SSC Headquarter at https://ssc.gov.in or download the my SSC mobile application from Google Play Store",
+     "Complete One-Time Registration (OTR) on the new website",
+     "Proceed to fill the application for the examination subsequent to OTR"
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 17,
+      "quote": "9.1 Applications must be submitted only in online mode at the new\nwebsite of SSC Headquarter i.e. https://ssc.gov.in or through my SSC mobile\napplication",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "howToApply",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:identity.notificationNumber:7bb1ea96388d",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Notification number",
+    "value": "No. 12",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Block No. 12, CGO Complex, Lodhi",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "identity.notificationNumber",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "l:26cc8e35ab1e",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official notification link",
+    "value": {
+     "url": "https://divyangjan.depwd.gov.in/content/upload/uploadfiles/files/224370.pdf",
+     "type": "OFFICIAL_NOTIFICATION",
+     "label": "Official Notification",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "access Notification No. 38-16/2020-DDIII dated 04.01.2021 is given here under:- https://divyangjan.depwd.gov.in/content/upload/uploadfiles/files/224370.pdf -- 5 of 132 -- Page 6 of 132 3.5 The C",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_NOTIFICATION",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:364bc257d537",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://www.sscsr.gov.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "r, EVK Sampath Building, DPI Campus, College Road, Chennai, Tamil Nadu -600006 (www.sscsr.gov.in) 9 Panaji (7801), Ahmedabad (7001), Gan",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:442f8e3efbb4",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://ssc.gov.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "Page 1 of 132 (To be uploaded on the website of the Commission; i.e. https://ssc.gov.in on 21-05-2026) भारत सरकार, कार्मिक , लो",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:9e5a0553fa16",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "http://www.ssc-cr.org/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "on,34-A, Mahatma Gandhi Marg, Civil Lines, Kendriya Sadan, Prayagraj – 211001. (http://www.ssc-cr.org) 2 Dhanbad (4206), Jamshedpur (4207), R",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:a30e4550e836",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://www.sscnr.nic.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "Selection Commission, Block No. 12, CGO Complex, Lodhi Road, New Delhi-110003 (www.sscnr.nic.in) -- 22 of 132 -- Page 23 of 132 7 Chan",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:b0d206e11d62",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://ssc.nic.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": ".in) will be required to do so as the earlier OTR generated on the old website (https://ssc.nic.in) will not be functional for the new web",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:f83a1eab6717",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://www.ssckkr.kar.nic.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "1st Floor, “E” Wing, Kendriya Sadan, Koramangala, Bengaluru, Karnataka- 560034 (www.ssckkr.kar.nic.in) 4 Bhopal (6001), Gwalior(6005), Indore",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "f:selection:a8452f308ddd",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Selection process",
+    "value": {
+     "stages": [
+      {
+       "name": "Tier-I Examination",
+       "type": "CBT",
+       "order": 1
+      },
+      {
+       "name": "Tier-II Examination",
+       "type": "CBT",
+       "order": 2
+      },
+      {
+       "name": "Computer Knowledge Test",
+       "type": "CBT",
+       "order": 3
+      },
+      {
+       "name": "Data Entry Speed Test",
+       "type": "SKILL_TEST",
+       "order": 4
+      },
+      {
+       "name": "Document Verification",
+       "type": "DOCUMENT_VERIFICATION",
+       "order": 5
+      },
+      {
+       "name": "Physical Efficiency Test",
+       "type": "PHYSICAL",
+       "order": 6,
+       "description": "CANDIDATES QUALIFYING THROUGH STAFF SELECTION COMMISSION WILL HAVE TO MANDATORILY PASS THE TEST IN ONE MILE RUN TO BE HELD AT GREF CENTRE, PUNE TO UNDERGO FURTHER MEDICAL EXAMINATION."
+      },
+      {
+       "name": "Medical Fitness Test",
+       "type": "OTHER",
+       "order": 7,
+       "description": "Medical Board detailed by Headquarters Director General Border Roads will carry out the medical fitness test of the candidates declared selected by SSC and GREF Centre."
+      }
+     ]
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 25,
+      "quote": "13.8 Scheme of Tier-I Examination: Tier Subject Number of Questions Maximum Marks Time allowed",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 38,
+      "quote": "Document Verification (DV) will be conducted by the User Departments/Organizations after declaration of the final result.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     },
+     {
+      "page": 124,
+      "quote": "PHYSICAL EFFICIENCY TEST (FOR GROUP „C‟ POSTS)\nS No ACTIVITY MAXIMUM MARKS TIME AVAILABLE\n1. ONE MILE RUN ONLY PASSING THE TEST IS MANDATORY 10 MINUTES",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "selection",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:syllabus:49b153b2bb54",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Syllabus",
+    "value": [
+     {
+      "paper": "Tier-II",
+      "topics": [
+       "Number Systems: Computation of Whole Number, Decimal and Fractions, Relationship between numbers.",
+       "Algebra: Basic algebraic identities of School Algebra and Elementary surds (simple problems) and Graphs of Linear Equations."
+      ],
+      "subject": "Mathematical Abilities"
+     },
+     {
+      "paper": "Tier-II",
+      "topics": [
+       "Software: Windows Operating system including basics of Microsoft Office like MS word, MS Excel and Power Point etc.",
+       "Working with Internet and e-mails: Web Browsing & Searching, Downloading & Uploading, Managing an E-mail Account, e-Banking."
+      ],
+      "subject": "Computer Knowledge/ Proficiency"
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 31,
+      "quote": "13.11.1 Part A of Section-I of Paper-I (Mathematical Abilities):",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "syllabus",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:vacancies.total:1ff741acee83",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Total vacancies",
+    "value": 12256,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 5,
+      "quote": "3.1 Tentative vacancies: There are approx.12,256 vacancies. The vacancies\nare being collected by the Commission.",
+      "retrievalId": "bfda8e5b-ba8a-4193-ac7a-af776e8bcf3b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "vacancies.total",
+    "supersedes": [],
+    "defaultTicked": true
+   }
+  ],
+  "warnings": [
+   "No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.",
+   "No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.",
+   "upload — notification, not confirmed: the notice prints 2 exam-pattern table(s); 1 read. Not read: “13.9 Scheme of Tier-II Examination” (page 25). Enter it in the editor's exam pattern.",
+   "upload — notification, not confirmed: on scanned pages 67, 76, 78 the AI found almost nothing, twice. Something printed there may be missing from this preview: check the pages."
+  ],
+  "replacedInImport": []
+ }
+}

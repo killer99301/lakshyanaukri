@@ -1,0 +1,4206 @@
+{
+  "items": [
+    {
+      "id": "f:age:e87a06cccef4",
+      "kind": "FIELD",
+      "fieldPath": "age",
+      "label": "Age limit",
+      "value": {
+        "min": 20,
+        "max": 25,
+        "relaxations": []
+      },
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "1 Age as on 01-Oct-2026 20 to 25 years",
+          "page": 1
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:conditions:acecc8651e90",
+      "kind": "FIELD",
+      "fieldPath": "conditions",
+      "label": "Notes (admin only, not published)",
+      "value": [
+        "Apprenticeship is NOT an employment. Apprentices are NOT Employees. Apprentices are ONLY Trainees.",
+        "LIC Housing Finance Ltd is NOT obliged to provide full-time employment to its apprentices.",
+        "All Apprentices who successfully complete their apprenticeship with LIC HFL will be issued Proficiency Certificate by BOAT"
+      ],
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Apprenticeship is NOT an employment. Apprentices are NOT Employees. Apprentices are ONLY Trainees.",
+          "page": 1
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:dates.applicationCloseDate:37e17f8cbb20",
+      "kind": "FIELD",
+      "fieldPath": "dates.applicationCloseDate",
+      "label": "Last date to apply",
+      "value": "2026-11-01",
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Applications for apprenticeship will be invited during 20.10.2026 to 01.11.2026",
+          "page": 5
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:dates.applicationOpenDate:29f81dedb1b6",
+      "kind": "FIELD",
+      "fieldPath": "dates.applicationOpenDate",
+      "label": "Applications open",
+      "value": "2026-10-20",
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Applications for apprenticeship will be invited during 20.10.2026 to 01.11.2026",
+          "page": 5
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:dates.examDate:f528027a3840",
+      "kind": "FIELD",
+      "fieldPath": "dates.examDate",
+      "label": "Exam date",
+      "value": "2026-11-07",
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Entrance Examination will be conducted by BFSI Sector Skill Council of India 07.11.2026",
+          "page": 5
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:dates.feePaymentCloseDate:37e17f8cbb20",
+      "kind": "FIELD",
+      "fieldPath": "dates.feePaymentCloseDate",
+      "label": "Fee payment deadline",
+      "value": "2026-11-01",
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Last Date to pay the examination fee to BFSI Sector Skill Council of India\nhttps://beep.bfsissc.com\n01.11.2026",
+          "page": 5
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:dates.interviewDate:68bbad58a196",
+      "kind": "FIELD",
+      "fieldPath": "dates.interviewDate",
+      "label": "Interview date",
+      "value": "2026-11-15",
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Candidates shortlisted based on the entrance examination result will be invited for Document Verification & Personal Interview at LIC HFL offices 15.11.2026",
+          "page": 5
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:eligibility:b2148ec0824f",
+      "kind": "FIELD",
+      "fieldPath": "eligibility",
+      "label": "Eligibility",
+      "value": [
+        {
+          "post": "Apprentice",
+          "qualification": [
+            "Should have completed graduation in any stream as on 01-Oct-2026 but not before 1-Oct-2001"
+          ]
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Should have completed graduation in any stream as on 01-Oct-2026 but not before 1-Oct-2001",
+          "page": 1
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:examPattern:2573c2e953f6",
+      "kind": "FIELD",
+      "fieldPath": "examPattern",
+      "label": "Exam pattern",
+      "value": [
+        {
+          "name": "Table D: Online test",
+          "durationMinutes": 60,
+          "sections": [
+            {
+              "subject": "General/Financial Awareness",
+              "questions": 25,
+              "marks": 25
+            },
+            {
+              "subject": "General English",
+              "questions": 25,
+              "marks": 25
+            },
+            {
+              "subject": "Reasoning Ability & Computer Aptitude",
+              "questions": 25,
+              "marks": 25
+            },
+            {
+              "subject": "Quantitative Aptitude",
+              "questions": 25,
+              "marks": 25
+            }
+          ],
+          "totalQuestions": 100,
+          "totalMarks": 100
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "General/Financial Awareness 25 25",
+          "page": 3
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "✓ all 1 papers read by code from the notice's tables"
+      ]
+    },
+    {
+      "id": "f:examStages:0f3d9393a539",
+      "kind": "FIELD",
+      "fieldPath": "examStages",
+      "label": "Exam stages",
+      "value": [
+        {
+          "name": "Entrance Examination",
+          "order": 1,
+          "status": "SCHEDULED",
+          "certainty": "CONFIRMED",
+          "dateDisplay": "07.11.2026",
+          "dateIso": "2026-11-07",
+          "kind": "SELECTION"
+        },
+        {
+          "name": "Document Verification & Personal Interview",
+          "order": 2,
+          "status": "SCHEDULED",
+          "certainty": "CONFIRMED",
+          "dateDisplay": "15.11.2026",
+          "dateIso": "2026-11-15",
+          "kind": "SELECTION"
+        },
+        {
+          "name": "Final selected candidates will be issued engagement letters by LIC HFL",
+          "order": 3,
+          "status": "NOT_DECLARED",
+          "certainty": "TBA",
+          "notes": "Tentatively 3rd week of November",
+          "kind": "OTHER_MILESTONE"
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Entrance Examination will be conducted by BFSI Sector Skill Council of India 07.11.2026",
+          "page": 5
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:financial.feeGeneral:1a1cf797fabe",
+      "kind": "FIELD",
+      "fieldPath": "financial.feeGeneral",
+      "label": "Fee (General / OBC)",
+      "value": 800,
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "General, EWS and Other Backward Class (OBC)-Male candidates Rs.800/- plus G",
+          "page": 3
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:financial.feeSCST:27badc983df1",
+      "kind": "FIELD",
+      "fieldPath": "financial.feeSCST",
+      "label": "Fee (SC / ST / PwBD)",
+      "value": 200,
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Scheduled Caste (SC) / Scheduled Tribe (ST) candidates Rs.200/-plus GST",
+          "page": 3
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:financial.payScale:351baa1475db",
+      "kind": "FIELD",
+      "fieldPath": "financial.payScale",
+      "label": "Pay scale / stipend",
+      "value": "Rs.16,650/- Metro Cities: Ahmedabad, Bangalore, Chennai, Delhi, Hyderabad, Kolkata, Mumbai, Pune, Surat / Rs.14,150/- Other Cities",
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Rs.16,650/- Metro Cities: Ahmedabad, Bangalore, Chennai, Delhi, Hyderabad, Kolkata, Mumbai, Pune, Surat\nRs.14,150/- Other Cities",
+          "page": 1
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:howToApply:5a4a25bd2119",
+      "kind": "FIELD",
+      "fieldPath": "howToApply",
+      "label": "How to apply",
+      "value": [
+        "Register on the NATS portal of the Government of India.",
+        "Receive an email invitation from BFSI SSC.",
+        "Fill out the detailed application and make payment for the online examination at beep.bfsissc.com."
+      ],
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Candidates can apply online, and no other mode of application will be accepted. Candidates should first, mandatorily register themselves, if eligible, on the apprenticeship portals of Government of India viz NATS portal",
+          "page": 2
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:identity.title:66267b1256aa",
+      "kind": "FIELD",
+      "fieldPath": "identity.title",
+      "label": "Title",
+      "value": "LICHFL Apprenticeship Program-010- Advertisement Notification",
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "page": null
+        }
+      ],
+      "action": "REPLACE",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": false,
+      "flags": [],
+      "current": "LIC HFL Apprentice Recruitment 2026"
+    },
+    {
+      "id": "l:222c27601f6e",
+      "kind": "LINK",
+      "fieldPath": "links#APPLY_ONLINE",
+      "label": "Apply Online link",
+      "value": {
+        "type": "APPLY_ONLINE",
+        "label": "Apply Online",
+        "url": "https://nats.education.gov.in/student_type.php",
+        "official": true
+      },
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "pprenticeship Advertisement of “LICHFL” after login into the portal by visiting https://nats.education.gov.in/student_type.php . It is very IMPORTANT for all candidat"
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "l:072fef11c094",
+      "kind": "LINK",
+      "fieldPath": "links#OFFICIAL_NOTIFICATION",
+      "label": "Official notification link",
+      "value": {
+        "type": "OFFICIAL_NOTIFICATION",
+        "label": "Official Notification",
+        "url": "https://www.lichousing.com/static-assets/pdf/Apprentecis-Advertisement-Notification-Batch-10.pdf",
+        "official": true
+      },
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "The address this document came from"
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "l:12fdeadacf5a",
+      "kind": "LINK",
+      "fieldPath": "links#OFFICIAL_WEBSITE",
+      "label": "Official website link",
+      "value": {
+        "type": "OFFICIAL_WEBSITE",
+        "label": "Official Website",
+        "url": "https://nats.education.gov.in.in/",
+        "official": false
+      },
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "eligible, on the apprenticeship portals of Government of India viz NATS portal https://nats.education.gov.in.in (Navigate to the “Student Register/Logi"
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": false,
+      "flags": []
+    },
+    {
+      "id": "l:4791c393e6fb",
+      "kind": "LINK",
+      "fieldPath": "links#OTHER",
+      "label": "other link",
+      "value": {
+        "type": "OTHER",
+        "label": "Link",
+        "url": "https://nats.education.gov.in/assets/manual/student_manual.pdf",
+        "official": true
+      },
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "ive apprenticeship portals. For NATS portal refer to “Candidate User Manual” on https://nats.education.gov.in/assets/manual/student_manual.pdf d. Candidate will receive an email from"
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "l:a18539ffff23",
+      "kind": "LINK",
+      "fieldPath": "links#OTHER",
+      "label": "other link",
+      "value": {
+        "type": "OTHER",
+        "label": "Link",
+        "url": "https://beep.bfsissc.com/",
+        "official": true
+      },
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "e candidates for online examination and submission of additional information at https://beep.bfsissc.com will be 01-Nov-2026 e. All candidates a"
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:selection:376c95ef0bea",
+      "kind": "FIELD",
+      "fieldPath": "selection",
+      "label": "Selection process",
+      "value": {
+        "stages": [
+          {
+            "name": "Online Examination",
+            "order": 1,
+            "type": "CBT"
+          },
+          {
+            "name": "Document Verification & Personal Interview",
+            "order": 2,
+            "type": "DOCUMENT_VERIFICATION"
+          },
+          {
+            "name": "Document Verification & Personal Interview",
+            "order": 3,
+            "type": "INTERVIEW"
+          }
+        ]
+      },
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Candidate will receive an email from BFSI SSC inviting the candidate to fill up a detailed application and make payment, for Online Examination for “LIC HFL Apprenticeship Program”.",
+          "page": 2
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "“Document Verification & Personal Interview” was read as interview; its name says document verification: set so",
+        "“Document Verification & Personal Interview” added from the notice's schedule (page 5): the selection process read did not include it — check which posts it is for"
+      ]
+    },
+    {
+      "id": "f:vacancies.breakdown:2ef73882d377",
+      "kind": "FIELD",
+      "fieldPath": "vacancies.breakdown",
+      "label": "Vacancy breakdown",
+      "value": [
+        {
+          "post": "Apprentice",
+          "count": 232
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Number of Apprentices required by LIC Housing Finance Ltd. (State & City wise vacancy as per Table E. 232",
+          "page": 1
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": false,
+      "flags": [
+        "worked out from the vacancy table below when it is saved"
+      ]
+    },
+    {
+      "id": "f:vacancies.table:4e0bf5e24936",
+      "kind": "FIELD",
+      "fieldPath": "vacancies.table",
+      "label": "Vacancy table",
+      "value": {
+        "dimensions": [
+          {
+            "key": "post",
+            "label": "Post"
+          },
+          {
+            "key": "state",
+            "label": "State"
+          },
+          {
+            "key": "city",
+            "label": "City"
+          }
+        ],
+        "categories": [],
+        "rows": [
+          {
+            "id": "t1r1",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Ananthapur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Ananthapur 1"
+            }
+          },
+          {
+            "id": "t1r2",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Bhimavaram"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Bhimavaram 1"
+            }
+          },
+          {
+            "id": "t1r3",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Chittoor"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Chittoor 1"
+            }
+          },
+          {
+            "id": "t1r4",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Kadapa"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Kadapa 1"
+            }
+          },
+          {
+            "id": "t1r5",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Kakinada"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Kakinada 1"
+            }
+          },
+          {
+            "id": "t1r6",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Kurnool"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Kurnool 1"
+            }
+          },
+          {
+            "id": "t1r7",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Machilipatnam"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Machilipatnam 1"
+            }
+          },
+          {
+            "id": "t1r8",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Nellore"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Nellore 1"
+            }
+          },
+          {
+            "id": "t1r9",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Ongole"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Ongole 1"
+            }
+          },
+          {
+            "id": "t1r10",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Rajahmundry"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Rajahmundry 1"
+            }
+          },
+          {
+            "id": "t1r11",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Tirupathi"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Tirupathi 1"
+            }
+          },
+          {
+            "id": "t1r12",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Vijayawada"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Vijayawada 1"
+            }
+          },
+          {
+            "id": "t1r13",
+            "at": {
+              "post": "Apprentice",
+              "state": "Andhra Pradesh",
+              "city": "Vizianagaran"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Andhra Pradesh Vizianagaran 1"
+            }
+          },
+          {
+            "id": "t1r14",
+            "at": {
+              "post": "Apprentice",
+              "state": "Assam",
+              "city": "Dispur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Assam Dispur 1"
+            }
+          },
+          {
+            "id": "t1r15",
+            "at": {
+              "post": "Apprentice",
+              "state": "Assam",
+              "city": "Guwahati"
+            },
+            "status": "STATED",
+            "total": 3,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Assam Guwahati 3"
+            }
+          },
+          {
+            "id": "t1r16",
+            "at": {
+              "post": "Apprentice",
+              "state": "Assam",
+              "city": "Jorhat"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Assam Jorhat 1"
+            }
+          },
+          {
+            "id": "t1r17",
+            "at": {
+              "post": "Apprentice",
+              "state": "Assam",
+              "city": "Silchar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Assam Silchar 1"
+            }
+          },
+          {
+            "id": "t1r18",
+            "at": {
+              "post": "Apprentice",
+              "state": "Assam",
+              "city": "Tezpur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Assam Tezpur 1"
+            }
+          },
+          {
+            "id": "t1r19",
+            "at": {
+              "post": "Apprentice",
+              "state": "Bihar",
+              "city": "Bhagalpur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Bihar Bhagalpur 1"
+            }
+          },
+          {
+            "id": "t1r20",
+            "at": {
+              "post": "Apprentice",
+              "state": "Bihar",
+              "city": "Darbhanga"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Bihar Darbhanga 1"
+            }
+          },
+          {
+            "id": "t1r21",
+            "at": {
+              "post": "Apprentice",
+              "state": "Bihar",
+              "city": "Gaya"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Bihar Gaya 1"
+            }
+          },
+          {
+            "id": "t1r22",
+            "at": {
+              "post": "Apprentice",
+              "state": "Bihar",
+              "city": "Hajipur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Bihar Hajipur 1"
+            }
+          },
+          {
+            "id": "t1r23",
+            "at": {
+              "post": "Apprentice",
+              "state": "Bihar",
+              "city": "Lakhisarai"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Bihar Lakhisarai 1"
+            }
+          },
+          {
+            "id": "t1r24",
+            "at": {
+              "post": "Apprentice",
+              "state": "Bihar",
+              "city": "Motihari"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Bihar Motihari 1"
+            }
+          },
+          {
+            "id": "t1r25",
+            "at": {
+              "post": "Apprentice",
+              "state": "Bihar",
+              "city": "Muzaffarpur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Bihar Muzaffarpur 1"
+            }
+          },
+          {
+            "id": "t1r26",
+            "at": {
+              "post": "Apprentice",
+              "state": "Bihar",
+              "city": "Patna"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Bihar Patna 2"
+            }
+          },
+          {
+            "id": "t1r27",
+            "at": {
+              "post": "Apprentice",
+              "state": "Bihar",
+              "city": "Purniea"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Bihar Purniea 1"
+            }
+          },
+          {
+            "id": "t1r28",
+            "at": {
+              "post": "Apprentice",
+              "state": "Chandigarh",
+              "city": "Chandigarh"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Chandigarh Chandigarh 1"
+            }
+          },
+          {
+            "id": "t1r29",
+            "at": {
+              "post": "Apprentice",
+              "state": "Chattisgarh",
+              "city": "Durg Bhilai"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Chattisgarh Durg Bhilai 1"
+            }
+          },
+          {
+            "id": "t1r30",
+            "at": {
+              "post": "Apprentice",
+              "state": "Chattisgarh",
+              "city": "Raipur"
+            },
+            "status": "STATED",
+            "total": 4,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Chattisgarh Raipur 4"
+            }
+          },
+          {
+            "id": "t1r31",
+            "at": {
+              "post": "Apprentice",
+              "state": "Chattisgarh",
+              "city": "Rajnandgaon"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Chattisgarh Rajnandgaon 1"
+            }
+          },
+          {
+            "id": "t1r32",
+            "at": {
+              "post": "Apprentice",
+              "state": "Delhi",
+              "city": "New Delhi"
+            },
+            "status": "STATED",
+            "total": 4,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Delhi New Delhi 4"
+            }
+          },
+          {
+            "id": "t1r33",
+            "at": {
+              "post": "Apprentice",
+              "state": "Goa",
+              "city": "Goa"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Goa Goa 1"
+            }
+          },
+          {
+            "id": "t1r34",
+            "at": {
+              "post": "Apprentice",
+              "state": "Gujarat",
+              "city": "Ahmedabad"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Gujarat Ahmedabad 1"
+            }
+          },
+          {
+            "id": "t1r35",
+            "at": {
+              "post": "Apprentice",
+              "state": "Gujarat",
+              "city": "Mehsana"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Gujarat Mehsana 1"
+            }
+          },
+          {
+            "id": "t1r36",
+            "at": {
+              "post": "Apprentice",
+              "state": "Gujarat",
+              "city": "Prahlad Nagar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Gujarat Prahlad Nagar 1"
+            }
+          },
+          {
+            "id": "t1r37",
+            "at": {
+              "post": "Apprentice",
+              "state": "Gujarat",
+              "city": "Surat"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Gujarat Surat 1"
+            }
+          },
+          {
+            "id": "t1r38",
+            "at": {
+              "post": "Apprentice",
+              "state": "Haryana",
+              "city": "Ambala"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Haryana Ambala 1"
+            }
+          },
+          {
+            "id": "t1r39",
+            "at": {
+              "post": "Apprentice",
+              "state": "Haryana",
+              "city": "Faridabad"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Haryana Faridabad 1"
+            }
+          },
+          {
+            "id": "t1r40",
+            "at": {
+              "post": "Apprentice",
+              "state": "Haryana",
+              "city": "Hissar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Haryana Hissar 1"
+            }
+          },
+          {
+            "id": "t1r41",
+            "at": {
+              "post": "Apprentice",
+              "state": "Haryana",
+              "city": "Jind"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Haryana Jind 1"
+            }
+          },
+          {
+            "id": "t1r42",
+            "at": {
+              "post": "Apprentice",
+              "state": "Haryana",
+              "city": "Karnal"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Haryana Karnal 1"
+            }
+          },
+          {
+            "id": "t1r43",
+            "at": {
+              "post": "Apprentice",
+              "state": "Haryana",
+              "city": "Sirsa"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Haryana Sirsa 1"
+            }
+          },
+          {
+            "id": "t1r44",
+            "at": {
+              "post": "Apprentice",
+              "state": "Haryana",
+              "city": "Sonipat"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 6,
+              "line": "Haryana Sonipat 1"
+            }
+          },
+          {
+            "id": "t1r45",
+            "at": {
+              "post": "Apprentice",
+              "state": "Himachal Pradesh",
+              "city": "Shimla"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Himachal Pradesh Shimla 1"
+            }
+          },
+          {
+            "id": "t1r46",
+            "at": {
+              "post": "Apprentice",
+              "state": "Jammu And Kashmir",
+              "city": "Jammu"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Jammu And\nKashmir Jammu 1"
+            }
+          },
+          {
+            "id": "t1r47",
+            "at": {
+              "post": "Apprentice",
+              "state": "Jharkhand",
+              "city": "Dhanbad"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Jharkhand Dhanbad 1"
+            }
+          },
+          {
+            "id": "t1r48",
+            "at": {
+              "post": "Apprentice",
+              "state": "Jharkhand",
+              "city": "Hazaribagh"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Jharkhand Hazaribagh 1"
+            }
+          },
+          {
+            "id": "t1r49",
+            "at": {
+              "post": "Apprentice",
+              "state": "Jharkhand",
+              "city": "Jamshedpur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Jharkhand Jamshedpur 1"
+            }
+          },
+          {
+            "id": "t1r50",
+            "at": {
+              "post": "Apprentice",
+              "state": "Jharkhand",
+              "city": "Ranchi"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Jharkhand Ranchi 1"
+            }
+          },
+          {
+            "id": "t1r51",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Bangalore"
+            },
+            "status": "STATED",
+            "total": 13,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Bangalore 13"
+            }
+          },
+          {
+            "id": "t1r52",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Belagavi"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Belagavi 1"
+            }
+          },
+          {
+            "id": "t1r53",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Bellary"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Bellary 1"
+            }
+          },
+          {
+            "id": "t1r54",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Davangere"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Davangere 1"
+            }
+          },
+          {
+            "id": "t1r55",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Hassan"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Hassan 1"
+            }
+          },
+          {
+            "id": "t1r56",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Hoskote"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Hoskote 1"
+            }
+          },
+          {
+            "id": "t1r57",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Hubballi"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Hubballi 1"
+            }
+          },
+          {
+            "id": "t1r58",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Mandya"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Mandya 1"
+            }
+          },
+          {
+            "id": "t1r59",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Mangalore"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Mangalore 1"
+            }
+          },
+          {
+            "id": "t1r60",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Mysuru"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Mysuru 1"
+            }
+          },
+          {
+            "id": "t1r61",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Sarjapur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Sarjapur 1"
+            }
+          },
+          {
+            "id": "t1r62",
+            "at": {
+              "post": "Apprentice",
+              "state": "Karnataka",
+              "city": "Tumkur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Karnataka Tumkur 1"
+            }
+          },
+          {
+            "id": "t1r63",
+            "at": {
+              "post": "Apprentice",
+              "state": "Kerala",
+              "city": "Alappuzha"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Kerala Alappuzha 1"
+            }
+          },
+          {
+            "id": "t1r64",
+            "at": {
+              "post": "Apprentice",
+              "state": "Kerala",
+              "city": "Calicut"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Kerala Calicut 1"
+            }
+          },
+          {
+            "id": "t1r65",
+            "at": {
+              "post": "Apprentice",
+              "state": "Kerala",
+              "city": "Kannur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Kerala Kannur 1"
+            }
+          },
+          {
+            "id": "t1r66",
+            "at": {
+              "post": "Apprentice",
+              "state": "Kerala",
+              "city": "Kottayam"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Kerala Kottayam 1"
+            }
+          },
+          {
+            "id": "t1r67",
+            "at": {
+              "post": "Apprentice",
+              "state": "Kerala",
+              "city": "Palakkad"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Kerala Palakkad 1"
+            }
+          },
+          {
+            "id": "t1r68",
+            "at": {
+              "post": "Apprentice",
+              "state": "Kerala",
+              "city": "Thiruvananthpuram"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Kerala Thiruvananthpuram 1"
+            }
+          },
+          {
+            "id": "t1r69",
+            "at": {
+              "post": "Apprentice",
+              "state": "Kerala",
+              "city": "Thrissur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Kerala Thrissur 1"
+            }
+          },
+          {
+            "id": "t1r70",
+            "at": {
+              "post": "Apprentice",
+              "state": "Madhya Pradesh",
+              "city": "Balaghat"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Madhya Pradesh Balaghat 1"
+            }
+          },
+          {
+            "id": "t1r71",
+            "at": {
+              "post": "Apprentice",
+              "state": "Madhya Pradesh",
+              "city": "Betul"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Madhya Pradesh Betul 1"
+            }
+          },
+          {
+            "id": "t1r72",
+            "at": {
+              "post": "Apprentice",
+              "state": "Madhya Pradesh",
+              "city": "Bhopal"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Madhya Pradesh Bhopal 2"
+            }
+          },
+          {
+            "id": "t1r73",
+            "at": {
+              "post": "Apprentice",
+              "state": "Madhya Pradesh",
+              "city": "Indore"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Madhya Pradesh Indore 2"
+            }
+          },
+          {
+            "id": "t1r74",
+            "at": {
+              "post": "Apprentice",
+              "state": "Madhya Pradesh",
+              "city": "Khandwa"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Madhya Pradesh Khandwa 1"
+            }
+          },
+          {
+            "id": "t1r75",
+            "at": {
+              "post": "Apprentice",
+              "state": "Madhya Pradesh",
+              "city": "Rewa"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Madhya Pradesh Rewa 1"
+            }
+          },
+          {
+            "id": "t1r76",
+            "at": {
+              "post": "Apprentice",
+              "state": "Madhya Pradesh",
+              "city": "Sagar"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Madhya Pradesh Sagar 2"
+            }
+          },
+          {
+            "id": "t1r77",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Ahmednagar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Ahmednagar 1"
+            }
+          },
+          {
+            "id": "t1r78",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Amravati"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Amravati 2"
+            }
+          },
+          {
+            "id": "t1r79",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Aurangabad"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Aurangabad 1"
+            }
+          },
+          {
+            "id": "t1r80",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Badlapur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Badlapur 1"
+            }
+          },
+          {
+            "id": "t1r81",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Baner"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Baner 1"
+            }
+          },
+          {
+            "id": "t1r82",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Ghodbunder Road"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Ghodbunder Road 1"
+            }
+          },
+          {
+            "id": "t1r83",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Jalgaon"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Jalgaon 1"
+            }
+          },
+          {
+            "id": "t1r84",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Kolhapur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Kolhapur 1"
+            }
+          },
+          {
+            "id": "t1r85",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Latur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Latur 1"
+            }
+          },
+          {
+            "id": "t1r86",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Mumbai"
+            },
+            "status": "STATED",
+            "total": 4,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Mumbai 4"
+            }
+          },
+          {
+            "id": "t1r87",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Nagpur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Nagpur 1"
+            }
+          },
+          {
+            "id": "t1r88",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Nasik"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Nasik 1"
+            }
+          },
+          {
+            "id": "t1r89",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Navi Mumbai"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Navi Mumbai 2"
+            }
+          },
+          {
+            "id": "t1r90",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Pune"
+            },
+            "status": "STATED",
+            "total": 3,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 7,
+              "line": "Maharashtra Pune 3"
+            }
+          },
+          {
+            "id": "t1r91",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Raigad"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Maharashtra Raigad 1"
+            }
+          },
+          {
+            "id": "t1r92",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Sangli"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Maharashtra Sangli 1"
+            }
+          },
+          {
+            "id": "t1r93",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Satara"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Maharashtra Satara 1"
+            }
+          },
+          {
+            "id": "t1r94",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Thane"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Maharashtra Thane 2"
+            }
+          },
+          {
+            "id": "t1r95",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Virar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Maharashtra Virar 1"
+            }
+          },
+          {
+            "id": "t1r96",
+            "at": {
+              "post": "Apprentice",
+              "state": "Maharashtra",
+              "city": "Wardha"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Maharashtra Wardha 1"
+            }
+          },
+          {
+            "id": "t1r97",
+            "at": {
+              "post": "Apprentice",
+              "state": "Odisha",
+              "city": "Balasore"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Odisha Balasore 1"
+            }
+          },
+          {
+            "id": "t1r98",
+            "at": {
+              "post": "Apprentice",
+              "state": "Odisha",
+              "city": "Berhampur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Odisha Berhampur 1"
+            }
+          },
+          {
+            "id": "t1r99",
+            "at": {
+              "post": "Apprentice",
+              "state": "Odisha",
+              "city": "Jajpur Road"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Odisha Jajpur Road 1"
+            }
+          },
+          {
+            "id": "t1r100",
+            "at": {
+              "post": "Apprentice",
+              "state": "Odisha",
+              "city": "Rourkela"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Odisha Rourkela 1"
+            }
+          },
+          {
+            "id": "t1r101",
+            "at": {
+              "post": "Apprentice",
+              "state": "Odisha",
+              "city": "Sambalpur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Odisha Sambalpur 1"
+            }
+          },
+          {
+            "id": "t1r102",
+            "at": {
+              "post": "Apprentice",
+              "state": "Punjab",
+              "city": "Amritsar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Punjab Amritsar 1"
+            }
+          },
+          {
+            "id": "t1r103",
+            "at": {
+              "post": "Apprentice",
+              "state": "Punjab",
+              "city": "Bhatinda"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Punjab Bhatinda 1"
+            }
+          },
+          {
+            "id": "t1r104",
+            "at": {
+              "post": "Apprentice",
+              "state": "Punjab",
+              "city": "Jalandhar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Punjab Jalandhar 1"
+            }
+          },
+          {
+            "id": "t1r105",
+            "at": {
+              "post": "Apprentice",
+              "state": "Punjab",
+              "city": "Mohali"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Punjab Mohali 1"
+            }
+          },
+          {
+            "id": "t1r106",
+            "at": {
+              "post": "Apprentice",
+              "state": "Punjab",
+              "city": "Patiala"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Punjab Patiala 1"
+            }
+          },
+          {
+            "id": "t1r107",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Ajmer"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Ajmer 1"
+            }
+          },
+          {
+            "id": "t1r108",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Alwar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Alwar 1"
+            }
+          },
+          {
+            "id": "t1r109",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Bikaner"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Bikaner 1"
+            }
+          },
+          {
+            "id": "t1r110",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Dungarpur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Dungarpur 1"
+            }
+          },
+          {
+            "id": "t1r111",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Jaipur"
+            },
+            "status": "STATED",
+            "total": 4,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Jaipur 4"
+            }
+          },
+          {
+            "id": "t1r112",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Jodhpur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Jodhpur 1"
+            }
+          },
+          {
+            "id": "t1r113",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Kishangarh"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Kishangarh 1"
+            }
+          },
+          {
+            "id": "t1r114",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Kota"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Kota 1"
+            }
+          },
+          {
+            "id": "t1r115",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Pali"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Pali 1"
+            }
+          },
+          {
+            "id": "t1r116",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Sikar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Sikar 1"
+            }
+          },
+          {
+            "id": "t1r117",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Sri Ganganagar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Sri Ganganagar 1"
+            }
+          },
+          {
+            "id": "t1r118",
+            "at": {
+              "post": "Apprentice",
+              "state": "Rajasthan",
+              "city": "Udaipur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Rajasthan Udaipur 1"
+            }
+          },
+          {
+            "id": "t1r119",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Ambattur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Ambattur 1"
+            }
+          },
+          {
+            "id": "t1r120",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Chennai"
+            },
+            "status": "STATED",
+            "total": 7,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Chennai 7"
+            }
+          },
+          {
+            "id": "t1r121",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Coimbatore"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Coimbatore 1"
+            }
+          },
+          {
+            "id": "t1r122",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Dindigul"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Dindigul 1"
+            }
+          },
+          {
+            "id": "t1r123",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Dinnur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Dinnur 1"
+            }
+          },
+          {
+            "id": "t1r124",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Erode"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Erode 1"
+            }
+          },
+          {
+            "id": "t1r125",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Ganapathy"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Ganapathy 1"
+            }
+          },
+          {
+            "id": "t1r126",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Hosur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Hosur 1"
+            }
+          },
+          {
+            "id": "t1r127",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Kanchipuram"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Kanchipuram 1"
+            }
+          },
+          {
+            "id": "t1r128",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Karaikudi"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Karaikudi 1"
+            }
+          },
+          {
+            "id": "t1r129",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Karur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Karur 1"
+            }
+          },
+          {
+            "id": "t1r130",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Madurai"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Madurai 2"
+            }
+          },
+          {
+            "id": "t1r131",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Nagercoil"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Nagercoil 1"
+            }
+          },
+          {
+            "id": "t1r132",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Ondipudur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Ondipudur 1"
+            }
+          },
+          {
+            "id": "t1r133",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Pollachi"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Pollachi 1"
+            }
+          },
+          {
+            "id": "t1r134",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Puducherry"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Puducherry 1"
+            }
+          },
+          {
+            "id": "t1r135",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Salem"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Salem 1"
+            }
+          },
+          {
+            "id": "t1r136",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Thanjavur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Thanjavur 1"
+            }
+          },
+          {
+            "id": "t1r137",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Thirumangalam"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 8,
+              "line": "Tamil Nadu Thirumangalam 1"
+            }
+          },
+          {
+            "id": "t1r138",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Tirunelveli"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Tamil Nadu Tirunelveli 1"
+            }
+          },
+          {
+            "id": "t1r139",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Tirupur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Tamil Nadu Tirupur 1"
+            }
+          },
+          {
+            "id": "t1r140",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tamil Nadu",
+              "city": "Vellore"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Tamil Nadu Vellore 1"
+            }
+          },
+          {
+            "id": "t1r141",
+            "at": {
+              "post": "Apprentice",
+              "state": "Telangana",
+              "city": "Hanumakonda"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Telangana Hanumakonda 1"
+            }
+          },
+          {
+            "id": "t1r142",
+            "at": {
+              "post": "Apprentice",
+              "state": "Telangana",
+              "city": "Hyderabad"
+            },
+            "status": "STATED",
+            "total": 7,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Telangana Hyderabad 7"
+            }
+          },
+          {
+            "id": "t1r143",
+            "at": {
+              "post": "Apprentice",
+              "state": "Telangana",
+              "city": "Karimnagar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Telangana Karimnagar 1"
+            }
+          },
+          {
+            "id": "t1r144",
+            "at": {
+              "post": "Apprentice",
+              "state": "Telangana",
+              "city": "Nalgonda"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Telangana Nalgonda 1"
+            }
+          },
+          {
+            "id": "t1r145",
+            "at": {
+              "post": "Apprentice",
+              "state": "Telangana",
+              "city": "Nizamabad"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Telangana Nizamabad 1"
+            }
+          },
+          {
+            "id": "t1r146",
+            "at": {
+              "post": "Apprentice",
+              "state": "Telangana",
+              "city": "Ranga Reddy"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Telangana Ranga Reddy 2"
+            }
+          },
+          {
+            "id": "t1r147",
+            "at": {
+              "post": "Apprentice",
+              "state": "Telangana",
+              "city": "Sangareddy"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Telangana Sangareddy 1"
+            }
+          },
+          {
+            "id": "t1r148",
+            "at": {
+              "post": "Apprentice",
+              "state": "Telangana",
+              "city": "Secunderabad"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Telangana Secunderabad 2"
+            }
+          },
+          {
+            "id": "t1r149",
+            "at": {
+              "post": "Apprentice",
+              "state": "Tripura",
+              "city": "Agartala"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Tripura Agartala 1"
+            }
+          },
+          {
+            "id": "t1r150",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Aligarh"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Aligarh 1"
+            }
+          },
+          {
+            "id": "t1r151",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Ayodhya"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Ayodhya 1"
+            }
+          },
+          {
+            "id": "t1r152",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Basti"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Basti 1"
+            }
+          },
+          {
+            "id": "t1r153",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Etawah"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Etawah 1"
+            }
+          },
+          {
+            "id": "t1r154",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Ghaziabad"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Ghaziabad 1"
+            }
+          },
+          {
+            "id": "t1r155",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Greater Noida"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Greater Noida 1"
+            }
+          },
+          {
+            "id": "t1r156",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Hapur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Hapur 1"
+            }
+          },
+          {
+            "id": "t1r157",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Jaunpur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Jaunpur 1"
+            }
+          },
+          {
+            "id": "t1r158",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Jhansi"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Jhansi 1"
+            }
+          },
+          {
+            "id": "t1r159",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Mathura"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Mathura 1"
+            }
+          },
+          {
+            "id": "t1r160",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Mau"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Mau 1"
+            }
+          },
+          {
+            "id": "t1r161",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Meerut"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Meerut 1"
+            }
+          },
+          {
+            "id": "t1r162",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Moradabad"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Moradabad 1"
+            }
+          },
+          {
+            "id": "t1r163",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Raebareli"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Raebareli 1"
+            }
+          },
+          {
+            "id": "t1r164",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Rudrapur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Rudrapur 1"
+            }
+          },
+          {
+            "id": "t1r165",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttar Pradesh",
+              "city": "Sitapur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttar Pradesh Sitapur 1"
+            }
+          },
+          {
+            "id": "t1r166",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttarakhand",
+              "city": "Dehradun"
+            },
+            "status": "STATED",
+            "total": 2,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttarakhand Dehradun 2"
+            }
+          },
+          {
+            "id": "t1r167",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttarakhand",
+              "city": "Haldwani"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttarakhand Haldwani 1"
+            }
+          },
+          {
+            "id": "t1r168",
+            "at": {
+              "post": "Apprentice",
+              "state": "Uttarakhand",
+              "city": "Haridwar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Uttarakhand Haridwar 1"
+            }
+          },
+          {
+            "id": "t1r169",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Barasat"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Barasat 1"
+            }
+          },
+          {
+            "id": "t1r170",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Bardhaman"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Bardhaman 1"
+            }
+          },
+          {
+            "id": "t1r171",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Chinsurah"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Chinsurah 1"
+            }
+          },
+          {
+            "id": "t1r172",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Coochbehar"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Coochbehar 1"
+            }
+          },
+          {
+            "id": "t1r173",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Gangtok"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Gangtok 1"
+            }
+          },
+          {
+            "id": "t1r174",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Hooghly"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Hooghly 1"
+            }
+          },
+          {
+            "id": "t1r175",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Howrah"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Howrah 1"
+            }
+          },
+          {
+            "id": "t1r176",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Kharagpur"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Kharagpur 1"
+            }
+          },
+          {
+            "id": "t1r177",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Knc Road"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Knc Road 1"
+            }
+          },
+          {
+            "id": "t1r178",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Kolkata"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Kolkata 1"
+            }
+          },
+          {
+            "id": "t1r179",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Malda"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Malda 1"
+            }
+          },
+          {
+            "id": "t1r180",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Murshidabad"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Murshidabad 1"
+            }
+          },
+          {
+            "id": "t1r181",
+            "at": {
+              "post": "Apprentice",
+              "state": "West Bengal",
+              "city": "Siliguri"
+            },
+            "status": "STATED",
+            "total": 1,
+            "cells": {},
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "West Bengal Siliguri 1"
+            }
+          }
+        ],
+        "statedTotals": [
+          {
+            "at": {},
+            "total": 232,
+            "source": {
+              "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+              "page": 9,
+              "line": "Grand Total 232"
+            }
+          }
+        ]
+      },
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Andhra Pradesh Ananthapur 1",
+          "page": 6
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": []
+    },
+    {
+      "id": "f:vacancies.total:835d5e831434",
+      "kind": "FIELD",
+      "fieldPath": "vacancies.total",
+      "label": "Total vacancies",
+      "value": 232,
+      "claims": [
+        {
+          "retrievalId": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+          "quote": "Grand Total 232",
+          "page": 9
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": false,
+      "flags": [
+        "worked out from the vacancy table below when it is saved"
+      ]
+    }
+  ],
+  "warnings": [
+    "lichousing.com — notification, attested by admin: pages 10 have no text (scanned pages); they were not read."
+  ],
+  "sources": [
+    {
+      "id": "f46af0de-74c2-4a67-b57b-4662504c1ede",
+      "declaredKind": "OFFICIAL_NOTIFICATION",
+      "authenticity": "ATTESTED",
+      "originRole": "AUTHORITY",
+      "originPurposes": [
+        "all"
+      ],
+      "label": "lichousing.com — notification, attested by admin",
+      "method": "UPLOADED",
+      "originUrl": "https://www.lichousing.com/static-assets/pdf/Apprentecis-Advertisement-Notification-Batch-10.pdf",
+      "notFound": [
+        "Notification Number",
+        "Notification Date",
+        "Correction Window End",
+        "Syllabus"
+      ],
+      "refused": [
+        {
+          "fieldPath": "examStages",
+          "reason": "whole-text reading: a stage name is longer than 80 characters: \"Candidates who accept the offer letters will be asked to rep…\""
+        }
+      ],
+      "summary": "LIC Housing Finance Limited invites graduates aged 20 to 25 to apply for its apprenticeship program by November 1, 2026.",
+      "vacancyTables": {
+        "coverage": {
+          "pages": 10,
+          "tables": [
+            {
+              "title": "Table E",
+              "pages": [
+                6,
+                7,
+                8,
+                9
+              ],
+              "rows": 181,
+              "read": true,
+              "columnsBy": "CODE",
+              "columns": [
+                "Total"
+              ]
+            }
+          ],
+          "unreadLines": []
+        },
+        "from": "tables",
+        "problems": [],
+        "removalsHeld": 0,
+        "diff": {
+          "added": 181,
+          "changed": 0,
+          "removed": 0,
+          "same": 0,
+          "untouchedPosts": [],
+          "addedRows": [
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Ananthapur"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Bhimavaram"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Chittoor"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Kadapa"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Kakinada"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Kurnool"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Machilipatnam"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Nellore"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Ongole"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Rajahmundry"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Tirupathi"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Vijayawada"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Andhra Pradesh",
+                "city": "Vizianagaran"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Assam",
+                "city": "Dispur"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Assam",
+                "city": "Guwahati"
+              },
+              "status": "STATED",
+              "total": 3,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Assam",
+                "city": "Jorhat"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Assam",
+                "city": "Silchar"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Assam",
+                "city": "Tezpur"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Bihar",
+                "city": "Bhagalpur"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Bihar",
+                "city": "Darbhanga"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Bihar",
+                "city": "Gaya"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Bihar",
+                "city": "Hajipur"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Bihar",
+                "city": "Lakhisarai"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Bihar",
+                "city": "Motihari"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Bihar",
+                "city": "Muzaffarpur"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Bihar",
+                "city": "Patna"
+              },
+              "status": "STATED",
+              "total": 2,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Bihar",
+                "city": "Purniea"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Chandigarh",
+                "city": "Chandigarh"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Chattisgarh",
+                "city": "Durg Bhilai"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Chattisgarh",
+                "city": "Raipur"
+              },
+              "status": "STATED",
+              "total": 4,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Chattisgarh",
+                "city": "Rajnandgaon"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Delhi",
+                "city": "New Delhi"
+              },
+              "status": "STATED",
+              "total": 4,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Goa",
+                "city": "Goa"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Gujarat",
+                "city": "Ahmedabad"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Gujarat",
+                "city": "Mehsana"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Gujarat",
+                "city": "Prahlad Nagar"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Gujarat",
+                "city": "Surat"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Haryana",
+                "city": "Ambala"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Haryana",
+                "city": "Faridabad"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Haryana",
+                "city": "Hissar"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Haryana",
+                "city": "Jind"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Haryana",
+                "city": "Karnal"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Haryana",
+                "city": "Sirsa"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Haryana",
+                "city": "Sonipat"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 6
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Himachal Pradesh",
+                "city": "Shimla"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Jammu And Kashmir",
+                "city": "Jammu"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Jharkhand",
+                "city": "Dhanbad"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Jharkhand",
+                "city": "Hazaribagh"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Jharkhand",
+                "city": "Jamshedpur"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Jharkhand",
+                "city": "Ranchi"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Karnataka",
+                "city": "Bangalore"
+              },
+              "status": "STATED",
+              "total": 13,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Karnataka",
+                "city": "Belagavi"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Karnataka",
+                "city": "Bellary"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Karnataka",
+                "city": "Davangere"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Karnataka",
+                "city": "Hassan"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Karnataka",
+                "city": "Hoskote"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Karnataka",
+                "city": "Hubballi"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Karnataka",
+                "city": "Mandya"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Karnataka",
+                "city": "Mangalore"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            },
+            {
+              "at": {
+                "post": "Apprentice",
+                "state": "Karnataka",
+                "city": "Mysuru"
+              },
+              "status": "STATED",
+              "total": 1,
+              "page": 7
+            }
+          ],
+          "changedRows": [],
+          "removedRows": []
+        }
+      },
+      "reading": {
+        "mode": "whole",
+        "pages": 10,
+        "noTextPages": [
+          10
+        ],
+        "batches": [
+          {
+            "first": 1,
+            "last": 10,
+            "status": "read",
+            "values": 14
+          }
+        ]
+      },
+      "pattern": {
+        "expected": 1,
+        "read": 1,
+        "tables": [
+          {
+            "heading": "Table D: Online test",
+            "page": 3,
+            "read": true
+          }
+        ],
+        "problems": []
+      }
+    }
+  ]
+}

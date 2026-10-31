@@ -1,0 +1,17 @@
+{
+ "identity.title": "PENDING \"TEST RECORD SSC CGL 2026\"",
+ "identity.notificationNumber": "PENDING \"No. 12\"",
+ "dates.applicationOpenDate": "PENDING \"2026-05-21\"",
+ "dates.correctionWindowEnd": "PENDING \"2026-07-03\"",
+ "dates.feePaymentCloseDate": "PENDING \"2026-06-26\"",
+ "dates.applicationCloseDate": "PENDING \"2026-06-25\"",
+ "vacancies.total": "PENDING 12256",
+ "financial.feeSCST": "PENDING 0",
+ "financial.payScale": "PENDING \"Pay Level-8 (₹ 47600 to 151100)\"",
+ "financial.feeGeneral": "PENDING 100",
+ "age": "PENDING {\"evidence\":[{\"page\":7,\"about\":\"relaxation (read by code): SC/ST\",\"quote\":\"01 SC/ST 5 years\",\"value\":\"5\"},{\"page\":7,\"about\":\"relaxation (read by code): OBC\",\"quote\":\"02 OBC 3 years\",\"value\":\"3\"},{\"page\":7,\"about\":\"relaxation (read by code): PwBD\",\"quote\":\"03 PwBD 10 years\",\"value\":\"10\"},{\"page\":7,\"about\":\"relaxation (read by code): PwBD (OBC)\",\"quote\":\"04 PwBD (OBC) 13 years\",\"value\":\"13\"},{\"page\"",
+ "eligibility": "PENDING [{\"post\":\"Assistant Audit Officer (Central Cadre)\",\"qualification\":[\"Bachelor's Degree from a recognized University or Institute\"]},{\"post\":\"Assistant Audit Officer (State Cadre)\",\"qualification\":[\"Bachelor's Degree from a recognized University or Institute and proficiency in the Regional/official language of the State at matriculation level\"]},{\"post\":\"Assistant Accounts Officer (State Cadre)\",\"q",
+ "selection": "PENDING {\"stages\":[{\"name\":\"Tier-I\",\"type\":\"CBT\",\"order\":1},{\"name\":\"Tier-II\",\"type\":\"CBT\",\"order\":2},{\"name\":\"Computer Based Examination\",\"type\":\"CBT\",\"order\":3},{\"name\":\"Document Verification\",\"type\":\"DOCUMENT_VERIFICATION\",\"order\":4},{\"name\":\"Tier-I Examination\",\"type\":\"CBT\",\"order\":5,\"description\":\"Based on the marks scored in Tier-I i.e. Computer Based Examination, candidates will be shortlisted, cat",
+ "syllabus": "PENDING [{\"paper\":\"Tier-II\",\"topics\":[\"Number Systems: Computation of Whole Number, Decimal and Fractions, Relationship between numbers.\",\"Algebra: Basic algebraic identities of School Algebra and Elementary surds (simple problems) and Graphs of Linear Equations.\"],\"subject\":\"Mathematical Abilities\"},{\"paper\":\"Tier-II\",\"topics\":[\"Software: Windows Operating system including basics of Microsoft Office like",
+ "examStages": "[\"Tier-I (Computer Based Examination)[SELECTION]\",\"Tier-II (Computer Based Examination)[SELECTION]\"]"
+}

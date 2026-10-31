@@ -1,0 +1,866 @@
+{
+ "progress": {
+  "jobId": "b79a27f9-46d6-41b8-ad4e-4ab836ea1214",
+  "state": "DONE",
+  "stateNote": "9 exam-pattern paper(s) printed in the notice could not be read; the review names them.",
+  "importId": "d8d68fc9-ddcf-49a8-83c9-f4ab67e02232",
+  "mode": "NEW",
+  "recruitmentId": null,
+  "title": "TEST RECORD UPSC CSE 2026",
+  "sources": [
+   {
+    "no": 1,
+    "kind": "pdf",
+    "fileName": "upsc-cse-2026.pdf",
+    "sha256": "f68a7de905ff05c6ab76c6bc03ddd5ee2b835e5150f46c8760fd6eb4df82dce2",
+    "pages": 159,
+    "uploadedPages": 159,
+    "noTextPages": [],
+    "unavailable": [],
+    "textPages": 159,
+    "processedPages": 159,
+    "scanImages": [],
+    "scanRead": [],
+    "scanSuspect": [],
+    "piecesKept": 0
+   }
+  ],
+  "tasks": {
+   "total": 23,
+   "done": 23,
+   "running": 0,
+   "pending": 0,
+   "failed": 0,
+   "split": 0
+  },
+  "failedTasks": [],
+  "ai": {
+   "estimate": 23,
+   "sent": 24,
+   "retried": 0,
+   "failed": 1
+  },
+  "allowance": {
+   "used": 64,
+   "cap": 150
+  },
+  "complete": false,
+  "updatedAt": "2026-10-29T11:00:48.341Z"
+ },
+ "proposal": {
+  "meta": {
+   "mode": "NEW",
+   "newJob": {
+    "title": "TEST RECORD UPSC CSE 2026",
+    "govType": "Central Govt",
+    "organizationId": "upsc-b26",
+    "recruitmentYear": 2026,
+    "organizationName": "UPSC-B26"
+   },
+   "sources": [
+    {
+     "id": "3d9f8abd-ed90-4604-a571-d452a93b2f9b",
+     "label": "upload — notification, not confirmed",
+     "method": "UPLOADED",
+     "pattern": {
+      "read": 2,
+      "tables": [
+       {
+        "page": 25,
+        "read": true,
+        "heading": "Preliminary: 2 papers (“consist of two papers”)"
+       },
+       {
+        "why": "the AI's reading has fewer papers than the notice states",
+        "page": 25,
+        "read": false,
+        "heading": "9 papers (“consist of 9 papers”)"
+       }
+      ],
+      "expected": 11,
+      "problems": []
+     },
+     "reading": {
+      "mode": "batches",
+      "pages": 159,
+      "batches": [
+       {
+        "last": 8,
+        "first": 1,
+        "status": "read",
+        "values": 7
+       },
+       {
+        "last": 16,
+        "first": 9,
+        "status": "read",
+        "values": 6
+       },
+       {
+        "last": 24,
+        "first": 17,
+        "status": "read",
+        "values": 3
+       },
+       {
+        "last": 32,
+        "first": 25,
+        "status": "read",
+        "values": 3
+       },
+       {
+        "last": 40,
+        "first": 33,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 48,
+        "first": 41,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 56,
+        "first": 49,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 64,
+        "first": 57,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 72,
+        "first": 65,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 80,
+        "first": 73,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 88,
+        "first": 81,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 96,
+        "first": 89,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 104,
+        "first": 97,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 112,
+        "first": 105,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 120,
+        "first": 113,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 128,
+        "first": 121,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 136,
+        "first": 129,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 144,
+        "first": 137,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 152,
+        "first": 145,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 159,
+        "first": 153,
+        "status": "read",
+        "values": 4
+       }
+      ],
+      "noTextPages": [],
+      "unavailable": [],
+      "suspectPages": []
+     },
+     "refused": [],
+     "summary": "The recruitment for UPSC Civil Services Examination 2026 requires candidates to hold a graduate degree and be aged between 21 and 32 years on August 1, 2026.",
+     "notFound": [
+      "Notification Date",
+      "Vacancy Breakdown",
+      "Fee Payment Deadline",
+      "Correction Window End",
+      "Pay Scale"
+     ],
+     "originUrl": null,
+     "originRole": "NONE",
+     "authenticity": "UNCONFIRMED",
+     "declaredKind": "OFFICIAL_NOTIFICATION",
+     "vacancyTables": {
+      "from": null,
+      "coverage": {
+       "pages": 159,
+       "tables": [],
+       "unreadLines": []
+      }
+     },
+     "originPurposes": []
+    }
+   ],
+   "aiRequests": {
+    "sent": 24,
+    "failed": 1,
+    "retried": 0
+   },
+   "duplicates": []
+  },
+  "items": [
+   {
+    "id": "f:age:2f900d9b8b2a",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Age limit",
+    "value": {
+     "max": 32,
+     "min": 21,
+     "asOf": "2026-08-01",
+     "evidence": [
+      {
+       "page": 12,
+       "about": "relaxation: Scheduled Caste / Scheduled Tribe (SC/ST) (read by code)",
+       "quote": "(a) up to a maximum of five years if a candidate belongs to a Scheduled Caste or a Scheduled Tribe",
+       "value": "5"
+      },
+      {
+       "page": 12,
+       "about": "relaxation: Other Backward Classes (OBC) (read by code)",
+       "quote": "(b) up to a maximum of three years in the case of candidates belonging to Other Backward Classes who are eligible to avail of reservation applicable to such candidates",
+       "value": "3"
+      },
+      {
+       "page": 12,
+       "about": "relaxation: Defence Services Personnel (read by code)",
+       "quote": "(c) up to a maximum of three years in the case of Defence Services Personnel, disabled in operations during hostilities with any foreign country or in a disturbed area and released as a consequence thereof",
+       "value": "3"
+      },
+      {
+       "page": 12,
+       "about": "relaxation: Ex-Servicemen (read by code)",
+       "quote": "(d) up to a maximum of five years in the case of ex-servicemen including Commissioned Officers and Emergency Commissioned Officers (ECOs)/ Short Service Commissioned Officers (SSCOs) who have rendered at least five years Military Service as on 1st August, 2026 and have been released: (i) on completion of assignment (including those whose assignment is due to be completed within one year from 1st",
+       "value": "5"
+      },
+      {
+       "page": 12,
+       "about": "relaxation: ECOs/SSCOs (read by code)",
+       "quote": "(e) up to a maximum of five years in the case of ECOs/SSCOs who have completed an initial period of assignment of five years of Military Service as on 1st August, 2026 and whose",
+       "value": "5"
+      }
+     ],
+     "relaxations": [
+      {
+       "years": 10,
+       "category": "Persons with Benchmark Disabilities (PwBD)"
+      },
+      {
+       "years": 5,
+       "category": "Scheduled Caste / Scheduled Tribe (SC/ST)"
+      },
+      {
+       "years": 3,
+       "category": "Other Backward Classes (OBC)"
+      },
+      {
+       "years": 3,
+       "category": "Defence Services Personnel"
+      },
+      {
+       "years": 5,
+       "category": "Ex-Servicemen"
+      },
+      {
+       "years": 5,
+       "category": "ECOs/SSCOs"
+      }
+     ]
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 12,
+      "quote": "A candidate must have attained the age of 21 years and must not have attained the age of 32 years on the 1st of August, 2026",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "age",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:conditions:b0a23b1c2753",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Notes (admin only, not published)",
+    "value": [
+     "The candidates will not be allowed to withdraw their applications after the submission of the same. Further no correction /alteration/modification in any field(s) of the Application Form is allowed after submission.",
+     "The Commission provides a one-time facility for candidates to update or modify their Universal Registration Number (URN) profile. Please note that any changes made to the URN Profile will not be reflected in applications already submitted.",
+     "Every candidate appearing at the examination, who is otherwise eligible, shall be permitted six (6) attempts at the CSE. However, relaxation in the number of attempts will be available to the SC/ST/OBC and PwBD category candidates who are otherwise eligible.",
+     "An attempt at a Preliminary Examination shall be deemed to be an attempt at the Civil Services Examination.",
+     "If a candidate actually appears in any one paper in the Preliminary Examination, it will be deemed that the candidate has made an attempt at the Examination.",
+     "Notwithstanding any subsequent disqualification/cancellation of candidature, the fact of appearance of the candidate at the Examination will count as an attempt.",
+     "Persons with Benchmark Disability are exempted from the payment of fee provided they are otherwise eligible for appointment to the Services/Posts to be filled on the results of this examination",
+     "Fee once paid shall not be refunded under any circumstances nor can the fee be held in reserve for any other examination or selection.",
+     "If any candidate who took the Civil Services Examination held in 2025 wishes to apply for admission to this examination, he/she must submit his/her application without waiting for the results or an offer of appointment.",
+     "The Commission will draw a list of candidates to be qualified for Civil Services (Main) Examination based on the criterion of minimum qualifying marks of 33% in General Studies Paper-II of Civil Services (Preliminary) Examination and total qualifying marks of General Studies Paper-I of Civil Services (Preliminary) Examination as may be determined by the Commission.",
+     "Evaluation of the papers, namely, 'Essay', 'General Studies' and Optional Subject of all the candidates would be done simultaneously along with evaluation of their qualifying papers on ‘Indian Languages’ and ‘English’ but the papers on Essay, General Studies and Optional Subject of only such candidates will be taken cognizance who attain 25% marks in ‘Indian Language’ and 25% in English as minimum qualifying standards in these qualifying papers.",
+     "It is mandatory for the candidate to appear in both the Papers of Civil Services (Preliminary) Examination for the purpose of evaluation. Therefore a candidate will be disqualified in case he/she does not appear in both the papers of Civil Services (Preliminary) Examination.",
+     "The papers on Indian Languages and English will be of Matriculation or equivalent standard and will be of qualifying nature only. The marks obtained in these papers will not be counted for ranking.",
+     "The candidates will have to answer the English and Indian Languages papers in English and the respective Indian language (except where translation is involved).",
+     "Candidates will be required to answer one compulsory map question pertinent to subjects covered by this paper.",
+     "A candidate who is willing to apply for Civil Services Examination shall be required to submit the requisite information and supporting documents towards various claims, such as date of birth, educational qualification, etc. as may be sought by the Commission alongwith the Universal Registration Number (URN), Common Application Form (CAF) and the fourth module i.e. Examination Specific module (including fees and centre etc.).",
+     "The candidate should have details of one Photo ID Card viz. Aadhar Card/ Voter Card (EPIC) / PAN Card / Passport/ Driving License / Any other photo ID card issued by the State / Central Government.",
+     "Applicants should not submit multiple applications.",
+     "The applicants must ensure that while filling their Application Form, they are providing their valid and active E-Mail IDs as the Commission may use electronic mode of communication while contacting them at different stages of examination process.",
+     "The candidates will not be allowed to withdraw their applications after the submission of the same."
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 2,
+      "quote": "The candidates will not be allowed to withdraw their applications after the submission of the same. Further no correction /alteration/modification in any field(s) of the Application Form is allowed after submission.",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     },
+     {
+      "page": 14,
+      "quote": "Every candidate appearing at the examination, who is otherwise eligible, shall be permitted six (6) attempts at the CSE. However, relaxation in the number of attempts will be available to the SC/ST/OBC and PwBD category candidates who are otherwise eligible.",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     },
+     {
+      "page": 17,
+      "quote": "Persons with Benchmark Disability are exempted from the payment of fee provided they are otherwise eligible for appointment to the Services/Posts to be filled on the results of this examination",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     },
+     {
+      "page": 25,
+      "quote": "The Commission will draw a list of candidates to be qualified for Civil Services (Main) Examination based on the criterion of minimum qualifying marks of 33% in General Studies Paper-II of Civil Services (Preliminary) Examination and total qualifying marks of General Studies Paper-I of Civil Services (Preliminary) Examination as may be determined by the Commission.",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     },
+     {
+      "page": 33,
+      "quote": "The papers on Indian Languages and English will be of Matriculation or equivalent standard and will be of qualifying nature only. The marks obtained in these papers will not be counted for ranking.",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     },
+     {
+      "page": 67,
+      "quote": "Candidates will be required to answer one compulsory map question pertinent to subjects covered by this paper.",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     },
+     {
+      "page": 155,
+      "quote": "A candidate who is willing to apply for Civil Services Examination shall be required to submit the requisite information and supporting documents towards various claims, such as date of birth, educational qualification, etc. as may be sought by the Commission alongwith the Universal Registration Number (URN), Common Application Form (CAF) and the fourth module i.e. Examination Specific module (including fees and centre etc.).",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "conditions",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.applicationCloseDate:3276d55f798f",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "this date has passed (today is 2026-10-29)"
+    ],
+    "label": "Last date to apply",
+    "value": "2026-02-24",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "(LAST DATE FOR SUBMISSION OF ONLINE APPLICATIONS: 24.02.2026 of CIVIL SERVICES",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.applicationCloseDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.applicationOpenDate:9c6353cae312",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Applications open",
+    "value": "2026-02-04",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": null,
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.applicationOpenDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.examDate:4d030e42025e",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Exam date",
+    "value": "2026-05-24",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 5,
+      "quote": "Preliminary Examination of the Civil Services Examination for recruitment to the Services and Posts mentioned below will be held by the Union Public Service Commission on 24th May, 2026",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.examDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:eligibility:ffd85df4d929",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Eligibility",
+    "value": [
+     {
+      "post": "Civil Services",
+      "qualification": [
+       "Graduate degree of any recognized university or equivalent qualification"
+      ]
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 14,
+      "quote": "A candidate must hold a Graduate degree of any of the Universities incorporated by an Act of the central or State Legislature in India or other educational institutions established by an Act of Parliament or declared to be deemed as a University",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "eligibility",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:examPattern:edaa40fa57fc",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "incomplete: 2 of 11 papers read — not read: “9 papers (“consist of 9 papers”)” (page 25)"
+    ],
+    "label": "Exam pattern",
+    "value": [
+     {
+      "mode": "Objective Type",
+      "name": "Civil Services (Preliminary) Examination Paper I",
+      "sections": [],
+      "totalMarks": 200,
+      "negativeMarking": "one-third (0.33) of the marks assigned to that question will be deducted as penalty"
+     },
+     {
+      "mode": "Objective Type",
+      "name": "Civil Services (Preliminary) Examination Paper II",
+      "sections": [],
+      "totalMarks": 200,
+      "negativeMarking": "one-third (0.33) of the marks assigned to that question will be deducted as penalty"
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 32,
+      "quote": "Paper I - (200 marks) \tDuration: Two hours",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "examPattern",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "f:financial.feeGeneral:ad5736686512",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Fee (General / OBC)",
+    "value": 100,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 16,
+      "quote": "are required to pay fee of Rs. 100/- (Rupees One Hundred only) by using Net Banking facility of any bank or by using Visa/Master/RuPay/Credit/Debit Card/UPI Payment for appearing in Civil Services (Preliminary) Examination, 2026 and Candidates admitted to the Civil Services (Main) Examination, 2026 will be required to pay a further fee of Rs. 200/- (Rupees Two hundred only)",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.feeGeneral",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:financial.feeSCST:5feceb66ffc8",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Fee (SC / ST / PwBD)",
+    "value": 0,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 16,
+      "quote": "(Except Female/SC/ST/Persons with Benchmark Disability Candidates who are exempted from payment of fee)",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.feeSCST",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:howToApply:afbd03d848b2",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "How to apply",
+    "value": [
+     "Visit the website https://upsconline.nic.in to apply online.",
+     "Review general instructions, profile/module-wise instructions, and document uploading instructions.",
+     "Submit requisite information, supporting documents, Universal Registration Number (URN), Common Application Form (CAF), and the examination specific module.",
+     "Upload your photograph and capture a live photograph while filling up the Common Application Form.",
+     "Sign three times on a plain white paper using black ink and upload the signature."
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 2,
+      "quote": "Candidates are required to apply online by using the website https://upsconline.nic.in.",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "howToApply",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:identity.notificationNumber:242295c1982c",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Notification number",
+    "value": "05/2026-CSE",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "EXAMINATION NOTICE NO 05/2026-CSE DATE: 04.02.2026",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "identity.notificationNumber",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:identity.title:4f2ab50ff1d3",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Title",
+    "value": "EXAMINATION NOTICE NO 05/2026-CSE DATE: 04.02.2026",
+    "action": "REPLACE",
+    "claims": [
+     {
+      "page": null,
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "current": "TEST RECORD UPSC CSE 2026",
+    "conflict": false,
+    "fieldPath": "identity.title",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:0df47d39eec5",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://dopt.gov.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "ction. Note-II: The candidates are advised to periodically visit DoPT’s website https://dopt.gov.in or https://cseplus.nic.in for informati",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:624f7b6fdf60",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://www.upsc.gov.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "ONS: 24.02.2026 of CIVIL SERVICES EXAMINATION, 2026) (The Commission’s Website: www.upsc.gov.in) IMPORTANT INFORMATION FOR THE CANDIDAT",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:62837b8e05db",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://upsconline.nic.in.xn--ivg/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "le under “Instructions and FAQs” on the website of the Commission with the URL: https://upsconline.nic.in.” 2.1 The candidates will not be allowed",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:7f5d1d2c1f7b",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://cseplus.nic.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "didates are advised to periodically visit DoPT’s website https://dopt.gov.in or https://cseplus.nic.in for information or details about Servic",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:b91c192dd7c7",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://upsconline.nic.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "of an examination. Applicants are required to apply online by using the website https://upsconline.nic.in. Once a candidate has registered on the",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "f:selection:5f4aaa5c54c4",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Selection process",
+    "value": {
+     "stages": [
+      {
+       "name": "Civil Services (Preliminary) Examination",
+       "type": "WRITTEN",
+       "order": 1,
+       "description": "Civil Services (Preliminary) Examination (Objective type) for the selection of candidates for the Main Examination"
+      },
+      {
+       "name": "Civil Services (Main) Examination",
+       "type": "WRITTEN",
+       "order": 2,
+       "description": "Civil Services (Main) Examination (Written and Interview) for the selection of candidates for the various Services and posts noted above."
+      }
+     ]
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 10,
+      "quote": "(i) Civil Services (Preliminary) Examination (Objective type) for the selection of candidates for the Main Examination;",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "selection",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:syllabus:2be96b5066f2",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Syllabus",
+    "value": [
+     {
+      "paper": "Paper I",
+      "topics": [
+       "Current events of national and international importance.",
+       "History of India and Indian National Movement.",
+       "Indian and World Geography-Physical, Social, Economic Geography of India and the World.",
+       "Indian Polity and Governance-Constitution, Political System, Panchayati Raj, Public Policy, Rights Issues, etc.",
+       "Economic and Social Development-Sustainable Development, Poverty, Inclusion, Demographics, Social Sector Initiatives, etc.",
+       "General issues on Environmental ecology, Bio-diversity and Climate Change - that do not require subject specialization.",
+       "General Science."
+      ],
+      "subject": "Preliminary Examination"
+     },
+     {
+      "paper": "Paper II",
+      "topics": [
+       "Comprehension;",
+       "Interpersonal skills including communication skills;",
+       "Logical reasoning and analytical ability;",
+       "Decision making and problem solving;",
+       "General mental ability;",
+       "Basic numeracy (numbers and their relations, orders of magnitude, etc.) (Class X level)",
+       "Data interpretation (charts, graphs, tables, data sufficiency etc. — Class X level);"
+      ],
+      "subject": "Preliminary Examination"
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 32,
+      "quote": "Paper I - (200 marks) \tDuration: Two hours\n Current events of national and international importance.",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "syllabus",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:vacancies.total:ee1a7173778d",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Total vacancies",
+    "value": 933,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 5,
+      "quote": "The number of vacancies to be filled through the examination is expected to be approximately 933 which include 33 Vacancies reserved for Persons with Benchmark Disability Category",
+      "retrievalId": "3d9f8abd-ed90-4604-a571-d452a93b2f9b"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "vacancies.total",
+    "supersedes": [],
+    "defaultTicked": true
+   }
+  ],
+  "warnings": [
+   "No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.",
+   "No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.",
+   "upload — notification, not confirmed: the notice prints 11 exam-pattern table(s); 2 read. Not read: “9 papers (“consist of 9 papers”)” (page 25). Enter it in the editor's exam pattern."
+  ],
+  "replacedInImport": []
+ }
+}

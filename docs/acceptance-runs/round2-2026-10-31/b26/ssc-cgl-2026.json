@@ -1,0 +1,2040 @@
+{
+ "progress": {
+  "jobId": "5ea846fe-3b0f-4fb3-aee5-d457d265139f",
+  "state": "DONE",
+  "stateNote": "1 exam-pattern paper(s) printed in the notice could not be read; the review names them.",
+  "importId": "ffafde04-63eb-4b76-aec0-5f4a6c6cc346",
+  "mode": "NEW",
+  "recruitmentId": null,
+  "title": "TEST RECORD SSC CGL 2026",
+  "sources": [
+   {
+    "no": 1,
+    "kind": "pdf",
+    "fileName": "ssc-cgl-2026.pdf",
+    "sha256": "54a01dda220cb8836f19983908e1f3fd14ddba8286781765a02765728a89e070",
+    "pages": 132,
+    "uploadedPages": 132,
+    "noTextPages": [
+     65,
+     66,
+     67,
+     68,
+     69,
+     70,
+     76,
+     77,
+     78,
+     79,
+     80
+    ],
+    "unavailable": [],
+    "textPages": 121,
+    "processedPages": 121,
+    "scanImages": [
+     65,
+     66,
+     67,
+     68,
+     69,
+     70,
+     76,
+     77,
+     78,
+     79,
+     80
+    ],
+    "scanRead": [
+     65,
+     66,
+     67,
+     68,
+     69,
+     70,
+     76,
+     77,
+     78,
+     79,
+     80
+    ],
+    "scanSuspect": [],
+    "piecesKept": 11
+   }
+  ],
+  "tasks": {
+   "total": 33,
+   "done": 33,
+   "running": 0,
+   "pending": 0,
+   "failed": 0,
+   "split": 0
+  },
+  "failedTasks": [],
+  "ai": {
+   "estimate": 32,
+   "sent": 38,
+   "retried": 4,
+   "failed": 4
+  },
+  "allowance": {
+   "used": 38,
+   "cap": 150
+  },
+  "complete": false,
+  "updatedAt": "2026-10-31T18:14:47.196Z"
+ },
+ "proposal": {
+  "meta": {
+   "mode": "NEW",
+   "newJob": {
+    "title": "TEST RECORD SSC CGL 2026",
+    "govType": "Central Govt",
+    "organizationId": "ssc-b26",
+    "recruitmentYear": 2026,
+    "organizationName": "SSC-B26"
+   },
+   "sources": [
+    {
+     "id": "35695167-e146-46ca-aa8c-4b6d62d6d977",
+     "label": "upload — notification, not confirmed",
+     "method": "UPLOADED",
+     "pattern": {
+      "read": 1,
+      "tables": [
+       {
+        "page": 25,
+        "read": true,
+        "heading": "13.8 Scheme of Tier-I Examination"
+       },
+       {
+        "why": "its rows could not be read",
+        "page": 25,
+        "read": false,
+        "heading": "13.9 Scheme of Tier-II Examination"
+       }
+      ],
+      "expected": 2,
+      "problems": [
+       "13.8 Scheme of Tier-I Examination: no printed total under the table"
+      ]
+     },
+     "reading": {
+      "mode": "batches",
+      "pages": 132,
+      "batches": [
+       {
+        "last": 8,
+        "first": 1,
+        "status": "read",
+        "values": 6
+       },
+       {
+        "last": 16,
+        "first": 9,
+        "status": "read",
+        "values": 2
+       },
+       {
+        "last": 24,
+        "first": 17,
+        "status": "read",
+        "values": 6
+       },
+       {
+        "last": 32,
+        "first": 25,
+        "status": "read",
+        "values": 4
+       },
+       {
+        "last": 40,
+        "first": 33,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 48,
+        "first": 41,
+        "status": "read",
+        "values": 2
+       },
+       {
+        "last": 56,
+        "first": 49,
+        "status": "read",
+        "values": 2
+       },
+       {
+        "last": 64,
+        "first": 57,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 67,
+        "first": 67,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 75,
+        "first": 71,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 77,
+        "first": 77,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 80,
+        "first": 79,
+        "status": "read",
+        "values": 2
+       },
+       {
+        "last": 88,
+        "first": 81,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 96,
+        "first": 89,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 104,
+        "first": 97,
+        "status": "read",
+        "values": 1
+       },
+       {
+        "last": 112,
+        "first": 105,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 120,
+        "first": 113,
+        "status": "read",
+        "values": 0
+       },
+       {
+        "last": 128,
+        "first": 121,
+        "status": "read",
+        "values": 2
+       },
+       {
+        "last": 132,
+        "first": 129,
+        "status": "read",
+        "values": 1
+       }
+      ],
+      "noTextPages": [],
+      "unavailable": [],
+      "suspectPages": []
+     },
+     "refused": [
+      {
+       "reason": "age limit does not appear in the quoted source text",
+       "fieldPath": "age"
+      },
+      {
+       "reason": "post 10 (Pay Level-7 (₹ 44900 to 142400)), “Inspector (Preventive Officer)”: no age in its own row of the table of posts (a merged cell?); not given another post's range — enter it from the notice",
+       "fieldPath": "age"
+      },
+      {
+       "reason": "post 11 (Pay Level-7 (₹ 44900 to 142400)), “Inspector (Examiner)”: no age in its own row of the table of posts (a merged cell?); not given another post's range — enter it from the notice",
+       "fieldPath": "age"
+      },
+      {
+       "reason": "the editor would refuse it: at most 30 items of up to 500 characters",
+       "fieldPath": "conditions"
+      },
+      {
+       "reason": "the editor would refuse it: at most 30 items of up to 500 characters",
+       "fieldPath": "conditions"
+      },
+      {
+       "reason": "the editor would refuse it: at most 30 items of up to 500 characters",
+       "fieldPath": "conditions"
+      },
+      {
+       "reason": "the editor would refuse it: at most 30 items of up to 500 characters",
+       "fieldPath": "conditions"
+      },
+      {
+       "reason": "the editor would refuse it: at most 30 items of up to 500 characters",
+       "fieldPath": "conditions"
+      },
+      {
+       "reason": "the editor would refuse it: at most 30 items of up to 500 characters",
+       "fieldPath": "conditions"
+      },
+      {
+       "reason": "the editor would refuse it: at most 30 items of up to 500 characters",
+       "fieldPath": "conditions"
+      },
+      {
+       "reason": "the editor would refuse it: at most 30 items of up to 500 characters",
+       "fieldPath": "conditions"
+      },
+      {
+       "reason": "the editor would refuse it: at most 30 items of up to 500 characters",
+       "fieldPath": "conditions"
+      },
+      {
+       "reason": "the editor would refuse it: at most 30 items of up to 500 characters",
+       "fieldPath": "conditions"
+      }
+     ],
+     "summary": "The Government of India is recruiting for TEST RECORD SSC CGL 2026 across various posts offering multiple pay levels ranging from Pay Level-4 to Pay Level-8.",
+     "notFound": [
+      "Title",
+      "Notification Date",
+      "Vacancy Breakdown"
+     ],
+     "originUrl": null,
+     "originRole": "NONE",
+     "pageImages": {
+      "jobId": "5ea846fe-3b0f-4fb3-aee5-d457d265139f",
+      "pages": [
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       76,
+       77,
+       78,
+       79,
+       80
+      ],
+      "sourceNo": 1
+     },
+     "authenticity": "UNCONFIRMED",
+     "declaredKind": "OFFICIAL_NOTIFICATION",
+     "vacancyTables": {
+      "from": null,
+      "coverage": {
+       "pages": 132,
+       "tables": [],
+       "unreadLines": []
+      }
+     },
+     "originPurposes": []
+    }
+   ],
+   "aiRequests": {
+    "sent": 38,
+    "failed": 4,
+    "retried": 4
+   },
+   "duplicates": []
+  },
+  "items": [
+   {
+    "id": "f:age:8f2ba3fcdb3d",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Age limit",
+    "value": {
+     "evidence": [
+      {
+       "page": 7,
+       "about": "relaxation (read by code): SC/ST",
+       "quote": "01 SC/ST 5 years",
+       "value": "5"
+      },
+      {
+       "page": 7,
+       "about": "relaxation (read by code): OBC",
+       "quote": "02 OBC 3 years",
+       "value": "3"
+      },
+      {
+       "page": 7,
+       "about": "relaxation (read by code): PwBD",
+       "quote": "03 PwBD 10 years",
+       "value": "10"
+      },
+      {
+       "page": 7,
+       "about": "relaxation (read by code): PwBD (OBC)",
+       "quote": "04 PwBD (OBC) 13 years",
+       "value": "13"
+      },
+      {
+       "page": 7,
+       "about": "relaxation (read by code): PwBD (SC/ST)",
+       "quote": "05 PwBD (SC/ST) 15 years",
+       "value": "15"
+      },
+      {
+       "page": 7,
+       "about": "relaxation (read by code): Ex-Servicemen (ESM)",
+       "quote": "06 Ex-Servicemen (ESM) 3 years after deduction of the military service rendered from the actual age as on 01.08.2026",
+       "value": "3"
+      },
+      {
+       "page": 7,
+       "about": "relaxation (read by code): Defence Personnel disabled in operation during hostilities with any foreign country or in a d",
+       "quote": "08 Defence Personnel disabled in operation during hostilities with any foreign country or in a disturbed area and released as a consequence thereof. 3 years",
+       "value": "3"
+      },
+      {
+       "page": 7,
+       "about": "relaxation (read by code): Defence Personnel disabled in operation during hostilities with any foreign country or in a d",
+       "quote": "09 Defence Personnel disabled in operation during hostilities with any foreign country or in a disturbed area and released as a consequence thereof (SC/ST). 8 years",
+       "value": "8"
+      }
+     ],
+     "postWise": [
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Assistant Audit Officer (Central Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG)",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "1 Assistant Audit Officer (Central Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG) Group “B” Gazetted (Non- Ministerial) 18-30 years",
+         "value": "Assistant Audit Officer (Central Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of "
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "1 Assistant Audit Officer (Central Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG) Group “B” Gazetted (Non- Ministerial) 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "1 Assistant Audit Officer (Central Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG) Group “B” Gazetted (Non- Ministerial) 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Assistant Audit Officer (State Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG)",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "2. Assistant Audit Officer (State Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG) Group “B” Gazetted (Non- Ministerial) 18-30 years",
+         "value": "Assistant Audit Officer (State Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of In"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "2. Assistant Audit Officer (State Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG) Group “B” Gazetted (Non- Ministerial) 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "2. Assistant Audit Officer (State Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG) Group “B” Gazetted (Non- Ministerial) 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Assistant Accounts Officer (State Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG)",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "3. Assistant Accounts Officer (State Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG) Group “B” Gazetted (Non- Ministerial) 18-30 years",
+         "value": "Assistant Accounts Officer (State Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "3. Assistant Accounts Officer (State Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG) Group “B” Gazetted (Non- Ministerial) 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "3. Assistant Accounts Officer (State Cadre) Indian Audit & Accounts Department under O/o Comptroller and Auditor General of India (C&AG) Group “B” Gazetted (Non- Ministerial) 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 20,
+       "post": "Assistant Section Officer Central Secretariat Service",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "1 Assistant Section Officer Central Secretariat Service Group “B” 20-30 years",
+         "value": "Assistant Section Officer Central Secretariat Service"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "1 Assistant Section Officer Central Secretariat Service Group “B” 20-30 years",
+         "value": "20"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "1 Assistant Section Officer Central Secretariat Service Group “B” 20-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Assistant Section Officer Intelligence Bureau",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "2 Assistant Section Officer Intelligence Bureau Group “B” 18-30 years",
+         "value": "Assistant Section Officer Intelligence Bureau"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "2 Assistant Section Officer Intelligence Bureau Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "2 Assistant Section Officer Intelligence Bureau Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 20,
+       "post": "Assistant Section Officer Ministry of Railways",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "3 Assistant Section Officer Ministry of Railways Group “B” 20-30 years",
+         "value": "Assistant Section Officer Ministry of Railways"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "3 Assistant Section Officer Ministry of Railways Group “B” 20-30 years",
+         "value": "20"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "3 Assistant Section Officer Ministry of Railways Group “B” 20-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 20,
+       "post": "Assistant Section Officer Ministry of External Affairs",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "4 Assistant Section Officer Ministry of External Affairs Group “B” 20-30 years",
+         "value": "Assistant Section Officer Ministry of External Affairs"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "4 Assistant Section Officer Ministry of External Affairs Group “B” 20-30 years",
+         "value": "20"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "4 Assistant Section Officer Ministry of External Affairs Group “B” 20-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 20,
+       "post": "Assistant Section Officer AFHQ",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "5 Assistant Section Officer AFHQ Group “B” 20-30 years",
+         "value": "Assistant Section Officer AFHQ"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "5 Assistant Section Officer AFHQ Group “B” 20-30 years",
+         "value": "20"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "5 Assistant Section Officer AFHQ Group “B” 20-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Assistant Section Officer Ministry of Electronics and Information Technology",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "6 Assistant Section Officer Ministry of Electronics and Information Technology Group “B” 18-30 years",
+         "value": "Assistant Section Officer Ministry of Electronics and Information Technology"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "6 Assistant Section Officer Ministry of Electronics and Information Technology Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "6 Assistant Section Officer Ministry of Electronics and Information Technology Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Assistant / Assistant Section Officer Other Ministries/ Departments/ Organizations — Pay Level-7",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "7 Assistant / Assistant Section Officer Other Ministries/ Departments/ Organizations Group “B” 18-30 years",
+         "value": "Assistant / Assistant Section Officer Other Ministries/ Departments/ Organizations — Pay Level-7"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "7 Assistant / Assistant Section Officer Other Ministries/ Departments/ Organizations Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "7 Assistant / Assistant Section Officer Other Ministries/ Departments/ Organizations Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Inspector of Income Tax Central Board of Direct Taxes (CBDT)",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "8 Inspector of Income Tax Central Board of Direct Taxes (CBDT) Group “B” 18-30 years",
+         "value": "Inspector of Income Tax Central Board of Direct Taxes (CBDT)"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "8 Inspector of Income Tax Central Board of Direct Taxes (CBDT) Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "8 Inspector of Income Tax Central Board of Direct Taxes (CBDT) Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Inspector, (Central Excise) Central Board of Indirect Taxes and Customs (CBIC)",
+       "evidence": [
+        {
+         "page": 2,
+         "about": "post",
+         "quote": "9 Inspector, (Central Excise) Central Board of Indirect Taxes and Customs (CBIC) Group “B” 18-30 years",
+         "value": "Inspector, (Central Excise) Central Board of Indirect Taxes and Customs (CBIC)"
+        },
+        {
+         "page": 2,
+         "about": "min",
+         "quote": "9 Inspector, (Central Excise) Central Board of Indirect Taxes and Customs (CBIC) Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 2,
+         "about": "max",
+         "quote": "9 Inspector, (Central Excise) Central Board of Indirect Taxes and Customs (CBIC) Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Assistant Enforcement Officer Directorate of Enforcement (ED), Department of Revenue",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "12 Assistant Enforcement Officer Directorate of Enforcement (ED), Department of Revenue Group “B” 18-30 years",
+         "value": "Assistant Enforcement Officer Directorate of Enforcement (ED), Department of Revenue"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "12 Assistant Enforcement Officer Directorate of Enforcement (ED), Department of Revenue Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "12 Assistant Enforcement Officer Directorate of Enforcement (ED), Department of Revenue Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 20,
+       "post": "Sub Inspector Central Bureau of Investigation",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "13 Sub Inspector Central Bureau of Investigation Group “B” 20-30 years",
+         "value": "Sub Inspector Central Bureau of Investigation"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "13 Sub Inspector Central Bureau of Investigation Group “B” 20-30 years",
+         "value": "20"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "13 Sub Inspector Central Bureau of Investigation Group “B” 20-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Inspector Posts Department of Posts, Ministry of Communications",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "14 Inspector Posts Department of Posts, Ministry of Communications Group “B” 18-30 years",
+         "value": "Inspector Posts Department of Posts, Ministry of Communications"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "14 Inspector Posts Department of Posts, Ministry of Communications Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "14 Inspector Posts Department of Posts, Ministry of Communications Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Inspector Central Bureau of Narcotics, Ministry of Finance",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "15 Inspector Central Bureau of Narcotics, Ministry of Finance Group “B” 18-30 years",
+         "value": "Inspector Central Bureau of Narcotics, Ministry of Finance"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "15 Inspector Central Bureau of Narcotics, Ministry of Finance Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "15 Inspector Central Bureau of Narcotics, Ministry of Finance Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Assistant / Assistant Section Officer Other Ministries/ Departments/ Organizations — Pay Level-6",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "1 Assistant / Assistant Section Officer Other Ministries/ Departments/ Organizations Group “B” 18-30 years",
+         "value": "Assistant / Assistant Section Officer Other Ministries/ Departments/ Organizations — Pay Level-6"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "1 Assistant / Assistant Section Officer Other Ministries/ Departments/ Organizations Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "1 Assistant / Assistant Section Officer Other Ministries/ Departments/ Organizations Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Executive Assistant Central Board of Indirect Taxes and Customs (CBIC)",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "2 Executive Assistant Central Board of Indirect Taxes and Customs (CBIC) Group “B” 18-30 years",
+         "value": "Executive Assistant Central Board of Indirect Taxes and Customs (CBIC)"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "2 Executive Assistant Central Board of Indirect Taxes and Customs (CBIC) Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "2 Executive Assistant Central Board of Indirect Taxes and Customs (CBIC) Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Research Assistant National Human Rights Commission (NHRC)",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "3 Research Assistant National Human Rights Commission (NHRC) Group “B” 18-30 years",
+         "value": "Research Assistant National Human Rights Commission (NHRC)"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "3 Research Assistant National Human Rights Commission (NHRC) Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "3 Research Assistant National Human Rights Commission (NHRC) Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Divisional Accountant Offices under C&AG",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "4 Divisional Accountant Offices under C&AG Group “B” 18-30 years",
+         "value": "Divisional Accountant Offices under C&AG"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "4 Divisional Accountant Offices under C&AG Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "4 Divisional Accountant Offices under C&AG Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Sub Inspector National Investigation Agency (NIA)",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "5 Sub Inspector National Investigation Agency (NIA) Group “B” 18-30 years",
+         "value": "Sub Inspector National Investigation Agency (NIA)"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "5 Sub Inspector National Investigation Agency (NIA) Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "5 Sub Inspector National Investigation Agency (NIA) Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Sub-Inspector/ Junior Intelligence Officer Narcotics Control Bureau (MHA)",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "6 Sub-Inspector/ Junior Intelligence Officer Narcotics Control Bureau (MHA) Group “B” 18-30 years",
+         "value": "Sub-Inspector/ Junior Intelligence Officer Narcotics Control Bureau (MHA)"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "6 Sub-Inspector/ Junior Intelligence Officer Narcotics Control Bureau (MHA) Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "6 Sub-Inspector/ Junior Intelligence Officer Narcotics Control Bureau (MHA) Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 32,
+       "min": 18,
+       "post": "Junior Statistical Officer Ministry of Statistics & Programme Implementation.",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "7 Junior Statistical Officer Ministry of Statistics & Programme Implementation. Group “B” 18-32 years",
+         "value": "Junior Statistical Officer Ministry of Statistics & Programme Implementation."
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "7 Junior Statistical Officer Ministry of Statistics & Programme Implementation. Group “B” 18-32 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "7 Junior Statistical Officer Ministry of Statistics & Programme Implementation. Group “B” 18-32 years",
+         "value": "32"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Statistical Investigator Grade-II Ministry of Home Affairs",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "8 Statistical Investigator Grade-II Ministry of Home Affairs Group “B” 18-30 years",
+         "value": "Statistical Investigator Grade-II Ministry of Home Affairs"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "8 Statistical Investigator Grade-II Ministry of Home Affairs Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "8 Statistical Investigator Grade-II Ministry of Home Affairs Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Office Superintendent Central Board of Direct Taxes (CBDT)",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "9 Office Superintendent Central Board of Direct Taxes (CBDT) Group “B” 18-30 years",
+         "value": "Office Superintendent Central Board of Direct Taxes (CBDT)"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "9 Office Superintendent Central Board of Direct Taxes (CBDT) Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "9 Office Superintendent Central Board of Direct Taxes (CBDT) Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 30,
+       "min": 18,
+       "post": "Section Head Director General of Foreign Trade",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "10 Section Head Director General of Foreign Trade Group “B” 18-30 years",
+         "value": "Section Head Director General of Foreign Trade"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "10 Section Head Director General of Foreign Trade Group “B” 18-30 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "10 Section Head Director General of Foreign Trade Group “B” 18-30 years",
+         "value": "30"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Auditor Offices under C&AG",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "1 Auditor Offices under C&AG Group “C” 18-27 years",
+         "value": "Auditor Offices under C&AG"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "1 Auditor Offices under C&AG Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "1 Auditor Offices under C&AG Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Auditor Offices under CGDA",
+       "evidence": [
+        {
+         "page": 3,
+         "about": "post",
+         "quote": "2 Auditor Offices under CGDA Group “C” 18-27 years",
+         "value": "Auditor Offices under CGDA"
+        },
+        {
+         "page": 3,
+         "about": "min",
+         "quote": "2 Auditor Offices under CGDA Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 3,
+         "about": "max",
+         "quote": "2 Auditor Offices under CGDA Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Auditor Other Ministry/ Departments",
+       "evidence": [
+        {
+         "page": 4,
+         "about": "post",
+         "quote": "3 Auditor Other Ministry/ Departments Group “C” 18-27 years",
+         "value": "Auditor Other Ministry/ Departments"
+        },
+        {
+         "page": 4,
+         "about": "min",
+         "quote": "3 Auditor Other Ministry/ Departments Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 4,
+         "about": "max",
+         "quote": "3 Auditor Other Ministry/ Departments Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Accountant Offices under C&AG",
+       "evidence": [
+        {
+         "page": 4,
+         "about": "post",
+         "quote": "4 Accountant Offices under C&AG Group “C” 18-27 years",
+         "value": "Accountant Offices under C&AG"
+        },
+        {
+         "page": 4,
+         "about": "min",
+         "quote": "4 Accountant Offices under C&AG Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 4,
+         "about": "max",
+         "quote": "4 Accountant Offices under C&AG Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Accountant Controller General of Accounts",
+       "evidence": [
+        {
+         "page": 4,
+         "about": "post",
+         "quote": "5 Accountant Controller General of Accounts Group “C” 18-27 years",
+         "value": "Accountant Controller General of Accounts"
+        },
+        {
+         "page": 4,
+         "about": "min",
+         "quote": "5 Accountant Controller General of Accounts Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 4,
+         "about": "max",
+         "quote": "5 Accountant Controller General of Accounts Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Accountant/ Junior Accountant Other Ministry/ Departments",
+       "evidence": [
+        {
+         "page": 4,
+         "about": "post",
+         "quote": "6 Accountant/ Junior Accountant Other Ministry/ Departments Group “C” 18-27 years",
+         "value": "Accountant/ Junior Accountant Other Ministry/ Departments"
+        },
+        {
+         "page": 4,
+         "about": "min",
+         "quote": "6 Accountant/ Junior Accountant Other Ministry/ Departments Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 4,
+         "about": "max",
+         "quote": "6 Accountant/ Junior Accountant Other Ministry/ Departments Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Postal Assistant/ Sorting Assistant Department of Posts, Ministry of Communications",
+       "evidence": [
+        {
+         "page": 4,
+         "about": "post",
+         "quote": "1 Postal Assistant/ Sorting Assistant Department of Posts, Ministry of Communications Group “C” 18-27 years",
+         "value": "Postal Assistant/ Sorting Assistant Department of Posts, Ministry of Communications"
+        },
+        {
+         "page": 4,
+         "about": "min",
+         "quote": "1 Postal Assistant/ Sorting Assistant Department of Posts, Ministry of Communications Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 4,
+         "about": "max",
+         "quote": "1 Postal Assistant/ Sorting Assistant Department of Posts, Ministry of Communications Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Senior Secretariat Assistant/ Upper Division Clerks Central Govt. Offices/ Ministries other than CSCS cadres.",
+       "evidence": [
+        {
+         "page": 4,
+         "about": "post",
+         "quote": "2 Senior Secretariat Assistant/ Upper Division Clerks Central Govt. Offices/ Ministries other than CSCS cadres. Group “C” 18-27 years",
+         "value": "Senior Secretariat Assistant/ Upper Division Clerks Central Govt. Offices/ Ministries other than CSCS cadres."
+        },
+        {
+         "page": 4,
+         "about": "min",
+         "quote": "2 Senior Secretariat Assistant/ Upper Division Clerks Central Govt. Offices/ Ministries other than CSCS cadres. Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 4,
+         "about": "max",
+         "quote": "2 Senior Secretariat Assistant/ Upper Division Clerks Central Govt. Offices/ Ministries other than CSCS cadres. Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Senior Administrative Assistant Military Engineering Services, Ministry of Defence",
+       "evidence": [
+        {
+         "page": 4,
+         "about": "post",
+         "quote": "3 Senior Administrative Assistant Military Engineering Services, Ministry of Defence Group “C” 18-27 years",
+         "value": "Senior Administrative Assistant Military Engineering Services, Ministry of Defence"
+        },
+        {
+         "page": 4,
+         "about": "min",
+         "quote": "3 Senior Administrative Assistant Military Engineering Services, Ministry of Defence Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 4,
+         "about": "max",
+         "quote": "3 Senior Administrative Assistant Military Engineering Services, Ministry of Defence Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Tax Assistant Central Board of Direct Taxes (CBDT)",
+       "evidence": [
+        {
+         "page": 4,
+         "about": "post",
+         "quote": "4 Tax Assistant Central Board of Direct Taxes (CBDT) Group “C” 18-27 years",
+         "value": "Tax Assistant Central Board of Direct Taxes (CBDT)"
+        },
+        {
+         "page": 4,
+         "about": "min",
+         "quote": "4 Tax Assistant Central Board of Direct Taxes (CBDT) Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 4,
+         "about": "max",
+         "quote": "4 Tax Assistant Central Board of Direct Taxes (CBDT) Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Tax Assistant Central Board of Indirect Taxes and Customs (CBIC)",
+       "evidence": [
+        {
+         "page": 4,
+         "about": "post",
+         "quote": "5 Tax Assistant Central Board of Indirect Taxes and Customs (CBIC) Group “C” 18-27 years",
+         "value": "Tax Assistant Central Board of Indirect Taxes and Customs (CBIC)"
+        },
+        {
+         "page": 4,
+         "about": "min",
+         "quote": "5 Tax Assistant Central Board of Indirect Taxes and Customs (CBIC) Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 4,
+         "about": "max",
+         "quote": "5 Tax Assistant Central Board of Indirect Taxes and Customs (CBIC) Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "max": 27,
+       "min": 18,
+       "post": "Sub-Inspector Central Bureau of Narcotics, Ministry of Finance",
+       "evidence": [
+        {
+         "page": 4,
+         "about": "post",
+         "quote": "6 Sub-Inspector Central Bureau of Narcotics, Ministry of Finance Group “C” 18-27 years",
+         "value": "Sub-Inspector Central Bureau of Narcotics, Ministry of Finance"
+        },
+        {
+         "page": 4,
+         "about": "min",
+         "quote": "6 Sub-Inspector Central Bureau of Narcotics, Ministry of Finance Group “C” 18-27 years",
+         "value": "18"
+        },
+        {
+         "page": 4,
+         "about": "max",
+         "quote": "6 Sub-Inspector Central Bureau of Narcotics, Ministry of Finance Group “C” 18-27 years",
+         "value": "27"
+        }
+       ]
+      }
+     ],
+     "relaxations": [
+      {
+       "years": 5,
+       "category": "SC/ST"
+      },
+      {
+       "years": 3,
+       "category": "OBC"
+      },
+      {
+       "years": 10,
+       "category": "PwBD"
+      },
+      {
+       "years": 13,
+       "category": "PwBD (OBC)"
+      },
+      {
+       "years": 15,
+       "category": "PwBD (SC/ST)"
+      },
+      {
+       "text": "3 years after deduction of the military service rendered from the actual age as on 01.08.2026",
+       "years": 3,
+       "category": "Ex-Servicemen (ESM)"
+      },
+      {
+       "years": 3,
+       "category": "Defence Personnel disabled in operation during hostilities with any foreign country or in a disturbed area and …"
+      },
+      {
+       "years": 8,
+       "category": "Defence Personnel disabled in operation during hostilities with any foreign country or in a disturbed area … (SC/ST)"
+      }
+     ]
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 2,
+      "quote": "1\nAssistant Audit\nOfficer\n(Central\nCadre)\nIndian Audit & Accounts\nDepartment under O/o\nComptroller and Auditor\nGeneral of India (C&AG)\nGroup “B”\nGazetted (Non-\nMinisterial) 18-30 years",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "age",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.applicationCloseDate:c2ffb377061d",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "this date has passed (today is 2026-10-31)"
+    ],
+    "label": "Last date to apply",
+    "value": "2026-06-22",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Last date and time for receipt of online applications 22.06.2026 (23:00 hours)",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.applicationCloseDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.applicationOpenDate:31a647a8ce06",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Applications open",
+    "value": "2026-05-21",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Dates for submission of online applications 21.05.2026 to 22.06.2026",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.applicationOpenDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.correctionWindowEnd:aeb2fef89701",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "this date has passed (today is 2026-10-31)"
+    ],
+    "label": "Correction window ends",
+    "value": "2026-07-01",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Dates of „Window for Application Form Correction‟\nincluding online payment.\n29.06.2026 to 01.07.2026\n(23:00 hours)",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.correctionWindowEnd",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.feePaymentCloseDate:ef139c551921",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "this date has passed (today is 2026-10-31)"
+    ],
+    "label": "Fee payment deadline",
+    "value": "2026-06-23",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Last date and time for making online fee payment 23.06.2026 (23:00 hours)",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.feePaymentCloseDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:eligibility:e89fdbab9a4b",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Eligibility",
+    "value": [
+     {
+      "post": "Assistant Audit Officer (Central Cadre)",
+      "qualification": [
+       "Bachelor's Degree from a recognized University or Institute"
+      ]
+     },
+     {
+      "post": "Assistant Audit Officer (State Cadre)",
+      "qualification": [
+       "Bachelor's Degree from a recognized University or Institute and proficiency in the Regional/official language of the State at matriculation level"
+      ]
+     },
+     {
+      "post": "Assistant Accounts Officer (State Cadre)",
+      "qualification": [
+       "Bachelor's Degree from a recognized University or Institute and proficiency in the Regional/official language of the State at matriculation level"
+      ]
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": null,
+      "quote": "8.1.1.1 Essential Qualifications: Bachelor’s Degree from a recognized University or Institute.",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "eligibility",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:examPattern:dbc7d6aa8fb1",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "incomplete: 1 of 2 papers read — not read: “13.9 Scheme of Tier-II Examination” (page 25)",
+     "13.8 Scheme of Tier-I Examination prints no total under its table: its questions and marks could not be checked against one"
+    ],
+    "label": "Exam pattern",
+    "value": [
+     {
+      "name": "13.8 Scheme of Tier-I Examination",
+      "note": "Some tests are a choice of one (printed with the same number, a and b)",
+      "sections": [
+       {
+        "marks": 50,
+        "subject": "General Intelligence and Reasoning",
+        "questions": 25
+       },
+       {
+        "marks": 50,
+        "subject": "General Awareness",
+        "questions": 25
+       },
+       {
+        "marks": 50,
+        "subject": "Quantitative Aptitude",
+        "questions": 25
+       },
+       {
+        "marks": 50,
+        "subject": "English Comprehension",
+        "questions": 25
+       }
+      ]
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 25,
+      "quote": "I\nA. General Intelligence\nand Reasoning 25 50 1 hour (with sectional",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "examPattern",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "f:examStages:6e84ce9aade4",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Exam stages",
+    "value": [
+     {
+      "kind": "SELECTION",
+      "name": "Tier-I (Computer Based Examination)",
+      "notes": "August-September, 2026",
+      "order": 1,
+      "status": "NOT_DECLARED",
+      "certainty": "TBA"
+     },
+     {
+      "kind": "SELECTION",
+      "name": "Tier-II (Computer Based Examination)",
+      "notes": "December, 2026",
+      "order": 2,
+      "status": "NOT_DECLARED",
+      "certainty": "TBA"
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Tentative Schedule of Tier-I (Computer Based\nExamination) August-September, 2026",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "examStages",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:financial.feeGeneral:ad5736686512",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Fee (General / OBC)",
+    "value": 100,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 19,
+      "quote": "10.1 Fee payable: ₹100/- (Rs one hundred only).",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.feeGeneral",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:financial.feeSCST:5feceb66ffc8",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Fee (SC / ST / PwBD)",
+    "value": 0,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 19,
+      "quote": "Women candidates and candidates belonging to Scheduled Castes\n(SC), Scheduled Tribes (ST), Persons with Benchmark Disabilities (PwBD) and\nEx-servicemen (ESM) eligible for reservation are exempted from payment of fee.",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.feeSCST",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:financial.payScale:a2f277830393",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Pay scale / stipend",
+    "value": "Pay Level-8 (₹ 47600 to 151100)",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 2,
+      "quote": "2.1 Pay Level-8 (₹ 47600 to 151100):",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.payScale",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:howToApply:360e71bc9a66",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "How to apply",
+    "value": [
+     "Access the new SSC Headquarter website at https://ssc.gov.in or download the my SSC mobile application from Google Play Store",
+     "Generate One-Time Registration (OTR) on the new website",
+     "Complete Aadhaar Based Authentication during the OTR process",
+     "Proceed to fill the application form for the examination"
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 17,
+      "quote": "9.1 Applications must be submitted only in online mode at the new website of SSC Headquarter i.e. https://ssc.gov.in or through my SSC mobile application",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "howToApply",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:identity.notificationNumber:7bb1ea96388d",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Notification number",
+    "value": "No. 12",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Block No. 12, CGO Complex, Lodhi",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "identity.notificationNumber",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "l:26cc8e35ab1e",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official notification link",
+    "value": {
+     "url": "https://divyangjan.depwd.gov.in/content/upload/uploadfiles/files/224370.pdf",
+     "type": "OFFICIAL_NOTIFICATION",
+     "label": "Official Notification",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "access Notification No. 38-16/2020-DDIII dated 04.01.2021 is given here under:- https://divyangjan.depwd.gov.in/content/upload/uploadfiles/files/224370.pdf -- 5 of 132 -- Page 6 of 132 3.5 The C",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_NOTIFICATION",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:364bc257d537",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://www.sscsr.gov.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "r, EVK Sampath Building, DPI Campus, College Road, Chennai, Tamil Nadu -600006 (www.sscsr.gov.in) 9 Panaji (7801), Ahmedabad (7001), Gan",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:442f8e3efbb4",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://ssc.gov.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "Page 1 of 132 (To be uploaded on the website of the Commission; i.e. https://ssc.gov.in on 21-05-2026) भारत सरकार, कार्मिक , लो",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:9e5a0553fa16",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "http://www.ssc-cr.org/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "on,34-A, Mahatma Gandhi Marg, Civil Lines, Kendriya Sadan, Prayagraj – 211001. (http://www.ssc-cr.org) 2 Dhanbad (4206), Jamshedpur (4207), R",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:a30e4550e836",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://www.sscnr.nic.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "Selection Commission, Block No. 12, CGO Complex, Lodhi Road, New Delhi-110003 (www.sscnr.nic.in) -- 22 of 132 -- Page 23 of 132 7 Chan",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:b0d206e11d62",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://ssc.nic.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": ".in) will be required to do so as the earlier OTR generated on the old website (https://ssc.nic.in) will not be functional for the new web",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:f83a1eab6717",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://www.ssckkr.kar.nic.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "1st Floor, “E” Wing, Kendriya Sadan, Koramangala, Bengaluru, Karnataka- 560034 (www.ssckkr.kar.nic.in) 4 Bhopal (6001), Gwalior(6005), Indore",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "f:selection:a8721c569b5b",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "“Computer Based Examination” may be the same as “Tier-I” and “Tier-II” and “Tier-I Examination”: check, and remove it if so"
+    ],
+    "label": "Selection process",
+    "value": {
+     "stages": [
+      {
+       "name": "Tier-I",
+       "type": "CBT",
+       "order": 1
+      },
+      {
+       "name": "Tier-II",
+       "type": "CBT",
+       "order": 2
+      },
+      {
+       "name": "Computer Based Examination",
+       "type": "CBT",
+       "order": 3
+      },
+      {
+       "name": "Document Verification",
+       "type": "DOCUMENT_VERIFICATION",
+       "order": 4
+      },
+      {
+       "name": "Tier-I Examination",
+       "type": "CBT",
+       "order": 5,
+       "description": "Based on the marks scored in Tier-I i.e. Computer Based Examination, candidates will be shortlisted, category-wise, to appear in Tier-II Examination."
+      },
+      {
+       "name": "Tier-II Examination",
+       "type": "WRITTEN",
+       "order": 6,
+       "description": "Tier-II Examination will be conducted for all the candidates qualified in Tier-I."
+      },
+      {
+       "name": "Physical Efficiency Test",
+       "type": "PHYSICAL",
+       "order": 7,
+       "description": "CANDIDATES QUALIFYING THROUGH STAFF SELECTION COMMISSION WILL HAVE TO MANDATORILY PASS THE TEST IN ONE MILE RUN TO BE HELD AT GREF CENTRE, PUNE TO UNDERGO FURTHER MEDICAL EXAMINATION."
+      },
+      {
+       "name": "Medical Fitness Test",
+       "type": "OTHER",
+       "order": 8,
+       "description": "Medical Board detailed by Headquarters Director General Border Roads will carry out the medical fitness test of the candidates declared selected by SSC and GREF Centre."
+      }
+     ]
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 25,
+      "quote": "13.8 Scheme of Tier-I Examination: Tier Subject Number of Questions Maximum Marks Time allowed",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     },
+     {
+      "page": 36,
+      "quote": "issued Admission Certificates (AC) for appearing in the Computer Based Examination. Subsequently, qualified candidates will be issued Admission Certificates for the next stages of the Examination.",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     },
+     {
+      "page": 41,
+      "quote": "16.3 Based on the marks scored in Tier-I i.e. Computer Based Examination, candidates will be shortlisted, category-wise, to appear in Tier-II Examination.",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     },
+     {
+      "page": 124,
+      "quote": "PHYSICAL EFFICIENCY TEST (FOR GROUP „C‟ POSTS)\nS No ACTIVITY MAXIMUM MARKS TIME AVAILABLE\n1. ONE MILE RUN ONLY PASSING THE TEST IS MANDATORY 10 MINUTES",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "selection",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:syllabus:49b153b2bb54",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Syllabus",
+    "value": [
+     {
+      "paper": "Tier-II",
+      "topics": [
+       "Number Systems: Computation of Whole Number, Decimal and Fractions, Relationship between numbers.",
+       "Algebra: Basic algebraic identities of School Algebra and Elementary surds (simple problems) and Graphs of Linear Equations."
+      ],
+      "subject": "Mathematical Abilities"
+     },
+     {
+      "paper": "Tier-II",
+      "topics": [
+       "Software: Windows Operating system including basics of Microsoft Office like MS word, MS Excel and Power Point etc.",
+       "Working with Internet and e-mails: Web Browsing & Searching, Downloading & Uploading, Managing an E-mail Account, e-Banking."
+      ],
+      "subject": "Computer Knowledge/ Proficiency"
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 31,
+      "quote": "13.11.1 Part A of Section-I of Paper-I (Mathematical Abilities):",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "syllabus",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:vacancies.total:1ff741acee83",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Total vacancies",
+    "value": 12256,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 5,
+      "quote": "There are approx.12,256 vacancies. The vacancies",
+      "retrievalId": "35695167-e146-46ca-aa8c-4b6d62d6d977"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "vacancies.total",
+    "supersedes": [],
+    "defaultTicked": true
+   }
+  ],
+  "warnings": [
+   "No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.",
+   "No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.",
+   "upload — notification, not confirmed: the notice prints 2 exam-pattern table(s); 1 read. Not read: “13.9 Scheme of Tier-II Examination” (page 25). Enter it in the editor's exam pattern."
+  ],
+  "replacedInImport": []
+ }
+}

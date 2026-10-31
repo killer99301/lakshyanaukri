@@ -1,0 +1,766 @@
+{
+  "items": [
+    {
+      "id": "f:age:7c4042a859f4",
+      "kind": "FIELD",
+      "fieldPath": "age",
+      "label": "Age limit",
+      "value": {
+        "min": 21,
+        "asOf": "2026-08-01",
+        "relaxations": [],
+        "categoryMax": [
+          {
+            "category": "Unreserved (Male)",
+            "max": 37
+          },
+          {
+            "category": "Unreserved (Female)",
+            "max": 40
+          },
+          {
+            "category": "Backward Class / Extremely Backward Class (Male and Female)",
+            "max": 40
+          },
+          {
+            "category": "Scheduled Caste / Scheduled Tribe (Male and Female)",
+            "max": 42
+          }
+        ],
+        "evidence": [
+          {
+            "about": "min",
+            "value": "21",
+            "quote": "The minimum age is 21 years as on 1 August 2026. The maximum age varies by category.",
+            "page": null
+          },
+          {
+            "about": "asOf",
+            "value": "2026-08-01",
+            "quote": "The minimum age is 21 years as on 1 August 2026. The maximum age varies by category.",
+            "page": null
+          },
+          {
+            "about": "categoryMax: Unreserved (Male)",
+            "value": "37",
+            "quote": "Unreserved (Male) 37 years",
+            "page": null
+          },
+          {
+            "about": "categoryMax: Unreserved (Female)",
+            "value": "40",
+            "quote": "Unreserved (Female) 40 years",
+            "page": null
+          },
+          {
+            "about": "categoryMax: Backward Class / Extremely Backward Class (Male and Female)",
+            "value": "40",
+            "quote": "Backward Class / Extremely Backward Class (Male and Female) 40 years",
+            "page": null
+          },
+          {
+            "about": "categoryMax: Scheduled Caste / Scheduled Tribe (Male and Female)",
+            "value": "42",
+            "quote": "Scheduled Caste / Scheduled Tribe (Male and Female) 42 years",
+            "page": null
+          }
+        ]
+      },
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "The minimum age is 21 years as on 1 August 2026. The maximum age varies by category.",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:conditions:54b86327b45c",
+      "kind": "FIELD",
+      "fieldPath": "conditions",
+      "label": "Notes (admin only, not published)",
+      "value": [
+        "Meeting the minimum qualifying marks does not automatically guarantee selection. The final outcome will depend on the applicable selection criteria, merit position, eligibility verification and other recruitment rules."
+      ],
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "Meeting the minimum qualifying marks does not automatically guarantee selection. The final outcome will depend on the applicable selection criteria, merit position, eligibility verification and other recruitment rules.",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:dates.applicationCloseDate:6484fdf06f96",
+      "kind": "FIELD",
+      "fieldPath": "dates.applicationCloseDate",
+      "label": "Last date to apply",
+      "value": "2026-10-24",
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "Last Date to Apply 24 October 2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice",
+        "this date has passed (today is 2026-10-31)"
+      ]
+    },
+    {
+      "id": "f:dates.applicationOpenDate:a9b0a25ae5ed",
+      "kind": "FIELD",
+      "fieldPath": "dates.applicationOpenDate",
+      "label": "Applications open",
+      "value": "2026-09-25",
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "Application Start Date 25 September 2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:eligibility:c3f62e6d5d8a",
+      "kind": "FIELD",
+      "fieldPath": "eligibility",
+      "label": "Eligibility",
+      "value": [
+        {
+          "post": "Food Safety Officer",
+          "qualification": [
+            "Bachelor’s, Master’s or Doctorate degrees in specified disciplines.",
+            "Food Technology, Dairy Technology, Biotechnology and Agricultural Science.",
+            "Veterinary Science, Biochemistry, Microbiology, Chemistry and Medicine.",
+            "Eligible medical degrees such as MBBS, BDS, BHMS, BAMS and BUMS.",
+            "Other qualifications recognised by FSSAI, subject to the notification’s conditions."
+          ]
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "Candidates must possess a recognised degree in one of the prescribed disciplines to be eligible for the Food Safety Officer post. The accepted qualifications include:\nBachelor’s, Master’s or Doctorate degrees in specified disciplines.\nFood Technology, Dairy Technology, Biotechnology and Agricultural Science.\nVeterinary Science, Biochemistry, Microbiology, Chemistry and Medicine.\nEligible medical degrees such as MBBS, BDS, BHMS, BAMS and BUMS.\nOther qualifications recognised by FSSAI, subject to the notification’s conditions.",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:examPattern:d8d3c6e06b64",
+      "kind": "FIELD",
+      "fieldPath": "examPattern",
+      "label": "Exam pattern",
+      "value": [
+        {
+          "name": "BTSC FSO Exam Pattern 2026",
+          "durationMinutes": 120,
+          "sections": [
+            {
+              "subject": "Paper 1 General Studies and Mental Ability",
+              "questions": 25,
+              "marks": 25
+            },
+            {
+              "subject": "Paper 2 Chemistry and Food Nutrition",
+              "questions": 75,
+              "marks": 75
+            }
+          ],
+          "totalQuestions": 100,
+          "totalMarks": 100
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "Paper 1 General Studies and Mental Ability 25 25",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice",
+        "✓ all 1 papers read by code from the notice's tables"
+      ]
+    },
+    {
+      "id": "f:examStages:618b4c5124c5",
+      "kind": "FIELD",
+      "fieldPath": "examStages",
+      "label": "Exam stages",
+      "value": [
+        {
+          "name": "Notification Advertisement No. 29/2026",
+          "order": 1,
+          "status": "NOT_DECLARED",
+          "certainty": "TBA",
+          "notes": "September 2026",
+          "kind": "OTHER_MILESTONE"
+        },
+        {
+          "name": "Online Application Begins",
+          "order": 2,
+          "status": "SCHEDULED",
+          "certainty": "CONFIRMED",
+          "dateDisplay": "25 September 2026",
+          "dateIso": "2026-09-25",
+          "kind": "OTHER_MILESTONE"
+        },
+        {
+          "name": "Last Date to Apply Online",
+          "order": 3,
+          "status": "SCHEDULED",
+          "certainty": "CONFIRMED",
+          "dateDisplay": "24 October 2026",
+          "dateIso": "2026-10-24",
+          "kind": "OTHER_MILESTONE"
+        },
+        {
+          "name": "Last Date for Required Documents",
+          "order": 4,
+          "status": "SCHEDULED",
+          "certainty": "CONFIRMED",
+          "dateDisplay": "24 October 2026",
+          "dateIso": "2026-10-24",
+          "kind": "DOCUMENT"
+        },
+        {
+          "name": "CBT Exam Date",
+          "order": 5,
+          "status": "NOT_DECLARED",
+          "certainty": "TBA",
+          "notes": "To be announced",
+          "kind": "SELECTION"
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "Notification Advertisement No. 29/2026 September 2026",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:financial.feeGeneral:ad5736686512",
+      "kind": "FIELD",
+      "fieldPath": "financial.feeGeneral",
+      "label": "Fee (General / OBC)",
+      "value": 100,
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "The notification prescribes an application fee of ₹100. Payment must be completed online.",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:financial.payScale:9b1291616a1f",
+      "kind": "FIELD",
+      "fieldPath": "financial.payScale",
+      "label": "Pay scale / stipend",
+      "value": "Pay Level 6, Grade Pay ₹4,200",
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "The Food Safety Officer post carries a revised pay structure under Pay Level 6, with a grade pay of ₹4,200 as mentioned in the notification.",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:howToApply:7b472437cfc6",
+      "kind": "FIELD",
+      "fieldPath": "howToApply",
+      "label": "How to apply",
+      "value": [
+        "Open the BTSC FSO Application Link.",
+        "Register or log in to the application portal.",
+        "Enter personal and educational details.",
+        "Upload the required documents, photograph and signature.",
+        "Pay the application fee online.",
+        "Review and submit the application form.",
+        "Download and save the submitted form and payment receipt for future reference."
+      ],
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "Open the BTSC FSO Application Link.",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:identity.notificationNumber:d60fe43ae03b",
+      "kind": "FIELD",
+      "fieldPath": "identity.notificationNumber",
+      "label": "Notification number",
+      "value": "29/2026",
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "The Bihar Technical Service Commission (BTSC) has released the BTSC FSO Recruitment 2026 Notification for 105 Food Safety Officer (FSO) vacancies under the Health Department, Bihar. As per Advertisement No. 29/2026, the online application process started on 25 September 2026 and will continue until 24 October 2026. Candidates with the prescribed educational qualifications can check the eligibility criteria, age limit, category-wise vacancies, salary, application fee, selection process and exam pattern before applying.",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:identity.title:89571a431f2b",
+      "kind": "FIELD",
+      "fieldPath": "identity.title",
+      "label": "Title",
+      "value": "BTSC FSO Recruitment 2026 Notification Out For 105 Posts, Apply Online",
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "page": null
+        }
+      ],
+      "action": "REPLACE",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": false,
+      "flags": [
+        "from research only — check it against the official notice"
+      ],
+      "current": "BTSC Food Safety Officer Recruitment 2026"
+    },
+    {
+      "id": "l:8d784f7e6ded",
+      "kind": "LINK",
+      "fieldPath": "links#OFFICIAL_WEBSITE",
+      "label": "Official website link",
+      "value": {
+        "type": "OFFICIAL_WEBSITE",
+        "label": "Official Website",
+        "url": "https://btsc.bihar.gov.in/",
+        "official": true
+      },
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "fication Job Location Bihar Pay Level Level 6 Grade Pay ₹4,200 Official Website btsc.bihar.gov.in BTSC FSO Recruitment 2026 Notification"
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": false,
+      "flags": [
+        "found in research text"
+      ]
+    },
+    {
+      "id": "f:selection:3143f374faff",
+      "kind": "FIELD",
+      "fieldPath": "selection",
+      "label": "Selection process",
+      "value": {
+        "stages": [
+          {
+            "name": "Computer-Based Test",
+            "order": 1,
+            "type": "CBT",
+            "description": "A 100-mark examination based on the prescribed syllabus."
+          },
+          {
+            "name": "Document Verification",
+            "order": 2,
+            "type": "DOCUMENT_VERIFICATION",
+            "description": "Shortlisted candidates must produce original educational, identity and category certificates, as applicable."
+          }
+        ]
+      },
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "Computer-Based Test (CBT): A 100-mark examination based on the prescribed syllabus.",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice",
+        "“Appointment and Training” is left out of the selection process: training is not a stage of selection (it stays in the schedule if the notice dates it)"
+      ]
+    },
+    {
+      "id": "f:syllabus:646ce6aafbb1",
+      "kind": "FIELD",
+      "fieldPath": "syllabus",
+      "label": "Syllabus",
+      "value": [
+        {
+          "subject": "Food Technology",
+          "topics": [
+            "Food processing and preservation"
+          ]
+        },
+        {
+          "subject": "Dairy Technology",
+          "topics": [
+            "Milk processing and dairy products"
+          ]
+        },
+        {
+          "subject": "Biotechnology",
+          "topics": [
+            "Basic biotechnology concepts"
+          ]
+        },
+        {
+          "subject": "Agricultural Science",
+          "topics": [
+            "Agricultural practices and related concepts"
+          ]
+        },
+        {
+          "subject": "Veterinary Science",
+          "topics": [
+            "Veterinary and animal-related topics"
+          ]
+        },
+        {
+          "subject": "Biochemistry",
+          "topics": [
+            "Biochemical processes"
+          ]
+        },
+        {
+          "subject": "Microbiology",
+          "topics": [
+            "Microorganisms and food safety"
+          ]
+        },
+        {
+          "subject": "Chemistry",
+          "topics": [
+            "Basic and applied chemistry"
+          ]
+        },
+        {
+          "subject": "Medicine",
+          "topics": [
+            "Relevant medical and health concepts"
+          ]
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "Food Technology Food processing and preservation",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:vacancies.breakdown:4ea1e95074ef",
+      "kind": "FIELD",
+      "fieldPath": "vacancies.breakdown",
+      "label": "Vacancy breakdown",
+      "value": [
+        {
+          "post": "Food Safety Officer (FSO)",
+          "count": 105,
+          "breakdown": {
+            "ur": 41,
+            "ews": 11,
+            "sc": 17,
+            "st": 2,
+            "Extremely Backward Class (EBC)": 18,
+            "Backward Class (BC)": 12,
+            "Backward Class Women": 4
+          }
+        }
+      ],
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "The Bihar Technical Service Commission (BTSC) has released the BTSC FSO Recruitment 2026 Notification for 105 Food Safety Officer (FSO) vacancies under the Health Department, Bihar.",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": false,
+      "flags": [
+        "from research only — check it against the official notice",
+        "worked out from the vacancy table below when it is saved"
+      ]
+    },
+    {
+      "id": "f:vacancies.table:f321cf1f5d63",
+      "kind": "FIELD",
+      "fieldPath": "vacancies.table",
+      "label": "Vacancy table",
+      "value": {
+        "dimensions": [
+          {
+            "key": "post",
+            "label": "Post"
+          }
+        ],
+        "categories": [
+          {
+            "key": "ur",
+            "label": "UR",
+            "kind": "VERTICAL"
+          },
+          {
+            "key": "ews",
+            "label": "EWS",
+            "kind": "VERTICAL"
+          },
+          {
+            "key": "sc",
+            "label": "SC",
+            "kind": "VERTICAL"
+          },
+          {
+            "key": "st",
+            "label": "ST",
+            "kind": "VERTICAL"
+          },
+          {
+            "key": "Extremely Backward Class (EBC)",
+            "label": "Extremely Backward Class (EBC)",
+            "kind": "UNDETERMINED"
+          },
+          {
+            "key": "Backward Class (BC)",
+            "label": "Backward Class (BC)",
+            "kind": "UNDETERMINED"
+          },
+          {
+            "key": "Backward Class Women",
+            "label": "Backward Class Women",
+            "kind": "UNDETERMINED"
+          }
+        ],
+        "rows": [
+          {
+            "id": "s1",
+            "at": {
+              "post": "Food Safety Officer (FSO)"
+            },
+            "status": "STATED",
+            "total": 105,
+            "cells": {
+              "ur": 41,
+              "ews": 11,
+              "sc": 17,
+              "st": 2,
+              "Extremely Backward Class (EBC)": 18,
+              "Backward Class (BC)": 12,
+              "Backward Class Women": 4
+            },
+            "source": {
+              "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+              "page": null,
+              "line": "The Bihar Technical Service Commission (BTSC) has released the BTSC FSO Recruitment 2026 Notification for 105 Food Safety Officer (FSO) vacancies under the Health Department, Bihar. As per Advertisement No. 29/2026, the online application process started on 25 September 2026 and will continue until 24 October 2026. Candidates with the prescribed educational qualifications can check the eligibility criteria, age limit, category-wise vacancies, salary, application fee, selection process and exam pattern before applying.\nBTSC FSO Recruitment 2026: Overview\nCandidates can check the key details of the Bihar Food Safety Officer recruitment in the table below.\nParticulars\tDetails\nRecruiting Authority\tBihar Technical Service Commission (BTSC)\nDepartment\tHealth Department, Bihar\nPost Name\tFood Safety Officer (FSO)\nAdvertisement Number\t29/2026\nTotal Vacancies\t105\nApplication Mode\tOnline\nApplication Start Date\t25 September 2026\nLast Date to Apply\t24 October 2026\nSelection Process\tComputer-Based Test and Document Verification\nJob Location\tBihar\nPay Level\tLevel 6\nGrade Pay\t₹4,200\nOfficial Website\tbtsc.bihar.gov.in\nBTSC FSO Recruitment 2026 Notification PDF\nThe official notification contains information about the available vacancies, educational qualifications, age limit, application fee, examination pattern, reservation rules and document verification requirements. Candidates should read the notification carefully to confirm that they meet the eligibility conditions before applying.\nBTSC FSO Recruitment 2026 Notification PDF\nBTSC FSO Recruitment 2026 Important Dates\nThe online application process began on 25 September 2026. Candidates must complete the application and fee payment within the prescribed deadline.\nEvent\tDate\nNotification Advertisement No. 29/2026\tSeptember 2026\nOnline Application Begins\t25 September 2026\nLast Date to Apply Online\t24 October 2026\nLast Date for Required Documents\t24 October 2026\nCBT Exam Date\tTo be announced\nBTSC FSO Vacancy 2026\nBTSC has announced a total of 105 Food Safety Officer vacancies. The notification provides category-wise vacancy details, including horizontal reservation for women who are domiciled in Bihar.\nCategory-Wise Vacancy Details\nCategory\tVacancies\nUnreserved (UR)\t41\nEconomically Weaker Section (EWS)\t11\nScheduled Caste (SC)\t17\nScheduled Tribe (ST)\t2\nExtremely Backward Class (EBC)\t18\nBackward Class (BC)\t12\nBackward Class Women\t4"
+            }
+          }
+        ],
+        "statedTotals": []
+      },
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "quote": "Backward Class Women\t4",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": true,
+      "flags": [
+        "from research only — check it against the official notice"
+      ]
+    },
+    {
+      "id": "f:vacancies.total:1253e9373e78",
+      "kind": "FIELD",
+      "fieldPath": "vacancies.total",
+      "label": "Total vacancies",
+      "value": 105,
+      "claims": [
+        {
+          "retrievalId": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+          "page": null
+        }
+      ],
+      "action": "FILL",
+      "conflict": false,
+      "supersedes": [],
+      "defaultTicked": false,
+      "flags": [
+        "from research only — check it against the official notice",
+        "worked out from the vacancy table below when it is saved"
+      ]
+    }
+  ],
+  "warnings": [
+    "No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.",
+    "No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.",
+    "Every source here is research. Its values are saved as Pending, but none can be checked until an official document is added."
+  ],
+  "sources": [
+    {
+      "id": "a6f54d05-e5d9-4d44-a5aa-4d6acb8cdb22",
+      "declaredKind": "RESEARCH",
+      "authenticity": "NOT_APPLICABLE",
+      "originRole": "NONE",
+      "originPurposes": [],
+      "label": "pasted text — research",
+      "method": "PASTED",
+      "originUrl": null,
+      "notFound": [
+        "Notification Date",
+        "Fee Payment Deadline",
+        "Correction Window End",
+        "Application fee (SC/ST/PwBD) (nothing relevant found in the source)"
+      ],
+      "refused": [],
+      "summary": null,
+      "vacancyTables": {
+        "coverage": {
+          "pages": null,
+          "tables": [],
+          "unreadLines": []
+        },
+        "from": "split",
+        "problems": [],
+        "removalsHeld": 0,
+        "diff": {
+          "added": 1,
+          "changed": 0,
+          "removed": 0,
+          "same": 0,
+          "untouchedPosts": [],
+          "addedRows": [
+            {
+              "at": {
+                "post": "Food Safety Officer (FSO)"
+              },
+              "status": "STATED",
+              "total": 105,
+              "page": null
+            }
+          ],
+          "changedRows": [],
+          "removedRows": []
+        }
+      },
+      "reading": {
+        "mode": "whole",
+        "pages": null,
+        "noTextPages": [],
+        "batches": [
+          {
+            "first": null,
+            "last": null,
+            "status": "read",
+            "values": 15
+          }
+        ]
+      },
+      "pattern": {
+        "expected": 1,
+        "read": 1,
+        "tables": [
+          {
+            "heading": "BTSC FSO Exam Pattern 2026",
+            "page": null,
+            "read": true
+          }
+        ],
+        "problems": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+  ....  model: gemini-3.5-flash-lite; phase run; cases ssc,upsc,bpsc; budget 100
+
+── ssc-cgl-2026
+  ....  132 pages, 11 scanned; about 32 requests
+  ....  DONE, NOT complete in 175 s; 37 requests (2 resent); total so far 37; note: 1 exam-pattern paper(s) printed in the notice could not be read; the review names them.; failed: none
+  ....  warning: No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.
+  ....  warning: No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.
+  ....  warning: upload — notification, not confirmed: the notice prints 2 exam-pattern table(s); 1 read. Not read: “13.9 Scheme of Tier-II Examination” (page 25). Enter it in the editor's exam pattern.
+  ....  warning: upload — notification, not confirmed: on scanned pages 67, 76, 78 the AI found almost nothing, twice. Something printed there may be missing from this preview: check the pages.
+  ....  [x] conditions = ["Measurement of Physical Standards and Physical and Medical Tests will be conducted by the User Department concerned after final selection and nomination of candidates to the User Departments.","Date of Birth filled by the candidate in the online application form and the same recorded in the Matric  (p4,10,20,27,36,53,77,100,121,130)  flags: no confirmed official document states this / read from a scanned page by AI — check it against the page image
+  ....  [x] dates.applicationCloseDate = "2026-06-22"  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-10-29)
+  ....  [x] dates.applicationOpenDate = "2026-05-21"  (p1)  flags: no confirmed official document states this
+  ....  [x] dates.correctionWindowEnd = "2026-07-01"  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-10-29)
+  ....  [x] dates.feePaymentCloseDate = "2026-06-23"  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-10-29)
+  ....  [x] eligibility = [{"post":"Assistant Audit Officer (Central Cadre)","qualification":["Bachelor’s Degree from a recognized University or Institute"]},{"post":"Assistant Audit Officer (State Cadre)","qualification":["Bachelor’s Degree from a recognized University or Institute and proficiency in Regional/official langu  (p)  flags: no confirmed official document states this
+  ....  [ ] examPattern = 13.8 Scheme of Tier-I Examination undefined/undefined/-m  (p25)  flags: no confirmed official document states this / incomplete: 1 of 2 papers read — not read: “13.9 Scheme of Tier-II Examination” (page 25) / 13.8 Scheme of Tier-I Examination prints no total under its table: its questions and marks could not be checked against one
+  ....  [x] examStages = Tier-I (Computer Based Examination)[SELECTION]August-September, 2026 | Tier-II (Computer Based Examination)[SELECTION]December, 2026  (p1)  flags: no confirmed official document states this
+  ....  [x] financial.feeGeneral = 100  (p19)  flags: no confirmed official document states this
+  ....  [x] financial.feeSCST = 0  (p19)  flags: no confirmed official document states this
+  ....  [x] financial.payScale = "Pay Level-8 (₹ 47600 to 151100)"  (p2)  flags: no confirmed official document states this
+  ....  [x] howToApply = ["Visit the new website of SSC Headquarter at https://ssc.gov.in or download the my SSC mobile application from Google Play Store","Complete One-Time Registration (OTR) on the new website","Proceed to fill the application for the examination subsequent to OTR"]  (p17)  flags: no confirmed official document states this
+  ....  [x] identity.notificationNumber = "No. 12"  (p1)  flags: no confirmed official document states this
+  ....  [x] selection = {"stages":[{"name":"Tier-I Examination","type":"CBT","order":1},{"name":"Tier-II Examination","type":"CBT","order":2},{"name":"Computer Knowledge Test","type":"CBT","order":3},{"name":"Data Entry Speed Test","type":"SKILL_TEST","order":4},{"name":"Document Verification","type":"DOCUMENT_VERIFICATION  (p25,38,124)  flags: no confirmed official document states this
+  ....  [x] syllabus = [{"paper":"Tier-II","topics":["Number Systems: Computation of Whole Number, Decimal and Fractions, Relationship between numbers.","Algebra: Basic algebraic identities of School Algebra and Elementary surds (simple problems) and Graphs of Linear Equations."],"subject":"Mathematical Abilities"},{"pape  (p31)  flags: no confirmed official document states this
+  ....  [x] vacancies.total = 12256  (p5)  flags: no confirmed official document states this
+  ....  vacancy tables: []; unread lines 0; diff null; problems 0
+  FAIL  SSC: ages post by post, at least 36 posts, from the table of posts
+  PASS  SSC: no one range applied to every post
+  FAIL  SSC: the Junior Statistical Officer's own 18-32
+  FAIL  SSC: an Auditor's own 18-27
+  FAIL  SSC: age counted on 1 August 2026
+  FAIL  SSC: PwBD (OBC) 13 kept apart from PwBD 10
+  PASS  SSC: no announcement among the selection stages
+  ....  saved 15 values into job f215bfc0-304b-43cb-b01e-b222b4e3938d
+
+── ssc-cgl-reopen
+  ....  1 pages, 0 scanned; about 4 requests
+  ....  DONE, complete in 7 s; 3 requests (0 resent); total so far 40; note: -; failed: none
+  ....  warning: No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.
+  ....  warning: No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.
+  ....  [x] dates.applicationCloseDate = "2026-06-25"  SUPERSEDES 1  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-10-29)
+  ....  [x] dates.applicationOpenDate = "2026-05-21"  (p1)  flags: no confirmed official document states this
+  ....  [x] dates.correctionWindowEnd = "2026-07-03"  SUPERSEDES 1  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-10-29)
+  ....  [x] dates.feePaymentCloseDate = "2026-06-26"  SUPERSEDES 1  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-10-29)
+  ....  vacancy tables: []; unread lines 0; diff null; problems 0
+  ....  saved 4 values into job f215bfc0-304b-43cb-b01e-b222b4e3938d
+  ....  CHANGED dates.applicationCloseDate:
+      before PENDING "2026-06-22"
+      after  PENDING "2026-06-25"
+  ....  CHANGED dates.correctionWindowEnd:
+      before PENDING "2026-07-01"
+      after  PENDING "2026-07-03"
+  ....  CHANGED dates.feePaymentCloseDate:
+      before PENDING "2026-06-23"
+      after  PENDING "2026-06-26"
+  ....  unchanged fields: 11 of 14
+  PASS  SSC reopened: the last date to apply is now 25 June 2026
+
+── upsc-cse-2026
+  ....  159 pages, 0 scanned; about 23 requests
+  ....  DONE, NOT complete in 137 s; 24 requests (0 resent); total so far 64; note: 9 exam-pattern paper(s) printed in the notice could not be read; the review names them.; failed: none
+  ....  warning: No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.
+  ....  warning: No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.
+  ....  warning: upload — notification, not confirmed: the notice prints 11 exam-pattern table(s); 2 read. Not read: “9 papers (“consist of 9 papers”)” (page 25). Enter it in the editor's exam pattern.
+  ....  [x] age = min 21 max 32 asOf 2026-08-01 catMax [] posts []  (p12)  flags: no confirmed official document states this
+  ....  [x] conditions = ["The candidates will not be allowed to withdraw their applications after the submission of the same. Further no correction /alteration/modification in any field(s) of the Application Form is allowed after submission.","The Commission provides a one-time facility for candidates to update or modify t  (p2,14,17,25,33,67,155)  flags: no confirmed official document states this
+  ....  [x] dates.applicationCloseDate = "2026-02-24"  (p1)  flags: no confirmed official document states this / this date has passed (today is 2026-10-29)
+  ....  [x] dates.applicationOpenDate = "2026-02-04"  (p)  flags: no confirmed official document states this
+  ....  [x] dates.examDate = "2026-05-24"  (p5)  flags: no confirmed official document states this
+  ....  [x] eligibility = [{"post":"Civil Services","qualification":["Graduate degree of any recognized university or equivalent qualification"]}]  (p14)  flags: no confirmed official document states this
+  ....  [ ] examPattern = Civil Services (Preliminary) Examination Paper I undefined/200/-m | Civil Services (Preliminary) Examination Paper II undefined/200/-m  (p32)  flags: no confirmed official document states this / incomplete: 2 of 11 papers read — not read: “9 papers (“consist of 9 papers”)” (page 25)
+  ....  [x] financial.feeGeneral = 100  (p16)  flags: no confirmed official document states this
+  ....  [x] financial.feeSCST = 0  (p16)  flags: no confirmed official document states this
+  ....  [x] howToApply = ["Visit the website https://upsconline.nic.in to apply online.","Review general instructions, profile/module-wise instructions, and document uploading instructions.","Submit requisite information, supporting documents, Universal Registration Number (URN), Common Application Form (CAF), and the exami  (p2)  flags: no confirmed official document states this
+  ....  [x] identity.notificationNumber = "05/2026-CSE"  (p1)  flags: no confirmed official document states this
+  ....  [ ] identity.title = "EXAMINATION NOTICE NO 05/2026-CSE DATE: 04.02.2026"  (p)  flags: no confirmed official document states this
+  ....  [x] selection = {"stages":[{"name":"Civil Services (Preliminary) Examination","type":"WRITTEN","order":1,"description":"Civil Services (Preliminary) Examination (Objective type) for the selection of candidates for the Main Examination"},{"name":"Civil Services (Main) Examination","type":"WRITTEN","order":2,"descrip  (p10)  flags: no confirmed official document states this
+  ....  [x] syllabus = [{"paper":"Paper I","topics":["Current events of national and international importance.","History of India and Indian National Movement.","Indian and World Geography-Physical, Social, Economic Geography of India and the World.","Indian Polity and Governance-Constitution, Political System, Panchayati  (p32)  flags: no confirmed official document states this
+  ....  [x] vacancies.total = 933  (p5)  flags: no confirmed official document states this
+  ....  vacancy tables: []; unread lines 0; diff null; problems 0
+  PASS  UPSC: notification number 05/2026-CSE, not the file number
+  PASS  UPSC: age 21-32 as on 1 August 2026
+  PASS  UPSC: relaxations SC/ST 5, OBC 3, PwBD 10
+  PASS  UPSC: no announcement among the selection stages
+
+── BPSC 72nd CCE: the job with its pasted tables
+  PASS  BPSC: the pasted tables saved, 25 posts, 1,230
+
+── bpsc-72-corrigendum
+  ....  1 pages, 1 scanned; about 5 requests
+  ....  DONE, complete in 18 s; 2 requests (0 resent); total so far 66; note: -; failed: none
+  ....  warning: No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.
+  ....  warning: No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.
+  ....  [x] conditions = ["बिहार ईख विकास नियमावली 2025 के अनुसार उक्त रिक्ति सहायक निदेशक, ईख विकास एवं समकक्ष पद का है, जिसके लिए शैक्षिक अर्हता एवं परीक्षा संरचना संयुक्त प्रतियोगिता परीक्षा से भिन्न है। अतः एकीकृत 72वीं संयुक्त (प्रारम्भिक) प्रतियोगिता परीक्षा के लिए प्रकाशित विज्ञापन के सारणी-1 में क्रम संख्या-11 पर वर  (p1)  flags: no confirmed official document states this / read from a scanned page by AI — check it against the page image
+  ....  [ ] vacancies.breakdown = [{"post":"ईख पदाधिकारी (गन्ना उद्योग विभाग)","count":44}]  (p1)  flags: no confirmed official document states this / read from a scanned page by AI — check it against the page image / a corrigendum lists only the posts it adds, changes or deletes — check in the notice whether each is added, changed or deleted before saving; ticked, it would replace the whole list / worked out from the vacancy table below when it is saved
+  ....  [ ] vacancies.table = 24 rows, 24 posts, sum 1186  (p1)  flags: no confirmed official document states this / read from a scanned page by AI — check it against the page image / removes what the corrigendum deletes: ईख पदाधिकारी, गन्ना उद्योग विभाग (44 posts, table 1, serial 11) — every figure in its rows goes with it; the total becomes 1230 − 44 = 1186, as printed. Tick to remove; the table before is kept in its history and can be restored.
+  ....  [ ] vacancies.total = 1186  (p1)  flags: no confirmed official document states this / read from a scanned page by AI — check it against the page image / worked out from the vacancy table below when it is saved
+  ....  vacancy tables: []; unread lines 0; diff null; problems 0
+  PASS  BPSC corrigendum: the table without the deleted post is offered, unticked
+  PASS  BPSC corrigendum: 24 posts, 1,186
+  PASS  BPSC corrigendum: Sugarcane Officer is the one removed
+  PASS  BPSC corrigendum: says what it removes and the total, 1230 − 44 = 1186
+  PASS  BPSC corrigendum: its evidence is marked as read from the page image
+  PASS  BPSC corrigendum: both sentences quoted (the post at serial 11; its deletion)
+  ....  saved 1 values into job c6d96ebc-e685-4683-970c-c82968667129
+  PASS  BPSC corrigendum: the default ticks leave the 25 posts
+
+── bpsc-72-corrigendum (ticked)
+  ....  1 pages, 1 scanned; about 5 requests
+  ....  DONE, complete in 13 s; 2 requests (0 resent); total so far 68; note: -; failed: none
+  ....  warning: No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.
+  ....  warning: No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.
+  ....  warning: upload — corrigendum, not confirmed deletes a post, but nothing is removed: serial 11 of table I names no post of this job (“अतः एकीकृत 72वीं संयुक्त (प्रारम्भिक) प्रतियोगिता परीक्षा के लिए प्रकाशित विज्ञापन के सारणी-I में क्रम संख्या-11 पर वर्णित पद को विलोपित किया जाता है।”). Check the corrigendum
+  ....  [ ] conditions = ["एकीकृत 72वीं संयुक्त (प्रारम्भिक) प्रतियोगिता परीक्षा के लिए प्रकाशित विज्ञापन के सारणी-I में क्रम संख्या-11 पर वर्णित पद को विलोपित किया जाता है।"]  SUPERSEDES 1  (p1)  flags: no confirmed official document states this / read from a scanned page by AI — check it against the page image
+  ....  [ ] vacancies.breakdown = [{"post":"ईंख पदाधिकारी (गन्ना उद्योग विभाग)","count":44}]  (p1)  flags: no confirmed official document states this / read from a scanned page by AI — check it against the page image / a corrigendum lists only the posts it adds, changes or deletes — check in the notice whether each is added, changed or deleted before saving; ticked, it would replace the whole list / this job has a vacancy table: add the figures there
+  ....  [ ] vacancies.total = 1186  (p1)  flags: no confirmed official document states this / read from a scanned page by AI — check it against the page image / this job has a vacancy table: add the figures there
+  ....  vacancy tables: []; unread lines 0; diff null; problems 0
+  FAIL  BPSC corrigendum ticked: saved and reopened at 1,186, Sugarcane Officer gone — 1230
+  PASS  BPSC corrigendum ticked: the rows left are still prepared outside
+  ....  unchanged fields: 5 of 5
+  FAIL  BPSC: restored from the history in one step, 1,230 and 25 posts — {"ok":false,"reason":"This field was empty before the change. Clear it by hand if it should be empty again."}
+  ....  requests used in this run: 68
+
+FAILURES: 16 passed, 7 failed

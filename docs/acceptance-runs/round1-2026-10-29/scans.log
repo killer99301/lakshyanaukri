@@ -1,0 +1,62 @@
+  ....  model: gemini-3.5-flash-lite
+
+── lic-scan
+  ....  5 pages, 5 scanned; about 9 requests
+  ....  DONE, complete in 48 s; 8 requests (0 resent); failed: none
+  ....  against the person-checked rows: 181/181
+  PASS  lic-scan: 181 cities, each with its figure and page as a person read them
+  PASS  lic-scan: Ananthapur 1
+  PASS  lic-scan: Total Vacancies 232, complete
+  PASS  lic-scan: Table E rows on scanned pages (5, 6, 7, 8, 9) marked as read from the image by AI, and only those
+  ....  page images kept for the review: 1, 2, 3, 4, 5
+  PASS  lic-scan: the page images of Table E's scanned pages are there to compare
+  PASS  lic-scan: one table, nothing left unread in it, the reading complete
+
+── lic-text-then-scan
+  ....  10 pages, 3 scanned; about 8 requests
+  ....  DONE, complete in 63 s; 9 requests (1 resent); failed: none
+  ....  against the person-checked rows: 181/181
+  PASS  lic-text-then-scan: 181 cities, each with its figure and page as a person read them
+  PASS  lic-text-then-scan: Ananthapur 1
+  PASS  lic-text-then-scan: Total Vacancies 232, complete
+  PASS  lic-text-then-scan: Table E rows on scanned pages (8, 9) marked as read from the image by AI, and only those
+  ....  page images kept for the review: 8, 9, 10
+  PASS  lic-text-then-scan: the page images of Table E's scanned pages are there to compare
+  PASS  lic-text-then-scan: one table, nothing left unread in it, the reading complete
+
+── lic-scan-then-text
+  ....  10 pages, 3 scanned; about 8 requests
+  ....  DONE, complete in 55 s; 8 requests (0 resent); failed: none
+  ....  against the person-checked rows: 181/181
+  PASS  lic-scan-then-text: 181 cities, each with its figure and page as a person read them
+  PASS  lic-scan-then-text: Ananthapur 1
+  PASS  lic-scan-then-text: Total Vacancies 232, complete
+  PASS  lic-scan-then-text: Table E rows on scanned pages (6, 7) marked as read from the image by AI, and only those
+  ....  page images kept for the review: 6, 7, 10
+  PASS  lic-scan-then-text: the page images of Table E's scanned pages are there to compare
+  PASS  lic-scan-then-text: one table, nothing left unread in it, the reading complete
+
+── lic-mixed
+  ....  10 pages, 6 scanned; about 11 requests
+  ....  DONE, complete in 88 s; 12 requests (1 resent); failed: none
+  ....  against the person-checked rows: 181/181
+  PASS  lic-mixed: 181 cities, each with its figure and page as a person read them
+  PASS  lic-mixed: Ananthapur 1
+  PASS  lic-mixed: Total Vacancies 232, complete
+  PASS  lic-mixed: Table E rows on scanned pages (5, 6, 7, 8, 9) marked as read from the image by AI, and only those
+  ....  page images kept for the review: 5, 6, 7, 8, 9, 10
+  PASS  lic-mixed: the page images of Table E's scanned pages are there to compare
+  PASS  lic-mixed: one table, nothing left unread in it, the reading complete
+  PASS  lic-mixed: values from the text pages are not marked as AI-read from an image
+
+── tg-page23
+  ....  1 pages, 1 scanned; about 5 requests
+  ....  DONE, complete in 54 s; 2 requests (0 resent); failed: none
+  ....  problems: page 1, POST CODE: 14 JUNIOR ASSISTANT IN BC WELFARE HOD, BC WELFARE DEPARTMENT, State: the G columns add up to 0; the printed TOTAL G is 1. Check the figures against the page. | page 1, POST CODE: 14 JUNIOR ASSISTANT IN BC WELFARE HOD, BC WELFARE DEPARTMENT, State: the W columns add up to 1; the printed TOTAL W is 0. Check the figures against the page. | page 1, POST CODE: 15 JUNIOR ASSISTANT IN (HO), MAHATMA JYOTHHIBA PHULE TELANGANA BACKWARD CLASSES WELFARE RESIDENTIAL EDUCATIONAL INSTITUTIONS SOCIETY, (BACKWARD CLASSES WELFARE DEPT), State: the W columns add up to 13; the printed TOTAL W is 12. Check the figures against the page. | page 1, POST CODE: 16 JUNIOR ASSISTANT IN CHIEF ELECTRICAL INSPECTOR TO GOVERNMENT HOD, ENERGY DEPARTMENT., State: the G columns add up to 1; the printed TOTAL G is 0. Check the figures against the page. | page 1, POST CODE: 16 JUNIOR ASSISTANT IN CHIEF ELECTRICAL INSPECTOR TO GOVERNMENT HOD, ENERGY DEPARTMENT., State: the W columns add up to 1; the printed TOTAL W is 2. Check the figures against the page.
+  ....  posts: 14=1, 15=26, 16=2; total 29 complete
+  PASS  tg-page23: posts 14, 15, 16 with totals 1, 26, 2
+  ....  cells read differently from the page: post 15 SC G: printed 02, read 1; post 15 ST W: printed 01, read 2; post 15 PH G: printed -, read 1; post 16 SC G: printed -, read 1; post 16 SC W: printed 01, read -
+  FAIL  tg-page23: every category cell as printed (a person's reading) — ["post 15 SC G: printed 02, read 1","post 15 ST W: printed 01, read 2","post 15 PH G: printed -, read 1","post 16 SC G: printed -, read 1","post 16 SC W: printed 01, read -"]
+  PASS  tg-page23: every row marked as read from the image by AI
+
+FAILURES: 27 passed, 1 failed

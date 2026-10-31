@@ -1,0 +1,610 @@
+{
+ "progress": {
+  "jobId": "d7f6791b-55b3-4b2e-8f63-2563ea226f6d",
+  "state": "DONE",
+  "stateNote": null,
+  "importId": "b158aa88-0cf8-4ee3-b750-6e771a1e5b35",
+  "mode": "NEW",
+  "recruitmentId": null,
+  "title": "TEST RECORD Telangana junior assistants",
+  "sources": [
+   {
+    "no": 1,
+    "kind": "pdf",
+    "fileName": "tg-page23-scan.pdf",
+    "sha256": "277b2966a9704a1f4f86a0a8f26315b0c3bc42bf39399a316af454092a75df7c",
+    "pages": 1,
+    "uploadedPages": 1,
+    "noTextPages": [
+     1
+    ],
+    "unavailable": [],
+    "textPages": 0,
+    "processedPages": 0,
+    "scanImages": [
+     1
+    ],
+    "scanRead": [
+     1
+    ],
+    "scanSuspect": [],
+    "piecesKept": 1
+   }
+  ],
+  "tasks": {
+   "total": 5,
+   "done": 5,
+   "running": 0,
+   "pending": 0,
+   "failed": 0,
+   "split": 0
+  },
+  "failedTasks": [],
+  "ai": {
+   "estimate": 5,
+   "sent": 2,
+   "retried": 0,
+   "failed": 0
+  },
+  "allowance": {
+   "used": 39,
+   "cap": 150
+  },
+  "complete": true,
+  "updatedAt": "2026-10-29T10:55:09.612Z"
+ },
+ "proposal": {
+  "meta": {
+   "mode": "NEW",
+   "newJob": {
+    "title": "TEST RECORD Telangana junior assistants",
+    "govType": "PSU",
+    "organizationId": "tg-ja",
+    "recruitmentYear": 2026,
+    "organizationName": "TG-JA"
+   },
+   "sources": [
+    {
+     "id": "605289a1-5b00-4950-add5-9d8df1a8b252",
+     "label": "upload — notification, not confirmed",
+     "method": "UPLOADED",
+     "reading": {
+      "mode": "batches",
+      "pages": 1,
+      "batches": [
+       {
+        "last": 1,
+        "first": 1,
+        "status": "read",
+        "values": 1
+       }
+      ],
+      "noTextPages": [],
+      "unavailable": [],
+      "suspectPages": []
+     },
+     "refused": [],
+     "summary": null,
+     "notFound": [
+      "Notification Number",
+      "Notification Date",
+      "Application Opens",
+      "Application Closes",
+      "Fee Payment Deadline",
+      "Correction Window End",
+      "Application fee (General/OBC) (nothing relevant found in the source)",
+      "Application fee (SC/ST/PwBD) (nothing relevant found in the source)",
+      "Post-wise Eligibility (nothing relevant found in the source)",
+      "Age Limit (nothing relevant found in the source)",
+      "Selection Process (nothing relevant found in the source)",
+      "How to Apply (nothing relevant found in the source)",
+      "Pay Scale (nothing relevant found in the source)",
+      "Exam Pattern",
+      "Syllabus"
+     ],
+     "originUrl": null,
+     "originRole": "NONE",
+     "pageImages": {
+      "jobId": "d7f6791b-55b3-4b2e-8f63-2563ea226f6d",
+      "pages": [
+       1
+      ],
+      "sourceNo": 1
+     },
+     "authenticity": "UNCONFIRMED",
+     "declaredKind": "OFFICIAL_NOTIFICATION",
+     "vacancyTables": {
+      "diff": {
+       "same": 0,
+       "added": 3,
+       "changed": 0,
+       "removed": 0,
+       "addedRows": [
+        {
+         "at": {
+          "post": "Post Code: 14 Junior Assistant In Bc Welfare Hod, Bc Welfare Department",
+          "cadre_of_the_post": "State"
+         },
+         "page": 1,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "post": "Post Code: 15 Junior Assistant In (Ho), Mahatma Jyothhiba Phule Telangana Backward Classes Welfare Residential Educational Institutions Society, (Backward Classes Welfare Dept)",
+          "cadre_of_the_post": "State"
+         },
+         "page": 1,
+         "total": 26,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "post": "Post Code: 16 Junior Assistant In Chief Electrical Inspector To Government Hod, Energy Department.",
+          "cadre_of_the_post": "State"
+         },
+         "page": 1,
+         "total": 2,
+         "status": "STATED"
+        }
+       ],
+       "changedRows": [],
+       "removedRows": [],
+       "untouchedPosts": []
+      },
+      "from": "tables",
+      "coverage": {
+       "pages": 1,
+       "tables": [
+        {
+         "read": true,
+         "rows": 1,
+         "pages": [
+          1
+         ],
+         "title": "POST CODE: 14 JUNIOR ASSISTANT IN BC WELFARE HOD, BC WELFARE DEPARTMENT",
+         "readBy": "AI_IMAGE",
+         "columns": [
+          "OC G",
+          "OC W",
+          "EWS G",
+          "EWS W",
+          "BC-A G",
+          "BC-A W",
+          "BC-B G",
+          "BC-B W",
+          "BC-C G",
+          "BC-C W",
+          "BC-D G",
+          "BC-D W",
+          "BC-E G",
+          "BC-E W",
+          "SC G",
+          "SC W",
+          "ST G",
+          "ST W",
+          "PH G",
+          "PH W",
+          "EX-SER G",
+          "EX-SER W",
+          "SPORTS G",
+          "SPORTS W",
+          "Total"
+         ],
+         "columnsBy": "CODE"
+        },
+        {
+         "read": true,
+         "rows": 1,
+         "pages": [
+          1
+         ],
+         "title": "POST CODE: 15 JUNIOR ASSISTANT IN (HO), MAHATMA JYOTHHIBA PHULE TELANGANA BACKWARD CLASSES WELFARE RESIDENTIAL EDUCATIONAL INSTITUTIONS SOCIETY, (BACKWARD CLASSES WELFARE DEPT)",
+         "readBy": "AI_IMAGE",
+         "columns": [
+          "OC G",
+          "OC W",
+          "EWS G",
+          "EWS W",
+          "BC-A G",
+          "BC-A W",
+          "BC-B G",
+          "BC-B W",
+          "BC-C G",
+          "BC-C W",
+          "BC-D G",
+          "BC-D W",
+          "BC-E G",
+          "BC-E W",
+          "SC G",
+          "SC W",
+          "ST G",
+          "ST W",
+          "PH G",
+          "PH W",
+          "EX-SER G",
+          "EX-SER W",
+          "SPORTS G",
+          "SPORTS W",
+          "Total"
+         ],
+         "columnsBy": "CODE"
+        },
+        {
+         "read": true,
+         "rows": 1,
+         "pages": [
+          1
+         ],
+         "title": "POST CODE: 16 JUNIOR ASSISTANT IN CHIEF ELECTRICAL INSPECTOR TO GOVERNMENT HOD, ENERGY DEPARTMENT.",
+         "readBy": "AI_IMAGE",
+         "columns": [
+          "OC G",
+          "OC W",
+          "EWS G",
+          "EWS W",
+          "BC-A G",
+          "BC-A W",
+          "BC-B G",
+          "BC-B W",
+          "BC-C G",
+          "BC-C W",
+          "BC-D G",
+          "BC-D W",
+          "BC-E G",
+          "BC-E W",
+          "SC G",
+          "SC W",
+          "ST G",
+          "ST W",
+          "PH G",
+          "PH W",
+          "EX-SER G",
+          "EX-SER W",
+          "SPORTS G",
+          "SPORTS W",
+          "Total"
+         ],
+         "columnsBy": "CODE"
+        }
+       ],
+       "problems": [
+        "page 1, POST CODE: 14 JUNIOR ASSISTANT IN BC WELFARE HOD, BC WELFARE DEPARTMENT, State: the G columns add up to 0; the printed TOTAL G is 1. Check the figures against the page.",
+        "page 1, POST CODE: 14 JUNIOR ASSISTANT IN BC WELFARE HOD, BC WELFARE DEPARTMENT, State: the W columns add up to 1; the printed TOTAL W is 0. Check the figures against the page.",
+        "page 1, POST CODE: 15 JUNIOR ASSISTANT IN (HO), MAHATMA JYOTHHIBA PHULE TELANGANA BACKWARD CLASSES WELFARE RESIDENTIAL EDUCATIONAL INSTITUTIONS SOCIETY, (BACKWARD CLASSES WELFARE DEPT), State: the W columns add up to 13; the printed TOTAL W is 12. Check the figures against the page.",
+        "page 1, POST CODE: 16 JUNIOR ASSISTANT IN CHIEF ELECTRICAL INSPECTOR TO GOVERNMENT HOD, ENERGY DEPARTMENT., State: the G columns add up to 1; the printed TOTAL G is 0. Check the figures against the page.",
+        "page 1, POST CODE: 16 JUNIOR ASSISTANT IN CHIEF ELECTRICAL INSPECTOR TO GOVERNMENT HOD, ENERGY DEPARTMENT., State: the W columns add up to 1; the printed TOTAL W is 2. Check the figures against the page."
+       ],
+       "unreadLines": []
+      },
+      "problems": [
+       "page 1, POST CODE: 14 JUNIOR ASSISTANT IN BC WELFARE HOD, BC WELFARE DEPARTMENT, State: the G columns add up to 0; the printed TOTAL G is 1. Check the figures against the page.",
+       "page 1, POST CODE: 14 JUNIOR ASSISTANT IN BC WELFARE HOD, BC WELFARE DEPARTMENT, State: the W columns add up to 1; the printed TOTAL W is 0. Check the figures against the page.",
+       "page 1, POST CODE: 15 JUNIOR ASSISTANT IN (HO), MAHATMA JYOTHHIBA PHULE TELANGANA BACKWARD CLASSES WELFARE RESIDENTIAL EDUCATIONAL INSTITUTIONS SOCIETY, (BACKWARD CLASSES WELFARE DEPT), State: the W columns add up to 13; the printed TOTAL W is 12. Check the figures against the page.",
+       "page 1, POST CODE: 16 JUNIOR ASSISTANT IN CHIEF ELECTRICAL INSPECTOR TO GOVERNMENT HOD, ENERGY DEPARTMENT., State: the G columns add up to 1; the printed TOTAL G is 0. Check the figures against the page.",
+       "page 1, POST CODE: 16 JUNIOR ASSISTANT IN CHIEF ELECTRICAL INSPECTOR TO GOVERNMENT HOD, ENERGY DEPARTMENT., State: the W columns add up to 1; the printed TOTAL W is 2. Check the figures against the page."
+      ],
+      "removalsHeld": 0
+     },
+     "originPurposes": []
+    }
+   ],
+   "aiRequests": {
+    "sent": 2,
+    "failed": 0,
+    "retried": 0
+   },
+   "duplicates": []
+  },
+  "items": [
+   {
+    "id": "f:identity.title:f9297f20591a",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Title",
+    "value": "POST CODE: 14 JUNIOR ASSISTANT IN BC WELFARE HOD, BC WELFARE DEPARTMENT",
+    "action": "REPLACE",
+    "claims": [
+     {
+      "page": null,
+      "retrievalId": "605289a1-5b00-4950-add5-9d8df1a8b252"
+     }
+    ],
+    "current": "TEST RECORD Telangana junior assistants",
+    "conflict": false,
+    "fieldPath": "identity.title",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "f:vacancies.breakdown:82c79cedcc46",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "read from a scanned page by AI — check it against the page image",
+     "the posts add up to 26, the total says 1 — check both against the notice",
+     "worked out from the vacancy table below when it is saved"
+    ],
+    "label": "Vacancy breakdown",
+    "value": [
+     {
+      "post": "JUNIOR ASSISTANT IN (HO), MAHATMA JYOTHHIBA PHULE TELANGANA BACKWARD CLASSES WELFARE RESIDENTIAL EDUCATIONAL INSTITUTIONS SOCIETY, (BACKWARD CLASSES WELFARE DEP",
+      "count": 26
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "POST CODE: 15 JUNIOR ASSISTANT IN (HO), MAHATMA JYOTHHIBA PHULE TELANGANA BACKWARD CLASSES WELFARE RESIDENTIAL EDUCATIONAL INSTITUTIONS SOCIETY, (BACKWARD CLASSES WELFARE DEPT)\nCadre of the post | OC G | OC W | EWS G | EWS W | BC-A G | BC-A W | BC-B G | BC-B W | BC-C G | BC-C W | BC-D G | BC-D W | BC-E G | BC-E W | SC G | SC W | ST G | ST W | PH G | PH W | EX-SER G | EX-SER W | SPORTS G | SPORTS W | TOTAL G | TOTAL W | GRAND TOTAL\nState | 05 | 03 | 01 | 01 | 01 | 01 | 01 | 01 | 01 | - | - | 01 | - | 01 | 01 | 02 | 02 | 02 | 01 | 01 (VH) | 01 | - | - | - | 14 | 12 | 26",
+      "fromImage": true,
+      "retrievalId": "605289a1-5b00-4950-add5-9d8df1a8b252"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "vacancies.breakdown",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "f:vacancies.table:c8072a45f56f",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Vacancy table",
+    "value": {
+     "rows": [
+      {
+       "at": {
+        "post": "Post Code: 14 Junior Assistant In Bc Welfare Hod, Bc Welfare Department",
+        "cadre_of_the_post": "State"
+       },
+       "id": "t1r1",
+       "cells": {
+        "oc_w": 1
+       },
+       "total": 1,
+       "source": {
+        "line": "State | - | 01 | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | 01 | [blank] | 01",
+        "page": 1,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "605289a1-5b00-4950-add5-9d8df1a8b252"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "post": "Post Code: 15 Junior Assistant In (Ho), Mahatma Jyothhiba Phule Telangana Backward Classes Welfare Residential Educational Institutions Society, (Backward Classes Welfare Dept)",
+        "cadre_of_the_post": "State"
+       },
+       "id": "t2r1",
+       "cells": {
+        "oc_g": 5,
+        "oc_w": 3,
+        "ph_g": 1,
+        "ph_w": 1,
+        "sc_g": 1,
+        "sc_w": 2,
+        "st_g": 2,
+        "st_w": 2,
+        "ews_g": 1,
+        "ews_w": 1,
+        "bc_a_g": 1,
+        "bc_a_w": 1,
+        "bc_b_g": 1,
+        "bc_b_w": 1,
+        "bc_c_g": 1,
+        "bc_d_w": 1,
+        "bc_e_w": 1,
+        "ex_ser_g": 1
+       },
+       "total": 26,
+       "source": {
+        "line": "State | 05 | 03 | 01 | 01 | 01 | 01 | 01 | 01 | 01 | - | - | 01 | - | 01 | 01 | 02 | 02 | 02 | 01 | 01 (VH) | 01 | - | - | - | 14 | 12 | 26",
+        "page": 1,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "605289a1-5b00-4950-add5-9d8df1a8b252"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "post": "Post Code: 16 Junior Assistant In Chief Electrical Inspector To Government Hod, Energy Department.",
+        "cadre_of_the_post": "State"
+       },
+       "id": "t3r1",
+       "cells": {
+        "sc_g": 1,
+        "bc_a_w": 1
+       },
+       "total": 2,
+       "source": {
+        "line": "State | - | - | - | - | - | 01 | - | - | - | - | - | - | - | - | 01 | - | - | - | - | - | - | - | - | - | - | 02 | 02",
+        "page": 1,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "605289a1-5b00-4950-add5-9d8df1a8b252"
+       },
+       "status": "STATED"
+      }
+     ],
+     "categories": [
+      {
+       "key": "oc_g",
+       "kind": "UNDETERMINED",
+       "label": "OC G"
+      },
+      {
+       "key": "oc_w",
+       "kind": "UNDETERMINED",
+       "label": "OC W"
+      },
+      {
+       "key": "ews_g",
+       "kind": "UNDETERMINED",
+       "label": "EWS G"
+      },
+      {
+       "key": "ews_w",
+       "kind": "UNDETERMINED",
+       "label": "EWS W"
+      },
+      {
+       "key": "bc_a_g",
+       "kind": "UNDETERMINED",
+       "label": "BC-A G"
+      },
+      {
+       "key": "bc_a_w",
+       "kind": "UNDETERMINED",
+       "label": "BC-A W"
+      },
+      {
+       "key": "bc_b_g",
+       "kind": "UNDETERMINED",
+       "label": "BC-B G"
+      },
+      {
+       "key": "bc_b_w",
+       "kind": "UNDETERMINED",
+       "label": "BC-B W"
+      },
+      {
+       "key": "bc_c_g",
+       "kind": "UNDETERMINED",
+       "label": "BC-C G"
+      },
+      {
+       "key": "bc_c_w",
+       "kind": "UNDETERMINED",
+       "label": "BC-C W"
+      },
+      {
+       "key": "bc_d_g",
+       "kind": "UNDETERMINED",
+       "label": "BC-D G"
+      },
+      {
+       "key": "bc_d_w",
+       "kind": "UNDETERMINED",
+       "label": "BC-D W"
+      },
+      {
+       "key": "bc_e_g",
+       "kind": "UNDETERMINED",
+       "label": "BC-E G"
+      },
+      {
+       "key": "bc_e_w",
+       "kind": "UNDETERMINED",
+       "label": "BC-E W"
+      },
+      {
+       "key": "sc_g",
+       "kind": "UNDETERMINED",
+       "label": "SC G"
+      },
+      {
+       "key": "sc_w",
+       "kind": "UNDETERMINED",
+       "label": "SC W"
+      },
+      {
+       "key": "st_g",
+       "kind": "UNDETERMINED",
+       "label": "ST G"
+      },
+      {
+       "key": "st_w",
+       "kind": "UNDETERMINED",
+       "label": "ST W"
+      },
+      {
+       "key": "ph_g",
+       "kind": "UNDETERMINED",
+       "label": "PH G"
+      },
+      {
+       "key": "ph_w",
+       "kind": "UNDETERMINED",
+       "label": "PH W"
+      },
+      {
+       "key": "ex_ser_g",
+       "kind": "UNDETERMINED",
+       "label": "EX-SER G"
+      },
+      {
+       "key": "ex_ser_w",
+       "kind": "UNDETERMINED",
+       "label": "EX-SER W"
+      },
+      {
+       "key": "sports_g",
+       "kind": "UNDETERMINED",
+       "label": "SPORTS G"
+      },
+      {
+       "key": "sports_w",
+       "kind": "UNDETERMINED",
+       "label": "SPORTS W"
+      }
+     ],
+     "dimensions": [
+      {
+       "key": "post",
+       "label": "Post"
+      },
+      {
+       "key": "cadre_of_the_post",
+       "label": "Cadre of the post"
+      }
+     ],
+     "statedTotals": []
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "State | - | 01 | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | 01 | [blank] | 01",
+      "retrievalId": "605289a1-5b00-4950-add5-9d8df1a8b252"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "vacancies.table",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:vacancies.total:6b86b273ff34",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "the posts add up to 26, the total says 1 — check both against the notice",
+     "worked out from the vacancy table below when it is saved"
+    ],
+    "label": "Total vacancies",
+    "value": 1,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": null,
+      "retrievalId": "605289a1-5b00-4950-add5-9d8df1a8b252"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "vacancies.total",
+    "supersedes": [],
+    "defaultTicked": false
+   }
+  ],
+  "warnings": [
+   "No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.",
+   "No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.",
+   "upload — notification, not confirmed: on scanned page 1 the AI suggests other spellings for a word — kept exactly as printed; apply a suggestion only if the notice means it: “JYOTHHIBA” → “JYOTHIRBA”."
+  ],
+  "replacedInImport": []
+ }
+}

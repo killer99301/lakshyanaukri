@@ -1,0 +1,4459 @@
+{
+ "progress": {
+  "jobId": "7608ef07-6555-4f31-8375-8e72e1c7e3e4",
+  "state": "DONE",
+  "stateNote": null,
+  "importId": "7a21844b-1fc4-4b4a-a6ff-c7df19412cf8",
+  "mode": "NEW",
+  "recruitmentId": null,
+  "title": "TEST RECORD LIC mixed",
+  "sources": [
+   {
+    "no": 1,
+    "kind": "pdf",
+    "fileName": "lic-mixed.pdf",
+    "sha256": "8888c0b5fe5be300c35483d451ba933d2d23f8c11003ecbf3c462f421ee8829c",
+    "pages": 10,
+    "uploadedPages": 10,
+    "noTextPages": [
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "unavailable": [],
+    "textPages": 4,
+    "processedPages": 4,
+    "scanImages": [
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "scanRead": [
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "scanSuspect": [],
+    "piecesKept": 6
+   }
+  ],
+  "tasks": {
+   "total": 11,
+   "done": 11,
+   "running": 0,
+   "pending": 0,
+   "failed": 0,
+   "split": 0
+  },
+  "failedTasks": [],
+  "ai": {
+   "estimate": 11,
+   "sent": 12,
+   "retried": 1,
+   "failed": 1
+  },
+  "allowance": {
+   "used": 37,
+   "cap": 150
+  },
+  "complete": true,
+  "updatedAt": "2026-10-29T10:54:15.756Z"
+ },
+ "proposal": {
+  "meta": {
+   "mode": "NEW",
+   "newJob": {
+    "title": "TEST RECORD LIC mixed",
+    "govType": "PSU",
+    "organizationId": "lic-mixed",
+    "recruitmentYear": 2026,
+    "organizationName": "LIC-MIXED"
+   },
+   "sources": [
+    {
+     "id": "aefd9898-c38a-4435-800f-765dc1681f1f",
+     "label": "upload — notification, not confirmed",
+     "method": "UPLOADED",
+     "pattern": {
+      "read": 1,
+      "tables": [
+       {
+        "page": 3,
+        "read": true,
+        "heading": "Table D: Online test"
+       }
+      ],
+      "expected": 1,
+      "problems": []
+     },
+     "reading": {
+      "mode": "batches",
+      "pages": 10,
+      "batches": [
+       {
+        "last": 10,
+        "first": 1,
+        "status": "read",
+        "values": 10
+       },
+       {
+        "last": 9,
+        "first": 5,
+        "status": "read",
+        "values": 8
+       }
+      ],
+      "noTextPages": [],
+      "unavailable": [],
+      "suspectPages": []
+     },
+     "refused": [
+      {
+       "reason": "AI quote not found in the source text",
+       "fieldPath": "howToApply"
+      }
+     ],
+     "summary": "LIC HFL is recruiting graduates aged 20 to 25 years for apprenticeship positions with a monthly stipend through an online examination process.",
+     "notFound": [
+      "Notification Number",
+      "Notification Date",
+      "Vacancy Breakdown",
+      "Correction Window End",
+      "Syllabus"
+     ],
+     "originUrl": null,
+     "originRole": "NONE",
+     "pageImages": {
+      "jobId": "7608ef07-6555-4f31-8375-8e72e1c7e3e4",
+      "pages": [
+       5,
+       6,
+       7,
+       8,
+       9,
+       10
+      ],
+      "sourceNo": 1
+     },
+     "authenticity": "UNCONFIRMED",
+     "declaredKind": "OFFICIAL_NOTIFICATION",
+     "vacancyTables": {
+      "diff": {
+       "same": 0,
+       "added": 181,
+       "changed": 0,
+       "removed": 0,
+       "addedRows": [
+        {
+         "at": {
+          "city": "Ananthapur",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Bhimavaram",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Chittoor",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Kadapa",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Kakinada",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Kurnool",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Machilipatnam",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Nellore",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Ongole",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Rajahmundry",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Tirupathi",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Vijayawada",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Vizianagaran",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Andhra Pradesh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Dispur",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Assam"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Guwahati",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Assam"
+         },
+         "page": 6,
+         "total": 3,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Jorhat",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Assam"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Silchar",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Assam"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Tezpur",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Assam"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Bhagalpur",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Bihar"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Darbhanga",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Bihar"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Gaya",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Bihar"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Hajipur",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Bihar"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Lakhisarai",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Bihar"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Motihari",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Bihar"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Muzaffarpur",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Bihar"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Patna",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Bihar"
+         },
+         "page": 6,
+         "total": 2,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Purniea",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Bihar"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Chandigarh",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Chandigarh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Durg Bhilai",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Chattisgarh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Raipur",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Chattisgarh"
+         },
+         "page": 6,
+         "total": 4,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Rajnandgaon",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Chattisgarh"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "New Delhi",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Delhi"
+         },
+         "page": 6,
+         "total": 4,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Goa",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Goa"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Ahmedabad",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Gujarat"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Mehsana",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Gujarat"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Prahlad Nagar",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Gujarat"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Surat",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Gujarat"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Ambala",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Haryana"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Faridabad",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Haryana"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Hissar",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Haryana"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Jind",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Haryana"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Karnal",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Haryana"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Sirsa",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Haryana"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Sonipat",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Haryana"
+         },
+         "page": 6,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Shimla",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Himachal Pradesh"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Jammu",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Jammu And Kashmir"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Dhanbad",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Jharkhand"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Hazaribagh",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Jharkhand"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Jamshedpur",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Jharkhand"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Ranchi",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Jharkhand"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Bangalore",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Karnataka"
+         },
+         "page": 7,
+         "total": 13,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Belagavi",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Karnataka"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Bellary",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Karnataka"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Davangere",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Karnataka"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Hassan",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Karnataka"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Hoskote",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Karnataka"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Hubballi",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Karnataka"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Mandya",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Karnataka"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Mangalore",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Karnataka"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        },
+        {
+         "at": {
+          "city": "Mysuru",
+          "post": "TEST RECORD LIC mixed",
+          "state": "Karnataka"
+         },
+         "page": 7,
+         "total": 1,
+         "status": "STATED"
+        }
+       ],
+       "changedRows": [],
+       "removedRows": [],
+       "untouchedPosts": []
+      },
+      "from": "tables",
+      "coverage": {
+       "pages": 9,
+       "tables": [
+        {
+         "read": true,
+         "rows": 181,
+         "pages": [
+          6,
+          7,
+          8,
+          9
+         ],
+         "title": "(untitled table)",
+         "readBy": "AI_IMAGE",
+         "columns": [
+          "Total"
+         ],
+         "columnsBy": "CODE"
+        }
+       ],
+       "unreadLines": []
+      },
+      "problems": [],
+      "removalsHeld": 0
+     },
+     "originPurposes": []
+    }
+   ],
+   "aiRequests": {
+    "sent": 12,
+    "failed": 1,
+    "retried": 1
+   },
+   "duplicates": []
+  },
+  "items": [
+   {
+    "id": "f:age:e87a06cccef4",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Age limit",
+    "value": {
+     "max": 25,
+     "min": 20,
+     "relaxations": []
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Age as on 01-Oct-2026 20 to 25 years",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "age",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:conditions:ca5848f5ae90",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "read from a scanned page by AI — check it against the page image"
+    ],
+    "label": "Notes (admin only, not published)",
+    "value": [
+     "Apprenticeship is an On Job Training provided to selected fresh graduates to help them acquire soft skills, domain knowledge, real time work experience and become industry ready.",
+     "Apprenticeship is NOT an employment. Apprentices are NOT Employees. Apprentices are ONLY Trainees.",
+     "LIC Housing Finance Ltd is NOT obliged to provide full-time employment to its apprentices.",
+     "The test conducting agency, would be analysing the responses (answers) of individual candidates with other candidates to detect patterns of similarity of right and wrong answers."
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Apprenticeship is an On Job Training provided to selected fresh graduates to help them acquire soft skills, domain knowledge, real time work experience and become industry ready.",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     },
+     {
+      "page": 5,
+      "quote": "The test conducting agency, would be analysing the responses (answers) of individual candidates with other candidates to detect patterns of similarity of right and wrong answers.",
+      "fromImage": true,
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "conditions",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.applicationCloseDate:37e17f8cbb20",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Last date to apply",
+    "value": "2026-11-01",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": null,
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.applicationCloseDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.applicationOpenDate:29f81dedb1b6",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Applications open",
+    "value": "2026-10-20",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": null,
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.applicationOpenDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.examDate:f528027a3840",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "read from a scanned page by AI — check it against the page image"
+    ],
+    "label": "Exam date",
+    "value": "2026-11-07",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 5,
+      "quote": "Entrance Examination will be conducted by BFSI Sector Skill Council of India | 07.11.2026",
+      "fromImage": true,
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.examDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.feePaymentCloseDate:37e17f8cbb20",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "read from a scanned page by AI — check it against the page image"
+    ],
+    "label": "Fee payment deadline",
+    "value": "2026-11-01",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 5,
+      "quote": "Last Date to pay the examination fee to BFSI Sector Skill Council of India | 01.11.2026",
+      "fromImage": true,
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.feePaymentCloseDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:dates.interviewDate:68bbad58a196",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "read from a scanned page by AI — check it against the page image"
+    ],
+    "label": "Interview date",
+    "value": "2026-11-15",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 5,
+      "quote": "Candidates shortlisted based on the entrance examination result will be invited for Document Verification & Personal Interview at LIC HFL offices | 15.11.2026",
+      "fromImage": true,
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "dates.interviewDate",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:eligibility:b2148ec0824f",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Eligibility",
+    "value": [
+     {
+      "post": "Apprentice",
+      "qualification": [
+       "Should have completed graduation in any stream as on 01-Oct-2026 but not before 1-Oct-2001"
+      ]
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Should have completed graduation in any stream as on 01-Oct-2026 but not before 1-Oct-2001",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "eligibility",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:examPattern:2573c2e953f6",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "✓ all 1 papers read by code from the notice's tables"
+    ],
+    "label": "Exam pattern",
+    "value": [
+     {
+      "name": "Table D: Online test",
+      "sections": [
+       {
+        "marks": 25,
+        "subject": "General/Financial Awareness",
+        "questions": 25
+       },
+       {
+        "marks": 25,
+        "subject": "General English",
+        "questions": 25
+       },
+       {
+        "marks": 25,
+        "subject": "Reasoning Ability & Computer Aptitude",
+        "questions": 25
+       },
+       {
+        "marks": 25,
+        "subject": "Quantitative Aptitude",
+        "questions": 25
+       }
+      ],
+      "totalMarks": 100,
+      "totalQuestions": 100,
+      "durationMinutes": 60
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 3,
+      "quote": "General/Financial Awareness 25 25",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "examPattern",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:examStages:61f7a2cbc402",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "read from a scanned page by AI — check it against the page image",
+     "not classified as a selection stage or an announcement: “November (Tentative)” — choose in the exam stages editor"
+    ],
+    "label": "Exam stages",
+    "value": [
+     {
+      "kind": "UNCLASSIFIED",
+      "name": "November (Tentative)",
+      "notes": "November (Tentative)",
+      "order": 1,
+      "status": "NOT_DECLARED",
+      "certainty": "TBA"
+     },
+     {
+      "kind": "SELECTION",
+      "name": "Entrance Examination will be conducted by BFSI Sector Skill Council of India",
+      "order": 2,
+      "status": "SCHEDULED",
+      "dateIso": "2026-11-07",
+      "certainty": "CONFIRMED"
+     }
+    ],
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "3 Apprenticeship Start\nDate/Month\nNovember (Tentative)",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     },
+     {
+      "page": 5,
+      "quote": "Entrance Examination will be conducted by BFSI Sector Skill Council of India | 07.11.2026",
+      "fromImage": true,
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "examStages",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:financial.feeGeneral:1a1cf797fabe",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Fee (General / OBC)",
+    "value": 800,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 3,
+      "quote": "General, EWS and Other Backward Class (OBC)-Male\ncandidates Rs.800/- plus G",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.feeGeneral",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:financial.feeSCST:27badc983df1",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Fee (SC / ST / PwBD)",
+    "value": 200,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 3,
+      "quote": "Scheduled Caste (SC) / Scheduled Tribe (ST) candidates Rs.200/-plus GST",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.feeSCST",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:financial.payScale:093287fda04f",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Pay scale / stipend",
+    "value": "Rs.16,650/- Metro Cities / Rs.14,150/- Other Cities",
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "Monthly Stipend Rs.16,650/- Metro Cities: Ahmedabad, Bangalore, Chennai, Delhi, Hyderabad, Kolkata, Mumbai, Pune, Surat Rs.14,150/- Other Cities",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "financial.payScale",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:identity.title:66267b1256aa",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Title",
+    "value": "LICHFL Apprenticeship Program-010- Advertisement Notification",
+    "action": "REPLACE",
+    "claims": [
+     {
+      "page": null,
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "current": "TEST RECORD LIC mixed",
+    "conflict": false,
+    "fieldPath": "identity.title",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:12fdeadacf5a",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://nats.education.gov.in.in/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "eligible, on the apprenticeship portals of Government of India viz NATS portal https://nats.education.gov.in.in (Navigate to the “Student Register/Logi",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:729776841070",
+    "kind": "LINK",
+    "flags": [],
+    "label": "Official website link",
+    "value": {
+     "url": "https://beep.bfsissc.com/",
+     "type": "OFFICIAL_WEBSITE",
+     "label": "Official Website",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "e candidates for online examination and submission of additional information at https://beep.bfsissc.com will be 01-Nov-2026 e. All candidates a",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OFFICIAL_WEBSITE",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:4791c393e6fb",
+    "kind": "LINK",
+    "flags": [],
+    "label": "other link",
+    "value": {
+     "url": "https://nats.education.gov.in/assets/manual/student_manual.pdf",
+     "type": "OTHER",
+     "label": "Link",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "ive apprenticeship portals. For NATS portal refer to “Candidate User Manual” on https://nats.education.gov.in/assets/manual/student_manual.pdf d. Candidate will receive an email from",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OTHER",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "l:f1eed79a9ba2",
+    "kind": "LINK",
+    "flags": [],
+    "label": "other link",
+    "value": {
+     "url": "https://nats.education.gov.in/student_type.php",
+     "type": "OTHER",
+     "label": "Link",
+     "official": false
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "quote": "pprenticeship Advertisement of “LICHFL” after login into the portal by visiting https://nats.education.gov.in/student_type.php . It is very IMPORTANT for all candidat",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "links#OTHER",
+    "supersedes": [],
+    "defaultTicked": false
+   },
+   {
+    "id": "f:selection:bcad4c5d1c5c",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Selection process",
+    "value": {
+     "stages": [
+      {
+       "name": "Online Examination",
+       "type": "CBT",
+       "order": 1
+      }
+     ]
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 2,
+      "quote": "Candidate will receive an email from BFSI SSC inviting the candidate to fill up a detailed application and make payment, for Online Examination for “LIC HFL Apprenticeship Program”.",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "selection",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:vacancies.table:5f84735341d9",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this"
+    ],
+    "label": "Vacancy table",
+    "value": {
+     "rows": [
+      {
+       "at": {
+        "city": "Ananthapur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r1",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Ananthapur | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Bhimavaram",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r2",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Bhimavaram | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Chittoor",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r3",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Chittoor | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kadapa",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r4",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Kadapa | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kakinada",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r5",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Kakinada | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kurnool",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r6",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Kurnool | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Machilipatnam",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r7",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Machilipatnam | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Nellore",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r8",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Nellore | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ongole",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r9",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Ongole | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Rajahmundry",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r10",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Rajahmundry | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Tirupathi",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r11",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Tirupathi | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Vijayawada",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r12",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Vijayawada | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Vizianagaran",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Andhra Pradesh"
+       },
+       "id": "t1r13",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Andhra Pradesh | Vizianagaran | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Dispur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Assam"
+       },
+       "id": "t1r14",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Assam | Dispur | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Guwahati",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Assam"
+       },
+       "id": "t1r15",
+       "cells": {},
+       "total": 3,
+       "source": {
+        "line": "Assam | Guwahati | 3",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jorhat",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Assam"
+       },
+       "id": "t1r16",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Assam | Jorhat | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Silchar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Assam"
+       },
+       "id": "t1r17",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Assam | Silchar | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Tezpur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Assam"
+       },
+       "id": "t1r18",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Assam | Tezpur | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Bhagalpur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Bihar"
+       },
+       "id": "t1r19",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Bihar | Bhagalpur | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Darbhanga",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Bihar"
+       },
+       "id": "t1r20",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Bihar | Darbhanga | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Gaya",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Bihar"
+       },
+       "id": "t1r21",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Bihar | Gaya | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hajipur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Bihar"
+       },
+       "id": "t1r22",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Bihar | Hajipur | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Lakhisarai",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Bihar"
+       },
+       "id": "t1r23",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Bihar | Lakhisarai | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Motihari",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Bihar"
+       },
+       "id": "t1r24",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Bihar | Motihari | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Muzaffarpur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Bihar"
+       },
+       "id": "t1r25",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Bihar | Muzaffarpur | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Patna",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Bihar"
+       },
+       "id": "t1r26",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Bihar | Patna | 2",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Purniea",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Bihar"
+       },
+       "id": "t1r27",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Bihar | Purniea | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Chandigarh",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Chandigarh"
+       },
+       "id": "t1r28",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Chandigarh | Chandigarh | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Durg Bhilai",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Chattisgarh"
+       },
+       "id": "t1r29",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Chattisgarh | Durg Bhilai | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Raipur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Chattisgarh"
+       },
+       "id": "t1r30",
+       "cells": {},
+       "total": 4,
+       "source": {
+        "line": "Chattisgarh | Raipur | 4",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Rajnandgaon",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Chattisgarh"
+       },
+       "id": "t1r31",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Chattisgarh | Rajnandgaon | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "New Delhi",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Delhi"
+       },
+       "id": "t1r32",
+       "cells": {},
+       "total": 4,
+       "source": {
+        "line": "Delhi | New Delhi | 4",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Goa",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Goa"
+       },
+       "id": "t1r33",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Goa | Goa | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ahmedabad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Gujarat"
+       },
+       "id": "t1r34",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Gujarat | Ahmedabad | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Mehsana",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Gujarat"
+       },
+       "id": "t1r35",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Gujarat | Mehsana | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Prahlad Nagar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Gujarat"
+       },
+       "id": "t1r36",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Gujarat | Prahlad Nagar | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Surat",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Gujarat"
+       },
+       "id": "t1r37",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Gujarat | Surat | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ambala",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Haryana"
+       },
+       "id": "t1r38",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Haryana | Ambala | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Faridabad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Haryana"
+       },
+       "id": "t1r39",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Haryana | Faridabad | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hissar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Haryana"
+       },
+       "id": "t1r40",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Haryana | Hissar | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jind",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Haryana"
+       },
+       "id": "t1r41",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Haryana | Jind | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Karnal",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Haryana"
+       },
+       "id": "t1r42",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Haryana | Karnal | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Sirsa",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Haryana"
+       },
+       "id": "t1r43",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Haryana | Sirsa | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Sonipat",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Haryana"
+       },
+       "id": "t1r44",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Haryana | Sonipat | 1",
+        "page": 6,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Shimla",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Himachal Pradesh"
+       },
+       "id": "t1r45",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Himachal Pradesh | Shimla | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jammu",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Jammu And Kashmir"
+       },
+       "id": "t1r46",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Jammu And Kashmir | Jammu | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Dhanbad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Jharkhand"
+       },
+       "id": "t1r47",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Jharkhand | Dhanbad | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hazaribagh",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Jharkhand"
+       },
+       "id": "t1r48",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Jharkhand | Hazaribagh | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jamshedpur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Jharkhand"
+       },
+       "id": "t1r49",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Jharkhand | Jamshedpur | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ranchi",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Jharkhand"
+       },
+       "id": "t1r50",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Jharkhand | Ranchi | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Bangalore",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r51",
+       "cells": {},
+       "total": 13,
+       "source": {
+        "line": "Karnataka | Bangalore | 13",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Belagavi",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r52",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Belagavi | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Bellary",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r53",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Bellary | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Davangere",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r54",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Davangere | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hassan",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r55",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Hassan | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hoskote",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r56",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Hoskote | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hubballi",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r57",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Hubballi | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Mandya",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r58",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Mandya | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Mangalore",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r59",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Mangalore | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Mysuru",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r60",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Mysuru | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Sarjapur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r61",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Sarjapur | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Tumkur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Karnataka"
+       },
+       "id": "t1r62",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Karnataka | Tumkur | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Alappuzha",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Kerala"
+       },
+       "id": "t1r63",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Kerala | Alappuzha | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Calicut",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Kerala"
+       },
+       "id": "t1r64",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Kerala | Calicut | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kannur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Kerala"
+       },
+       "id": "t1r65",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Kerala | Kannur | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kottayam",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Kerala"
+       },
+       "id": "t1r66",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Kerala | Kottayam | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Palakkad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Kerala"
+       },
+       "id": "t1r67",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Kerala | Palakkad | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Thiruvananthpuram",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Kerala"
+       },
+       "id": "t1r68",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Kerala | Thiruvananthpuram | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Thrissur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Kerala"
+       },
+       "id": "t1r69",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Kerala | Thrissur | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Balaghat",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Madhya Pradesh"
+       },
+       "id": "t1r70",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Madhya Pradesh | Balaghat | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Betul",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Madhya Pradesh"
+       },
+       "id": "t1r71",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Madhya Pradesh | Betul | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Bhopal",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Madhya Pradesh"
+       },
+       "id": "t1r72",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Madhya Pradesh | Bhopal | 2",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Indore",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Madhya Pradesh"
+       },
+       "id": "t1r73",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Madhya Pradesh | Indore | 2",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Khandwa",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Madhya Pradesh"
+       },
+       "id": "t1r74",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Madhya Pradesh | Khandwa | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Rewa",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Madhya Pradesh"
+       },
+       "id": "t1r75",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Madhya Pradesh | Rewa | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Sagar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Madhya Pradesh"
+       },
+       "id": "t1r76",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Madhya Pradesh | Sagar | 2",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ahmednagar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r77",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Ahmednagar | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Amravati",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r78",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Maharashtra | Amravati | 2",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Aurangabad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r79",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Aurangabad | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Badlapur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r80",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Badlapur | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Baner",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r81",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Baner | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ghodbunder Road",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r82",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Ghodbunder Road | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jalgaon",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r83",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Jalgaon | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kolhapur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r84",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Kolhapur | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Latur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r85",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Latur | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Mumbai",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r86",
+       "cells": {},
+       "total": 4,
+       "source": {
+        "line": "Maharashtra | Mumbai | 4",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Nagpur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r87",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Nagpur | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Nasik",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r88",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Nasik | 1",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Navi Mumbai",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r89",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Maharashtra | Navi Mumbai | 2",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Pune",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r90",
+       "cells": {},
+       "total": 3,
+       "source": {
+        "line": "Maharashtra | Pune | 3",
+        "page": 7,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Raigad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r91",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Raigad | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Sangli",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r92",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Sangli | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Satara",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r93",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Satara | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Thane",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r94",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Maharashtra | Thane | 2",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Virar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r95",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Virar | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Wardha",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Maharashtra"
+       },
+       "id": "t1r96",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Maharashtra | Wardha | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Balasore",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Odisha"
+       },
+       "id": "t1r97",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Odisha | Balasore | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Berhampur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Odisha"
+       },
+       "id": "t1r98",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Odisha | Berhampur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jajpur Road",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Odisha"
+       },
+       "id": "t1r99",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Odisha | Jajpur Road | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Rourkela",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Odisha"
+       },
+       "id": "t1r100",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Odisha | Rourkela | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Sambalpur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Odisha"
+       },
+       "id": "t1r101",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Odisha | Sambalpur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Amritsar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Punjab"
+       },
+       "id": "t1r102",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Punjab | Amritsar | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Bhatinda",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Punjab"
+       },
+       "id": "t1r103",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Punjab | Bhatinda | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jalandhar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Punjab"
+       },
+       "id": "t1r104",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Punjab | Jalandhar | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Mohali",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Punjab"
+       },
+       "id": "t1r105",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Punjab | Mohali | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Patiala",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Punjab"
+       },
+       "id": "t1r106",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Punjab | Patiala | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ajmer",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r107",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Ajmer | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Alwar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r108",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Alwar | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Bikaner",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r109",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Bikaner | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Dungarpur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r110",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Dungarpur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jaipur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r111",
+       "cells": {},
+       "total": 4,
+       "source": {
+        "line": "Rajasthan | Jaipur | 4",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jodhpur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r112",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Jodhpur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kishangarh",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r113",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Kishangarh | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kota",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r114",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Kota | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Pali",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r115",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Pali | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Sikar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r116",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Sikar | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Sri Ganganagar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r117",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Sri Ganganagar | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Udaipur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Rajasthan"
+       },
+       "id": "t1r118",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Rajasthan | Udaipur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ambattur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r119",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Ambattur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Chennai",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r120",
+       "cells": {},
+       "total": 7,
+       "source": {
+        "line": "Tamil Nadu | Chennai | 7",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Coimbatore",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r121",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Coimbatore | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Dindigul",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r122",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Dindigul | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Dinnur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r123",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Dinnur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Erode",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r124",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Erode | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ganapathy",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r125",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Ganapathy | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hosur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r126",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Hosur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kanchipuram",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r127",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Kanchipuram | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Karaikudi",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r128",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Karaikudi | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Karur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r129",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Karur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Madurai",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r130",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Tamil Nadu | Madurai | 2",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Nagercoil",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r131",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Nagercoil | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ondipudur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r132",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Ondipudur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Pollachi",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r133",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Pollachi | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Puducherry",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r134",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Puducherry | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Salem",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r135",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Salem | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Thanjavur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r136",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Thanjavur | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Thirumangalam",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r137",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Thirumangalam | 1",
+        "page": 8,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Tirunelveli",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r138",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Tirunelveli | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Tirupur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r139",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Tirupur | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Vellore",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tamil Nadu"
+       },
+       "id": "t1r140",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tamil Nadu | Vellore | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hanumakonda",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Telangana"
+       },
+       "id": "t1r141",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Telangana | Hanumakonda | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hyderabad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Telangana"
+       },
+       "id": "t1r142",
+       "cells": {},
+       "total": 7,
+       "source": {
+        "line": "Telangana | Hyderabad | 7",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Karimnagar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Telangana"
+       },
+       "id": "t1r143",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Telangana | Karimnagar | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Nalgonda",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Telangana"
+       },
+       "id": "t1r144",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Telangana | Nalgonda | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Nizamabad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Telangana"
+       },
+       "id": "t1r145",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Telangana | Nizamabad | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ranga Reddy",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Telangana"
+       },
+       "id": "t1r146",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Telangana | Ranga Reddy | 2",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Sangareddy",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Telangana"
+       },
+       "id": "t1r147",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Telangana | Sangareddy | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Secunderabad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Telangana"
+       },
+       "id": "t1r148",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Telangana | Secunderabad | 2",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Agartala",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Tripura"
+       },
+       "id": "t1r149",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Tripura | Agartala | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Aligarh",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r150",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Aligarh | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ayodhya",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r151",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Ayodhya | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Basti",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r152",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Basti | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Etawah",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r153",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Etawah | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Ghaziabad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r154",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Ghaziabad | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Greater Noida",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r155",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Greater Noida | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hapur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r156",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Hapur | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jaunpur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r157",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Jaunpur | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Jhansi",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r158",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Jhansi | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Mathura",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r159",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Mathura | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Mau",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r160",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Mau | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Meerut",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r161",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Meerut | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Moradabad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r162",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Moradabad | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Raebareli",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r163",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Raebareli | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Rudrapur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r164",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Rudrapur | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Sitapur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttar Pradesh"
+       },
+       "id": "t1r165",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttar Pradesh | Sitapur | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Dehradun",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttarakhand"
+       },
+       "id": "t1r166",
+       "cells": {},
+       "total": 2,
+       "source": {
+        "line": "Uttarakhand | Dehradun | 2",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Haldwani",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttarakhand"
+       },
+       "id": "t1r167",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttarakhand | Haldwani | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Haridwar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "Uttarakhand"
+       },
+       "id": "t1r168",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "Uttarakhand | Haridwar | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Barasat",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r169",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Barasat | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Bardhaman",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r170",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Bardhaman | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Chinsurah",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r171",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Chinsurah | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Coochbehar",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r172",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Coochbehar | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Gangtok",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r173",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Gangtok | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Hooghly",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r174",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Hooghly | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Howrah",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r175",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Howrah | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kharagpur",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r176",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Kharagpur | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Knc Road",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r177",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Knc Road | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Kolkata",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r178",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Kolkata | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Malda",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r179",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Malda | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Murshidabad",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r180",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Murshidabad | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      },
+      {
+       "at": {
+        "city": "Siliguri",
+        "post": "TEST RECORD LIC mixed",
+        "state": "West Bengal"
+       },
+       "id": "t1r181",
+       "cells": {},
+       "total": 1,
+       "source": {
+        "line": "West Bengal | Siliguri | 1",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       },
+       "status": "STATED"
+      }
+     ],
+     "categories": [],
+     "dimensions": [
+      {
+       "key": "post",
+       "label": "Post"
+      },
+      {
+       "key": "state",
+       "label": "State"
+      },
+      {
+       "key": "city",
+       "label": "City"
+      }
+     ],
+     "statedTotals": [
+      {
+       "at": {},
+       "total": 232,
+       "source": {
+        "line": "Grand Total | [blank] | 232",
+        "page": 9,
+        "readBy": "AI_IMAGE",
+        "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+       }
+      }
+     ]
+    },
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 6,
+      "quote": "Andhra Pradesh | Ananthapur | 1",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "vacancies.table",
+    "supersedes": [],
+    "defaultTicked": true
+   },
+   {
+    "id": "f:vacancies.total:835d5e831434",
+    "kind": "FIELD",
+    "flags": [
+     "no confirmed official document states this",
+     "read from a scanned page by AI — check it against the page image",
+     "worked out from the vacancy table below when it is saved"
+    ],
+    "label": "Total vacancies",
+    "value": 232,
+    "action": "FILL",
+    "claims": [
+     {
+      "page": 1,
+      "quote": "1 Number of Apprentices\nrequired by LIC Housing\nFinance Ltd.\n(State & City wise vacancy as\nper Table E.\n232",
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     },
+     {
+      "page": 9,
+      "quote": "Grand Total | [blank] | 232",
+      "fromImage": true,
+      "retrievalId": "aefd9898-c38a-4435-800f-765dc1681f1f"
+     }
+    ],
+    "conflict": false,
+    "fieldPath": "vacancies.total",
+    "supersedes": [],
+    "defaultTicked": false
+   }
+  ],
+  "warnings": [
+   "No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.",
+   "No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking."
+  ],
+  "replacedInImport": []
+ }
+}
