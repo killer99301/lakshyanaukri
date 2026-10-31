@@ -99,6 +99,27 @@ in Stage C, before anything else in it.
    - its schedule evidence (quote and page);
    - that it is Pending when saved;
    - that a reading's own selection process is never overwritten.
+
+   **Done, 1 November 2026: 17 of 17 pass.** Check:
+   `tests/local-stack/importer-selection-fallback.replay.ts`. What it does:
+   - takes the real IBPS PDF through the real page batches, merging,
+     proposal, save and reopen, on the in-memory test database;
+   - replaces the model with round 2's real answers (39 replayed requests,
+     no Gemini request).
+
+   Results:
+   - **No selection process in the reading.** Three stages are built, as
+     printed: Preliminary (CBT), Main / Single (CBT), and the officers'
+     interview. Training, call letters and results are left out.
+   - **Evidence.** The quote is a schedule line, found in the stored text of
+     page 1. The item says it was built from the schedule. It is saved as an
+     extracted claim with no verification: Pending, class SUPPORTED. It is the
+     same when reopened.
+   - **Round 1's own process.** Kept exactly as read.
+   - **Round 2's own process.** Kept as read; only the interview is added,
+     and that is said.
+   - **Negative check.** With the fallback switched off, 5 checks fail as
+     they should.
 2. **The intelligence baseline E8** ("Approving vacancy change generates
    ProposedChange without writing canonical data"). Before any change to the
    approval workflow:
