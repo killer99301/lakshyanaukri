@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// KNOWN DEFECT (found in Stage C, C1; NOT fixed): a "(continued)" heading
+// KNOWN DEFECT (found in Stage C, C1; FIXED 1 November 2026): a "(continued)" heading
 // ═══════════════════════════════════════════════════════════
 //
 // A reproduction, not a test (it is not run by any suite). The code table
@@ -10,9 +10,10 @@
 // 3 Gamma Gramin Bank". Its figures are right. The same page without those
 // two lines reads correctly.
 //
-// Documented in docs/known-defects/continued-heading.md. Fixing it needs the
-// owner's go-ahead (it belongs with B2.5, tables across pages). C3's table
-// review must let a person catch such a row label.
+// Documented in docs/known-defects/continued-heading.md. Fixed in the B2.5
+// reader with the owner's go-ahead; this script now prints "row labels clean"
+// for both. The regression tests are tests/cms/cross-page.test.ts (CP10-CP14)
+// and tests/local-stack/continued-heading.test.ts (import to publication).
 //
 //   npx tsx --tsconfig tsconfig.json tests/local-stack/known-defect-continued-heading.repro.ts
 

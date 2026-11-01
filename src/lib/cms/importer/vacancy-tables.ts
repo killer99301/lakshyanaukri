@@ -187,6 +187,10 @@ function columnWordCount(t: string): number {
   return new Set([...t.matchAll(g)].map((m) => m[0].toLowerCase())).size;
 }
 const isHeadingLine = (t: string) => VACANCY_WORDS.test(t) && splitFigures(t).figures.length === 0;
+/** A line saying the table goes on from the page before ("Annexure I (continued)", "Table 2 contd."), with no figures. */
+const CONTINUED = /\b(?:continued|contd\.?)(?=\W|$)/i;
+const isContinuationLine = (t: string) => CONTINUED.test(t) && splitFigures(t).figures.length === 0 && t.length <= 120;
+const sameLine = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
 const looksLikeTitle = (t: string) => !NOISE.test(t) && splitFigures(t).figures.length === 0 && t.length <= 120 && /[A-Za-z]/.test(t);
 
 /**
@@ -302,9 +306,11 @@ export function findVacancyTables(lines: Line[], out?: { orphans: Orphan[] }): F
     let pending: Line[] = [...firstWrap];
     let j = i;
     let gap = 0;
+    let lastPage: number | null = null;
     while (j < lines.length) {
       const l = lines[j];
       if (data[j] === k) {
+        lastPage = l.page;
         const { words, figures } = splitFigures(l.text);
         const all = [...pending.map((p) => p.text), words].join(" ").trim();
         const printed = [...pending.map((p) => p.text), l.text].join("\n");
@@ -329,6 +335,10 @@ export function findVacancyTables(lines: Line[], out?: { orphans: Orphan[] }): F
       if (isHeadingLine(l.text) && rows.length > 0 && /\b(sc|st|obc|total|bank|state|city)\b/i.test(l.text) && splitFigures(l.text).figures.length === 0
           && lines.slice(j, j + 6).filter((x) => isHeadingLine(x.text)).length >= 2) break; // a new table's heading
       if (NOISE.test(l.text)) { j++; continue; }
+      // On a later page, the table's own column heading printed again, and a "(continued)" line, are not a
+      // row's wrapped name: passed over, so the next row keeps its own name and printed line.
+      if (lastPage != null && l.page != null && l.page > lastPage
+          && (isContinuationLine(l.text) || headingPart.some((x) => sameLine(x.text, l.text)))) { j++; continue; }
       gap++;
       if (gap > 4) break;
       pending.push(l);

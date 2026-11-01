@@ -117,3 +117,46 @@ test("CP09 a suggestion that names no printed word, or the same spelling, is dro
   const p = parseTranscription({ lines: ["Patna"], tables: [], corrections: [{ printed: "Patna", suggested: "Patna" }, { printed: "", suggested: "X" }] } as never, 3);
   assert.equal(p.corrections, undefined);
 });
+
+suite("A table continued under a \"(continued)\" heading and its column heading printed again (known defect, fixed)");
+
+// docs/known-defects/continued-heading.md: the first row on the next page took both lines into its name.
+const HEAD = "Sr. No. Name of the Bank SC ST OBC EWS UR Total";
+const PAGE_1 = ["Annexure I", "Tentative vacancies", HEAD, "1 Alpha Gramin Bank 2 1 3 1 3 10", "2 Beta Gramin Bank 2 1 3 1 5 12", "-- 1 of 2 --"];
+const twoPages = (page2: string[]) => [...PAGE_1, ...page2, "-- 2 of 2 --"].join("\n");
+const readTwo = async (page2: string[]) => (await readVacancyTables(twoPages(page2), { retrievalId: "d", fallbackPost: "Officer", apiKey: undefined })).table!;
+const brief = (rows: Array<{ at: Record<string, string>; total?: number; source: { page: number | null; line: string } }>) => rows.map((r) => [r.at.bank, r.total, r.source.page, r.source.line]);
+const EXPECTED = [
+  ["Alpha Gramin Bank", 10, 1, "1 Alpha Gramin Bank 2 1 3 1 3 10"],
+  ["Beta Gramin Bank", 12, 1, "2 Beta Gramin Bank 2 1 3 1 5 12"],
+  ["Gamma Gramin Bank", 8, 2, "3 Gamma Gramin Bank 1 1 2 1 3 8"],
+];
+
+test("CP10 the exact example: row 3 is “Gamma Gramin Bank”, page 2, its own printed line; nothing dropped or doubled; the total 30 as printed", async () => {
+  const t = await readTwo(["Annexure I (continued)", HEAD, "3 Gamma Gramin Bank 1 1 2 1 3 8", "Total 5 3 8 3 11 30"]);
+  assert.deepEqual(brief(t.rows), EXPECTED);
+  const an = analyseVacancyTable(t);
+  assert.deepEqual([an.grandTotal?.value, an.grandTotal?.complete, an.grandTotal?.basis], [30, true, "STATED"]);
+  assert.deepEqual(t.statedTotals.map((s) => [s.total, s.source.page, s.source.line]), [[30, 2, "Total 5 3 8 3 11 30"]]);
+  assert.equal(an.issues.length, 0, JSON.stringify(an.issues));
+});
+test("CP11 a continued table with no heading printed again reads as before", async () => {
+  const t = await readTwo(["3 Gamma Gramin Bank 1 1 2 1 3 8", "Total 5 3 8 3 11 30"]);
+  assert.deepEqual(brief(t.rows), EXPECTED);
+  assert.equal(analyseVacancyTable(t).grandTotal?.value, 30);
+});
+test("CP12 only the column heading printed again, or only a \"contd.\" line: each passed over the same way", async () => {
+  assert.deepEqual(brief((await readTwo([HEAD, "3 Gamma Gramin Bank 1 1 2 1 3 8", "Total 5 3 8 3 11 30"])).rows), EXPECTED);
+  assert.deepEqual(brief((await readTwo(["Table 2 contd.", "3 Gamma Gramin Bank 1 1 2 1 3 8", "Total 5 3 8 3 11 30"])).rows), EXPECTED);
+});
+test("CP13 a genuine wrapped name after the repeated heading is kept, with its printed lines", async () => {
+  const t = await readTwo(["Annexure I (continued)", HEAD, "3 Gamma Gramin", "Bank 1 1 2 1 3 8", "Total 5 3 8 3 11 30"]);
+  assert.deepEqual(t.rows[2].at.bank, "Gamma Gramin Bank");
+  assert.deepEqual([t.rows[2].source.page, t.rows[2].source.line], [2, "3 Gamma Gramin\nBank 1 1 2 1 3 8"]);
+  assert.equal(t.rows.length, 3);
+});
+test("CP14 on the same page as the rows before it, a wrapped name line is never passed over, whatever it says", async () => {
+  const t = (await readVacancyTables(["Annexure I", "Tentative vacancies", HEAD, "1 Alpha Gramin Bank 2 1 3 1 3 10", "2 Beta Gramin Bank 2 1 3 1 5 12", "3 Gamma Gramin Bank (continued", "from 2025) 1 1 2 1 3 8", "Total 5 3 8 3 11 30", "-- 1 of 1 --"].join("\n"),
+    { retrievalId: "d", fallbackPost: "Officer", apiKey: undefined })).table!;
+  assert.equal(t.rows[2].at.bank, "Gamma Gramin Bank (continued from 2025)");
+});

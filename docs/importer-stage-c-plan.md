@@ -247,3 +247,27 @@ The owner treats it as a **data-integrity issue, to be resolved before Stage C i
 - any reader correction is a separately authorised, narrowly scoped change.
 
 **Status:** C2 is committed, and its acceptance waits on this defect decision. No fix has been made. C3 is not authorised.
+
+## 10. The "(continued)" heading defect: fixed (1 November 2026, waits for the owner's review)
+
+Approved by the owner as a narrow fix to the B2.5 reader, kept in its own commit. C-D2 is unchanged. The details and evidence are in `docs/known-defects/continued-heading.md`.
+
+**Tests:**
+- `tests/cms/cross-page.test.ts`: 14 of 14 (CP01–CP09 as before, CP10–CP14 new).
+- `tests/local-stack/continued-heading.test.ts`, import to publication: 8 of 8.
+- C1 and C2 tests unchanged:
+  - `table-check.test.ts`: 19 of 19;
+  - `table-total-gate.test.ts`: 22 of 22 (stack) and 22 of 22 (unit).
+- Importer tables: 25 of 25. Importer jobs (real IBPS PDF): 53 of 53.
+
+**Negative check:** with the fix switched off, 3 of the new tests fail.
+
+**Real notices:** 21 read before and after the fix, identical.
+
+**Regression:**
+- **Suites:** 84 of 87 pass.
+- **Other checks:** intake 332 of 332; PostgreSQL 35 of 35; build passes; type check clean; lint at baseline.
+- **The same three exceptions, separately, unchanged:**
+  - E8 **fails**, 12 of 13;
+  - sitemap/ticker **fails**, 6 of 8 (stale);
+  - phase-D integration **not run** (no database).
