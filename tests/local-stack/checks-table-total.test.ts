@@ -32,7 +32,7 @@ expectChecks(S, [
   "AI-read rows saved in the editor: route TABLE_CHECK, the reason names them",
   "a job with no vacancy table: tableTotal is null",
   "a job never imported, with a table: not gated, and its view is read only",
-  "nothing else in the response changes: the same keys as before, plus tableTotal",
+  "nothing else in the response changes: the same keys as before, plus tableTotal (and, since C3 step 3, tableNeeds)",
   "the gate is unchanged: the route's rows and blockers are the publish gate's own",
 ]);
 
@@ -91,8 +91,8 @@ expectChecks(S, [
   check("a job never imported, with a table: not gated, and its view is read only",
     neverChecks.imported === false && neverGate.gated === false && neverGate.ok === true && (neverChecks.tableTotal === null || typeof neverChecks.tableTotal.route === "string"), [neverChecks.imported, neverGate, neverChecks.tableTotal]);
 
-  check("nothing else in the response changes: the same keys as before, plus tableTotal",
-    JSON.stringify(Object.keys(pc).sort()) === JSON.stringify(["blockers", "fields", "imported", "ok", "retrievals", "rows", "tableCheck", "tableTotal"]), Object.keys(pc));
+  check("nothing else in the response changes: the same keys as before, plus tableTotal (and, since C3 step 3, tableNeeds)",
+    JSON.stringify(Object.keys(pc).sort()) === JSON.stringify(["blockers", "fields", "imported", "ok", "retrievals", "rows", "tableCheck", "tableNeeds", "tableNeedsError", "tableTotal"]), Object.keys(pc));
   let same = true;
   const diffs: unknown[] = [];
   for (const id of [printed, calc, ai, none]) {

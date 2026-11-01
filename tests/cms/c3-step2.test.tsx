@@ -98,7 +98,8 @@ test("S214 the table line: checked, with its pages and Withdraw; not checked, wi
   const notChecked = text(renderToStaticMarkup(<TableCheckLine state={{ checked: false, decisionId: null, pages: [], revisionId: "r" }} tableTotal={INCOMPLETE} editable onWithdraw={noop} />));
   assert.match(notChecked, /Vacancy table: not checked against the notice/);
   assert.match(notChecked, /can be checked only by checking the whole table against the notice \(the total is incomplete; the total is calculated from the rows\)/);
-  assert.match(notChecked, /not available on this screen yet .*; until then this total stays pending\./);
+  // Since C3 step 3: with no way to open the check (no onOpenCheck), the line says when it can be done.
+  assert.match(notChecked, /It can be checked here when the job is open for editing and has an official document\. Until then this total stays pending\./);
   const printed = text(renderToStaticMarkup(<TableCheckLine state={{ checked: false, decisionId: null, pages: [], revisionId: "r" }} tableTotal={PRINTED} editable onWithdraw={noop} />));
   assert.match(printed, /can be verified by the notice's printed total, or by checking the whole table/);
   assert.ok(!/stays pending/.test(printed));

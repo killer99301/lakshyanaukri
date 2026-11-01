@@ -12,7 +12,7 @@
 // A label's length, or a single word such as "Annexure" or "continued", is
 // never a reason on its own. Pure: no database, safe in the browser.
 
-import { analyseVacancyTable, type IssueCode, type VacancyTable, type VacancyTableRow } from "@/lib/vacancy-table";
+import { analyseVacancyTable, type IssueCode, type SourceKinds, type VacancyTable, type VacancyTableRow } from "@/lib/vacancy-table";
 
 export type AttentionRule = "LABEL_NOT_IN_LINE" | "LABEL_HAS_COLUMN_HEADING" | "LINE_HAS_PAGE_BREAK";
 
@@ -49,11 +49,11 @@ function labelKey(table: VacancyTable): string | null {
 const labelOf = (r: VacancyTableRow, key: string | null) => (key ? (r.printedAt?.[key] ?? r.at[key] ?? "").trim() || null : null);
 
 /** The rows worth a look, and the analysis's problems on each row; rows with neither are left out. */
-export function rowAttention(table: VacancyTable): RowAttention[] {
+export function rowAttention(table: VacancyTable, opts: { sourceKinds?: SourceKinds } = {}): RowAttention[] {
   const key = labelKey(table);
   // The table's column-heading words: its categories' names, "Total", and the serial-number heading.
   const headingWords = [...new Set([...table.categories.map((c) => c.label.trim()), "Total"].filter((w) => w.length > 0))];
-  const issues = analyseVacancyTable(table).issues;
+  const issues = analyseVacancyTable(table, { sourceKinds: opts.sourceKinds }).issues;
   const out: RowAttention[] = [];
   for (const r of table.rows) {
     const label = labelOf(r, key);

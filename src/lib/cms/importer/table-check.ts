@@ -30,10 +30,19 @@ export function tablePages(table: VacancyTable): number[] {
 }
 
 /** One of the job's documents, as the server judges it: its kind, and whether it can be official evidence (9.1). */
-export interface DocStanding { kind: string; eligible: boolean }
+export interface DocStanding {
+  kind: string;
+  eligible: boolean;
+  /** For the screen and for validating a declared source (C3-D5): its name, the fingerprint and address stored at import. */
+  name?: string;
+  sha256?: string | null;
+  originUrl?: string | null;
+}
 export type DocStandings = Record<string, DocStanding>;
 
-interface DocEntry { retrievalId: string; pages?: number[]; whole_document?: boolean; rowSourceOnly?: boolean }
+/** How the reviewer had the original document (C3-D5 (b)): declared, validated against the document's own record, never required. */
+export type SourceDeclaration = { by: "FILE_HASH"; sha256: string } | { by: "OFFICIAL_ADDRESS"; url: string };
+interface DocEntry { retrievalId: string; pages?: number[]; whole_document?: boolean; rowSourceOnly?: boolean; source?: SourceDeclaration }
 interface CompareEntry { retrievalId: string; rows: Array<{ rowId: string; page: number | null }> }
 
 export interface TableCheckInput {
@@ -50,7 +59,7 @@ export interface TableCheckInput {
 
 export type TableCheckScope =
   | { pages: number[]; sections: string[] }
-  | { documents: DocEntry[]; comparedWith?: CompareEntry[]; pages?: number[]; whole_document?: true; sections: string[] };
+  | { documents: DocEntry[]; comparedWith?: CompareEntry[]; pages?: number[]; whole_document?: true; sections: string[]; flaggedRowsAcknowledged?: number };
 
 const pageless = (kind: string | undefined) => !!kind && PAGELESS_KINDS.has(kind);
 const isPage = (p: unknown): p is number => Number.isInteger(p) && (p as number) > 0;
@@ -135,15 +144,27 @@ export function tableCheckScope(input: TableCheckInput): { error: string } | { s
       continue;
     }
     if (e.rowSourceOnly) return { error: `${e.retrievalId} is official evidence: name what was compared in it, not as a source of rows only` };
+    // How the original was had (C3-D5 (b)): optional; when given, it must be this document's own fingerprint or address.
+    let source: SourceDeclaration | undefined;
+    if (e.source !== undefined) {
+      const sd = e.source as SourceDeclaration;
+      if (sd && sd.by === "FILE_HASH") {
+        if (typeof sd.sha256 !== "string" || !d.sha256 || sd.sha256.toLowerCase() !== d.sha256.toLowerCase()) return { error: `The file compared for ${d.name ?? e.retrievalId} is not the file that was imported (its fingerprint differs)` };
+        source = { by: "FILE_HASH", sha256: d.sha256.toLowerCase() };
+      } else if (sd && sd.by === "OFFICIAL_ADDRESS") {
+        if (typeof sd.url !== "string" || !d.originUrl || sd.url !== d.originUrl) return { error: `The address declared for ${d.name ?? e.retrievalId} is not the address it was imported from` };
+        source = { by: "OFFICIAL_ADDRESS", url: d.originUrl };
+      } else return { error: "How the original was obtained must be the file's fingerprint or the official address" };
+    }
     if (pageless(d.kind)) {
       if (e.whole_document !== true || (e.pages !== undefined && (!Array.isArray(e.pages) || e.pages.length > 0))) {
         return { error: `${e.retrievalId} is a web page or text, which has no pages: compare it as a whole document, with no page numbers` };
       }
-      entries.set(e.retrievalId, { retrievalId: e.retrievalId, whole_document: true });
+      entries.set(e.retrievalId, { retrievalId: e.retrievalId, whole_document: true, ...(source ? { source } : {}) });
     } else {
       if (e.whole_document) return { error: `${e.retrievalId} is a PDF: name the pages compared` };
       if (!Array.isArray(e.pages) || e.pages.length === 0 || !e.pages.every(isPage)) return { error: `${e.retrievalId} is a PDF: name the pages compared, as page numbers` };
-      entries.set(e.retrievalId, { retrievalId: e.retrievalId, pages: [...new Set(e.pages)].sort((a, b) => a - b) });
+      entries.set(e.retrievalId, { retrievalId: e.retrievalId, pages: [...new Set(e.pages)].sort((a, b) => a - b), ...(source ? { source } : {}) });
     }
   }
   // Every document the rows or printed totals come from is named.
@@ -210,13 +231,70 @@ export function tableCheckScope(input: TableCheckInput): { error: string } | { s
     else if (input.page !== null && !(e.pages ?? []).includes(input.page)) return { error: "The words cited must be on one of the pages compared" };
   }
   const pages = [...new Set(eligibleNamed.flatMap((e) => e.pages ?? []))].sort((a, b) => a - b);
+  const ack = (input.reviewScope as { flaggedRowsAcknowledged?: unknown }).flaggedRowsAcknowledged;
+  if (ack !== undefined && !(Number.isInteger(ack) && (ack as number) >= 0)) return { error: "The number of marked rows looked at must be a whole number" };
   return { scope: {
     documents: [...entries.values()],
     ...(compared.length ? { comparedWith: compared } : {}),
     ...(pages.length ? { pages } : {}),
     ...(eligibleNamed.some((e) => e.whole_document) ? { whole_document: true as const } : {}),
     sections: ["the whole vacancy table"],
+    ...(ack !== undefined ? { flaggedRowsAcknowledged: ack as number } : {}),
   } };
+}
+
+/**
+ * What the table check needs, for the screen to ask for it (C3 step 3, S1): every document the table relies
+ * on, with its standing as the server judges it and the pages its own rows and printed totals cite; and
+ * every research or prepared row that must be compared with an official document. Read only; the same rule
+ * (rowNeeds) the server applies when the check is recorded.
+ */
+export interface TableCheckNeeds {
+  documents: Array<{ retrievalId: string; name: string; kind: string; eligible: boolean; pages: number[]; rowCount: number }>;
+  rowsToMap: Array<{ rowId: string; label: string; why: "research" | "prepared"; claimedPage: number | null; fromRetrievalId: string | null }>;
+  /** Pages cited by rows typed from the notice (a page, no document): they must be among an official PDF's pages compared. */
+  pageOnlyPages: number[];
+  /** A table from one official PDF with nothing to map: the plain "pages compared" check is enough. */
+  simple: boolean;
+  /** Every official document of the job (eligible evidence), for comparing rows with: names and kinds only. */
+  official: Array<{ retrievalId: string; name: string; kind: string }>;
+}
+
+export function tableCheckNeeds(table: VacancyTable, docs: DocStandings): TableCheckNeeds | { error: string } {
+  const needs = rowNeeds(table, docs);
+  if ("error" in needs) return needs;
+  const byDoc = new Map<string, { pages: Set<number>; rows: number }>();
+  const touch = (id: string) => { if (!byDoc.has(id)) byDoc.set(id, { pages: new Set(), rows: 0 }); return byDoc.get(id)!; };
+  for (const r of table.rows) {
+    const id = r.source?.retrievalId;
+    if (!id || !docs[id]) continue;
+    const b = touch(id);
+    b.rows++;
+    if (r.source.page != null && r.source.readBy !== "PREPARED") b.pages.add(r.source.page);
+  }
+  for (const s of table.statedTotals) {
+    const id = s.source?.retrievalId;
+    if (!id || !docs[id]) continue;
+    const b = touch(id);
+    if (s.source.page != null) b.pages.add(s.source.page);
+  }
+  const label = (rowId: string) => {
+    const r = table.rows.find((x) => x.id === rowId)!;
+    return table.dimensions.map((d) => r.at[d.key]).filter(Boolean).join(" › ");
+  };
+  const rowsToMap = needs.flatMap((n) => {
+    if (n.need !== "MAP") return [];
+    const r = table.rows.find((x) => x.id === n.rowId)!;
+    return [{ rowId: n.rowId, label: label(n.rowId), why: (r.source?.readBy === "PREPARED" ? "prepared" : "research") as "research" | "prepared",
+      claimedPage: n.claimedPage, fromRetrievalId: r.source?.retrievalId ?? null }];
+  });
+  const documents = [...byDoc.entries()].map(([id, b]) => ({ retrievalId: id, name: docs[id].name ?? id, kind: docs[id].kind, eligible: docs[id].eligible,
+    pages: [...b.pages].sort((x, y) => x - y), rowCount: b.rows }));
+  const pageOnlyPages = [...new Set(needs.flatMap((n) => (n.need === "PAGE_ONLY" ? [n.page] : [])))].sort((x, y) => x - y);
+  const eligibleDocs = documents.filter((d) => d.eligible);
+  const simple = rowsToMap.length === 0 && documents.length <= 1 && eligibleDocs.every((d) => d.kind === "PDF");
+  const official = Object.entries(docs).filter(([, d]) => d.eligible).map(([id, d]) => ({ retrievalId: id, name: d.name ?? id, kind: d.kind }));
+  return { documents, rowsToMap, pageOnlyPages, simple, official };
 }
 
 // ─── The total worked out from a table (Stage C, C2) ──────

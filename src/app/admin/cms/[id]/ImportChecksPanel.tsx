@@ -15,7 +15,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
 import { C, PANEL, CLASS_LOOK, badge, inputStyle, labelStyle, quietBtn, showValue } from "../import/ui";
-import { rowActions, type TableCheckState, type TableTotalView } from "./check-actions";
+import { rowActions, type PrintedLine, type TableCheckState, type TableTotalView } from "./check-actions";
+import { TableCheckPanel } from "./TableCheckPanel";
+import type { TableNeeds } from "./table-check-form";
 
 interface Row {
   fieldPath: string; label: string; cls: string; reason: string; tier?: "A" | "B";
@@ -24,6 +26,7 @@ interface Row {
 interface Retrieval {
   id: string; declaredKind: string; versionLabel: string | null; originHost: string | null; originRole: string;
   authenticity: string; contentKind: string; pageCount: number | null;
+  originUrl?: string | null; sha256?: string | null;
 }
 interface Checks {
   imported: boolean; ok: boolean; rows: Row[]; retrievals: Retrieval[]; fields?: Record<string, string>;
@@ -31,6 +34,9 @@ interface Checks {
   tableCheck?: TableCheckState;
   /** How a total worked out from the vacancy table can be checked (C3 step 1); null otherwise. */
   tableTotal?: TableTotalView | null;
+  /** What the whole-table check needs (C3 step 3): the documents with their standing and pages, the rows to compare. */
+  tableNeeds?: TableNeeds | null;
+  tableNeedsError?: string | null;
 }
 type Kind = "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED";
 
@@ -42,11 +48,13 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
   /** "Not stated in full" for an incomplete total worked out from the table: the table's pages, to tick those read. */
   inFull?: { pages: number[] };
   /** The printed total's own line and page, named for the person to cite (never filled in for them). */
-  printedLine?: { line: string; page: number } | null;
+  printedLine?: PrintedLine | null;
 }) {
   const eligible = retrievals.filter((r) => (r.authenticity === "CONFIRMED" || r.authenticity === "ATTESTED")
     && (kind === "ADMIN_NOT_STATED" ? r.originRole === "AUTHORITY" : r.originRole === "AUTHORITY" || r.originRole === "PARTNER"));
-  const [retrievalId, setRetrievalId] = useState(eligible[0]?.id ?? "");
+  // The printed total's own document, when it names one (a web page or text, C2.1); otherwise the first eligible.
+  const citedDoc = printedLine && printedLine.page === null && eligible.some((r) => r.id === printedLine.retrievalId) ? printedLine.retrievalId : null;
+  const [retrievalId, setRetrievalId] = useState(citedDoc ?? eligible[0]?.id ?? "");
   const [page, setPage] = useState("");
   const [quote, setQuote] = useState("");
   const [whole, setWhole] = useState(!inFull);
@@ -71,7 +79,7 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
       action: "decide", fieldPath: row.fieldPath, kind, retrievalId,
       seen: { revisionId: row.latestRevisionId, decisionId: row.decisionId ?? null },
     };
-    if (page) body.page = Number(page);
+    if (page && !pagelessDoc) body.page = Number(page);
     if (kind !== "ADMIN_NOT_STATED") body.quote = quote;
     if (kind !== "ADMIN_VERIFIED") { body.justification = justification; if (publicNote) body.publicNote = publicNote; }
     if (kind === "ADMIN_NOT_STATED") {
@@ -99,7 +107,9 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
       <strong style={{ color: C.text }}>{title}</strong>
       {kind === "ADMIN_VERIFIED" && printedLine && (
         <div data-printed-line style={{ color: C.muted }}>
-          Cite the notice&apos;s printed total: “{printedLine.line}”, page {printedLine.page}. Any other line does not verify it.
+          {printedLine.page === null
+            ? <>Cite the notice&apos;s printed total: “{printedLine.line}”, from the official web page or text it is on ({docName(eligible.find((r) => r.id === printedLine.retrievalId) ?? eligible[0])}), with no page. Any other line, or another document, does not verify it.</>
+            : <>Cite the notice&apos;s printed total: “{printedLine.line}”, page {printedLine.page}. Any other line does not verify it.</>}
         </div>
       )}
       {inFull && (
@@ -114,10 +124,10 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
         </select>
       </label>
       {kind !== "ADMIN_NOT_STATED" && (
-        <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 8 }}>
-          <label><span style={labelStyle}>Page{doc?.contentKind === "PDF" ? " (required)" : ""}</span>
+        <div style={{ display: "grid", gridTemplateColumns: pagelessDoc ? "1fr" : "100px 1fr", gap: 8 }}>
+          {!pagelessDoc && <label><span style={labelStyle}>Page{doc?.contentKind === "PDF" ? " (required)" : ""}</span>
             <input value={page} onChange={(e) => setPage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" style={inputStyle} />
-          </label>
+          </label>}
           <label><span style={labelStyle}>The exact words in the document</span>
             <textarea value={quote} onChange={(e) => setQuote(e.target.value)} rows={2} style={{ ...inputStyle, resize: "vertical" }} placeholder="Copy them from the PDF" />
           </label>
@@ -164,11 +174,15 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
 
 /**
  * The vacancy table's own check (C1): checked against the notice and on which pages, or not, and what that
- * means for Total Vacancies. Checking the whole table from this screen comes in a later step (C3 step 3):
- * until then it is said, never offered as a button that does nothing.
+ * means for Total Vacancies; and, since C3 step 3, the button that opens the whole-table check. Without a
+ * way to open it (a job not open for editing, no official document), it is said, never a button that does nothing.
  */
-export function TableCheckLine({ state, tableTotal, editable, onWithdraw }: {
+export function TableCheckLine({ state, tableTotal, editable, onWithdraw, onOpenCheck, cannotCheck }: {
   state: TableCheckState | undefined; tableTotal: TableTotalView | null | undefined; editable: boolean; onWithdraw: () => void;
+  /** Opens the whole-table check; absent when it cannot be done here. */
+  onOpenCheck?: () => void;
+  /** Why the table cannot be checked here, when the server says so. */
+  cannotCheck?: string | null;
 }) {
   if (!tableTotal && !state?.checked) return null;
   return (
@@ -189,8 +203,11 @@ export function TableCheckLine({ state, tableTotal, editable, onWithdraw }: {
           {tableTotal.route === "TABLE_CHECK"
             ? <>Total vacancies can be checked only by checking the whole table against the notice ({tableTotal.why.join("; ")}).</>
             : <>Total vacancies can be verified by the notice&apos;s printed total, or by checking the whole table against the notice.</>}
-          {" "}Checking the whole table is not available on this screen yet (it comes in the next step of this work){tableTotal.route === "TABLE_CHECK" ? "; until then this total stays pending" : ""}.
+          {onOpenCheck ? "" : <>{" "}{cannotCheck ? `It cannot be checked here: ${cannotCheck}.` : "It can be checked here when the job is open for editing and has an official document."}{tableTotal.route === "TABLE_CHECK" ? " Until then this total stays pending." : ""}</>}
         </div>
+      )}
+      {onOpenCheck && (
+        <div><button data-open-table-check onClick={onOpenCheck} style={{ ...quietBtn, padding: "3px 10px", borderColor: C.accent, color: C.accent }}>Check the whole table</button></div>
       )}
     </div>
   );
@@ -213,6 +230,8 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
   const [open, setOpen] = useState<{ path: string; kind: Kind; inFull?: boolean } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [tableCheckOpen, setTableCheckOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
 
   const load = useCallback(async () => {
@@ -318,7 +337,16 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
           })}
         </tbody>
       </table>}
-      {showList && <TableCheckLine state={checks.tableCheck} tableTotal={checks.tableTotal} editable={editable && canCheck} onWithdraw={withdrawTableCheck} />}
+      {showList && <TableCheckLine state={checks.tableCheck} tableTotal={checks.tableTotal} editable={editable && canCheck} onWithdraw={withdrawTableCheck}
+        cannotCheck={checks.tableNeedsError ?? null}
+        onOpenCheck={editable && canCheck && checks.tableNeeds && !checks.tableCheck?.checked && !tableCheckOpen ? () => { setNotice(null); setTableCheckOpen(true); } : undefined} />}
+      {notice && <div role="status" style={{ color: C.amber, marginTop: 6 }}>{notice}</div>}
+      {showList && tableCheckOpen && checks.tableNeeds && record.vacancies.table?.value && (
+        <TableCheckPanel key={checks.tableCheck?.revisionId ?? "none"} recordId={record.id} table={record.vacancies.table.value} needs={checks.tableNeeds}
+          revisionId={checks.tableCheck?.revisionId ?? null} decisionId={checks.tableCheck?.decisionId ?? null} retrievals={checks.retrievals}
+          onCancel={() => setTableCheckOpen(false)}
+          onDone={(message) => { setTableCheckOpen(!!message); setNotice(message ?? null); void refresh(); }} />
+      )}
       {showList && !editable && <div style={{ color: C.muted, marginTop: 8 }}>Open the job for editing to record checks.</div>}
     </section>
   );

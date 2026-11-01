@@ -12,10 +12,13 @@
 export interface TableTotalView {
   incomplete: boolean;
   route: "TABLE_CHECK" | "PRINTED_LINE";
-  evidence: { line: string; page: number } | null;
+  /** The printed total's line and page; for a web page or text (C2.1), no page and the document it is on. */
+  evidence: PrintedLine | null;
   why: string[];
   pages: number[];
 }
+
+export type PrintedLine = { line: string; page: number } | { line: string; page: null; retrievalId: string };
 
 export interface TableCheckState { checked: boolean; decisionId: string | null; pages: number[]; revisionId: string | null }
 
@@ -30,7 +33,7 @@ export interface RowActions {
   notStatedInFull: boolean;
   withdraw: boolean;
   /** The printed total's own line and page, to name when verifying (never filled in for the person). */
-  printedLine: { line: string; page: number } | null;
+  printedLine: PrintedLine | null;
   /** The whole vacancy table must still be checked against the notice for this total (not yet on this screen). */
   needsTableCheck: boolean;
 }

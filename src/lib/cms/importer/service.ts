@@ -29,7 +29,7 @@ import { readRemovals, type RemovalReading } from "@/lib/cms/importer/post-remov
 import type { VacancyTable } from "@/lib/vacancy-table";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
 import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
-import { TABLE_PATH, quoteIsPrintedTotal, tableCheckScope, tableTotalView, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
+import { TABLE_PATH, quoteIsPrintedTotal, tableCheckNeeds, tableCheckScope, tableTotalView, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
 import { PAGELESS_KINDS } from "@/lib/vacancy-table";
 import {
   applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
@@ -560,7 +560,11 @@ export async function checksFor(record: RecruitmentRecord) {
   // How a total worked out from the table can be checked, for the check list to show (read only, C3 step 1).
   const totalView = tableTotal && typeof record.vacancies.total?.value === "number"
     ? tableTotalView(tableTotal.table, tableTotal.derived, record.vacancies.total.value, tableTotal.docs) : null;
-  return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals, fields, tableCheck: await tableCheckFor(record), tableTotal: totalView };
+  // What the whole-table check needs (C3 step 3, S1): the documents with their standing and pages, and the rows to compare.
+  const tableValue = record.vacancies.table?.value;
+  const needs = tableValue && tableValue.rows?.length ? tableCheckNeeds(tableValue, tableTotal?.docs ?? await docStandings(record.id)) : null;
+  return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals, fields, tableCheck: await tableCheckFor(record), tableTotal: totalView,
+    tableNeeds: needs && !("error" in needs) ? needs : null, tableNeedsError: needs && "error" in needs ? needs.error : null };
 }
 
 /**
@@ -607,11 +611,26 @@ export async function tableTotalContext(record: RecruitmentRecord, first: string
  * attested, from the recruiting body or a partner listed for this purpose, and not declared research.
  * Being named in a check never changes this.
  */
+/**
+ * A document's name for the screen, telling two documents of the same body apart: where it is from, what it
+ * is, its kind, and its file or page name ("ibps.in — notification, PDF (CRP-XV.pdf)").
+ */
+function docLabel(r: { originHost: string | null; originUrl: string | null; versionLabel: string | null; declaredKind: string; contentKind: string }): string {
+  const what = r.versionLabel ?? r.declaredKind.replace("OFFICIAL_", "").toLowerCase().replace(/_/g, " ");
+  const kind = r.contentKind === "PDF" ? "PDF" : r.contentKind === "HTML" ? "web page" : r.contentKind === "TEXT" ? "text" : "image";
+  let file = "";
+  try { file = r.originUrl ? decodeURIComponent(new URL(r.originUrl).pathname.split("/").filter(Boolean).pop() ?? "") : ""; } catch { file = ""; }
+  return `${r.originHost ?? "pasted"} — ${what}, ${kind}${file ? ` (${file})` : ""}`;
+}
+
 export async function docStandings(recruitmentId: string): Promise<DocStandings> {
   const out: DocStandings = {};
   for (const r of await retrievalsFor(recruitmentId)) {
     out[r.id] = {
       kind: r.contentKind,
+      name: docLabel(r),
+      sha256: r.sha256 ?? null,
+      originUrl: r.originUrl ?? null,
       eligible: (r.authenticity === "CONFIRMED" || r.authenticity === "ATTESTED") && r.declaredKind !== "RESEARCH"
         && authorityCovers(r.originRole, r.originPurposes, "recruitment_rules"),
     };
