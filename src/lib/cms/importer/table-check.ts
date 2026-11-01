@@ -50,3 +50,73 @@ export function tableCheckScope(input: TableCheckInput): { error: string } | { s
   if (input.page !== null && !pages.includes(input.page)) return { error: "The words cited must be on one of the pages compared" };
   return { scope: { pages, sections: ["the whole vacancy table"] } };
 }
+
+// ─── The total worked out from a table (Stage C, C2) ──────
+
+const squash = (s: string) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/\s+/g, " ").trim().toLowerCase();
+
+/** Whether `n` is printed in the text as a figure of its own ("1,230" is 1230; "130" is not 30). */
+export function figureIn(text: string, n: number): boolean {
+  return (text.match(/\d[\d,]*/g) ?? []).some((t) => Number(t.replace(/,/g, "")) === n);
+}
+
+const sameName = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * The notice's own line for the table's grand total, when it can be established: exactly one printed total
+ * covering every row (the grand total, or the one post's total when the table has a single post), equal to
+ * the stored total, with its page, its line holding that figure. Otherwise why not.
+ */
+export function printedTotalEvidence(table: VacancyTable, value: number): { line: string; page: number } | { missing: string } {
+  const grand = table.statedTotals.filter((s) => Object.entries(s.at ?? {}).every(([k, v]) => table.rows.every((r) => sameName(r.at[k] ?? "", v))));
+  if (grand.length === 0) return { missing: "the notice's printed grand total is not in the table" };
+  if (grand.length > 1) return { missing: "the table holds more than one printed total for the whole table" };
+  const g = grand[0];
+  if (g.total !== value) return { missing: `the printed grand total (${g.total}) is not the stored total (${value})` };
+  const line = (g.source?.line ?? "").trim();
+  if (g.source?.page == null) return { missing: "the printed grand total has no page" };
+  if (!line || !figureIn(line, value)) return { missing: "the printed grand total's line does not hold its figure" };
+  return { line, page: g.source.page };
+}
+
+/**
+ * Whether a quote and page are the printed total's own evidence: the whole printed line (a part of it, such
+ * as the bare figure, is not enough), holding the figure, on its page.
+ */
+export function quoteIsPrintedTotal(ev: { line: string; page: number }, value: number, quote: string | null, page: number | null): boolean {
+  if (!quote || page !== ev.page || !figureIn(quote, value)) return false;
+  return squash(quote).includes(squash(ev.line));
+}
+
+export interface TotalRoute {
+  /** The figure is a minimum: rows not reported, or no figure. */
+  incomplete: boolean;
+  /** How the total can be checked: by the whole-table check only, or by citing its printed line. */
+  route: "TABLE_CHECK" | "PRINTED_LINE";
+  /** For PRINTED_LINE: the line, page and figure to cite. */
+  evidence: { line: string; page: number } | null;
+  /** Why the whole-table check is required (owner's decision C-D2, and C2's safeguard). */
+  why: string[];
+}
+
+/** How the total worked out from this table can be checked. */
+export function totalRoute(table: VacancyTable, derived: { basis: string; complete: boolean }, value: number): TotalRoute {
+  const why: string[] = [];
+  const incomplete = derived.complete === false;
+  if (incomplete) why.push("the total is incomplete");
+  if (derived.basis !== "STATED") why.push(derived.basis === "CALCULATED" ? "the total is calculated from the rows" : "the total was entered by hand");
+  const fromImage = table.rows.filter((r) => r.source?.readBy === "AI_IMAGE").length;
+  const prepared = table.rows.filter((r) => r.source?.readBy === "PREPARED").length;
+  if (fromImage) why.push(`${fromImage} row${fromImage === 1 ? " was" : "s were"} read by AI from a page image`);
+  if (prepared) why.push(`${prepared} row${prepared === 1 ? " was" : "s were"} prepared outside the notice`);
+  let evidence: { line: string; page: number } | null = null;
+  if (why.length === 0) {
+    const ev = printedTotalEvidence(table, value);
+    if ("missing" in ev) why.push(ev.missing);
+    else evidence = ev;
+  }
+  return { incomplete, route: why.length ? "TABLE_CHECK" : "PRINTED_LINE", evidence, why };
+}
+
+/** calculatedTotalReady's reasons that only say the total is a minimum: the ones "not stated in full" may answer. */
+export const isIncompletenessReason = (r: string) => r === "the total is incomplete" || /^\d+ × (not reported|no figure)$/.test(r);

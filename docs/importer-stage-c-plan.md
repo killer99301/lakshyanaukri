@@ -148,3 +148,102 @@ All three failures predate C1, and C1 touches none of their code:
 - **Intelligence E8:** the known baseline (item 2 of the Stage C entry checklist in the roadmap).
 - **`tests/cms/sitemap-ticker.test.ts`, TK02 and TK03:** the test imports `IMPORTANT_UPDATES`, which was removed from the site's code on 4 October (5d5d9a9, already on main). The test is stale.
 - **`tests/cms/phase-d-integration.test.ts`:** it needs a live `DATABASE_URL` and stops without one. It was not run against any real database.
+
+## 9. C2: the publish gate for Total Vacancies worked out from a table (waits for the owner's review)
+
+Approved on 1 November 2026, with the owner's added safeguard: a printed total is verified only by evidence that is its own line, figure and page.
+
+**Where the rules are:**
+- `classifyTableTotal` in `classify.ts`, with its rules in `table-check.ts`: `totalRoute`, `printedTotalEvidence`, `quoteIsPrintedTotal`;
+- `tableTotalContext` in `service.ts`, which feeds `checksFor` and `publishGateFor`;
+- `decide`, which refuses wrong decisions up front.
+
+They apply only when the total is derived from the job's vacancy table. A total entered on its own is classified exactly as before. A job that was never imported is not gated, as before. No schema change.
+
+| The total | How it can become VERIFIED | "Verify" by a quote |
+|---|---|---|
+| Printed, rows read by code from text, its printed line established | Its own printed line, holding the figure, on its page; or the whole-table check | Accepted only for that line on that page. A row's line, the bare figure, or the right line on the wrong page is refused |
+| Printed, but the line cannot be established: none covers the whole table, more than one does, a different figure, no page, or no figure in the line | The whole-table check only | Refused |
+| Calculated or entered | The whole-table check only | Refused |
+| Any row read by AI from an image, or prepared outside | The whole-table check only | Refused |
+| Incomplete | **Never.** It can be NOT_STATED (Tier B accepts) with "not stated in full" | Refused |
+
+**In every case,** `calculatedTotalReady`'s reasons must be clear:
+- every row with its evidence;
+- no row duplicated or missing a dimension;
+- no figure unclear or bad;
+- no column whose place in the total is undecided;
+- row and printed totals agreeing;
+- the stored total equal to a recalculation (by fingerprint).
+
+No conflict may be open on the table: an open conflict makes the total CONFLICTING.
+
+**"Not stated in full":**
+- **When it is accepted:** only for an incomplete total, with a reason and the pages read.
+- **What it records:** the figure is left as it is, so the page goes on saying "At least N".
+- **What it clears:** only the incompleteness reasons, that is, the total being incomplete and rows not reported or with no figure.
+- **What it never clears:** a conflict, a row without its evidence, an undecided column, or the whole-table check that an incomplete total needs.
+
+**"Not applicable"** is refused on a total worked out from the table.
+
+**A printed total's line**, as the import stores it, can also be the single post's own total (`at: { post }`). Any printed total that covers every row counts. Two such totals are ambiguous, so they need the whole-table check.
+
+### C2 tests
+
+**Unit:** `tests/cms/table-total-gate.test.ts`, 22 of 22.
+
+**Stack:** `tests/local-stack/table-total-gate.test.ts`, 22 of 22, through the real import, decisions, field and publish routes. It covers:
+- **I (tables created by the import):** a printed total and a calculated total, both starting with the table SUPPORTED;
+- **E (tables saved in the editor on imported jobs):** AI-read rows, prepared rows, and an incomplete total;
+- **N:** a job that was never imported.
+
+The incomplete job is published through the real publish route, and its page says "At least 22".
+
+**Negative check:** with the printed-line rule loosened to accept any quote (the behaviour before C2), 3 stack checks and 2 unit tests fail.
+
+**C0 again, with C2 in place** (`stage-c-baseline.test.ts`, still a measurement):
+- every attempt to verify a total of 30 with "Officer A Bank 10" is now refused, with the reason;
+- "not stated" without the pages read is refused with a plain message.
+
+**C1's stack test, two checks changed on purpose and kept as strict.** They had pinned "the gate is unchanged", which C2 changes by design. They now assert:
+- a checked table verifies its printed total, and every other field's class is unchanged;
+- after a row edit makes the rows add up to 31 against the printed 30, even the printed line leaves the total pending.
+
+19 of 19.
+
+**Known defect, documented and not fixed:** `docs/known-defects/continued-heading.md`, with its reproduction. It leads to an open question for C3, set out there.
+
+### C2 regression, 1 November 2026
+
+| What | Result |
+|---|---|
+| Suites (stack, CMS, PostgreSQL, intake, intelligence E8 suite) | **83 of 86 pass** |
+| Intake | 332 / 332 |
+| PostgreSQL concurrency | 35 / 35 (17.11) |
+| Production build | passes; only the existing pdfjs-dist warning |
+| Production cache test | **31 / 31**, from a clean build and fresh servers |
+| Type check | clean |
+| Lint | baseline, 7 errors and 26 warnings, none in the C2 files |
+
+**The three exceptions, reported separately.** None is counted as passing, and none is touched by C2:
+
+| Suite | Status | Why |
+|---|---|---|
+| `tests/intelligence/review-queue-e2e.test.ts` (E8) | **FAILS**, 12 of 13 | The known baseline: "one diff applied", 0 against 1. The old review queue finds no job since `bf6b84f`. Recorded as not verified (C-D4) |
+| `tests/cms/sitemap-ticker.test.ts` | **FAILS**, 6 of 8 (TK02, TK03) | Stale: it imports `IMPORTANT_UPDATES`, removed from the site's code on 4 October (5d5d9a9, on main) |
+| `tests/cms/phase-d-integration.test.ts` | **NOT RUN** | It needs a live `DATABASE_URL` and stops without one. It is never pointed at a real database |
+
+**How the cache test was run.** A first attempt failed: 30 of 31 the first time, then a crash. It ran against the C1 run's test servers, still alive on ports 443 and 3000, and against a page that an aborted run had cached into the build folder. Those servers were stopped, the build was redone clean, and fresh servers gave 31 of 31. All test servers are stopped.
+
+### The owner's decision on the "(continued)" heading defect (1 November 2026)
+
+The owner treats it as a **data-integrity issue, to be resolved before Stage C is accepted**, not as a C3 screen improvement alone:
+- a correct total does not prove that every vacancy row is correct;
+- preserve the reproduction and the raw evidence;
+- add a regression test for continued headings and repeated column headings;
+- a suspicious or wrongly read table must not become publishable as verified;
+- a human table check is required wherever the system cannot establish that the row labels are reliable;
+- C-D2 is not weakened or silently changed;
+- any reader correction is a separately authorised, narrowly scoped change.
+
+**Status:** C2 is committed, and its acceptance waits on this defect decision. No fix has been made. C3 is not authorised.

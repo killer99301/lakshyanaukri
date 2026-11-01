@@ -43,12 +43,12 @@ expectChecks(I, [
   "I: \"not stated\" and \"not applicable\" refused on the table, and the table is untouched",
   "I: recorded: one decision, the pages compared stored as 1, 2 for the whole table",
   "I: the table is now checked, at its latest revision, VERIFIED, and its rows unchanged",
-  "I: the check does not make the total verified: the total still blocks, the gate unchanged",
+  "I: since C2, the checked table verifies its printed total (nothing else open); every other field's class is unchanged",
   "I: a second decision made on the revision before the check is refused as changed (409)",
   "I: revoked: no longer checked, back to SUPPORTED",
   "I: checked again, then a row edited in the editor: no longer checked, not VERIFIED",
   "I: a decision on the table as it was before the edit is refused as changed (409)",
-  "I: the total's own decision works as before (no C1 change to it)",
+  "I: since C2, with the rows no longer adding up to the printed total, even its own printed line leaves it pending",
 ]);
 expectChecks(E, [
   "E: saved in the editor, the table has no claim: UNSUPPORTED, not checked",
@@ -139,8 +139,10 @@ expectChecks(E, [
   s = await state(id);
   check("I: the table is now checked, at its latest revision, VERIFIED, and its rows unchanged",
     s.c.tableCheck.checked && JSON.stringify(s.c.tableCheck.pages) === "[1,2]" && s.c.fields["vacancies.table"] === "VERIFIED" && JSON.stringify(s.rec.vacancies.table?.value?.rows) === rowsBefore, s.c.tableCheck);
-  check("I: the check does not make the total verified: the total still blocks, the gate unchanged",
-    s.total.cls === "UNSUPPORTED" && s.gate.blockers.some((b) => b.fieldPath === "vacancies.total") && JSON.stringify(s.gate.verdicts.map((v) => `${v.fieldPath}:${v.cls}`)) === JSON.stringify(gateBefore),
+  // C1 alone left the gate as it was; C2 (table-total-gate.test.ts) makes the whole-table check verify the total it supports.
+  const others = (v: Array<{ fieldPath: string; cls: string }>) => JSON.stringify(v.filter((x) => x.fieldPath !== "vacancies.total").map((x) => `${x.fieldPath}:${x.cls}`));
+  check("I: since C2, the checked table verifies its printed total (nothing else open); every other field's class is unchanged",
+    s.total.cls === "VERIFIED" && !s.gate.blockers.some((b) => b.fieldPath === "vacancies.total") && others(s.gate.verdicts) === JSON.stringify(gateBefore.filter((x) => !x.startsWith("vacancies.total:"))),
     s.gate.verdicts.map((v) => `${v.fieldPath}:${v.cls}`));
   r = await checkTable(id, { seen: seenBefore });
   check("I: a second decision made on the revision before the check is refused as changed (409)", r.status === 409, r);
@@ -162,7 +164,10 @@ expectChecks(E, [
   const tot = (await state(id)).total;
   r = await decide(id, { fieldPath: "vacancies.total", kind: "ADMIN_VERIFIED", retrievalId: s.c.retrievals[0].id, page: 2, quote: "Total 5 3 8 3 11 30",
     seen: { revisionId: tot.latestRevisionId, decisionId: tot.decisionId ?? null } });
-  check("I: the total's own decision works as before (no C1 change to it)", r.status === 201 && (await state(id)).total.cls === "VERIFIED", r);
+  const after = (await state(id)).total;
+  note(`the total after its own decision, rows 10 + 12 + 9 against the printed 30: ${r.status}, ${after.cls}: ${after.reason}`);
+  check("I: since C2, with the rows no longer adding up to the printed total, even its own printed line leaves it pending",
+    r.status === 201 && after.cls !== "VERIFIED" && /stated total mismatch/.test(after.reason), [r, after]);
 
   // ── E ──
   section(E);

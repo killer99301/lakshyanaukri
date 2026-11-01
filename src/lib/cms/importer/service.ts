@@ -19,7 +19,7 @@ import { fetchSource } from "@/lib/cms/importer/fetch-source";
 import { readSource, htmlToText, type SourceReading } from "@/lib/cms/importer/extract";
 import { sourceOwnLink } from "@/lib/cms/importer/links";
 import { buildProposal, comparable, type DeclaredKind, type RetrievalSummary } from "@/lib/cms/importer/proposal";
-import { classifyField, effectiveDecision, publishGate, type FieldVerdict } from "@/lib/cms/importer/classify";
+import { classifyField, effectiveDecision, publishGate, type FieldVerdict, type TableTotalContext } from "@/lib/cms/importer/classify";
 import { contentHash, valueHash } from "@/lib/cms/importer/evidence-text";
 import { CRITICAL_FIELDS, FIELD_DEFS, POSITIVE_FLAG, fieldDef, revisionPath } from "@/lib/cms/importer/fields";
 import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-domains";
@@ -29,7 +29,7 @@ import { readRemovals, type RemovalReading } from "@/lib/cms/importer/post-remov
 import type { VacancyTable } from "@/lib/vacancy-table";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
 import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
-import { TABLE_PATH, tableCheckScope } from "@/lib/cms/importer/table-check";
+import { TABLE_PATH, quoteIsPrintedTotal, tableCheckScope, totalRoute } from "@/lib/cms/importer/table-check";
 import {
   applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -541,7 +541,8 @@ export interface CheckRow extends FieldVerdict {
 export async function checksFor(record: RecruitmentRecord) {
   const imported = await isImportedJob(record.id);
   const [states, first, retrievals] = await Promise.all([fieldStates(record, CRITICAL_FIELDS), firstImportAt(record.id), retrievalsFor(record.id)]);
-  const gate = publishGate(states, first);
+  const tableTotal = await tableTotalContext(record, first);
+  const gate = publishGate(states, first, tableTotal);
   const rows: CheckRow[] = gate.verdicts.map((v) => {
     const s = states.find((x) => x.fieldPath === v.fieldPath)!;
     return { ...v, tier: fieldDef(v.fieldPath).tier, value: s.value, latestRevisionId: s.latestRevisionId, decisionId: effectiveDecision(s)?.id };
@@ -552,7 +553,7 @@ export async function checksFor(record: RecruitmentRecord) {
   const fields: Record<string, string> = {};
   if (imported) {
     const all = await fieldStates(record, Object.keys(FIELD_DEFS).filter((p) => !p.startsWith("links#") && p !== "identity.title"));
-    for (const s of all) if (s.hasValue || s.claims.length > 0) fields[s.fieldPath] = classifyField(s, first).cls;
+    for (const s of all) if (s.hasValue || s.claims.length > 0) fields[s.fieldPath] = classifyField(s, first, tableTotal).cls;
     for (const r of rows) fields[r.fieldPath] = r.cls;
   }
   return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals, fields, tableCheck: await tableCheckFor(record) };
@@ -577,8 +578,23 @@ export async function tableCheckFor(record: RecruitmentRecord): Promise<{ checke
 /** The publish gate for one job: only imported jobs are gated. */
 export async function publishGateFor(record: RecruitmentRecord): Promise<{ gated: boolean; ok: boolean; blockers: FieldVerdict[]; verdicts: FieldVerdict[] }> {
   if (!(await isImportedJob(record.id))) return { gated: false, ok: true, blockers: [], verdicts: [] };
-  const gate = publishGate(await fieldStates(record, CRITICAL_FIELDS), await firstImportAt(record.id));
+  const first = await firstImportAt(record.id);
+  const gate = publishGate(await fieldStates(record, CRITICAL_FIELDS), first, await tableTotalContext(record, first));
   return { gated: true, ...gate };
+}
+
+/**
+ * When Total Vacancies is worked out from the job's vacancy table, what its class depends on (Stage C, C2):
+ * the table, how the total was worked out, the whole-table check, and any conflict open on the table.
+ * Null for a job whose total is entered on its own, which is classified as before.
+ */
+export async function tableTotalContext(record: RecruitmentRecord, first: string | null): Promise<TableTotalContext | null> {
+  const table = record.vacancies.table?.value ?? null;
+  const derived = record.vacancies.total?.derived;
+  if (!table || !derived || derived.from !== TABLE_PATH) return null;
+  const [check, [tableState]] = await Promise.all([tableCheckFor(record), fieldStates(record, [TABLE_PATH])]);
+  const tableConflict = record.vacancies.table?.conflict === true || (!!tableState && classifyField(tableState, first).cls === "CONFLICTING");
+  return { table, derived: { basis: derived.basis, complete: derived.complete, fingerprint: derived.fingerprint }, tableChecked: check.checked, tableConflict };
 }
 
 const squash = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
@@ -608,6 +624,29 @@ export async function decide(opts: {
     if ("error" in t) throw new ImportInputError(t.error);
     reviewScope = t.scope;
   }
+  // Total Vacancies worked out from the table (Stage C, C2): checked by the whole-table check, or by its
+  // printed line, figure and page; an incomplete one is never verified, only recorded as not stated in full.
+  let notStatedInFull = false;
+  if (opts.fieldPath === "vacancies.total") {
+    const ctx = await tableTotalContext(record, null);
+    if (ctx) {
+      const value = record.vacancies.total!.value as number;
+      const route = totalRoute(ctx.table, ctx.derived, value);
+      if (opts.kind === "ADMIN_NOT_APPLICABLE") throw new ImportInputError("A total worked out from the vacancy table is not recorded as not applicable");
+      if (opts.kind === "ADMIN_VERIFIED") {
+        if (route.incomplete) throw new ImportInputError(`The total is incomplete (at least ${value}): it is never verified. When the notice gives no more, record it as not stated in full.`);
+        if (route.route === "TABLE_CHECK") throw new ImportInputError(`This total is checked by checking the whole vacancy table: ${route.why.join("; ")}`);
+        if (!quoteIsPrintedTotal(route.evidence!, value, opts.quote, opts.page)) {
+          throw new ImportInputError(`Cite the notice's printed total: “${route.evidence!.line}”, page ${route.evidence!.page}. Any other line does not verify it.`);
+        }
+      } else {
+        if (!route.incomplete) throw new ImportInputError("The total is complete: check it instead of recording it as not stated");
+        if (!opts.justification) throw new ImportInputError("Say why the notice gives no more, for example which rows it does not report");
+        if (!Array.isArray(opts.reviewScope?.pages) || opts.reviewScope.pages.length === 0) throw new ImportInputError("Name the pages of the notice you read for the missing figures");
+        notStatedInFull = true;
+      }
+    }
+  }
 
   const retrieval = (await retrievalsFor(record.id)).find((r) => r.id === opts.retrievalId);
   if (!retrieval) throw new ImportInputError("That document was not brought in for this job");
@@ -635,6 +674,9 @@ export async function decide(opts: {
   if (opts.kind === "ADMIN_VERIFIED") {
     if (current === null || current === undefined) throw new ImportInputError("There is no value to verify");
     revision = { oldValue: currentField ?? null, newValue: currentField ?? null, reason: `Checked against ${docName}` };
+  } else if (notStatedInFull) {
+    // The figure stays as it is, a minimum, and the page goes on saying so ("At least N").
+    revision = { oldValue: currentField ?? null, newValue: currentField ?? null, reason: `Recorded as not stated in full (${docName}): ${opts.justification}` };
   } else if (opts.fieldPath.startsWith("links#")) {
     revision = { oldValue: record.links, newValue: record.links, reason: `${opts.kind === "ADMIN_NOT_STATED" ? "Recorded as not stated" : "Recorded as not applicable"} (${docName}): ${opts.justification}` };
   } else {

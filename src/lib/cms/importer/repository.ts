@@ -184,7 +184,7 @@ export async function firstImportAt(recruitmentId: string): Promise<string | nul
 
 export async function claimsFor(recruitmentId: string): Promise<Array<ClaimView & { fieldPath: string }>> {
   const rows = await sql`
-    SELECT c.id, c.seq, c.kind, c.field_path, c.value, c.field_revision_id, c.revokes_claim_id, c.public_note, c.quote,
+    SELECT c.id, c.seq, c.kind, c.field_path, c.value, c.field_revision_id, c.revokes_claim_id, c.public_note, c.quote, c.page,
            EXISTS (SELECT 1 FROM recruitment_claim_supersessions x WHERE x.superseded_claim_id = c.id) AS superseded,
            r.authenticity, r.origin_role, r.origin_purposes, r.declared_kind
     FROM recruitment_field_claims c
@@ -196,7 +196,7 @@ export async function claimsFor(recruitmentId: string): Promise<Array<ClaimView 
     id: String(r.id), seq: Number(r.seq), kind: r.kind as ClaimView["kind"], fieldPath: String(r.field_path),
     value: r.value ?? null, fieldRevisionId: (r.field_revision_id as string) ?? null,
     revokesClaimId: (r.revokes_claim_id as string) ?? null, publicNote: (r.public_note as string) ?? null,
-    quote: (r.quote as string) ?? null, superseded: r.superseded === true,
+    quote: (r.quote as string) ?? null, page: r.page == null ? null : Number(r.page), superseded: r.superseded === true,
     retrieval: r.authenticity ? {
       authenticity: String(r.authenticity), originRole: r.origin_role as OriginRole,
       originPurposes: (r.origin_purposes as string[]) ?? [], declaredKind: String(r.declared_kind),
