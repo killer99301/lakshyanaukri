@@ -145,6 +145,6 @@ The test is `tests/local-stack/stage-c-baseline.test.ts`. The raw output is in `
 | Lint | baseline, 7 errors and 26 warnings, none in the C1 files |
 
 All three failures predate C1, and C1 touches none of their code:
-- **Intelligence E8:** the known baseline (section 7 of the roadmap's entry checklist).
+- **Intelligence E8:** the known baseline (item 2 of the Stage C entry checklist in the roadmap).
 - **`tests/cms/sitemap-ticker.test.ts`, TK02 and TK03:** the test imports `IMPORTANT_UPDATES`, which was removed from the site's code on 4 October (5d5d9a9, already on main). The test is stale.
 - **`tests/cms/phase-d-integration.test.ts`:** it needs a live `DATABASE_URL` and stops without one. It was not run against any real database.
