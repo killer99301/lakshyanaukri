@@ -29,6 +29,7 @@ import { readRemovals, type RemovalReading } from "@/lib/cms/importer/post-remov
 import type { VacancyTable } from "@/lib/vacancy-table";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
 import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
+import { TABLE_PATH, tableCheckScope } from "@/lib/cms/importer/table-check";
 import {
   applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -554,7 +555,23 @@ export async function checksFor(record: RecruitmentRecord) {
     for (const s of all) if (s.hasValue || s.claims.length > 0) fields[s.fieldPath] = classifyField(s, first).cls;
     for (const r of rows) fields[r.fieldPath] = r.cls;
   }
-  return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals, fields };
+  return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals, fields, tableCheck: await tableCheckFor(record) };
+}
+
+/**
+ * Whether the job's vacancy table stands checked against the notice (Stage C, C1): a decision on the whole
+ * table, bound to its latest revision, not revoked, and made on the table exactly as it is now.
+ */
+export async function tableCheckFor(record: RecruitmentRecord): Promise<{ checked: boolean; decisionId: string | null; pages: number[]; revisionId: string | null }> {
+  const table = record.vacancies.table?.value ?? null;
+  const [state] = await fieldStates(record, [TABLE_PATH]);
+  const revisionId = state?.latestRevisionId ?? null;
+  const d = state ? effectiveDecision(state) : undefined;
+  if (!table || !d || d.kind !== "ADMIN_VERIFIED" || valueHash(comparable(TABLE_PATH, d.value)) !== valueHash(comparable(TABLE_PATH, table))) {
+    return { checked: false, decisionId: null, pages: [], revisionId };
+  }
+  const scope = (await sql`SELECT review_scope FROM recruitment_field_claims WHERE id = ${d.id}`)[0]?.review_scope as { pages?: number[] } | null | undefined;
+  return { checked: true, decisionId: d.id, pages: scope?.pages ?? [], revisionId };
 }
 
 /** The publish gate for one job: only imported jobs are gated. */
@@ -584,6 +601,13 @@ export async function decide(opts: {
   const record = await getRecruitmentById(opts.recruitmentId);
   if (!record) throw new ImportInputError("Job not found", 404);
   if (record.draftState !== "DRAFT" && record.draftState !== "APPROVED") throw new ImportInputError("Open the job for editing first", 409);
+  // The vacancy table is checked as a whole, against every page it comes from (Stage C, C1).
+  let reviewScope = opts.reviewScope;
+  if (opts.fieldPath === TABLE_PATH) {
+    const t = tableCheckScope({ kind: opts.kind, table: record.vacancies.table?.value, quote: opts.quote, page: opts.page, reviewScope: opts.reviewScope });
+    if ("error" in t) throw new ImportInputError(t.error);
+    reviewScope = t.scope;
+  }
 
   const retrieval = (await retrievalsFor(record.id)).find((r) => r.id === opts.retrievalId);
   if (!retrieval) throw new ImportInputError("That document was not brought in for this job");
@@ -626,7 +650,7 @@ export async function decide(opts: {
     claim: {
       value: opts.kind === "ADMIN_VERIFIED" ? current : null,
       valueHash: opts.kind === "ADMIN_VERIFIED" ? valueHash(comparable(opts.fieldPath, current)) : null,
-      retrievalId: opts.retrievalId, page: opts.page, quote: opts.quote, tableCell: opts.tableCell, reviewScope: opts.reviewScope,
+      retrievalId: opts.retrievalId, page: opts.page, quote: opts.quote, tableCell: opts.tableCell, reviewScope,
       justification: opts.justification, publicNote: opts.publicNote,
     },
     revision,

@@ -95,3 +95,56 @@ The test is `tests/local-stack/stage-c-baseline.test.ts`. The raw output is in `
 - **`calculatedTotalReady`** gives the right reasons in every case, but nothing calls it.
 
 **Limitation of the measurement:** the tables were saved through the editor's field route, not proposed by the import. So the total starts as UNSUPPORTED, not SUPPORTED. That does not change what a decision can do.
+
+## 8. C1 done, 1 November 2026: the whole-table check (waits for the owner's review)
+
+**What was built.** No schema change.
+- **The rules:** `src/lib/cms/importer/table-check.ts`.
+- **Where they are applied:** the existing decision path, `decide` in `service.ts`. Its route is `POST /api/admin/cms/records/[id]/decisions`.
+
+**A decision on `vacancies.table`:**
+- **What is accepted:** "checked against the notice" only. "Not applicable" and "not stated" are refused on a table.
+- **The pages compared:** they must be named, and they must include every page the table's rows and printed totals cite. A page left out is refused by name. They are stored as `review_scope { pages, sections: ["the whole vacancy table"] }`.
+- **The words cited:** they must be in the notice, and on one of the pages compared.
+- **The binding** is the existing one for every decision:
+  - it is bound to the table's exact revision;
+  - a decision made on a stale revision is refused (409);
+  - it is revoked like any decision;
+  - any save of the table leaves it behind. That includes saving the table unchanged.
+
+**The reader** is `tableCheckFor(record)`, also returned by `checksFor` as `tableCheck`. The table counts as checked only when:
+- the decision is the effective one at the table's latest revision;
+- it was made on the table exactly as it is now.
+
+**What did not change:**
+- The publish gate. C2 will use `tableCheck`.
+- The total's own decisions.
+- Every other field decision.
+
+**Tests:**
+- Unit: `tests/cms/table-check.test.ts`, 8 of 8.
+- Stack: `tests/local-stack/table-check.test.ts`, 19 of 19. It covers two pathways, kept apart:
+  - **I: a table created by the import.** The table is SUPPORTED from the import's extracted claim.
+  - **E: a table saved in the editor.** The table is UNSUPPORTED, with no claim.
+- Negative check: with the new rules switched off, 5 stack checks fail. Without them, a table could be marked checked with no pages named.
+
+**Found on the import pathway, for C2.** The import's claim is on the table, not on the total. So the total worked out from an imported table is UNSUPPORTED on both pathways. C0's UNSUPPORTED start was therefore not only an artefact of the editor route.
+
+**A defect found, not fixed (outside C1).** The code table reader goes wrong when a table continues on the next page under a "(continued)" heading and a repeated column heading. The first row there takes those lines into its name: the bank read as "Annexure I (continued) Sr. No. Name of the Bank … 3 Gamma Gramin Bank". A continuation page without the heading reads correctly. It belongs with the B2.5 cross-page reading and needs the owner's go-ahead to fix.
+
+**Regression, 1 November 2026, with C1 in place:**
+
+| What | Result |
+|---|---|
+| Stack, CMS, PostgreSQL and intelligence suites | 81 of 84 suites pass |
+| Intake | 332 / 332 |
+| PostgreSQL concurrency | 35 / 35 (17.11) |
+| Production cache test | 31 / 31 |
+| Production build | passes; only the existing pdfjs-dist warning |
+| Type check | clean |
+| Lint | baseline, 7 errors and 26 warnings, none in the C1 files |
+
+All three failures predate C1, and C1 touches none of their code:
+- **Intelligence E8:** the known baseline (section 7 of the roadmap's entry checklist).
+- **`tests/cms/sitemap-ticker.test.ts`, TK02 and TK03:** the test imports `IMPORTANT_UPDATES`, which was removed from the site's code on 4 October (5d5d9a9, already on main). The test is stale.
+- **`tests/cms/phase-d-integration.test.ts`:** it needs a live `DATABASE_URL` and stops without one. It was not run against any real database.
