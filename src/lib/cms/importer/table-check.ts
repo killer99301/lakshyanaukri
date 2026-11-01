@@ -118,5 +118,18 @@ export function totalRoute(table: VacancyTable, derived: { basis: string; comple
   return { incomplete, route: why.length ? "TABLE_CHECK" : "PRINTED_LINE", evidence, why };
 }
 
+/**
+ * What the check list shows about a total worked out from the table (Stage C, C3 step 1): the route the
+ * server allows, the printed line to cite when there is one, why the whole-table check is needed, and the
+ * pages the table comes from. Read only: it is worked out by totalRoute and tablePages, and decides nothing.
+ */
+export interface TableTotalView extends TotalRoute {
+  pages: number[];
+}
+
+export function tableTotalView(table: VacancyTable, derived: { basis: string; complete: boolean }, value: number): TableTotalView {
+  return { ...totalRoute(table, derived, value), pages: tablePages(table) };
+}
+
 /** calculatedTotalReady's reasons that only say the total is a minimum: the ones "not stated in full" may answer. */
 export const isIncompletenessReason = (r: string) => r === "the total is incomplete" || /^\d+ × (not reported|no figure)$/.test(r);

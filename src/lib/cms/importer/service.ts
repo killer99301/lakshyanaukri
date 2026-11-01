@@ -29,7 +29,7 @@ import { readRemovals, type RemovalReading } from "@/lib/cms/importer/post-remov
 import type { VacancyTable } from "@/lib/vacancy-table";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
 import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
-import { TABLE_PATH, quoteIsPrintedTotal, tableCheckScope, totalRoute } from "@/lib/cms/importer/table-check";
+import { TABLE_PATH, quoteIsPrintedTotal, tableCheckScope, tableTotalView, totalRoute } from "@/lib/cms/importer/table-check";
 import {
   applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -556,7 +556,10 @@ export async function checksFor(record: RecruitmentRecord) {
     for (const s of all) if (s.hasValue || s.claims.length > 0) fields[s.fieldPath] = classifyField(s, first, tableTotal).cls;
     for (const r of rows) fields[r.fieldPath] = r.cls;
   }
-  return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals, fields, tableCheck: await tableCheckFor(record) };
+  // How a total worked out from the table can be checked, for the check list to show (read only, C3 step 1).
+  const totalView = tableTotal && typeof record.vacancies.total?.value === "number"
+    ? tableTotalView(tableTotal.table, tableTotal.derived, record.vacancies.total.value) : null;
+  return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals, fields, tableCheck: await tableCheckFor(record), tableTotal: totalView };
 }
 
 /**
