@@ -88,8 +88,14 @@ export function stillNeeded(needs: TableNeeds, f: TableCheckForm, flaggedCount: 
   if (wrongClaim.length) out.push(`prepared rows compared with another page than they claim: ${wrongClaim.map((r) => r.label).join("; ")}`);
   if (!f.quoteDoc) out.push("the document the words you cite are from");
   else {
+    // A PDF's words need their page, as the server requires; a web page or text has none.
     const kind = needs.official.find((o) => o.retrievalId === f.quoteDoc)?.kind;
-    if (!isPageless(kind) && f.quotePage && !pagesOf(f, f.quoteDoc).includes(Number(f.quotePage))) out.push("the page of the words you cite must be one you compared");
+    const page = Number(f.quotePage);
+    if (!isPageless(kind)) {
+      if (!f.quotePage.trim()) out.push("the page of the words you cite");
+      else if (!(Number.isInteger(page) && page > 0)) out.push("the page of the words you cite, as a page number");
+      else if (!pagesOf(f, f.quoteDoc).includes(page)) out.push("the page of the words you cite must be one you compared");
+    }
   }
   if (!f.quote.trim()) out.push("a line of the table, copied exactly from the notice");
   if (flaggedCount > 0 && !f.flaggedAck) out.push(`that you looked at the ${flaggedCount} marked row${flaggedCount === 1 ? "" : "s"} (step 3)`);

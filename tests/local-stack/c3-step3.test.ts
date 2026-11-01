@@ -37,13 +37,20 @@ const HEADING = "Sr. No. Name of the Bank SC ST OBC EWS UR Total";
 /** The database keeps JSON with its keys in its own order: compare with sorted keys. */
 const canon = (v: unknown): unknown => Array.isArray(v) ? v.map(canon) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([x], [y]) => (x < y ? -1 : 1)).map(([k, x]) => [k, canon(x)])) : v;
 
-const S = { P: "P: one official PDF, through the screen's form", W: "W: an official web page", M: "M: PDF, web page, research and prepared rows", R: "R: stale and refused" };
+const S = { P: "P: one official PDF, through the screen's form", Q: "Q: the page of a PDF's words (step 4 fix D1)", W: "W: an official web page", M: "M: PDF, web page, research and prepared rows", R: "R: stale and refused" };
 expectChecks(S.P, [
   "P: the checks route gives the table's needs: one official PDF, its pages, nothing to compare; simple",
   "P: the form asks for step 1, the pages, the words and the confirmation, nothing more",
   "P: recorded through the documents shape the screen sends; the total VERIFIED",
   "P: the declared source (the file's own fingerprint) is kept with the check",
   "P: a different file's fingerprint: refused",
+]);
+expectChecks(S.Q, [
+  "Q: no page for a PDF's words: the form names it, and the server refuses it too",
+  "Q: page 0: the form asks for a page number, and the server refuses it too",
+  "Q: a page not compared: the form names it, and the server refuses it too",
+  "Q: nothing was recorded by the refused attempts",
+  "Q: a page compared: nothing still needed, and recorded",
 ]);
 expectChecks(S.W, [
   "W: the web page's needs: no pages, the whole document",
@@ -120,6 +127,26 @@ expectChecks(S.R, [
   const c2 = await checks(p2);
   r = await record(p2, c2, { ...fP, sources: { [c2.retrievals[0].id]: { by: "FILE_HASH", sha256: "e".repeat(64) } }, pagesTicked: { [c2.retrievals[0].id]: [1, 2] }, quoteDoc: c2.retrievals[0].id });
   check("P: a different file's fingerprint: refused", r.status === 400 && /not the file that was imported/.test(String(r.data.error)), r);
+
+  // ── Q ──
+  section(S.Q);
+  const q = c2.retrievals[0];
+  const fQ = (quotePage: string): TableCheckForm => ({ ...fP, sources: { [q.id]: { by: "FILE_HASH", sha256: q.sha256 } }, pagesTicked: { [q.id]: [1, 2] }, quoteDoc: q.id, quotePage });
+  r = await record(p2, c2, fQ(""));
+  check("Q: no page for a PDF's words: the form names it, and the server refuses it too",
+    JSON.stringify(stillNeeded(c2.tableNeeds!, fQ(""), 0)) === JSON.stringify(["the page of the words you cite"]) && r.status === 400, [stillNeeded(c2.tableNeeds!, fQ(""), 0), r]);
+  r = await record(p2, c2, fQ("0"));
+  check("Q: page 0: the form asks for a page number, and the server refuses it too",
+    JSON.stringify(stillNeeded(c2.tableNeeds!, fQ("0"), 0)) === JSON.stringify(["the page of the words you cite, as a page number"]) && r.status === 400, [stillNeeded(c2.tableNeeds!, fQ("0"), 0), r]);
+  const fQ3 = { ...fQ("2"), pagesTicked: { [q.id]: [1] } };
+  r = await record(p2, c2, fQ3);
+  check("Q: a page not compared: the form names it, and the server refuses it too",
+    stillNeeded(c2.tableNeeds!, fQ3, 0).includes("the page of the words you cite must be one you compared") && r.status === 400, [stillNeeded(c2.tableNeeds!, fQ3, 0), r]);
+  check("Q: nothing was recorded by the refused attempts", !(await checks(p2)).tableCheck.checked && !(await storedScope(p2)));
+  r = await record(p2, c2, fQ("2"));
+  const cQ = await checks(p2);
+  check("Q: a page compared: nothing still needed, and recorded",
+    stillNeeded(c2.tableNeeds!, fQ("2"), 0).length === 0 && r.status === 201 && cQ.tableCheck.checked && totalCls(cQ) === "VERIFIED", [r, totalCls(cQ)]);
 
   // ── W ──
   section(S.W);

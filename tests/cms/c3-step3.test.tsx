@@ -63,7 +63,7 @@ test("T11 single PDF: needs only step 1, its pages, the words and the confirmati
   assert.ok("scope" in tableCheckScope({ kind: "ADMIN_VERIFIED", table: SINGLE, quote: d.quote, page: d.page, reviewScope: d.reviewScope, docs: DOCS, retrievalId: d.retrievalId }));
 });
 test("T12 single PDF: a page left unticked is named, and Record stays disabled", () => {
-  const f = filled({ sources: { pdf: { by: "FILE_HASH", sha256: SHA } }, pagesTicked: { pdf: [46] }, quoteDoc: "pdf" });
+  const f = filled({ sources: { pdf: { by: "FILE_HASH", sha256: SHA } }, pagesTicked: { pdf: [46] }, quoteDoc: "pdf", quotePage: "46" });
   assert.deepEqual(stillNeeded(needsOf(SINGLE), f, 0), ["page 47 of ibps.in — notification"]);
 });
 test("T13 a web page: the whole document, never pages; the words with no page", () => {
@@ -95,12 +95,27 @@ test("T14 mixed: every row mapped, the pages of the PDF include the mapped and p
 });
 test("T15 marked rows: the acknowledgment is required and its count stored", () => {
   const n = needsOf(SINGLE);
-  const f = filled({ sources: { pdf: { by: "FILE_HASH", sha256: SHA } }, pagesTicked: { pdf: [46, 47] }, quoteDoc: "pdf" });
+  const f = filled({ sources: { pdf: { by: "FILE_HASH", sha256: SHA } }, pagesTicked: { pdf: [46, 47] }, quoteDoc: "pdf", quotePage: "46" });
   assert.deepEqual(stillNeeded(n, f, 2), ["that you looked at the 2 marked rows (step 3)"]);
   assert.equal(buildDecision(n, { ...f, flaggedAck: true }, 2).reviewScope.flaggedRowsAcknowledged, 2);
 });
 test("T16 without step 1 the check is not offered (screen safeguard), whatever else is filled", () => {
-  const f = filled({ pagesTicked: { pdf: [46, 47] }, quoteDoc: "pdf" });
+  const f = filled({ pagesTicked: { pdf: [46, 47] }, quoteDoc: "pdf", quotePage: "46" });
+test("T17 a PDF's words need their page, as the server requires: empty, not a page number, or not compared is named and keeps Record disabled", () => {
+  const n = needsOf(SINGLE);
+  const f = (quotePage: string) => filled({ sources: { pdf: { by: "FILE_HASH", sha256: SHA } }, pagesTicked: { pdf: [46, 47] }, quoteDoc: "pdf", quotePage });
+  assert.deepEqual(stillNeeded(n, f(""), 0), ["the page of the words you cite"]);
+  assert.deepEqual(stillNeeded(n, f("0"), 0), ["the page of the words you cite, as a page number"]);
+  assert.deepEqual(stillNeeded(n, f("48"), 0), ["the page of the words you cite must be one you compared"]);
+  assert.deepEqual(stillNeeded(n, f("47"), 0), []);
+  assert.equal(buildDecision(n, f("47"), 0).page, 47);
+  // Mixed: the words from the PDF need a page; from the web page, none (no invented page numbers).
+  const m = needsOf(MIXED);
+  const base = assignRows(m, filled({ sources: { pdf: { by: "FILE_HASH", sha256: SHA }, web: { by: "OFFICIAL_ADDRESS", url: "https://www.ibps.in/n.html" } }, wholeDoc: { web: true }, pagesTicked: { pdf: [47, 48] } }), ["r1", "p1"], "pdf", 47);
+  assert.deepEqual(stillNeeded(m, { ...base, quoteDoc: "pdf", quotePage: "", confirm: true }, 0), ["the page of the words you cite"]);
+  assert.deepEqual(stillNeeded(m, { ...base, quoteDoc: "web", quotePage: "", confirm: true }, 0), []);
+  assert.equal(buildDecision(m, { ...base, quoteDoc: "web", quotePage: "", confirm: true }, 0).page, null);
+});
   assert.deepEqual(stillNeeded(needsOf(SINGLE), f, 0), ["how you have the original of ibps.in — notification (step 1)"]);
 });
 
@@ -177,4 +192,13 @@ test("T52 the panel opens with nothing ticked and Record disabled; mixed: the ro
   assert.match(t, /prepared outside the notice \(research\): not the notice/);
   assert.match(t, /as the server extracted it from the web page or text: it is not the page/);
   assert.ok(!/retrievalId|comparedWith|\{"/.test(t), "no JSON or internal names on the screen");
+});
+test("T53 while the check is open below, the table line does not say it can be checked only when the job is open for editing; read-only keeps that guidance", () => {
+  const view = { incomplete: false, route: "TABLE_CHECK" as const, evidence: null, why: ["the total is calculated from the rows"], pages: [1] };
+  const st = { checked: false, decisionId: null, pages: [], revisionId: "r" };
+  const open = text(renderToStaticMarkup(<TableCheckLine state={st} tableTotal={view} editable onWithdraw={() => {}} checking />));
+  assert.match(open, /Total vacancies can be checked only by checking the whole table against the notice/);
+  assert.ok(!/open for editing|It cannot be checked here|Until then/.test(open), open);
+  const readOnly = text(renderToStaticMarkup(<TableCheckLine state={st} tableTotal={view} editable={false} onWithdraw={() => {}} />));
+  assert.match(readOnly, /It can be checked here when the job is open for editing and has an official document\. Until then this total stays pending\./);
 });

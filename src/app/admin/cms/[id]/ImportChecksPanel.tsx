@@ -177,12 +177,14 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
  * means for Total Vacancies; and, since C3 step 3, the button that opens the whole-table check. Without a
  * way to open it (a job not open for editing, no official document), it is said, never a button that does nothing.
  */
-export function TableCheckLine({ state, tableTotal, editable, onWithdraw, onOpenCheck, cannotCheck }: {
+export function TableCheckLine({ state, tableTotal, editable, onWithdraw, onOpenCheck, cannotCheck, checking }: {
   state: TableCheckState | undefined; tableTotal: TableTotalView | null | undefined; editable: boolean; onWithdraw: () => void;
   /** Opens the whole-table check; absent when it cannot be done here. */
   onOpenCheck?: () => void;
   /** Why the table cannot be checked here, when the server says so. */
   cannotCheck?: string | null;
+  /** The whole-table check is open below: it is being done, so say nothing about when it can be. */
+  checking?: boolean;
 }) {
   if (!tableTotal && !state?.checked) return null;
   return (
@@ -203,7 +205,7 @@ export function TableCheckLine({ state, tableTotal, editable, onWithdraw, onOpen
           {tableTotal.route === "TABLE_CHECK"
             ? <>Total vacancies can be checked only by checking the whole table against the notice ({tableTotal.why.join("; ")}).</>
             : <>Total vacancies can be verified by the notice&apos;s printed total, or by checking the whole table against the notice.</>}
-          {onOpenCheck ? "" : <>{" "}{cannotCheck ? `It cannot be checked here: ${cannotCheck}.` : "It can be checked here when the job is open for editing and has an official document."}{tableTotal.route === "TABLE_CHECK" ? " Until then this total stays pending." : ""}</>}
+          {onOpenCheck || checking ? "" : <>{" "}{cannotCheck ? `It cannot be checked here: ${cannotCheck}.` : "It can be checked here when the job is open for editing and has an official document."}{tableTotal.route === "TABLE_CHECK" ? " Until then this total stays pending." : ""}</>}
         </div>
       )}
       {onOpenCheck && (
@@ -338,7 +340,7 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
         </tbody>
       </table>}
       {showList && <TableCheckLine state={checks.tableCheck} tableTotal={checks.tableTotal} editable={editable && canCheck} onWithdraw={withdrawTableCheck}
-        cannotCheck={checks.tableNeedsError ?? null}
+        cannotCheck={checks.tableNeedsError ?? null} checking={tableCheckOpen && !!checks.tableNeeds && !!record.vacancies.table?.value}
         onOpenCheck={editable && canCheck && checks.tableNeeds && !checks.tableCheck?.checked && !tableCheckOpen ? () => { setNotice(null); setTableCheckOpen(true); } : undefined} />}
       {notice && <div role="status" style={{ color: C.amber, marginTop: 6 }}>{notice}</div>}
       {showList && tableCheckOpen && checks.tableNeeds && record.vacancies.table?.value && (
