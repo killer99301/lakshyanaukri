@@ -54,7 +54,11 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
   const [ticked, setTicked] = useState<number[]>([]);
   const pagesRead = [...new Set([...ticked, ...pages.split(/[,\s]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0)])].sort((a, b) => a - b);
   const [justification, setJustification] = useState("");
-  const inFullReady = !inFull || (pagesRead.length > 0 && justification.trim().length > 0);
+  // A web page or text has no pages (C2.1): "not stated in full" is then read as the whole document.
+  const docForPages = eligible.find((r) => r.id === retrievalId);
+  const pagelessDoc = !!docForPages && ["HTML", "TEXT", "IMAGE"].includes(docForPages.contentKind);
+  const [readWhole, setReadWhole] = useState(false);
+  const inFullReady = !inFull || ((pagelessDoc ? readWhole : pagesRead.length > 0) && justification.trim().length > 0);
   const [publicNote, setPublicNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -71,7 +75,7 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
     if (kind !== "ADMIN_NOT_STATED") body.quote = quote;
     if (kind !== "ADMIN_VERIFIED") { body.justification = justification; if (publicNote) body.publicNote = publicNote; }
     if (kind === "ADMIN_NOT_STATED") {
-      body.reviewScope = inFull ? { pages: pagesRead } : whole ? { whole_document: true } : { pages: pages.split(/[,\s]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0) };
+      body.reviewScope = inFull ? (pagelessDoc ? { whole_document: true } : { pages: pagesRead }) : whole ? { whole_document: true } : { pages: pages.split(/[,\s]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0) };
     }
     const res = await fetch(`/api/admin/cms/records/${recordId}/decisions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const d = await res.json().catch(() => ({}));
@@ -119,7 +123,12 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
           </label>
         </div>
       )}
-      {kind === "ADMIN_NOT_STATED" && inFull && (
+      {kind === "ADMIN_NOT_STATED" && inFull && pagelessDoc && (
+        <label data-read-whole style={{ display: "flex", gap: 6, color: C.muted }}>
+          <input type="checkbox" checked={readWhole} onChange={(e) => setReadWhole(e.target.checked)} /> I read the whole document (a web page or text has no pages) (required)
+        </label>
+      )}
+      {kind === "ADMIN_NOT_STATED" && inFull && !pagelessDoc && (
         <div style={{ display: "grid", gap: 6 }}>
           <span style={labelStyle}>Pages of the notice you read for the missing figures (required)</span>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

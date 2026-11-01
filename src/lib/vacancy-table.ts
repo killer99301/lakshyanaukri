@@ -113,7 +113,14 @@ export interface Figure {
 export type IssueCode =
   | "DUPLICATE_ROW" | "MISSING_DIMENSION" | "BAD_FIGURE" | "ROW_TOTAL_MISMATCH" | "HORIZONTAL_EXCEEDS_TOTAL"
   | "NOT_REPORTED" | "NO_FIGURE" | "UNDETERMINED_COLUMN" | "STATED_TOTAL_MISMATCH" | "NO_SOURCE" | "FIGURES_NOT_IN_LINE" | "UNCLEAR_FIGURE" | "SUGGESTED_SPELLING"
-  | "PARTS_TOTAL_MISMATCH";
+  | "PARTS_TOTAL_MISMATCH"
+  /** C2.1 (PF-1): a row from a PDF has no page; or a row from a web page or text has a page it cannot have. */
+  | "PDF_ROW_WITHOUT_PAGE" | "PAGE_ON_PAGELESS_SOURCE";
+
+/** A source document's kind, by its id, for the per-row page rule (C2.1, PF-1). */
+export type SourceKinds = Record<string, string>;
+/** Documents that have no pages: a web page, pasted text, a single image. */
+export const PAGELESS_KINDS = new Set(["HTML", "TEXT", "IMAGE"]);
 
 export interface TableIssue {
   code: IssueCode;
@@ -222,8 +229,23 @@ function printedOrEntered(source: SourceRef): Pick<Figure, "basis" | "method"> {
 
 // ─── Analysis ─────────────────────────────────────────────
 
-export function analyseVacancyTable(table: VacancyTable): VacancyAnalysis {
+export function analyseVacancyTable(table: VacancyTable, opts: { sourceKinds?: SourceKinds } = {}): VacancyAnalysis {
   const issues: TableIssue[] = [];
+  // The page each row (and printed total) must or must not have, by the kind of its own document (C2.1, PF-1).
+  // Only rows whose document is known are judged; a row with no document keeps the rules below (NO_SOURCE).
+  const kinds = opts.sourceKinds ?? {};
+  const pageRule = (src: SourceRef | undefined, where: string, rowIds?: string[]) => {
+    const kind = src?.retrievalId ? kinds[src.retrievalId] : undefined;
+    if (!kind) return;
+    if (kind === "PDF" && src!.page == null) {
+      issues.push({ code: "PDF_ROW_WITHOUT_PAGE", severity: "ERROR", message: `${where}: it comes from a PDF but has no page. Give its page.`, ...(rowIds ? { rowIds } : {}) });
+    }
+    if (PAGELESS_KINDS.has(kind) && src!.page != null) {
+      issues.push({ code: "PAGE_ON_PAGELESS_SOURCE", severity: "ERROR", message: `${where}: it comes from a web page or text, which has no pages, yet it has page ${src!.page}. Remove the page.`, ...(rowIds ? { rowIds } : {}) });
+    }
+  };
+  for (const r of table.rows) pageRule(r.source, Object.values(r.at).filter(Boolean).join(", ") || "A row", [r.id]);
+  for (const s of table.statedTotals) pageRule(s.source, `The printed total${Object.keys(s.at ?? {}).length ? ` for ${Object.values(s.at).join(", ")}` : ""}`);
   const dims = table.dimensions;
   const groupDim = dims[0]?.key ?? "post";
 
@@ -577,15 +599,15 @@ export function tableFromLegacy(total: number | null | undefined, rows: VacancyR
  */
 export function calculatedTotalReady(
   table: VacancyTable,
-  opts: { tableChecked: boolean; stored?: Pick<Figure, "value" | "fingerprint"> | null },
+  opts: { tableChecked: boolean; stored?: Pick<Figure, "value" | "fingerprint"> | null; sourceKinds?: SourceKinds },
 ): { ready: boolean; reasons: string[] } {
-  const a = analyseVacancyTable(table);
+  const a = analyseVacancyTable(table, { sourceKinds: opts.sourceKinds });
   const reasons: string[] = [];
   if (!a.grandTotal) reasons.push("there is no total to check");
   else if (a.grandTotal.basis === "STATED") reasons.push("the total is printed in the notice; check it as usual");
   else if (a.grandTotal.basis === "ENTERED") reasons.push("the total was entered by hand, with no page of a document behind it");
   if (a.grandTotal && !a.grandTotal.complete) reasons.push("the total is incomplete");
-  for (const code of ["NO_SOURCE", "FIGURES_NOT_IN_LINE", "NOT_REPORTED", "NO_FIGURE", "UNCLEAR_FIGURE", "DUPLICATE_ROW", "MISSING_DIMENSION", "BAD_FIGURE", "UNDETERMINED_COLUMN", "ROW_TOTAL_MISMATCH", "STATED_TOTAL_MISMATCH", "HORIZONTAL_EXCEEDS_TOTAL", "PARTS_TOTAL_MISMATCH"] as IssueCode[]) {
+  for (const code of ["NO_SOURCE", "PDF_ROW_WITHOUT_PAGE", "PAGE_ON_PAGELESS_SOURCE", "FIGURES_NOT_IN_LINE", "NOT_REPORTED", "NO_FIGURE", "UNCLEAR_FIGURE", "DUPLICATE_ROW", "MISSING_DIMENSION", "BAD_FIGURE", "UNDETERMINED_COLUMN", "ROW_TOTAL_MISMATCH", "STATED_TOTAL_MISMATCH", "HORIZONTAL_EXCEEDS_TOTAL", "PARTS_TOTAL_MISMATCH"] as IssueCode[]) {
     const n = a.issues.filter((i) => i.code === code).length;
     if (n > 0) reasons.push(`${n} × ${code.toLowerCase().replace(/_/g, " ")}`);
   }

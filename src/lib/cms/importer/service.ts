@@ -29,7 +29,8 @@ import { readRemovals, type RemovalReading } from "@/lib/cms/importer/post-remov
 import type { VacancyTable } from "@/lib/vacancy-table";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
 import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
-import { TABLE_PATH, quoteIsPrintedTotal, tableCheckScope, tableTotalView, totalRoute } from "@/lib/cms/importer/table-check";
+import { TABLE_PATH, quoteIsPrintedTotal, tableCheckScope, tableTotalView, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
+import { PAGELESS_KINDS } from "@/lib/vacancy-table";
 import {
   applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -558,7 +559,7 @@ export async function checksFor(record: RecruitmentRecord) {
   }
   // How a total worked out from the table can be checked, for the check list to show (read only, C3 step 1).
   const totalView = tableTotal && typeof record.vacancies.total?.value === "number"
-    ? tableTotalView(tableTotal.table, tableTotal.derived, record.vacancies.total.value) : null;
+    ? tableTotalView(tableTotal.table, tableTotal.derived, record.vacancies.total.value, tableTotal.docs) : null;
   return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals, fields, tableCheck: await tableCheckFor(record), tableTotal: totalView };
 }
 
@@ -597,7 +598,25 @@ export async function tableTotalContext(record: RecruitmentRecord, first: string
   if (!table || !derived || derived.from !== TABLE_PATH) return null;
   const [check, [tableState]] = await Promise.all([tableCheckFor(record), fieldStates(record, [TABLE_PATH])]);
   const tableConflict = record.vacancies.table?.conflict === true || (!!tableState && classifyField(tableState, first).cls === "CONFLICTING");
-  return { table, derived: { basis: derived.basis, complete: derived.complete, fingerprint: derived.fingerprint }, tableChecked: check.checked, tableConflict };
+  return { table, derived: { basis: derived.basis, complete: derived.complete, fingerprint: derived.fingerprint }, tableChecked: check.checked, tableConflict, docs: await docStandings(record.id) };
+}
+
+/**
+ * Each document the job brought in, as the server judges it (Stage C, C2.1): its kind, and whether it can be
+ * official evidence for the vacancy table. The same tests a decision's own document must pass: confirmed or
+ * attested, from the recruiting body or a partner listed for this purpose, and not declared research.
+ * Being named in a check never changes this.
+ */
+export async function docStandings(recruitmentId: string): Promise<DocStandings> {
+  const out: DocStandings = {};
+  for (const r of await retrievalsFor(recruitmentId)) {
+    out[r.id] = {
+      kind: r.contentKind,
+      eligible: (r.authenticity === "CONFIRMED" || r.authenticity === "ATTESTED") && r.declaredKind !== "RESEARCH"
+        && authorityCovers(r.originRole, r.originPurposes, "recruitment_rules"),
+    };
+  }
+  return out;
 }
 
 const squash = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
@@ -623,9 +642,10 @@ export async function decide(opts: {
   // The vacancy table is checked as a whole, against every page it comes from (Stage C, C1).
   let reviewScope = opts.reviewScope;
   if (opts.fieldPath === TABLE_PATH) {
-    const t = tableCheckScope({ kind: opts.kind, table: record.vacancies.table?.value, quote: opts.quote, page: opts.page, reviewScope: opts.reviewScope });
+    const t = tableCheckScope({ kind: opts.kind, table: record.vacancies.table?.value, quote: opts.quote, page: opts.page, reviewScope: opts.reviewScope,
+      docs: await docStandings(record.id), retrievalId: opts.retrievalId });
     if ("error" in t) throw new ImportInputError(t.error);
-    reviewScope = t.scope;
+    reviewScope = t.scope as typeof reviewScope;
   }
   // Total Vacancies worked out from the table (Stage C, C2): checked by the whole-table check, or by its
   // printed line, figure and page; an incomplete one is never verified, only recorded as not stated in full.
@@ -634,18 +654,27 @@ export async function decide(opts: {
     const ctx = await tableTotalContext(record, null);
     if (ctx) {
       const value = record.vacancies.total!.value as number;
-      const route = totalRoute(ctx.table, ctx.derived, value);
+      const route = totalRoute(ctx.table, ctx.derived, value, ctx.docs);
       if (opts.kind === "ADMIN_NOT_APPLICABLE") throw new ImportInputError("A total worked out from the vacancy table is not recorded as not applicable");
       if (opts.kind === "ADMIN_VERIFIED") {
         if (route.incomplete) throw new ImportInputError(`The total is incomplete (at least ${value}): it is never verified. When the notice gives no more, record it as not stated in full.`);
         if (route.route === "TABLE_CHECK") throw new ImportInputError(`This total is checked by checking the whole vacancy table: ${route.why.join("; ")}`);
-        if (!quoteIsPrintedTotal(route.evidence!, value, opts.quote, opts.page)) {
-          throw new ImportInputError(`Cite the notice's printed total: “${route.evidence!.line}”, page ${route.evidence!.page}. Any other line does not verify it.`);
+        if (!quoteIsPrintedTotal(route.evidence!, value, opts.quote, opts.page, opts.retrievalId)) {
+          const ev = route.evidence!;
+          throw new ImportInputError(ev.page === null
+            ? `Cite the notice's printed total: “${ev.line}”, from the official web page or text it comes from, with no page. Any other line, or another document, does not verify it.`
+            : `Cite the notice's printed total: “${ev.line}”, page ${ev.page}. Any other line does not verify it.`);
         }
       } else {
         if (!route.incomplete) throw new ImportInputError("The total is complete: check it instead of recording it as not stated");
         if (!opts.justification) throw new ImportInputError("Say why the notice gives no more, for example which rows it does not report");
-        if (!Array.isArray(opts.reviewScope?.pages) || opts.reviewScope.pages.length === 0) throw new ImportInputError("Name the pages of the notice you read for the missing figures");
+        // A PDF: the pages read. A web page or text has none: it is read as a whole document (C2.1).
+        const citedKind = ctx.docs?.[opts.retrievalId]?.kind;
+        if (citedKind && PAGELESS_KINDS.has(citedKind)) {
+          if (opts.reviewScope?.whole_document !== true || (Array.isArray(opts.reviewScope?.pages) && opts.reviewScope.pages.length > 0)) {
+            throw new ImportInputError("This document is a web page or text, which has no pages: record that you read the whole document");
+          }
+        } else if (!Array.isArray(opts.reviewScope?.pages) || opts.reviewScope.pages.length === 0) throw new ImportInputError("Name the pages of the notice you read for the missing figures");
         notStatedInFull = true;
       }
     }

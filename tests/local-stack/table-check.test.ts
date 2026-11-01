@@ -179,12 +179,15 @@ expectChecks(E, [
   const items2 = (p2.proposal as unknown as { items: Array<{ id: string; fieldPath: string; defaultTicked: boolean }> }).items;
   // Saved without the import's table: the table comes from the editor instead.
   const id2 = (await service.applyImportFlow({ importId: p2.importId, adminId, selected: items2.filter((i) => i.defaultTicked && i.fieldPath !== "vacancies.table").map((i) => i.id), confirmReplaceVerified: false, override: null })).recruitmentId;
-  const saved = await saveTable(id2, t);
+  // The same rows typed into the editor: without job I's document ids, which job E never brought in (C2.1 refuses
+  // a row that cites another job's document: tests/local-stack/c21-page-free.test.ts).
+  const own = { ...t, rows: t.rows.map((x) => ({ ...x, source: { ...x.source, retrievalId: null } })), statedTotals: t.statedTotals.map((x) => ({ ...x, source: { ...x.source, retrievalId: null } })) };
+  const saved = await saveTable(id2, own);
   s = await state(id2);
   check("E: saved in the editor, the table has no claim: UNSUPPORTED, not checked", saved.status === 200 && s.c.fields["vacancies.table"] === "UNSUPPORTED" && !s.c.tableCheck.checked, [saved.status, s.c.fields["vacancies.table"]]);
   r = await checkTable(id2);
   check("E: the whole-table check is recorded the same way", r.status === 201 && (await state(id2)).c.tableCheck.checked, r);
-  const again = await saveTable(id2, (await getRecruitmentById(id2))!.vacancies.table!.value!);
+  const again = await saveTable(id2, (await getRecruitmentById(id2))!.vacancies.table!.value!); // its own table, saved unchanged
   s = await state(id2);
   note(`saving the same table again: ${again.status}; checked afterwards: ${s.c.tableCheck.checked}`);
   check("E: saving the same table again leaves the check behind (a new revision)", again.status === 200 && !s.c.tableCheck.checked, [again.status, s.c.tableCheck]);

@@ -110,9 +110,10 @@ expectChecks(S.N, ["N: an incomplete table on a job never imported publishes as 
     const s = await state(id);
     return post(id, { action: "decide", fieldPath: "vacancies.total", kind, retrievalId: s.c.retrievals[0].id, page, quote, justification, reviewScope: pagesRead ? { pages: pagesRead } : null, seen: { revisionId: s.total.latestRevisionId, decisionId: s.total.decisionId ?? null } });
   };
-  const checkTable = async (id: string, quote: string, pages: number[]) => {
+  const checkTable = async (id: string, quote: string, pages: number[], scope?: (retrievalId: string) => J) => {
     const s = await state(id);
-    return post(id, { action: "decide", fieldPath: "vacancies.table", kind: "ADMIN_VERIFIED", retrievalId: s.c.retrievals[0].id, page: pages[0], quote, reviewScope: { pages },
+    const rid = s.c.retrievals[0].id;
+    return post(id, { action: "decide", fieldPath: "vacancies.table", kind: "ADMIN_VERIFIED", retrievalId: rid, page: pages[0], quote, reviewScope: scope ? scope(rid) : { pages },
       seen: { revisionId: s.c.tableCheck.revisionId, decisionId: s.c.tableCheck.decisionId } });
   };
   const importJob = async (year: number, pdf: Buffer, withTable = true) => {
@@ -171,7 +172,16 @@ expectChecks(S.N, ["N: an incomplete table on a job never imported publishes as 
     r = await decideTotal(id, "ADMIN_VERIFIED", LINES.total, 1);
     check(`${key}: the printed line does not verify it: refused, the whole table is required`, saved.status === 200 && r.status === 400 && /checking the whole vacancy table/.test(err(r)), [saved.status, r]);
     const before = await state(id);
-    r = await checkTable(id, LINES.total, [1]);
+    if (key === "EP") {
+      // Since C2.1: prepared rows need each row mapped to the official document and page it was compared with.
+      const legacy = await checkTable(id, LINES.total, [1]);
+      note(`EP: the C1 pages-only scope for prepared rows: ${legacy.status} ${err(legacy)}`);
+      if (legacy.status !== 400) check("EP: the pages-only scope is refused for prepared rows (C2.1)", false, legacy);
+      r = await checkTable(id, LINES.total, [1], (rid) => ({ documents: [{ retrievalId: rid, pages: [1] }],
+        comparedWith: [{ retrievalId: rid, rows: ["a", "b", "c"].map((rowId) => ({ rowId, page: 1 })) }] }));
+    } else {
+      r = await checkTable(id, LINES.total, [1]);
+    }
     s = await state(id);
     note(`${key}: before the table check ${before.total.cls} (${before.total.reason}); after ${s.total.cls}`);
     check(`${key}: pending until the whole table is checked, then VERIFIED`, before.blocks && r.status === 201 && s.total.cls === "VERIFIED" && !s.blocks, [before.total, r, s.total]);

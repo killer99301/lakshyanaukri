@@ -12,7 +12,7 @@ import { authorityCovers, type OriginRole } from "@/lib/cms/importer/trusted-dom
 import { CRITICAL_FIELDS, fieldDef } from "@/lib/cms/importer/fields";
 import { comparable } from "@/lib/cms/importer/proposal";
 import { calculatedTotalReady, type VacancyTable } from "@/lib/vacancy-table";
-import { isIncompletenessReason, quoteIsPrintedTotal, totalRoute } from "@/lib/cms/importer/table-check";
+import { isIncompletenessReason, quoteIsPrintedTotal, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
 
 export type FieldClass =
   | "VERIFIED" | "NOT_APPLICABLE" | "NOT_STATED"
@@ -28,6 +28,8 @@ export interface ClaimView {
   publicNote?: string | null;
   quote?: string | null;
   page?: number | null;
+  /** The document the claim cites. */
+  retrievalId?: string | null;
   superseded?: boolean;
   retrieval?: { authenticity: string; originRole: OriginRole; originPurposes: string[]; declaredKind: string } | null;
 }
@@ -70,6 +72,8 @@ export interface TableTotalContext {
   derived: { basis: string; complete: boolean; fingerprint: string };
   tableChecked: boolean;
   tableConflict: boolean;
+  /** The job's documents and their standing (C2.1): each row's page rule, and research rows. Absent: as before C2.1. */
+  docs?: DocStandings;
 }
 
 export function classifyField(state: FieldState, firstImportAt: string | null, tableTotal?: TableTotalContext | null): FieldVerdict {
@@ -143,8 +147,9 @@ function classifyTableTotal(state: FieldState, firstImportAt: string | null, ctx
   const def = fieldDef(state.fieldPath);
   const value = state.value as number;
   const verdict = (cls: FieldClass, reason: string, extra: Partial<FieldVerdict> = {}): FieldVerdict => ({ fieldPath: state.fieldPath, label: def.label, cls, reason, ...extra });
-  const route = totalRoute(ctx.table, ctx.derived, value);
-  const rule = calculatedTotalReady(ctx.table, { tableChecked: ctx.tableChecked, stored: { value, fingerprint: ctx.derived.fingerprint } });
+  const route = totalRoute(ctx.table, ctx.derived, value, ctx.docs);
+  const sourceKinds = ctx.docs ? Object.fromEntries(Object.entries(ctx.docs).map(([id, d]) => [id, d.kind])) : undefined;
+  const rule = calculatedTotalReady(ctx.table, { tableChecked: ctx.tableChecked, stored: { value, fingerprint: ctx.derived.fingerprint }, sourceKinds });
   // The reasons that stand in the way, whatever route the total takes. "Check it as usual" is the
   // printed-line route itself; the table check is asked for below only where that route requires it.
   const reasons = rule.reasons.filter((r) => r !== "the total is printed in the notice; check it as usual"
@@ -174,8 +179,9 @@ function classifyTableTotal(state: FieldState, firstImportAt: string | null, ctx
   }
   // A printed total read by code from text: its own line, figure and page, or the whole-table check.
   if (ctx.tableChecked) return verdict("VERIFIED", "the whole vacancy table was checked against the notice");
-  if (decision?.kind === "ADMIN_VERIFIED" && route.evidence && quoteIsPrintedTotal(route.evidence, value, decision.quote ?? null, decision.page ?? null)) {
+  if (decision?.kind === "ADMIN_VERIFIED" && route.evidence && quoteIsPrintedTotal(route.evidence, value, decision.quote ?? null, decision.page ?? null, decision.retrievalId ?? null)) {
     return verdict("VERIFIED", "checked against the notice's printed total", { decisionId: decision.id });
   }
-  return pending([`cite the notice's printed total, “${route.evidence!.line}” (page ${route.evidence!.page}), or check the whole table`]);
+  const where = route.evidence!.page === null ? "on the official web page or text" : `page ${route.evidence!.page}`;
+  return pending([`cite the notice's printed total, “${route.evidence!.line}” (${where}), or check the whole table`]);
 }
