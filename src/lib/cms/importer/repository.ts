@@ -95,6 +95,8 @@ export interface StoredImport {
   mode: "NEW" | "EXISTING";
   recruitmentId: string | null;
   baseRevision: string | null;
+  /** The notice number the preview checked for duplicates (normalizeNotifNum), or null. */
+  identityKey: string | null;
   status: string;
   proposal: Proposal & { meta?: Record<string, unknown> };
   result: Record<string, unknown> | null;
@@ -107,7 +109,7 @@ export async function getImport(importId: string): Promise<StoredImport | null> 
   const r = rows[0];
   return {
     importId: String(r.import_id), mode: r.mode as "NEW" | "EXISTING", recruitmentId: (r.recruitment_id as string) ?? null,
-    baseRevision: (r.base_revision as string) ?? null, status: String(r.status), proposal: parse(r.proposal),
+    baseRevision: (r.base_revision as string) ?? null, identityKey: (r.identity_key as string) ?? null, status: String(r.status), proposal: parse(r.proposal),
     result: r.result ? parse(r.result) : null, createdAt: new Date(r.created_at as string).toISOString(),
   };
 }

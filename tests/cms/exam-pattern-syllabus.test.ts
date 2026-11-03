@@ -206,12 +206,14 @@ function fakeFetch(body: unknown, status = 200) {
 }
 const answer = (obj: unknown) => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(obj) }] } }] });
 
-test("XA05 no request is made when the source has no pattern or syllabus", async () => {
+// I4: before, this was "not_stated", which said the source has no pattern; no passage under a pattern or syllabus
+// heading was found, and the AI was not asked. It is now said as that.
+test("XA05 no request is made when no passage on the pattern or syllabus is found, and that is what is said", async () => {
   const { fetchFn, calls } = fakeFetch(answer({}));
   const out = await extractPatternAndSyllabus({ sections: [], url: "https://example.com", apiKey: "test-key", fetchFn });
   assert.equal(calls.length, 0);
-  assert.equal(out.examPattern.status, "not_stated");
-  assert.equal(out.syllabus.status, "not_stated");
+  assert.deepEqual(out.examPattern, { status: "skipped", reason: "not read: no passage about it was found, so the AI was not asked" });
+  assert.deepEqual(out.syllabus, { status: "skipped", reason: "not read: no passage about it was found, so the AI was not asked" });
 });
 
 test("XA06 one request; a failure leaves both untouched, with a reason and no secrets", async () => {

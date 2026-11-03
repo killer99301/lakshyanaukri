@@ -858,6 +858,45 @@ const PLAIN_TEXT_ADVT_LABEL_RE =
   // "no" must end the word: "Advertisement Notification" is not "Advertisement No." + "tification".
   /(?:advertisement|advt\.?|advert\.?|notification)\s+no(?![a-z])\.?\s*[:\-]?\s*([A-Z0-9()\-\/\.]{3,30}(?:\/\d{1,4})?)/i;
 
+// A number the document only cites is not its own: another department's notification, a rule, an earlier notice
+// ("in accordance with Notification No. 38-16/2020-DD-III dated 04.01.2021 of the Department of …"). Said by the
+// words just before the label, or by "dated … of the Department / Ministry" just after the number. A sign, not a
+// proof: a number left out on this account is simply not proposed.
+const CITED_BEFORE_RE = /\b(?:in\s+accordance\s+with|vide|as\s+per|under|in\s+terms\s+of|(?:with\s+)?reference\s+to|refer(?:red)?\s+to|issued\s+(?:by|under)|according\s+to|pursuant\s+to|in\s+continuation\s+of|superseding)\b[^.\n:;]{0,60}$/i;
+const CITED_AFTER_RE = /^[^.\n]{0,30}?\bdated\b[^\n]{0,60}?\b(?:department|ministry|government|govt\.?|deptt\.?|dopt|d\/o|m\/o)\b/i;
+
+/** Whether the labelled number at `index` (the whole match `length` long) is cited from another document. */
+export function isCitedNumber(text: string, index: number, length: number): boolean {
+  return CITED_BEFORE_RE.test(text.slice(Math.max(0, index - 80), index)) || CITED_AFTER_RE.test(text.slice(index + length, index + length + 120));
+}
+
+/**
+ * Every labelled advertisement or notification number the text gives as its own, in order (not a phone number).
+ * A number cited anywhere in the text is passed over at every mention: a notice does not cite its own number
+ * "in accordance with", and a later mention ("The web-link to access Notification No. … is given here") need
+ * not repeat the citation's words. Mentions are the same number when their letters and digits are.
+ */
+export function labelledNoticeNumbers(text: string): Array<{ value: string; index: number }> {
+  const same = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const found: Array<{ value: string; index: number; cited: boolean }> = [];
+  for (const m of text.matchAll(new RegExp(PLAIN_TEXT_ADVT_LABEL_RE.source, "gi"))) {
+    const index = m.index ?? 0;
+    if (hasPhoneContext(text, index)) continue;
+    found.push({ value: m[1].trim(), index, cited: isCitedNumber(text, index, m[0].length) });
+  }
+  const cited = new Set(found.filter((f) => f.cited).map((f) => same(f.value)));
+  return found.filter((f) => !cited.has(same(f.value))).map(({ value, index }) => ({ value, index }));
+}
+
+// "Advt. No. 05/2097" is the number 05/2097. A file number keeps its "F. No.": it is a different kind of number.
+const NOTICE_LABEL_RE = /^(?:advertisement|advt|advert|notification|employment\s+notice|notice)\.?\s*no(?![a-z])\.?\s*[:\-–]?\s*/i;
+
+/** A notice number without a leading "Advt. No." / "Notification No." label; everything else kept as written. */
+export function stripNoticeLabel(value: string): string {
+  const bare = value.trim().replace(NOTICE_LABEL_RE, "").trim();
+  return bare || value.trim();
+}
+
 // Tier 2: structurally distinctive government recruitment codes.
 // The format itself is an identifier — no explicit label required.
 // Examples: BCECEB(BSFC)-2026/01, CEN-01/2026, SSC/CGL/01/2026
@@ -878,18 +917,15 @@ const IBPS_CRP_ID_RE = /\b(CRP[\s\-](?:PO\/MTs?|RRBs?|CLERKS?|SOs?|SPL)[\/\s\-]+
 // Rejects generic "no." occurrences (helpdesk, page numbers, serial numbers).
 // Returns the first explicitly labeled or structurally distinctive code, or undefined.
 function extractNotificationNumberFromPlainText(text: string, sourceDomain?: string): string | undefined {
-  // Tier 1: explicitly labeled
-  const labelMatch = PLAIN_TEXT_ADVT_LABEL_RE.exec(text);
-  if (labelMatch) {
-    const idx = text.indexOf(labelMatch[0]);
-    if (!hasPhoneContext(text, idx)) return labelMatch[1].trim();
-  }
+  // Tier 1: explicitly labeled, the first the text gives as its own (a cited number is passed over)
+  const labelled = labelledNoticeNumbers(text)[0];
+  if (labelled) return labelled.value;
   // Tier 2: structurally distinctive (e.g. BCECEB(BSFC)-2026/01)
   for (const re of PLAIN_TEXT_GOVT_CODE_RES) {
     const m = re.exec(text);
     if (m) {
       const idx = text.indexOf(m[0]);
-      if (!hasPhoneContext(text, idx)) return m[1].trim();
+      if (!hasPhoneContext(text, idx) && !isCitedNumber(text, idx, m[0].length)) return m[1].trim();
     }
   }
   // Tier 3: IBPS CRP process identifiers — only from authoritative IBPS sources.
@@ -1058,14 +1094,17 @@ export function extractIntakeFields(
   // footer/sidebar zone (~19 000+) where unrelated CEN listings create false positives.
   const notifSearchLen = isPlainText ? 20_000 : 8_000;
   const sourceDomain = extractDomain(sourceUrl);
-  const notificationNumber = isPlainText
+  const found = isPlainText
     ? // Plain-text (PDF) mode: require explicit label or distinctive structure.
       (extractNotificationNumberFromPlainText(text.slice(0, notifSearchLen), sourceDomain) ??
        extractNotificationNumberFromPlainText(sourceUrl, sourceDomain))
-    : // HTML mode: permissive patterns are safe because HTML structure provides context.
+    : // HTML mode: permissive patterns are safe because HTML structure provides context; a labelled number on the
+      // page comes before them, so "Advertisement No. TSB/CLK/01/2097" is read whole, not from "CLK" on.
       (extractNotificationNumber(title ?? "") ??
+       labelledNoticeNumbers(text.slice(0, notifSearchLen))[0]?.value ??
        extractNotificationNumber(text.slice(0, notifSearchLen)) ??
        extractNotificationNumber(sourceUrl));
+  const notificationNumber = found ? stripNoticeLabel(found) : undefined;
 
   // Plain-text (PDF) mode uses the structural section-bounded extractor that:
   //   • works only within the vacancy section (not the full doc)

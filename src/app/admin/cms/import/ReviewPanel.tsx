@@ -244,7 +244,7 @@ export function ReviewPanel(props: {
           {sources.map((s) => (
             <div key={s.id} style={{ lineHeight: 1.5 }}>
               <span style={{ color: C.text }}>{s.label}</span>
-              {s.notFound.length > 0 && <div>Not in it: {s.notFound.join(", ")}</div>}
+              {s.notFound.length > 0 && <div>Not read from it (it may still be there): {s.notFound.join(", ")}</div>}
               {s.refused.length > 0 && <div style={{ color: C.amber }}>Left out (did not pass the checks): {s.refused.map((r) => `${r.fieldPath} — ${r.reason}`).join("; ")}</div>}
               {s.articleSkipped && <div style={{ color: C.amber }}>The whole-text reading did not run: {s.articleSkipped}</div>}
               {s.reading && (() => {

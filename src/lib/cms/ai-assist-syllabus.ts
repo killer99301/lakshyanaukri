@@ -11,7 +11,7 @@
 import type { PageSection } from "@/intelligence/page-structurer";
 import { structureDocument, normalizeForMatching } from "@/intelligence/page-structurer";
 import type { ExamPatternPaper, ExamPatternSection, SyllabusSubject } from "@/types/recruitment-record";
-import { callAiJson, type SourceKind } from "@/lib/cms/ai-assist";
+import { AI_NOT_USED, NO_PASSAGE, callAiJson, type SourceKind } from "@/lib/cms/ai-assist";
 import {
   buildEvidence,
   isOtherJobHeading,
@@ -268,8 +268,10 @@ export async function extractPatternAndSyllabus(opts: {
     examPattern: { status: "skipped", reason },
     syllabus: { status: "skipped", reason },
   });
-  // No request is made when the source has nothing on either subject.
-  if (opts.sections.length === 0) return { examPattern: notStated, syllabus: notStated };
+  // No request is made without a key, or when no passage on either subject was found: said as such, not as
+  // "not stated", since the passages are found by headings and a source may state them without one.
+  if (!opts.apiKey) return skipped(AI_NOT_USED);
+  if (opts.sections.length === 0) return skipped(NO_PASSAGE);
 
   const answer = await callAiJson({
     prompt: buildSyllabusPrompt(opts.sections, opts.url, opts.subject),

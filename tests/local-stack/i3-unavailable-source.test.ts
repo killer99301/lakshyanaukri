@@ -149,7 +149,11 @@ expectChecks(S.C, [
   const ftp = await failure({ ...newJob(), sources: [{ declaredKind: "OFFICIAL_PAGE", method: "url", url: "ftp://tsb-board.test/notice.pdf" }, pasted] });
   check("C2 an address that is not http(s) still stops the import", ftp?.name === "ImportInputError" && /Only http and https/.test(ftp.message), ftp?.message);
 
-  const made = await service.applyImportFlow({ importId: one.importId, adminId, selected: one.proposal.items.filter((i) => i.defaultTicked).map((i) => i.id), confirmReplaceVerified: false, override: null });
+  // The page and the pasted notice (A3, saved above) are the same Board notice, "Advertisement No. TSB/CLK/01/2098".
+  // Before I4 the page's number was read as "CLK/01/2098", so this second job was not seen as a duplicate; it is
+  // now, rightly. The job is made here only to re-import into, so it is saved with an override reason.
+  const made = await service.applyImportFlow({ importId: one.importId, adminId, selected: one.proposal.items.filter((i) => i.defaultTicked).map((i) => i.id), confirmReplaceVerified: false,
+    override: { reason: "A second copy of the test job, to re-import into (I3 test)" } });
   const rows = async () => JSON.stringify(((await getRecruitmentById(made.recruitmentId))!.vacancies.table?.value?.rows ?? []).map((r) => [r.at, r.total]));
   const tableBefore = await rows();
   const re = await preview({ mode: "EXISTING", recruitmentId: made.recruitmentId, sources: [url("/forbidden"), { declaredKind: "RESEARCH", method: "paste", text: `${PASTED}\nNo vacancy figures are given in this summary.` }] });

@@ -21,7 +21,7 @@ import type {
   RecruitmentLinkType,
   SelectionStageType,
 } from "@/types/recruitment-record";
-import { callAiJson, parseDatesInText, type SourceKind } from "@/lib/cms/ai-assist";
+import { AI_NOT_USED, NO_PASSAGE, callAiJson, parseDatesInText, type SourceKind } from "@/lib/cms/ai-assist";
 import { findAgePassages, overlaps, piecesOf } from "@/lib/cms/passage-finder";
 
 // ─── Passages ─────────────────────────────────────────────
@@ -357,7 +357,8 @@ export async function extractDetails(opts: {
     payScale: all({ status: "skipped", reason }),
     summary: null,
   });
-  if (opts.sections.length === 0) return skipped("nothing relevant found in the source");
+  if (!opts.apiKey) return skipped(AI_NOT_USED);
+  if (opts.sections.length === 0) return skipped(NO_PASSAGE);
 
   const answer = await callAiJson({ ...opts, prompt: buildDetailPrompt(opts.sections, opts.url, opts.subject) });
   if (!answer.ok) return skipped(answer.reason);

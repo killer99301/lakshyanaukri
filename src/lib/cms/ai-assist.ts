@@ -7,7 +7,7 @@ import type { PageSection } from "@/intelligence/page-structurer";
 import type { ExtractionCandidate } from "@/intelligence/extraction-provider";
 import type { FetchPdfFn } from "@/intelligence/pdf-extractor";
 import { extractPdfText } from "@/intelligence/pdf-extractor";
-import { extractIntakeFields, classifySourceUrl, deriveOrgFromOfficialDomain } from "@/intelligence/intake";
+import { extractIntakeFields, classifySourceUrl, deriveOrgFromOfficialDomain, labelledNoticeNumbers, stripNoticeLabel } from "@/intelligence/intake";
 import type { RecruitmentIdentity } from "@/types/recruitment-record";
 import { structureDocument, normalizeForMatching } from "@/intelligence/page-structurer";
 import { verifyEvidence } from "@/intelligence/structured-extractor";
@@ -269,6 +269,8 @@ export interface AssistCandidate {
   fieldPath: string;
   label: string;
   value: unknown;
+  /** Why this value may not be right (the notice number only): offered unticked, never used to find duplicates. */
+  doubt?: string;
 }
 
 export interface AssistFlag {
@@ -290,12 +292,15 @@ export function buildAssistCandidates(
   const flagged: AssistFlag[] = [];
 
   // UPSC labels its number "EXAMINATION NOTICE NO 05/2026-CSE": read when no other label is found (B2.6).
-  let notificationNumber: string | null = extraction.notificationNumber ?? labelledNoticeNumber(content) ?? null;
+  // A notice whose only number is its file number (SSC: "F. No. HQ-C11018/1/2026-C-1") gives that, as printed.
+  const plainText = kind === "pdf" ? content : content.replace(/<[^>]+>/g, " ");
+  let notificationNumber: string | null = extraction.notificationNumber ?? labelledNoticeNumber(content) ?? fileNumberInOpening(plainText) ?? null;
   const numberIssue = notificationNumber !== null ? notificationNumberIssue(notificationNumber) : null;
   if (numberIssue) {
     flagged.push({ label: "Notification Number", value: notificationNumber, reason: `${numberIssue} — not applied` });
     notificationNumber = null;
   }
+  const numberDoubt = notificationNumber !== null ? noticeNumberDoubt(notificationNumber, plainText) : null;
 
   let title: string | null = extraction.title ?? null;
   if (title !== null && !isPlausibleTitle(title)) {
@@ -345,7 +350,7 @@ export function buildAssistCandidates(
   const flaggedLabels = new Set(flagged.map((f) => f.label));
   const candidates: AssistCandidate[] = [
     { fieldPath: "identity.title",              label: "Title",               value: title },
-    { fieldPath: "identity.notificationNumber", label: "Notification Number", value: notificationNumber },
+    { fieldPath: "identity.notificationNumber", label: "Notification Number", value: notificationNumber, ...(numberDoubt ? { doubt: numberDoubt } : {}) },
     { fieldPath: "dates.notificationDate",      label: "Notification Date",   value: extraction.postDate ?? null },
     { fieldPath: "dates.applicationOpenDate",   label: "Application Opens",   value: openDate },
     { fieldPath: "dates.applicationCloseDate",  label: "Application Closes",  value: closeDate },
@@ -698,6 +703,17 @@ function asCandidate<T extends "number" | "string">(
 
 export type AiJsonAnswer = { ok: true; data: Record<string, unknown> } | { ok: false; reason: string };
 
+/**
+ * Why a section reader gave nothing, said as what happened, never as the
+ * source lacking it: the information may be there and simply not read.
+ * The AI's own failures (time limit, today's allowance, an answer cut short)
+ * keep their own words from callAiJson.
+ */
+export const AI_NOT_USED = "not read: the AI was not used (not configured)";
+export const NO_PASSAGE = "not read: no passage about it was found, so the AI was not asked";
+/** The AI was asked and gave nothing for this field. */
+export const AI_FOUND_NOTHING = "the AI found nothing about it";
+
 // One JSON request to the configured model. Never throws, never retries
 // (retrying a rate limit only deepens it), and never surfaces error text:
 // it can carry the request URL, which holds the API key.
@@ -783,7 +799,8 @@ export async function extractWithAi(opts: {
       notificationNumber: { status: "skipped", reason },
     };
   };
-  if (opts.sections.length === 0) return skipAll("nothing relevant found in the source");
+  if (!opts.apiKey) return skipAll(AI_NOT_USED);
+  if (opts.sections.length === 0) return skipAll(NO_PASSAGE);
 
   const answer = await callAiJson({ ...opts, prompt: buildAiPrompt(opts.sections, opts.url) });
   if (!answer.ok) return skipAll(answer.reason);
@@ -846,6 +863,33 @@ export function buildNumberSection(content: string, kind: SourceKind, url: strin
 /** A file number ("F. No. …", "File No. …"): an office reference, not the notice's own number. */
 const FILE_NUMBER = /^\s*(?:f\.?\s*no\.?|file\s+no\.?)(?![a-z])/i;
 
+/** Where a notice prints its own number: its opening, before the body (SSC's F. No. sits at character ~1,350). */
+const NUMBER_OPENING_CHARS = 3000;
+
+/** The file number in the notice's opening ("F. No. HQ-C11018/1/2026-C-1"), as printed, "F. No." kept; null when none. */
+export function fileNumberInOpening(text: string): string | null {
+  // Underscores are part of file numbers ("HQ-PPII03/7/2026-PP_II").
+  const m = /\b(?:F\.?\s*No|File\s+No)(?![a-z])\.?\s*[:\-]?\s*[A-Z0-9][A-Z0-9()\-\/._]{3,40}/i.exec(text.slice(0, NUMBER_OPENING_CHARS));
+  return m ? m[0].replace(/[.,:;]+$/, "").replace(/\s+/g, " ").trim() : null;
+}
+
+/**
+ * Why a notice number code read may not be the notice's own, or null: it is not in the notice's opening (or not in
+ * its text at all), or the notice gives other numbers under an advertisement or notification label. A file number
+ * beside a labelled notice number is no rival: it is another kind of number.
+ */
+export function noticeNumberDoubt(value: string, text: string): string | null {
+  const key = (v: string) => stripNoticeLabel(v).replace(/\s+/g, " ").toUpperCase();
+  const at = text.indexOf(stripNoticeLabel(value));
+  const others = [...new Set(labelledNoticeNumbers(text.slice(0, 20_000)).map((n) => stripNoticeLabel(n.value)))]
+    .filter((v) => key(v) !== key(value) && !notificationNumberIssue(v));
+  const why = [
+    ...(at < 0 ? ["it is not in the document's text"] : at > NUMBER_OPENING_CHARS ? ["it is not in the notice's opening"] : []),
+    ...(others.length ? [`the notice also gives ${others.slice(0, 4).join(", ")}`] : []),
+  ];
+  return why.length ? `${why.join("; ")} — check which number is this notice's own` : null;
+}
+
 /** A number printed under a notice label: "EXAMINATION NOTICE NO 05/2026-CSE", "Notice No.: 12/2026". */
 export function labelledNoticeNumber(text: string): string | null {
   const m = /(?:^|\n)\s*(?:examination\s+|recruitment\s+)?notice\s+no(?![a-z])\.?\s*[:\-]?\s*([A-Z0-9][A-Z0-9()\-\/.]{2,30})/i.exec(text.slice(0, 20_000));
@@ -859,6 +903,7 @@ export function mergeAiNotificationNumber(
   const label = "Notification Number";
   const fieldPath = "identity.notificationNumber";
   const deterministic = base.candidates.find((c) => c.fieldPath === fieldPath)?.value as string | null | undefined;
+  const doubt = base.candidates.find((c) => c.fieldPath === fieldPath)?.doubt;
   const aiValue = outcome.status === "accepted" ? outcome.value : null;
   // A verified number supersedes an earlier "that is not a notification number" flag.
   const flagged = aiValue && !deterministic ? base.flagged.filter((f) => f.label !== label) : [...base.flagged];
@@ -871,7 +916,9 @@ export function mergeAiNotificationNumber(
   const same = (a: string, b: string) => normalizeForMatching(a) === normalizeForMatching(b);
   // A file number is not the notification number when the notice prints one under its own label (UPSC: "F.No.
   // 1/2/2025-E.I(B)" against "EXAMINATION NOTICE NO 05/2026-CSE"): the labelled number stands, nothing to resolve.
-  const fileNumberOnly = !!aiValue && !!deterministic && FILE_NUMBER.test(aiValue) && !FILE_NUMBER.test(deterministic);
+  // Only for a labelled number code has no doubt about: one found away from the opening, or beside other
+  // labelled numbers, does not overrule the AI's file number (SSC: a cited notification against its own F. No.).
+  const fileNumberOnly = !!aiValue && !!deterministic && FILE_NUMBER.test(aiValue) && !FILE_NUMBER.test(deterministic) && !doubt;
   if (deterministic && aiValue && !same(deterministic, aiValue) && !fileNumberOnly) {
     flagged.push({ label, value: `${deterministic} or ${aiValue}`, reason: "two extraction methods disagree — check the notification and enter manually" });
     value = null;
@@ -879,7 +926,9 @@ export function mergeAiNotificationNumber(
 
   const candidates = base.candidates.filter((c) => c.fieldPath !== fieldPath);
   if (value !== null || !flagged.some((f) => f.label === label)) {
-    candidates.unshift({ fieldPath, label, value });
+    // The AI reading the same number settles code's doubt; otherwise the doubt goes with code's number.
+    const settled = !!aiValue && !!deterministic && same(deterministic, aiValue);
+    candidates.unshift({ fieldPath, label, value, ...(doubt && value === deterministic && !settled ? { doubt } : {}) });
   }
   return { candidates, flagged };
 }

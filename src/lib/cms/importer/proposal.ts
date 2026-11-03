@@ -42,6 +42,8 @@ export interface ExtractedValue {
   fromImage?: boolean;
   /** What code did to the reading, for the admin to see on the item (B2.6: a stage added from the schedule, a type corrected). */
   notes?: string[];
+  /** Why the value may be wrong (I4: a notice number that may not be the notice's own): said on the item, never ticked by default. */
+  doubt?: string;
 }
 
 export interface SourceExtraction {
@@ -134,7 +136,7 @@ export function buildProposal(input: {
   const byRetrieval = new Map(input.extractions.map((e) => [e.retrieval.id, e.retrieval]));
 
   // ── Fields ──
-  const groups = new Map<string, Map<string, { value: unknown; claims: ItemClaim[]; notes: string[] }>>();
+  const groups = new Map<string, Map<string, { value: unknown; claims: ItemClaim[]; notes: string[]; doubts: string[]; doubted: number }>>();
   for (const ex of input.extractions) {
     for (const v of ex.values) {
       if (isEmpty(v.value)) continue;
@@ -143,8 +145,9 @@ export function buildProposal(input: {
       if (ex.retrieval.declaredKind === "OFFICIAL_CORRIGENDUM" && (v.fieldPath === "identity.title" || v.fieldPath === "identity.shortTitle" || v.fieldPath === "identity.notificationNumber")) continue;
       const perField = groups.get(v.fieldPath) ?? new Map();
       const h = shortHash(v.fieldPath, v.value);
-      const g = perField.get(h) ?? { value: v.value, claims: [], notes: [] };
+      const g = perField.get(h) ?? { value: v.value, claims: [], notes: [], doubts: [], doubted: 0 };
       for (const n of v.notes ?? []) if (!g.notes.includes(n)) g.notes.push(n);
+      if (v.doubt) { g.doubted++; if (!g.doubts.includes(v.doubt)) g.doubts.push(v.doubt); }
       g.claims.push({ retrievalId: ex.retrieval.id, quote: v.quote, page: v.page ?? null, ...(v.tableCell ? { tableCell: v.tableCell } : {}), ...(v.fromImage ? { fromImage: true } : {}) });
       perField.set(h, g);
       groups.set(v.fieldPath, perField);
@@ -176,6 +179,9 @@ export function buildProposal(input: {
       if (officialInImport && !sources.some(eligibleRetrieval)) flags.push("the official document in this import does not state this");
       if (g.claims.some((c) => c.fromImage)) flags.push("read from a scanned page by AI — check it against the page image");
       flags.push(...g.notes);
+      // A doubt holds only while no source gives the value without one (another document stating it plainly settles it).
+      const doubtful = g.doubted > 0 && g.doubted === g.claims.length;
+      if (doubtful) flags.push(...g.doubts);
 
       let action: ItemAction;
       if (!cur || isEmpty(cur.value)) action = "FILL";
@@ -198,7 +204,7 @@ export function buildProposal(input: {
         // a value nobody has verified starts ticked (B2.6: SSC CGL's reopened
         // window). Replacing a verified value still waits for the admin.
         // Only single values: a corrigendum's few sentences or rows do not restate a whole list (BPSC: its notes as "conditions").
-        defaultTicked: !conflict && (action === "FILL" || action === "MATCHES" || (action === "REPLACE" && fromCorrigendum.length > 0 && CORRIGENDUM_REPLACES.test(fieldPath)))
+        defaultTicked: !conflict && !doubtful && (action === "FILL" || action === "MATCHES" || (action === "REPLACE" && fromCorrigendum.length > 0 && CORRIGENDUM_REPLACES.test(fieldPath)))
           && !(officialInImport && !sources.some(eligibleRetrieval) && fieldDef(fieldPath).tier !== undefined),
         flags,
         ...(cur && !isEmpty(cur.value) ? { current: cur.value } : {}),

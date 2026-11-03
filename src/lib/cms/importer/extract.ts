@@ -9,6 +9,7 @@
 // Nothing is decided or saved here.
 
 import {
+  AI_FOUND_NOTHING,
   buildAiSections,
   buildAssistCandidates,
   extractWithAi,
@@ -147,12 +148,13 @@ export function combineReading(opts: {
   for (const c of merged.candidates) {
     if (c.value === null || c.value === undefined) { notFound.push(c.label); continue; }
     add(c.fieldPath, c.value, quoteFor(c.fieldPath));
+    if (c.doubt) values[values.length - 1].doubt = c.doubt;
   }
 
   const fee = (fieldPath: string, label: string, o: FeeOutcome) => {
     if (o.status === "accepted") add(fieldPath, o.value, o.quote);
     else if (o.status === "rejected") refused.push({ fieldPath, reason: o.reason });
-    else notFound.push(o.status === "skipped" ? `${label} (${o.reason})` : label);
+    else notFound.push(`${label} (${o.status === "skipped" ? o.reason : AI_FOUND_NOTHING})`);
   };
   fee("financial.feeGeneral", "Application fee (General/OBC)", ai.fees.general);
   fee("financial.feeSCST", "Application fee (SC/ST/PwBD)", ai.fees.scst);
@@ -164,7 +166,7 @@ export function combineReading(opts: {
   for (const { fieldPath, label, outcome } of outcomes) {
     if (outcome.status === "accepted") add(fieldPath, outcome.value, outcome.quotes?.[0]);
     else if (outcome.status === "rejected") refused.push({ fieldPath, reason: outcome.reason ?? "not accepted" });
-    else notFound.push(outcome.status === "skipped" ? `${label} (${outcome.reason})` : label);
+    else notFound.push(`${label} (${outcome.status === "skipped" ? outcome.reason : AI_FOUND_NOTHING})`);
   }
 
   // The whole-text reading fills what the readers above did not give or

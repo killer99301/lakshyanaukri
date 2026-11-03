@@ -32,7 +32,7 @@ import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
 import { TABLE_PATH, quoteIsPrintedTotal, tableCheckNeeds, tableCheckScope, tableTotalView, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
 import { PAGELESS_KINDS } from "@/lib/vacancy-table";
 import {
-  applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
+  ImportApplyError, applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
 } from "@/lib/cms/importer/repository";
 
@@ -520,7 +520,9 @@ export async function assemblePreview(opts: {
   let duplicates: unknown[] = [];
   if (opts.mode === "NEW") {
     const j = opts.newJob!;
-    const extractedNumber = proposal.items.find((i) => i.fieldPath === "identity.notificationNumber" && !i.conflict)?.value as string | undefined;
+    // Only a number offered ticked: one code doubts (I4) is no identity, so it cannot make an unrelated job a duplicate.
+    // The organisation-and-year check still runs; a doubtful number the admin ticks is checked when it is saved.
+    const extractedNumber = proposal.items.find((i) => i.fieldPath === "identity.notificationNumber" && !i.conflict && i.defaultTicked)?.value as string | undefined;
     identityKey = normalizeNotifNum(j.notificationNumber || extractedNumber) ?? null;
     orgYearKey = `${j.organizationId}:${j.recruitmentYear}`;
     const rows = await sql`SELECT public.cms_job_duplicates(${identityKey}, ${j.organizationId}, ${j.recruitmentYear}::int) AS d`;
@@ -582,6 +584,18 @@ export async function applyImportFlow(opts: {
     record, proposal: imp.proposal, selected: opts.selected, confirmReplaceVerified: opts.confirmReplaceVerified,
     adminId: opts.adminId, sourceLabel: meta.sources.map((s) => s.label).join("; ").slice(0, 300), slug,
   });
+  // A notice number the admin ticks that the preview did not check (one code doubted, so it was no identity there):
+  // checked for a job with the same number now, before saving, with the same override rule as the save's own check.
+  if (imp.mode === "NEW") {
+    const chosen = imp.proposal.items.find((i) => i.fieldPath === "identity.notificationNumber" && opts.selected.includes(i.id))?.value;
+    const key = typeof chosen === "string" ? normalizeNotifNum(chosen) ?? null : null;
+    if (key && key !== imp.identityKey && (opts.override?.reason.trim().length ?? 0) < 10) {
+      const j = meta.newJob!;
+      const rows = await sql`SELECT public.cms_job_duplicates(${key}, ${j.organizationId}, ${j.recruitmentYear}::int) AS d`;
+      const dups = ((typeof rows[0].d === "string" ? JSON.parse(rows[0].d) : rows[0].d) as Array<{ reason: string }>).filter((d) => d.reason === "notification_number");
+      if (dups.length > 0) throw new ImportApplyError("DUPLICATE", "A job for this notification, or for this organisation and year, already exists.", dups);
+    }
+  }
   return applyImport({ importId: opts.importId, adminId: opts.adminId, selected: opts.selected, override: opts.override, payload });
 }
 
