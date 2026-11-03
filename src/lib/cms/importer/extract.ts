@@ -28,6 +28,7 @@ import type { ExtractedValue } from "@/lib/cms/importer/proposal";
 import { readPatternTables, statedCoverage, type PatternCoverage } from "@/lib/cms/importer/pattern-tables";
 import { relaxationMembers, statedRelaxations } from "@/lib/cms/importer/age-relaxations";
 import { readPostAgeTable } from "@/lib/cms/importer/post-age-table";
+import { readLabelledLines } from "@/lib/cms/importer/prepared-fields";
 import type { AgeCriteria, CmsSelectionInformation, CmsSelectionStage, SelectionStageType } from "@/types/recruitment-record";
 import type { ExamStage } from "@/types";
 import { classifyStageName, STAGE_KIND_LABEL } from "@/lib/exam-stage-kind";
@@ -100,6 +101,8 @@ export async function readSource(opts: {
   gate?: <T>(task: () => Promise<T>) => Promise<T>;
   /** Epoch ms after which no new page batch is started. */
   deadline?: number;
+  /** Pasted text: its labelled lines are read by code too (I1). */
+  labelledLines?: boolean;
 }): Promise<SourceReading> {
   const gate = opts.gate ?? (<T>(t: () => Promise<T>) => t());
   const plain = opts.kind === "html" ? htmlToText(opts.content) : opts.content;
@@ -121,6 +124,8 @@ export function combineReading(opts: {
   content: string; kind: SourceKind; url: string; organizationId: string;
   ai: SectionOutcomes["ai"]; details: SectionOutcomes["details"]; pattern: SectionOutcomes["pattern"];
   article: ArticleReading & { coverage?: ReadingCoverage };
+  /** Pasted text (I1): its labelled lines ("Application fee: …", "Age limit: …") are read by code as well. */
+  labelledLines?: boolean;
 }): SourceReading {
   const { content, kind, url, ai, details, pattern, article } = opts;
   const plain = kind === "html" ? htmlToText(content) : content;
@@ -191,6 +196,17 @@ export function combineReading(opts: {
     filled.push(v.fieldPath);
   }
   for (const r of article.refused) if (!handled.has(r.fieldPath)) refused.push({ fieldPath: r.fieldPath, reason: `whole-text reading: ${r.reason}` });
+  // Labelled lines of pasted text, read by code (I1), beside what the AI read: the same value is one item with both
+  // quotes; a different one is a second value of the field, so the two are shown and neither is ticked.
+  if (opts.labelledLines) {
+    const lines = readLabelledLines(plain, { stageType: selectionStageType });
+    for (const v of lines.values) {
+      values.push({ fieldPath: v.fieldPath, value: v.value, quote: v.quote, page: pageOf(plain, v.quote), ...(v.doubt ? { doubt: v.doubt } : {}),
+        notes: [`read by code from a labelled line`, ...(v.notes ?? [])] });
+      filled.push(v.fieldPath);
+    }
+    for (const r of lines.refused) refused.push({ fieldPath: r.fieldPath, reason: `labelled line: ${r.reason}` });
+  }
   const NOT_FOUND_LABEL: Record<string, RegExp> = {
     "vacancies.total": /^Total Vacancies/, "vacancies.breakdown": /^Vacancy Breakdown/, "financial.feeGeneral": /^Application fee \(General/,
     "financial.feeSCST": /^Application fee \(SC/, "eligibility": /^Post-wise Eligibility/, "age": /^Age Limit/, "selection": /^Selection Process/,
@@ -330,6 +346,12 @@ const GENERIC_EXAM = /^(?:computer[\s-]*based|online|written|offline)\s+(?:exami
  * note that it was built from the schedule. Nothing the schedule does not print; a reading's own selection process
  * is never replaced. True when built.
  */
+/** A selection stage's type as its name says it: by its kind, else computer-based or written, else other. */
+export function selectionStageType(name: string): SelectionStageType {
+  return TYPE_BY_NAME.find(([, re]) => re.test(name))?.[0]
+    ?? (/\bonline\b|\bcomputer[\s-]*based\b|\bcbt\b/i.test(name) ? "CBT" : /\bwritten\b|\boffline\b|\bpen[\s-]*and[\s-]*paper\b/i.test(name) ? "WRITTEN" : "OTHER");
+}
+
 function selectionFromSchedule(values: ExtractedValue[], plain: string): boolean {
   const had = values.find((v) => v.fieldPath === "selection");
   if (had && ((had.value as CmsSelectionInformation)?.stages?.length ?? 0) > 0) return false;
@@ -338,10 +360,7 @@ function selectionFromSchedule(values: ExtractedValue[], plain: string): boolean
     .filter((e) => classifyStageName(e.name) === "SELECTION")
     .sort((a, b) => a.order - b.order);
   if (!schedule || entries.length === 0) return false;
-  const typeOf = (name: string): SelectionStageType =>
-    TYPE_BY_NAME.find(([, re]) => re.test(name))?.[0]
-    ?? (/\bonline\b|\bcomputer[\s-]*based\b|\bcbt\b/i.test(name) ? "CBT" : /\bwritten\b|\boffline\b|\bpen[\s-]*and[\s-]*paper\b/i.test(name) ? "WRITTEN" : "OTHER");
-  const stages: CmsSelectionStage[] = entries.map((e, i) => ({ name: e.name, order: i + 1, type: typeOf(e.name) }));
+  const stages: CmsSelectionStage[] = entries.map((e, i) => ({ name: e.name, order: i + 1, type: selectionStageType(e.name) }));
   const page = schedule.page ?? (schedule.quote ? pageOf(plain, schedule.quote) : null);
   const note = `built from the notice's schedule${page ? ` (page ${page})` : ""}: the reading gave no selection process, so its ${stages.length} selection stage${stages.length === 1 ? "" : "s"} are the schedule's own entries, as printed — check them against the notice`;
   const value = { fieldPath: "selection", value: { stages } satisfies CmsSelectionInformation, ...(schedule.quote ? { quote: schedule.quote } : {}), page,

@@ -4,7 +4,7 @@
 // Multipart form: mode ("NEW" | "EXISTING"), recruitmentId (EXISTING),
 // newJob (JSON, NEW), sources (JSON array of up to four
 // {declaredKind, method: "url"|"upload"|"paste", url?, text?, attestation?,
-// versionLabel?, documentDate?, file?: "file0".."file3"}), file0..file3.
+// versionLabel?, documentDate?, prepared?, file?: "file0".."file3"}), file0..file3.
 //
 // Reads every source, extracts what each says, and stores an immutable
 // preview. Changes no job.
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       declaredKind, method, bytes, url: str(s.url), text: typeof s.text === "string" ? s.text : undefined,
       attestation: str(s.attestation), versionLabel: str(s.versionLabel)?.slice(0, 120),
       documentDate: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
+      ...(s.prepared === true ? { prepared: true } : {}),
     });
   }
 

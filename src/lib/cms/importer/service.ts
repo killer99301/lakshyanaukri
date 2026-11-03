@@ -72,6 +72,8 @@ export interface SourceInput {
   attestation?: string;
   versionLabel?: string;
   documentDate?: string;
+  /** Pasted research the admin marks as prepared by an AI or a person (I1): said so in the review; still research. */
+  prepared?: boolean;
 }
 
 export interface NewJobInput {
@@ -95,12 +97,15 @@ const KIND_LABEL: Record<string, string> = {
   OFFICIAL_NOTIFICATION: "notification", OFFICIAL_CORRIGENDUM: "corrigendum", OFFICIAL_PAGE: "official page", RESEARCH: "research", OTHER: "other",
 };
 
-function summaryLabel(r: NewRetrieval): string {
+/** Pasted research the admin marked as prepared by an AI or a person; any other source is never so marked. */
+const isPrepared = (input: SourceInput, r: NewRetrieval) => input.prepared === true && r.declaredKind === "RESEARCH" && r.method === "PASTED";
+
+function summaryLabel(r: NewRetrieval, prepared = false): string {
   const where = r.originHost ?? (r.method === "PASTED" ? "pasted text" : "upload");
   const how = r.authenticity === "CONFIRMED" ? (r.authenticityMethod === "FETCHED_BY_SERVER" ? "fetched by the server" : "same file as the server's fetch")
     : r.authenticity === "ATTESTED" ? "attested by admin" : r.authenticity === "UNCONFIRMED" ? "not confirmed" : "research";
   const image = r.source.kind === "IMAGE" ? " (an image: its text was read by AI, compare with the image)" : "";
-  if (r.declaredKind === "RESEARCH") return `${where} — research${image}`;
+  if (r.declaredKind === "RESEARCH") return `${where} — research${prepared ? ", prepared by AI/person" : ""}${image}`;
   return `${where} — ${KIND_LABEL[r.declaredKind] ?? r.declaredKind}${r.versionLabel ? ` (${r.versionLabel})` : ""}, ${how}${image}`;
 }
 
@@ -165,7 +170,7 @@ async function readOne(input: SourceInput, organizationId: string, subject: stri
   const obtained = await obtain(input, fetchSourceFn, { subject, apiKey, fetchFn });
   const reading = await readSource({
     content: obtained.text, kind: obtained.kind === "PDF" ? "pdf" : "html", url: obtained.finalUrl ?? input.url ?? "",
-    subject, organizationId, apiKey, fetchFn, gate: pace.gate, deadline: pace.deadline,
+    subject, organizationId, apiKey, fetchFn, gate: pace.gate, deadline: pace.deadline, labelledLines: obtained.method === "PASTED",
   });
   return { input, reading: finishSourceReading(input, obtained, reading, organizationId), obtained };
 }
@@ -308,7 +313,8 @@ export async function assemblePreview(opts: {
     sources.push({
       input, retrieval, reading: r.reading, ...(r.scan ? { scan: r.scan } : {}),
       summary: { id: retrieval.id, declaredKind: input.declaredKind, authenticity, originRole: retrieval.originRole,
-                 originPurposes: retrieval.originPurposes, label: summaryLabel(retrieval), versionLabel: input.versionLabel, documentDate: input.documentDate },
+                 originPurposes: retrieval.originPurposes, label: summaryLabel(retrieval, isPrepared(input, retrieval)), versionLabel: input.versionLabel, documentDate: input.documentDate,
+                 ...(isPrepared(input, retrieval) ? { prepared: true } : {}) },
     });
   }
 

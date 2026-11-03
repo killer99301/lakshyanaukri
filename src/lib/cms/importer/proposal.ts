@@ -30,6 +30,8 @@ export interface RetrievalSummary {
   label: string;
   versionLabel?: string;
   documentDate?: string;
+  /** Pasted research the admin marked as prepared by an AI or a person (I1): said so; still research. */
+  prepared?: boolean;
 }
 
 export interface ExtractedValue {

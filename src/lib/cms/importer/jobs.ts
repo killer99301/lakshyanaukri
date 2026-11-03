@@ -72,6 +72,8 @@ export interface JobSourceInput {
   documentDate?: string;
   /** A pasted text instead of a PDF: stored at once as the source's one piece. */
   pastedText?: string;
+  /** Pasted research the admin says was prepared by an AI or a person (I1): marked so, still research. */
+  prepared?: boolean;
 }
 interface JobSource extends Omit<JobSourceInput, "pastedText"> { no: number; kind: "pdf" | "text" }
 
@@ -166,6 +168,7 @@ export async function createReadingJob(opts: {
     sha256: s.pastedText !== undefined ? contentHash(Buffer.from(s.pastedText.trim(), "utf8")) : s.sha256,
     ...(s.url ? { url: s.url } : {}), ...(s.attestation ? { attestation: s.attestation.slice(0, 500) } : {}),
     ...(s.versionLabel ? { versionLabel: s.versionLabel.slice(0, 120) } : {}), ...(s.documentDate ? { documentDate: s.documentDate } : {}),
+    ...(s.prepared === true && s.pastedText !== undefined && s.declaredKind === "RESEARCH" ? { prepared: true } : {}),
   }));
   await sql`INSERT INTO recruitment_import_jobs (job_id, created_by, mode, recruitment_id, new_job, sources)
             VALUES (${jobId}, ${opts.adminId}, ${opts.mode}, ${opts.recruitmentId ?? null}, ${opts.newJob ? JSON.stringify(opts.newJob) : null}::jsonb, ${JSON.stringify(sources)}::jsonb)`;
@@ -652,10 +655,12 @@ async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; a
     };
     const article = { ...merged, coverage, ...(doneParts.length === 0 ? { skipped: batches[0]?.reason ? String(batches[0].reason) : "no page was read" } : {}) };
     const pasted = s.kind === "text";
-    const input: SourceInput = { declaredKind: s.declaredKind, method: pasted ? "paste" : "upload", url: s.url, attestation: s.attestation, versionLabel: s.versionLabel, documentDate: s.documentDate };
+    const input: SourceInput = { declaredKind: s.declaredKind, method: pasted ? "paste" : "upload", url: s.url, attestation: s.attestation, versionLabel: s.versionLabel, documentDate: s.documentDate,
+      ...(s.prepared ? { prepared: true } : {}) };
     const reading = finishSourceReading(input, { finalUrl: null }, combineReading({
       content: text, kind: pasted ? "html" : "pdf", url: s.url ?? "", organizationId,
       ai: section("SECTION_AI", "ai"), details: section("SECTION_DETAILS", "details"), pattern: section("SECTION_PATTERN", "pattern"), article,
+      labelledLines: pasted,
     }), organizationId);
     read.push({ input, reading, obtained: pasted
       ? { method: "PASTED", finalUrl: null, kind: "TEXT", bytes: Buffer.from(text, "utf8"), text, pages: null }

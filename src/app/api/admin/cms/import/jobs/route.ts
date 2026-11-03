@@ -4,7 +4,7 @@
 // GET: the admin's own readings not yet finished, to reopen.
 // POST (JSON): starts a reading: { mode, recruitmentId?, newJob?, sources:
 // [{ declaredKind, fileName, pages, byteSize, sha256, url?, attestation?,
-// versionLabel?, documentDate?, pastedText? }] }. A PDF's pieces then come to
+// versionLabel?, documentDate?, pastedText?, prepared? }] }. A PDF's pieces then come to
 // /jobs/:jobId/parts. Changes no job.
 // ═══════════════════════════════════════════════════════════
 
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       sha256: String(s.sha256 ?? "").toLowerCase(), url: str(s.url), attestation: str(s.attestation), versionLabel: str(s.versionLabel),
       documentDate: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
       ...(typeof s.pastedText === "string" ? { pastedText: s.pastedText } : {}),
+      ...(s.prepared === true ? { prepared: true } : {}),
     });
   }
   const mode = body.mode === "EXISTING" ? "EXISTING" : "NEW";

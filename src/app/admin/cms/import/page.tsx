@@ -37,6 +37,8 @@ interface SourceDraft {
   documentDate: string;
   /** Text the scan reader wrote out for an uploaded scan. */
   scanText: string;
+  /** Pasted research marked as prepared by an AI or a person (I1); still research. */
+  prepared?: boolean;
 }
 
 interface Claim { retrievalId: string; quote?: string; page?: number | null }
@@ -155,6 +157,12 @@ function SourceEditor({ s, onChange, onRemove, subject }: { s: SourceDraft; onCh
           <textarea value={s.text} onChange={(e) => onChange({ ...s, text: e.target.value })} rows={8} style={{ ...inputStyle, resize: "vertical" }} />
         </label>
       )}
+      {s.method === "paste" && s.declaredKind === "RESEARCH" && (
+        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, color: C.text }}>
+          <input type="checkbox" checked={s.prepared === true} onChange={(e) => onChange({ ...s, prepared: e.target.checked })} />
+          Prepared by AI or a person (a ChatGPT or Claude answer, a summary someone wrote) — it stays research, to be checked against the notice
+        </label>
+      )}
       {s.method === "upload" && (
         <div style={{ display: "grid", gap: 6 }}>
           <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(e) => onChange({ ...s, file: e.target.files?.[0] ?? null, scanText: "" })} style={{ color: C.text, fontSize: 12 }} />
@@ -253,7 +261,7 @@ function Importer() {
       const list: Array<Record<string, unknown>> = [];
       for (const [i, s] of sources.entries()) {
         const base = { declaredKind: s.declaredKind, url: s.url || undefined, attestation: s.attest ? s.attestation : undefined, versionLabel: s.versionLabel || undefined, documentDate: s.documentDate || undefined };
-        if (s.method === "paste") { list.push({ ...base, pastedText: s.text }); continue; }
+        if (s.method === "paste") { list.push({ ...base, pastedText: s.text, ...(s.prepared && s.declaredKind === "RESEARCH" ? { prepared: true } : {}) }); continue; }
         const d = await describePdf(s.file!); // an encrypted or damaged PDF stops here, with why
         files.set(i + 1, s.file!);
         list.push({ ...base, fileName: s.file!.name, pages: d.pages, byteSize: s.file!.size, sha256: d.sha256 });
@@ -307,6 +315,7 @@ function Importer() {
         file: s.method === "upload" ? `file${i}` : undefined,
         attestation: s.attest ? s.attestation : undefined,
         versionLabel: s.versionLabel || undefined, documentDate: s.documentDate || undefined,
+        ...(s.method === "paste" && s.prepared && s.declaredKind === "RESEARCH" ? { prepared: true } : {}),
       };
     });
     f.set("sources", JSON.stringify(list));
