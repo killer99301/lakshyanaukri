@@ -324,4 +324,4 @@ Commit `8d6d8ba`. It was made because Stage C's rules assumed pages, while web p
 - **C4.1:** the vision's real-notice review. The IBPS and BTSC drafts came from B2.6 round 2's saved readings, with no Gemini, and were reviewed in the browser. **Accepted by the owner, 3 November 2026**, with its limitations: the AI reading was not replayed, AI-only fields were absent, and BTSC was refused by the official-link rule before the imported-job gate.
 - **C4.2:** the formal report, `docs/importer-stage-c-acceptance-report.md`, with these updates and the compact evidence in `docs/acceptance-runs/stage-c-final-2026-11-03/`.
 
-**Stage C as a whole is not yet accepted.** That is the owner's separate decision on the formal report.
+**Stage C as a whole was accepted by the owner on 3 November 2026,** at `dc426ce` (tested product code `c48683b`), with the limitations and open findings in the formal report.

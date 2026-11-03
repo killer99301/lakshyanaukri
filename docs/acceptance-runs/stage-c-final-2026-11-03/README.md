@@ -8,10 +8,11 @@ The evidence behind `docs/importer-stage-c-acceptance-report.md`.
 
 **Kept out of Git:**
 - the full logs (95 test logs, the build and cache-test output);
-- the screenshots;
 - the local test data.
 
 They stay in the session's scratch folder on the owner's machine.
+
+**Screenshots:** a curated set of 14 was added on 3 November 2026, by the owner's authorisation, in `screenshots/`, with their own index.
 
 | File | What it is |
 |---|---|

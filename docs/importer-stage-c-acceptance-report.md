@@ -2,7 +2,10 @@
 
 Dated 3 November 2026.
 
-> **NOT YET ACCEPTED as a whole.** C3 was accepted by the owner on 3 November 2026, and C4.1 on 3 November 2026. **Stage C's final acceptance is the owner's separate decision** (section 6).
+> **ACCEPTED by the owner on 3 November 2026** as complete, at documentation commit `dc426ce` with the tested product code `c48683b`.
+> - **It covers** C0, C1, C2, C2.1, C3 Steps 1–5, C4.1 and C4.2, under the plan's criteria and the limitations in section 4. No further Stage C testing was required.
+> - **It does not fix anything left open.** The three older failures in section 2 remain unresolved and are not passing. O1–O5, the Record button's look, the import-preview context and the testing gaps in section 4 remain open.
+> - **It is not a production release authorisation.** The migration, testing and deployment requirements still apply.
 
 **Branch:** `feature/importer` in `D:\LakshyaNaukri-importer`, tested at **`c48683b`**.
 - Local only: nothing pushed, merged, migrated or deployed.
@@ -184,7 +187,7 @@ The vision (`docs/smart-recruitment-vision.md` §9) accepts Stage C on "Browser 
 
 **Steps 1–2's browser checks** were reported in the session only.
 
-**The screenshots** of Steps 3–4, the D1/D2 fix and C4.1 are not in Git. They are in the session's scratch folder, which is temporary.
+**The screenshots:** a curated set of 14, from Step 4, the D1/D2 fix and C4.1, is kept in `docs/acceptance-runs/stage-c-final-2026-11-03/screenshots/`, with an index. It was added on 3 November 2026, after acceptance. Step 3 (B1–B6) has none: capture timed out at the time.
 
 ### 4.3 Open findings (none blocks Stage C's safeguards; each needs its own authorisation)
 
@@ -219,7 +222,7 @@ The vision (`docs/smart-recruitment-vision.md` §9) accepts Stage C on "Browser 
 | `c48683b` | D1/D2: the panel asks for the cited page of a PDF; no "open for editing" text while checking | accepted, 2 Nov |
 | *(no commit)* | C3 Step 5: final audit | **C3 accepted, 3 Nov** |
 | *(no commit)* | C4.1: IBPS and BTSC real-notice browser review | **accepted, 3 Nov** |
-| this commit | C4.2: this report and the documentation updates | for the owner's review |
+| `dc426ce` | C4.2: this report and the documentation updates | **Stage C accepted, 3 Nov** |
 
 **The documents:**
 - `docs/importer-stage-c-plan.md`: the plan, each step and the decisions;
@@ -228,10 +231,10 @@ The vision (`docs/smart-recruitment-vision.md` §9) accepts Stage C on "Browser 
 - `docs/acceptance-runs/stage-c-c0-2026-11-01/`: C0's baseline;
 - `docs/acceptance-runs/stage-c-final-2026-11-03/`: the compact final evidence.
 
-## 6. For the owner's decision
+## 6. The owner's decision
 
-1. **Accept Stage C**, under the criteria in the plan and the limitations in section 4, or ask for more.
-2. **After that, the order recommended** (each step separately authorised):
+1. **Stage C accepted as complete on 3 November 2026,** under the criteria in the plan and the limitations in section 4. It was accepted at `dc426ce`, with the tested product code `c48683b`. The test evidence and the browser-review limitations were accepted without further Stage C testing.
+2. **The next order** (each step separately authorised; **O2 is the next implementation priority**):
    1. O2;
    2. O3;
    3. O4 and O5;

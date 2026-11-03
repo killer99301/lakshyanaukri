@@ -84,7 +84,7 @@ unreliable:
 | B1: tables read by code | Done |
 | B2.1–B2.5: long and scanned documents | Done |
 | B2.6: final acceptance | **Accepted by the owner on 1 November 2026**; formal report in `docs/importer-b2-acceptance-report.md` |
-| **C: verification and publishing safeguards** | **Implementation and testing complete; awaiting the owner's final acceptance.** C3 and C4.1 were accepted on 3 November 2026; formal report in `docs/importer-stage-c-acceptance-report.md`. Open findings O1–O5 are listed there. **O2 (missed vacancy tables) is a priority before unattended discovery** |
+| **C: verification and publishing safeguards** | **Accepted by the owner on 3 November 2026** (at `dc426ce`, tested product code `c48683b`); formal report in `docs/importer-stage-c-acceptance-report.md`. Open findings O1–O5 are listed there. **O2 (missed vacancy tables) is a priority before unattended discovery** |
 | **Pre-release: admin CMS UI/UX redesign** | After Stage C, once core functions and publishing safeguards are stable; **required before the public launch** (see below) |
 | Backup of `feature/importer` to GitHub | After the owner's go-ahead; separate from any production release |
 | Controlled production release (migration and deployment) | Only with the owner's explicit approval |
