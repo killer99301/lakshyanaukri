@@ -185,7 +185,7 @@ export function VacancyTableReview({ table, note, pageImageUrl, research = false
           {diff.removedRows.map((r, k) => (
             <div key={`r${k}`} style={{ fontSize: 12, color: C.red }}>Removed (the document gives this post&apos;s table in full and no longer lists it): {where(r.at)} — was {figureOf(r)}</div>
           ))}
-          {(note?.removalsHeld ?? 0) > 0 && <div style={{ fontSize: 12, color: C.amber }}>{plural(note!.removalsHeld!, "row")} the document does not list are kept, because some of its table lines could not be read.</div>}
+          {(note?.removalsHeld ?? 0) > 0 && <div style={{ fontSize: 12, color: C.amber }}>{plural(note!.removalsHeld!, "row")} the document does not list are kept, because {note!.from === "split" ? "its figures come from the AI's reading of the categories, not from a table read in full" : "some of its table lines could not be read"}.</div>}
           {diff.untouchedPosts.length > 0 && <div style={small}>Kept as they are (not in this document): {diff.untouchedPosts.join(", ")}</div>}
         </div>
       )}

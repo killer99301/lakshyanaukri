@@ -305,16 +305,20 @@ export async function assemblePreview(opts: {
     if (table) {
       // Rows a re-issued notice no longer lists are removed only when every
       // table and line of it was read: a line that was not read may be one of them.
-      const coverageComplete = coverage.tables.every((t) => t.read) && coverage.unreadLines.length === 0;
+      // A table built from the AI's category split was never read as a table, so it
+      // removes nothing: a row it leaves out is not shown to be gone.
+      const coverageComplete = !!read && coverage.tables.every((t) => t.read) && coverage.unreadLines.length === 0;
       const corrigendum = s.input.declaredKind === "OFFICIAL_CORRIGENDUM";
       const existingTable = record?.vacancies.table?.value ?? null;
       const merged = mergeTables(existingTable, table, corrigendum || !coverageComplete);
       const removalsHeld = !corrigendum && !coverageComplete && existingTable ? mergeTables(existingTable, table, false).diff.removed.length : 0;
-      const stored = editorValue("vacancies.table", merged.table);
-      if (stored.ok) {
+      // A table split differently from the job's is not offered: the job's rows stand, and the
+      // document's rows are kept in the note, and said as a warning, to be checked by hand.
+      const stored = merged.diff.held.length ? null : editorValue("vacancies.table", merged.table);
+      if (stored?.ok) {
         const first = table.rows[0]?.source;
         s.reading.values.push({ fieldPath: "vacancies.table", value: stored.value, quote: first?.line.split("\n").pop() ?? "", page: first?.page ?? null });
-      } else {
+      } else if (stored) {
         s.reading.refused.push({ fieldPath: "vacancies.table", reason: `the editor would refuse it: ${stored.reason}` });
       }
       const brief = (r: { at: Record<string, string>; status: string; total?: number; source: { page: number | null } }) => ({ at: r.at, status: r.status, total: r.total ?? null, page: r.source.page });
@@ -324,6 +328,10 @@ export async function assemblePreview(opts: {
         addedRows: merged.diff.added.slice(0, 60).map(brief),
         changedRows: merged.diff.changed.slice(0, 60).map((c) => ({ before: brief(c.before), after: brief(c.after) })),
         removedRows: merged.diff.removed.slice(0, 60).map(brief),
+        held: merged.diff.held.length,
+        // Every held row, not the first 60: nothing of the document's table is lost from view.
+        heldRows: merged.diff.held.map((r) => ({ ...brief(r), line: r.source.line.slice(0, 300),
+          cells: Object.fromEntries(Object.entries(r.cells).map(([k, v]) => [table.categories.find((c) => c.key === k)?.label ?? k, v])) })),
       } };
     }
     // Posts a corrigendum deletes (P2.3): read by code against the job's table (with what this corrigendum's
@@ -414,6 +422,18 @@ export async function assemblePreview(opts: {
       proposal.warnings.push(`A vacancy table${t.title ? ` (“${t.title}”)` : ""} on page ${t.pages.join(", ") || "?"} was not read: ${t.why}. Its rows are not in this preview; enter them in the editor's vacancy table.`);
     }
     if (note?.coverage?.unreadLines.length) proposal.warnings.push(`${note.coverage.unreadLines.length} line(s) inside a vacancy table could not be read as rows; check them in the preview.`);
+  }
+  // A table split differently from the job's: nothing of it is offered, so its figures are said here in full,
+  // to be checked by hand. A table offered that removes rows says how many, on the item itself.
+  for (const s of sources) {
+    const note = tableNotes.get(s.retrieval.id) as { problems?: string[]; diff?: { removed: number; held?: number; heldRows?: Array<{ at: Record<string, string>; status: string; total: number | null; page: number | null; cells: Record<string, number> }> } } | undefined;
+    if (note?.diff?.held) {
+      const rows = note.diff.heldRows!.map((r) => `${Object.values(r.at).join(" › ")} — ${r.total ?? r.status.toLowerCase()}${Object.keys(r.cells).length ? ` (${Object.entries(r.cells).map(([k, v]) => `${k} ${v}`).join(", ")})` : ""}${r.page ? `, page ${r.page}` : ""}`);
+      proposal.warnings.push(`${s.summary.label}: ${note.problems?.find((p) => /^The job's table is split by/.test(p)) ?? "its vacancy table is split differently from the job's."} Its figures: ${rows.join("; ")}.`);
+    }
+    const removed = note?.diff?.removed ?? 0;
+    const item = removed > 0 ? proposal.items.find((i) => i.fieldPath === "vacancies.table" && i.claims.some((c) => c.retrievalId === s.retrieval.id)) : undefined;
+    if (item) item.flags = [...item.flags, `Proposes removing ${removed} row${removed === 1 ? "" : "s"} the job has now: this document gives ${removed === 1 ? "its post's" : "their posts'"} table in full and no longer lists ${removed === 1 ? "it" : "them"}`];
   }
   // A corrigendum's deletion: the job's table without the posts is offered unticked, saying exactly what goes;
   // one that could not be matched for certain removes nothing, and says why.

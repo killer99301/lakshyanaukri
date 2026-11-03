@@ -771,6 +771,9 @@ export interface TableDiff {
   same: number;
   /** Posts in the job's table the new document does not give, left as they are. */
   untouchedPosts: string[];
+  /** The document's rows not brought in because its table is split differently (post-wise against
+   * bank-wise): the job's rows stay as they are, and these are kept here to be checked by hand. */
+  held: VacancyTableRow[];
 }
 
 const rowKey = (r: VacancyTableRow, dims: VacancyDimension[]) => dims.map((d) => (r.at[d.key] ?? "").replace(/\s+/g, " ").trim().toUpperCase()).join(" | ");
@@ -781,23 +784,30 @@ const figures = (r: VacancyTableRow) => JSON.stringify([r.status, r.total ?? nul
  * dimension (post, state, bank…), never by page. A notice replaces the posts
  * whose tables it gives; a corrigendum (`updateOnly`) changes or adds the
  * rows it prints and removes nothing. Posts the document does not give are
- * kept as they are. Nothing here decides what is saved: the result is offered.
+ * kept as they are. A table split differently from the job's (post-wise
+ * against bank-wise) changes nothing: no row can be matched, so the job's rows
+ * are kept and the document's are held, to be checked by hand. Nothing here
+ * decides what is saved: the result is offered.
  */
 export function mergeTables(existing: VacancyTable | null, incoming: VacancyTable, updateOnly: boolean): { table: VacancyTable; diff: TableDiff; problems: string[] } {
-  if (!existing) return { table: incoming, diff: { added: incoming.rows, changed: [], removed: [], same: 0, untouchedPosts: [] }, problems: [] };
+  if (!existing) return { table: incoming, diff: { added: incoming.rows, changed: [], removed: [], same: 0, untouchedPosts: [], held: [] }, problems: [] };
   const problems: string[] = [];
   const sameDims = existing.dimensions.map((d) => d.key).join("|") === incoming.dimensions.map((d) => d.key).join("|");
-  const dims = sameDims ? incoming.dimensions : incoming.dimensions;
-  if (!sameDims) problems.push(`The job's table is split by ${existing.dimensions.map((d) => d.label).join(" › ")}; this document by ${incoming.dimensions.map((d) => d.label).join(" › ")}. Its posts are replaced as a whole.`);
+  if (!sameDims) {
+    const one = incoming.rows.length === 1;
+    problems.push(`The job's table is split by ${existing.dimensions.map((d) => d.label).join(" › ")}; this document by ${incoming.dimensions.map((d) => d.label).join(" › ")}. The job's rows are kept as they are; this document's ${one ? "row is" : `${incoming.rows.length} rows are`} not brought in — check ${one ? "it" : "them"} by hand in the vacancy editor.`);
+    return { table: existing, diff: { added: [], changed: [], removed: [], same: 0, untouchedPosts: [], held: incoming.rows }, problems };
+  }
+  const dims = incoming.dimensions;
   const incomingPosts = new Set(incoming.rows.map((r) => r.at.post));
   const keep = existing.rows.filter((r) => !incomingPosts.has(r.at.post));
   const byKey = new Map(existing.rows.filter((r) => incomingPosts.has(r.at.post)).map((r) => [rowKey(r, dims), r]));
   const used = new Set(existing.rows.map((r) => r.id));
-  const diff: TableDiff = { added: [], changed: [], removed: [], same: 0, untouchedPosts: [...new Set(keep.map((r) => r.at.post))] };
+  const diff: TableDiff = { added: [], changed: [], removed: [], same: 0, untouchedPosts: [...new Set(keep.map((r) => r.at.post))], held: [] };
   const merged: VacancyTableRow[] = [];
   const matched = new Set<string>();
   for (const r of incoming.rows) {
-    const had = sameDims ? byKey.get(rowKey(r, dims)) : undefined;
+    const had = byKey.get(rowKey(r, dims));
     if (had) {
       matched.add(had.id);
       if (figures(had) === figures(r)) { diff.same++; merged.push({ ...r, id: had.id }); }
@@ -812,7 +822,7 @@ export function mergeTables(existing: VacancyTable | null, incoming: VacancyTabl
     }
   }
   for (const r of existing.rows.filter((x) => incomingPosts.has(x.at.post) && !matched.has(x.id))) {
-    if (updateOnly) merged.push(r); // a corrigendum removes nothing
+    if (updateOnly) merged.push(r); // a corrigendum, or a table not read in full, removes nothing
     else diff.removed.push(r);
   }
   const categories = [...existing.categories];
@@ -824,5 +834,5 @@ export function mergeTables(existing: VacancyTable | null, incoming: VacancyTabl
   // Posts stay in the job's order; a post new to the job follows, in the document's order.
   const postOrder = [...new Set([...existing.rows, ...incoming.rows].map((r) => r.at.post))];
   const rows = [...keep, ...merged].map((r, i) => ({ r, i })).sort((a, b) => postOrder.indexOf(a.r.at.post) - postOrder.indexOf(b.r.at.post) || a.i - b.i).map((x) => x.r);
-  return { table: { dimensions: sameDims ? existing.dimensions : incoming.dimensions, categories, rows, statedTotals }, diff, problems };
+  return { table: { dimensions: existing.dimensions, categories, rows, statedTotals }, diff, problems };
 }
