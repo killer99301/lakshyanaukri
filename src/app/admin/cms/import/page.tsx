@@ -16,9 +16,12 @@ import { useSearchParams } from "next/navigation";
 import { DiscoverPanel, type FoundJob } from "./DiscoverPanel";
 import { ReviewPanel } from "./ReviewPanel";
 import { OpenReadings, ReadingJobPanel, describePdf } from "./ReadingJob";
+import { AttestationField, attestationProblem } from "./AttestationField";
 import { C, PANEL, badge, inputStyle, labelStyle, primaryBtn, quietBtn } from "./ui";
 
 type Kind = "OFFICIAL_NOTIFICATION" | "OFFICIAL_CORRIGENDUM" | "OFFICIAL_PAGE" | "RESEARCH" | "OTHER";
+/** Said when a ticked "I downloaded this myself" lacks what it needs; cleared once a source is changed. */
+const ATTESTATION_NOT_SENT = "complete “I downloaded or copied this myself” (see below it), or untick it. Nothing was sent.";
 type Method = "paste" | "upload" | "url";
 
 interface SourceDraft {
@@ -169,14 +172,8 @@ function SourceEditor({ s, onChange, onRemove, subject }: { s: SourceDraft; onCh
         </div>
       )}
       {official && s.method !== "url" && (
-        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: C.muted }}>
-          <input type="checkbox" checked={s.attest} onChange={(e) => onChange({ ...s, attest: e.target.checked })} style={{ marginTop: 2 }} />
-          <span>The official site blocks the server, so I downloaded or copied this myself from the address above.
-            {s.attest && (
-              <input value={s.attestation} onChange={(e) => onChange({ ...s, attestation: e.target.value })} placeholder="e.g. Downloaded from rrbcdg.gov.in on 25 Oct 2026; the site blocks automated access" style={{ ...inputStyle, marginTop: 6 }} />
-            )}
-          </span>
-        </label>
+        <AttestationField id={`source-${s.key}`} attest={s.attest} attestation={s.attestation} url={s.url}
+          onChange={(v) => onChange({ ...s, ...v })} />
       )}
       {s.declaredKind === "OFFICIAL_CORRIGENDUM" && (
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
@@ -281,6 +278,13 @@ function Importer() {
   };
 
   const makePreview = async () => {
+    // A ticked "I downloaded this myself" without its address or note would be sent and quietly left unconfirmed:
+    // it is not sent, and the source says what it needs.
+    const incomplete = sources.findIndex((s) => s.declaredKind !== "RESEARCH" && s.method !== "url" && attestationProblem(s));
+    if (incomplete >= 0) {
+      setErr(`Source ${incomplete + 1}: ${ATTESTATION_NOT_SENT}`);
+      return;
+    }
     if (sources.some(isPdf) && sources.every((s) => isPdf(s) || s.method === "paste")) { await startReading(); return; }
     if (sources.some((s) => s.method === "upload" && s.file && s.file.size > 4 * 1024 * 1024)) {
       setErr("A PDF over 4 MB is read as a long reading, which takes PDFs and pasted text. Remove the address or image source here, and bring it into the same job afterwards.");
@@ -424,8 +428,8 @@ function Importer() {
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#c7d2e6" }}>Sources</div>
             {sources.map((s) => (
               <SourceEditor key={s.key} s={s} subject={subject}
-                onChange={(n) => setSources((all) => all.map((x) => (x.key === s.key ? n : x)))}
-                onRemove={() => setSources((all) => all.filter((x) => x.key !== s.key))} />
+                onChange={(n) => { setSources((all) => all.map((x) => (x.key === s.key ? n : x))); setErr((e) => (e?.endsWith(ATTESTATION_NOT_SENT) ? null : e)); }}
+                onRemove={() => { setSources((all) => all.filter((x) => x.key !== s.key)); setErr((e) => (e?.endsWith(ATTESTATION_NOT_SENT) ? null : e)); }} />
             ))}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {sources.length < 4 && <button onClick={() => setSources((all) => [...all, newSource("OFFICIAL_PAGE", "url")])} style={quietBtn}>+ Add a source</button>}
