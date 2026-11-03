@@ -28,7 +28,9 @@ const TIMEOUT_MS = 25_000;
 
 export type FetchedSource =
   | { ok: true; finalUrl: string; contentType: string; bytes: Buffer }
-  | { ok: false; error: string; blocked?: boolean };
+  /** `refused`: the address itself is not allowed (not a web address, not http(s), a user name in it, or a
+   * private or internal network), as against a site that could not be reached or would not answer. */
+  | { ok: false; error: string; blocked?: boolean; refused?: boolean };
 
 // Not the public internet: RFC 6890 special-purpose ranges, plus the IPv6
 // forms that carry an IPv4 address the check could not see (NAT64, 6to4,
@@ -65,12 +67,12 @@ export interface FetchOptions {
 const PRIVATE_ERROR = "That address points to a private network and is not read";
 
 /** Checks the address's form and its host's current addresses. Fetching checks again, at connection time. */
-export async function checkPublicUrl(raw: string, opts: FetchOptions = {}): Promise<{ ok: true; url: URL } | { ok: false; error: string }> {
+export async function checkPublicUrl(raw: string, opts: FetchOptions = {}): Promise<{ ok: true; url: URL } | { ok: false; error: string; refused?: boolean }> {
   const blocked = opts.isBlocked ?? isNonPublicAddress;
   let url: URL;
-  try { url = new URL(raw); } catch { return { ok: false, error: "That is not a web address" }; }
-  if (url.protocol !== "https:" && url.protocol !== "http:") return { ok: false, error: "Only http and https addresses can be read" };
-  if (url.username || url.password) return { ok: false, error: "Addresses with a user name or password are not read" };
+  try { url = new URL(raw); } catch { return { ok: false, refused: true, error: "That is not a web address" }; }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return { ok: false, refused: true, error: "Only http and https addresses can be read" };
+  if (url.username || url.password) return { ok: false, refused: true, error: "Addresses with a user name or password are not read" };
   const host = url.hostname.replace(/^\[|\]$/g, "");
   let addresses: string[];
   try {
@@ -78,7 +80,7 @@ export async function checkPublicUrl(raw: string, opts: FetchOptions = {}): Prom
   } catch {
     return { ok: false, error: `The site ${host} could not be found` };
   }
-  if (addresses.length === 0 || addresses.some(blocked)) return { ok: false, error: PRIVATE_ERROR };
+  if (addresses.length === 0 || addresses.some(blocked)) return { ok: false, refused: true, error: PRIVATE_ERROR };
   return { ok: true, url };
 }
 
@@ -157,12 +159,12 @@ export async function fetchSource(raw: string, opts: FetchOptions = {}): Promise
   let current = raw;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const checked = await checkPublicUrl(current, opts);
-    if (!checked.ok) return { ok: false, error: checked.error };
+    if (!checked.ok) return { ok: false, error: checked.error, ...(checked.refused ? { refused: true } : {}) };
     let res: Answer;
     try {
       res = await requestOnce(checked.url, resolve, blocked, signal);
     } catch (e) {
-      if (e instanceof PrivateAddressError) return { ok: false, error: PRIVATE_ERROR };
+      if (e instanceof PrivateAddressError) return { ok: false, refused: true, error: PRIVATE_ERROR };
       return { ok: false, error: e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError") ? "The site took too long to answer" : "The site could not be reached" };
     }
     const location = res.headers.location;

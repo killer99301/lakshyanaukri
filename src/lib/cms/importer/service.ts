@@ -45,6 +45,22 @@ export class ImportInputError extends Error {
   constructor(message: string, readonly status = 400) { super(message); this.name = "ImportInputError"; }
 }
 
+/**
+ * A source by address that could not be fetched or read: the site would not
+ * answer, refused the server, sent no file, or sent a page or PDF with no text.
+ * The import goes on with its other sources and says which could not be read;
+ * an address that is not allowed at all stays an ImportInputError.
+ */
+export class SourceUnavailableError extends ImportInputError {
+  constructor(readonly url: string, readonly reason: string) { super(`${url}: ${reason}`); this.name = "SourceUnavailableError"; }
+}
+
+/** A source of an import that could not be read, as said in the preview. */
+export interface UnavailableSource { url: string; declaredKind: DeclaredKind; reason: string }
+
+/** Fewer characters than this on a fetched page is no recruitment text (the same floor as pasted text). */
+const MIN_PAGE_TEXT_CHARS = 100;
+
 export interface SourceInput {
   declaredKind: DeclaredKind;
   method: "url" | "upload" | "paste";
@@ -102,14 +118,20 @@ async function obtain(input: SourceInput, fetchSourceFn: typeof fetchSource, rea
   if (input.method === "url") {
     if (!input.url) throw new ImportInputError("A source by address needs the address");
     const got = await fetchSourceFn(input.url);
-    if (!got.ok) throw new ImportInputError(`${input.url}: ${got.error}`);
+    if (!got.ok) throw got.refused ? new ImportInputError(`${input.url}: ${got.error}`) : new SourceUnavailableError(input.url, got.error);
     const isPdf = /pdf/i.test(got.contentType) || got.bytes.subarray(0, 5).toString("latin1") === "%PDF-";
     if (isPdf) {
       const pdf = await extractPdfFromBuffer(got.bytes);
-      if (!pdf.ok || !pdf.text) throw new ImportInputError(`${input.url}: the PDF has no text layer (a scan). Download it and upload it as a scan.`);
+      // A scan's text is only the reader's page markers ("-- 1 of 3 --").
+      if (!pdf.ok || !pdf.text || pdf.text.replace(/--\s*\d+\s+of\s+\d+\s*--/g, "").trim().length < MIN_PAGE_TEXT_CHARS) {
+        throw new SourceUnavailableError(input.url, "the PDF has no text layer (a scan). Download it and upload it as a scan.");
+      }
       return { method: "FETCHED", finalUrl: got.finalUrl, kind: "PDF", bytes: got.bytes, text: pdf.text, pages: pdf.numPages ?? null };
     }
     const html = got.bytes.toString("utf8");
+    if (htmlToText(html).trim().length < MIN_PAGE_TEXT_CHARS) {
+      throw new SourceUnavailableError(input.url, "the page has no text to read (it may be built in the browser by scripts). Copy its text and paste it, or download the notice and upload it.");
+    }
     return { method: "FETCHED", finalUrl: got.finalUrl, kind: "HTML", bytes: got.bytes, text: html, pages: null };
   }
   if (input.method === "upload" && input.bytes && imageType(input.bytes)) {
@@ -186,8 +208,17 @@ export async function previewImport(opts: {
   // resent after a wait, each resend counted against the daily allowance.
   const paced = retryingFetch(opts.fetchFn ?? ((input, init) => globalThis.fetch(input, init)), { backoffMs: opts.retryBackoffMs });
   const gate = createGate(AI_CONCURRENCY);
-  const read = await Promise.all(opts.sources.map((s) => readOne(s, organizationId, subject, opts.apiKey, paced.fetch, opts.fetchSourceFn ?? fetchSource, { gate, deadline: opts.deadline })));
-  return assemblePreview({ ...opts, record, organizationId, read, aiFetch: paced.fetch, aiStats: paced.stats });
+  // A source by address that cannot be fetched or read does not stop the others: it is said in the
+  // preview, and nothing of it is kept. Any other error still stops the import.
+  const outcomes = await Promise.all(opts.sources.map((s) => readOne(s, organizationId, subject, opts.apiKey, paced.fetch, opts.fetchSourceFn ?? fetchSource, { gate, deadline: opts.deadline })
+    .catch((e: unknown) => { if (e instanceof SourceUnavailableError) return { unavailable: { url: e.url, declaredKind: s.declaredKind, reason: e.reason } }; throw e; })));
+  const read = outcomes.flatMap((o) => ("unavailable" in o ? [] : [o]));
+  const unavailable = outcomes.flatMap((o) => ("unavailable" in o ? [o.unavailable] : []));
+  if (read.length === 0) {
+    throw new ImportInputError(`No source could be read, so there is nothing to import: ${unavailable.map((u) => `${u.url} (${u.reason})`).join("; ")}. `
+      + "Download the notice and upload it, or copy its text and paste it.");
+  }
+  return assemblePreview({ ...opts, record, organizationId, read, unavailable, aiFetch: paced.fetch, aiStats: paced.stats });
 }
 
 /** The job an import goes into: an existing job open for editing, or a new one with an organisation, title and year. */
@@ -235,6 +266,8 @@ export interface ReadInput {
 export async function assemblePreview(opts: {
   adminId: string; mode: "NEW" | "EXISTING"; newJob?: NewJobInput; apiKey: string | undefined;
   record: RecruitmentRecord | null; organizationId: string; read: ReadInput[];
+  /** Sources by address that could not be fetched or read: said, never read. */
+  unavailable?: UnavailableSource[];
   aiFetch?: typeof fetch; aiStats?: { sent: number; retried: number; failed: number };
 }) {
   const { record, organizationId, read } = opts;
@@ -477,6 +510,9 @@ export async function assemblePreview(opts: {
       proposal.warnings.push(`${s.summary.label}: on scanned page ${p.page} the AI suggests other spellings for ${p.corrections.length === 1 ? "a word" : "words"} — kept exactly as printed; apply a suggestion only if the notice means it: ${p.corrections.map((c) => `“${c.printed}” → “${c.suggested}”`).join("; ")}.`);
     }
   }
+  // Sources that could not be read come first: nothing of them is in this preview, nor kept as a source of the job.
+  proposal.warnings.unshift(...(opts.unavailable ?? []).map((u) =>
+    `${u.url} (${KIND_LABEL[u.declaredKind] ?? u.declaredKind}) could not be read: ${u.reason.replace(/\.$/, "")}. Nothing from it is in this preview, and it is not kept as a source. To add it, download it and upload it, or copy its text and paste it.`));
 
   // Keys for the duplicate lock and check of a new job.
   let identityKey: string | null = null;
@@ -503,6 +539,7 @@ export async function assemblePreview(opts: {
         vacancyTables: tableNotes.get(s.retrieval.id) ?? null, reading: s.reading.readingCoverage ?? null, ...(s.reading.patternCoverage ? { pattern: s.reading.patternCoverage } : {}),
         ...(s.scan?.images ? { pageImages: s.scan.images } : {}) })),
       duplicates,
+      ...(opts.unavailable?.length ? { unavailable: opts.unavailable } : {}),
       aiRequests: { ...paced.stats },
     },
   };
