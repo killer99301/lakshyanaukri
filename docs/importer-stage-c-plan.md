@@ -96,7 +96,7 @@ The test is `tests/local-stack/stage-c-baseline.test.ts`. The raw output is in `
 
 **Limitation of the measurement:** the tables were saved through the editor's field route, not proposed by the import. So the total starts as UNSUPPORTED, not SUPPORTED. That does not change what a decision can do.
 
-## 8. C1 done, 1 November 2026: the whole-table check (waits for the owner's review)
+## 8. C1 done, 1 November 2026: the whole-table check (accepted by the owner, 1 November 2026)
 
 **What was built.** No schema change.
 - **The rules:** `src/lib/cms/importer/table-check.ts`.
@@ -149,7 +149,7 @@ All three failures predate C1, and C1 touches none of their code:
 - **`tests/cms/sitemap-ticker.test.ts`, TK02 and TK03:** the test imports `IMPORTANT_UPDATES`, which was removed from the site's code on 4 October (5d5d9a9, already on main). The test is stale.
 - **`tests/cms/phase-d-integration.test.ts`:** it needs a live `DATABASE_URL` and stops without one. It was not run against any real database.
 
-## 9. C2: the publish gate for Total Vacancies worked out from a table (waits for the owner's review)
+## 9. C2: the publish gate for Total Vacancies worked out from a table (accepted by the owner, 1 November 2026)
 
 Approved on 1 November 2026, with the owner's added safeguard: a printed total is verified only by evidence that is its own line, figure and page.
 
@@ -246,9 +246,11 @@ The owner treats it as a **data-integrity issue, to be resolved before Stage C i
 - C-D2 is not weakened or silently changed;
 - any reader correction is a separately authorised, narrowly scoped change.
 
-**Status:** C2 is committed, and its acceptance waits on this defect decision. No fix has been made. C3 is not authorised.
+**Status at the time:** C2 was committed, and its acceptance waited on this defect decision. No fix had been made. C3 was not authorised.
 
-## 10. The "(continued)" heading defect: fixed (1 November 2026, waits for the owner's review)
+**Updated 3 November 2026:** the defect was fixed (section 10), and the owner accepted C2 and the fix on 1 November 2026.
+
+## 10. The "(continued)" heading defect: fixed (1 November 2026, accepted by the owner, 1 November 2026)
 
 Approved by the owner as a narrow fix to the B2.5 reader, kept in its own commit. C-D2 is unchanged. The details and evidence are in `docs/known-defects/continued-heading.md`.
 
@@ -271,3 +273,55 @@ Approved by the owner as a narrow fix to the B2.5 reader, kept in its own commit
   - E8 **fails**, 12 of 13;
   - sitemap/ticker **fails**, 6 of 8 (stale);
   - phase-D integration **not run** (no database).
+
+## 11. C2.1: pages follow each row's document (accepted by the owner, 1 November 2026)
+
+Commit `8d6d8ba`. It was made because Stage C's rules assumed pages, while web pages and pasted text have none. C-D1 to C-D4 are unchanged.
+
+**What it does:**
+- **A row's page follows its document:**
+  - a PDF row needs its page;
+  - a web page or text row has none;
+  - a page on a page-less source is refused.
+- **A whole-table check names every document it compared** (`documents`):
+  - each PDF with its pages compared;
+  - a web page or text as the whole document;
+  - research and prepared rows compared with an official document (`comparedWith`), a prepared row on the page it claims.
+- **Each document's standing is the server's own:** eligible only when CONFIRMED or ATTESTED, trusted for recruitment rules, and not research.
+- **The single-PDF shape** of C1 (pages only) is still accepted when there is nothing to map.
+- **A printed total on a web page or in text** is verified by its line, with no page, from the same document.
+
+**Tests:**
+- `tests/cms/c21-page-free.test.ts`: 27 of 27;
+- `tests/local-stack/c21-page-free.test.ts`: 20 of 20;
+- negative checks logged.
+
+**Regression:** 90 of 93 test files, with the same three exceptions.
+
+## 12. C3: the table review in the editor (accepted by the owner, 3 November 2026)
+
+**The plan:** approved on 1 November 2026, with the owner's decisions C3-D1 to C3-D5:
+- C3-D1: the words cited are typed or pasted, never pre-filled;
+- C3-D2: no new page images; the original-notice step is required in the screen;
+- C3-D3: conservative "worth a look" marks, one acknowledgment, one decision;
+- C3-D4: bounded steps;
+- C3-D5 (b): how the original was obtained is recorded and validated when given, and never required.
+
+**The steps:**
+
+| Step | Commit | What | Owner's decision |
+|---|---|---|---|
+| 1 | `764b167` | Read-only `tableTotal` in the checks route; `rowAttention` (conservative marks); the browser's local file fingerprint | accepted, 1 Nov |
+| 2 | `4294791` | The check list shows the server's reasons; the total offers only the actions its route allows; the table line, with a confirmed Withdraw; the "not stated in full" form | accepted, 1 Nov |
+| 3 | `31e34bc` | The whole-table check panel: the original (same file or official address), the rows by document, the marked rows, the pages and words, one confirmation; with C2.1's compatibility changes S1–S6 | accepted, 2 Nov |
+| 4 | none | Browser acceptance: a fresh Smart intake job from import to publish, a printed-total job, read-only views. It found D1 and D2 | passed, 2 Nov |
+| fix | `c48683b` | **D1:** for a PDF, the panel asks for the cited line's page (empty, not a page number, or not compared) before Record turns on. **D2:** no "open for editing" text while the panel is open | accepted, 2 Nov |
+| 5 | none | Final audit at `c48683b`: 204 Stage C checks; regression 92 of 95 (the three exceptions); build; cache test 31 of 31 | **C3 accepted, 3 Nov**, with its evidence gaps documented |
+
+## 13. C4: regression and report
+
+- **The regression:** the C3 Step 5 audit at `c48683b` counts as C4's regression (owner's decision C4-D1). No product code has changed since.
+- **C4.1:** the vision's real-notice review. The IBPS and BTSC drafts came from B2.6 round 2's saved readings, with no Gemini, and were reviewed in the browser. **Accepted by the owner, 3 November 2026**, with its limitations: the AI reading was not replayed, AI-only fields were absent, and BTSC was refused by the official-link rule before the imported-job gate.
+- **C4.2:** the formal report, `docs/importer-stage-c-acceptance-report.md`, with these updates and the compact evidence in `docs/acceptance-runs/stage-c-final-2026-11-03/`.
+
+**Stage C as a whole is not yet accepted.** That is the owner's separate decision on the formal report.

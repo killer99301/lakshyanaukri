@@ -1,0 +1,1 @@
+ai {"cap":150,"today":{"day":"2026-11-03","total":0,"refused":0,"failed":0,"byFeature":{"assist":0,"update-check":0,"job-search":0,"import":0}},"lastSevenDays":0,"labels":{"assist":"AI Assist","update-check":"Check for updates","job-search":"New jobs search","import":"Smart intake"}}

@@ -1,0 +1,36 @@
+{
+  "ibps": {
+    "found": true,
+    "rows": 28,
+    "summary": "Total vacancies\nat least 13,706\nCalculated\nIncomplete\nsum of 10 post totals\nOffice Assistants (Multipurpose)\tat least 8,183CalculatedIncomplete\tSC 1,252+ · ST 762+ · OBC (NCL) 1,914+ · EWS 803+ · General 3,452+ · PwBD HI 98+ · PwBD OC 85+ · PwBD VI 81+ · PwBD ID 90+ · ESM 802+ · DESM 350+ — 27 of 28 rows with figures, 1 not reported\nOfficer Scale I\tat least 4,256CalculatedIncomplete\tSC 627+ · ST 318+ · OBC (NCL) 1,139+ · EWS 420+ · General 1,752+ · PwBD HI 60+ · PwBD OC 48+ · PwBD VI 51+ · PwBD ID 51+ — 27 of 28 rows with figures, 1 not reported\nOfficer Scale II (General Banking Officer)\tat least 666CalculatedIncomplete\tSC 96+ · ST 44+ · OBC (NCL) 171+ · EWS 63+ · General 292+ · PwBD HI 13+ · PwBD OC 9+ · PwBD VI 6+ · PwBD ID 6+ — 27 of 28 rows with figures, 1 not reported\nOfficer Scale II (IT)\tat least 182CalculatedIncomplete\tSC 24+ · ST 13+ · OBC (NCL) 48+ · EWS 18+ · General 79+ · PwB",
+    "basisChips": [
+      "Calculated",
+      "Incomplete",
+      "Calculated",
+      "Incomplete",
+      "Calculated",
+      "Incomplete"
+    ],
+    "firstRowPages": [
+      "46",
+      "46",
+      "46",
+      "46",
+      "46"
+    ],
+    "printed": "As printed (page 46): 1 ANDHRA\nPRADESH\nANDHRA PRADESH\nGRAMEENA BANK 144 63 243 90 360 900 9 9 9 9 90 41"
+  },
+  "btsc": {
+    "found": true,
+    "rows": 1,
+    "summary": "Total vacancies\n105\nPrinted in the notice\nprinted in the notice\nFood Safety Officer (FSO)\t105Printed in the notice\tUR 41 · EWS 11 · SC 17 · ST 2 · Extremely Backward Class (EBC) 18 · Backward Class (BC) 12 · Backward Class Women 4",
+    "basisChips": [
+      "Printed in the notice",
+      "Printed in the notice"
+    ],
+    "firstRowPages": [
+      ""
+    ],
+    "printed": "As printed: The Bihar Technical Service Commission (BTSC) has released the BTSC FSO Recruitment 2026 Notification for 105 Food Safety Officer (FSO) vacancies under the Health Department, Bihar. As per Advertisement No. 29/2026, the online application process started on 25 September 2026 and will con"
+  }
+}

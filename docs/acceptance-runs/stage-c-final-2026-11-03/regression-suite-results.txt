@@ -1,0 +1,95 @@
+tests/cms/age-limit.test.ts  ✅  8/8 tests passed
+tests/cms/ai-assist-details.test.ts  ✅  21/21 tests passed
+tests/cms/ai-assist.test.ts  ✅  68/68 tests passed
+tests/cms/assist-evidence.test.ts  ✅  2/2 tests passed
+tests/cms/attention.test.ts  ✅  13/13 tests passed
+tests/cms/batch-reading.test.ts  ✅  19/19 tests passed
+tests/cms/bpsc-paste.test.ts  ✅  11/11 tests passed
+tests/cms/c21-page-free.test.ts  ✅  27/27 tests passed
+tests/cms/c3-step1.test.ts  ✅  22/22 tests passed
+tests/cms/c3-step2.test.tsx  ✅  11/11 tests passed
+tests/cms/c3-step3.test.tsx  ✅  20/20 tests passed
+tests/cms/channel-post.test.ts  ✅  3/3 tests passed
+tests/cms/collection-surfaces.test.ts  ✅  8/8 tests passed
+tests/cms/content-import.test.ts  ✅  8/8 tests passed
+tests/cms/corrigendum.test.ts  ✅  7/7 tests passed
+tests/cms/cross-page.test.ts  ✅  14/14 tests passed
+tests/cms/date-input.test.ts  ✅  4/4 tests passed
+tests/cms/eligibility-finder.test.ts  ✅  13/13 tests passed
+tests/cms/eligibility.test.ts  ✅  10/10 tests passed
+tests/cms/exam-pattern-syllabus.test.ts  ✅  12/12 tests passed
+tests/cms/exam-stages.test.ts  ✅  8/8 tests passed
+tests/cms/exam-summary.test.ts  ✅  8/8 tests passed
+tests/cms/fees-pay-eligibility.test.ts  ✅  14/14 tests passed
+tests/cms/importer-article.test.ts  ✅  14/14 tests passed
+tests/cms/importer-core.test.ts  ✅  17/17 tests passed
+tests/cms/importer-discover.test.ts  ✅  4/4 tests passed
+tests/cms/importer-fetch.test.ts  ✅  8/8 tests passed
+tests/cms/importer-public.test.ts  ✅  11/11 tests passed
+tests/cms/importer-sql.test.ts  ✅  4/4 tests passed
+tests/cms/library-from-job.test.ts  ✅  12/12 tests passed
+tests/cms/link-guess.test.ts  ✅  3/3 tests passed
+tests/cms/links-and-create.test.ts  ✅  17/17 tests passed
+tests/cms/live-changes.test.ts  ✅  3/3 tests passed
+tests/cms/passage-finder.test.ts  ✅  10/10 tests passed
+tests/cms/pattern-tables.test.ts  ✅  12/12 tests passed
+tests/cms/phase-d-integration.test.ts  NOT RUN (exit 1): "DATABASE_URL is not set" - it needs a live database and is never pointed at one
+tests/cms/phase-d.test.ts  ✅  17/17 tests passed
+tests/cms/phase-e.test.ts  ✅  12/12 tests passed
+tests/cms/post-ages.test.ts  ✅  18/18 tests passed
+tests/cms/post-removal.test.ts  ✅  18/18 tests passed
+tests/cms/prepublish-checks.test.ts  ✅  5/5 tests passed
+tests/cms/projector.test.ts  ✅  23/23 tests passed
+tests/cms/provenance.test.ts  ✅  43/43 tests passed
+tests/cms/public-search.test.ts  ✅  15/15 tests passed
+tests/cms/repository.test.ts  ✅  10/10 tests passed
+tests/cms/restore-value.test.ts  ✅  5/5 tests passed
+tests/cms/scan-tables.test.ts  ✅  11/11 tests passed
+tests/cms/selection-check.test.ts  ✅  13/13 tests passed
+tests/cms/sitemap-ticker.test.ts  ❌  2 test(s) failed  (6/8 passed)
+tests/cms/ssc-post-ages.test.ts  ✅  11/11 tests passed
+tests/cms/stage-kinds.test.ts  ✅  12/12 tests passed
+tests/cms/stage-updates.test.ts  ✅  13/13 tests passed
+tests/cms/state-filter.test.ts  ✅  4/4 tests passed
+tests/cms/syllabus-library.test.ts  ✅  8/8 tests passed
+tests/cms/table-check.test.ts  ✅  8/8 tests passed
+tests/cms/table-total-gate.test.ts  ✅  22/22 tests passed
+tests/cms/telegram.test.ts  ✅  8/8 tests passed
+tests/cms/update-check.test.ts  ✅  28/28 tests passed
+tests/cms/upsc-age.test.ts  ✅  12/12 tests passed
+tests/cms/vacancy-breakdown.test.ts  ✅  6/6 tests passed
+tests/cms/vacancy-paste.test.ts  ✅  9/9 tests passed
+tests/cms/vacancy-public.test.tsx  ✅  6/6 tests passed
+tests/cms/vacancy-reader.test.ts  ✅  17/17 tests passed
+tests/cms/vacancy-table.test.ts  ✅  21/21 tests passed
+tests/intelligence/intake.test.ts  Results: 332 passed, 0 failed
+tests/intelligence/review-queue-e2e.test.ts  ❌  1 test(s) failed  (12/13 passed)
+tests/local-stack/attention.test.ts  ALL PASS: 16 passed, 0 failed
+tests/local-stack/c21-page-free.test.ts  ALL PASS: 20 passed, 0 failed, 0 not run
+tests/local-stack/c3-step3.test.ts  ALL PASS: 20 passed, 0 failed, 0 not run
+tests/local-stack/channel-post.test.ts  ALL PASS: 7 passed, 0 failed
+tests/local-stack/checks-table-total.test.ts  ALL PASS: 7 passed, 0 failed, 0 not run
+tests/local-stack/cms-workflows.test.ts  ALL PASS: 61 passed, 0 failed
+tests/local-stack/continued-heading.test.ts  ALL PASS: 8 passed, 0 failed, 0 not run
+tests/local-stack/from-draft-create.test.ts  ALL PASS: 18 passed, 0 failed
+tests/local-stack/importer-batches.test.ts  ALL PASS: 8 passed, 0 failed
+tests/local-stack/importer-flow.test.ts  ALL PASS: 64 passed, 0 failed
+tests/local-stack/importer-jobs.test.ts  ALL PASS: 53 passed, 0 failed
+tests/local-stack/importer-real.test.ts  ALL PASS: 59 passed, 0 failed
+tests/local-stack/importer-schema.test.ts  ALL PASS: 84 passed, 0 failed
+tests/local-stack/importer-tables.test.ts  ALL PASS: 25 passed, 0 failed
+tests/local-stack/library-autosave.test.ts  ALL PASS: 12 passed, 0 failed
+tests/local-stack/manual-create.test.ts  ALL PASS: 9 passed, 0 failed
+tests/local-stack/post-removal.test.ts  ALL PASS: 20 passed, 0 failed
+tests/local-stack/restore-value.test.ts  ALL PASS: 6 passed, 0 failed
+tests/local-stack/scan-assist.test.ts  ALL PASS: 27 passed, 0 failed
+tests/local-stack/stage-c-baseline.test.ts  ALL PASS: 6 passed, 0 failed
+tests/local-stack/syllabus-library.test.ts  ALL PASS: 22 passed, 0 failed
+tests/local-stack/table-check.test.ts  ALL PASS: 19 passed, 0 failed, 0 not run
+tests/local-stack/table-total-gate.test.ts  ALL PASS: 22 passed, 0 failed, 0 not run
+tests/local-stack/take-down.test.ts  ALL PASS: 27 passed, 0 failed
+tests/local-stack/telegram-isolation.test.ts  ALL PASS: 5 passed, 0 failed
+tests/local-stack/update-check.test.ts  ALL PASS: 58 passed, 0 failed
+tests/local-stack/updates-live.test.ts  ALL PASS: 21 passed, 0 failed
+tests/local-stack/vacancy-table.test.ts  ALL PASS: 40 passed, 0 failed
+tests/pg/importer-concurrency.test.ts  ALL PASS: 35 passed, 0 failed (PostgreSQL 17.11)

@@ -1,0 +1,191 @@
+{
+  "ibps": {
+    "id": "5abafa4f-f5e4-4bc1-8d11-86a4e838382a",
+    "page": {
+      "header": "Check before publishing: 0 of 10 key details done",
+      "intro": "",
+      "tableLine": "Vacancy table: not checked against the notice\nTotal vacancies can be checked only by checking the whole table against the notice (the total is incomplete; the total is calculated from the rows).",
+      "checkButton": true,
+      "verifyButtons": 17,
+      "publishButtons": [
+        "Approve & Publish"
+      ]
+    },
+    "checks": {
+      "imported": true,
+      "ok": false,
+      "rows": [
+        "dates.applicationOpenDate: SUPPORTED — an official document states it; not yet checked by a person",
+        "dates.applicationCloseDate: SUPPORTED — an official document states it; not yet checked by a person",
+        "dates.feePaymentCloseDate: MISSING — no value and no decision",
+        "vacancies.total: UNSUPPORTED — not yet checked: the total is incomplete; 10 × not reported; the table has not been checked against the notice; an incomplete total is never verified; when the notice gives no more, record it as not stated in full",
+        "financial.feeGeneral: MISSING — no value and no decision",
+        "financial.feeSCST: MISSING — no value and no decision",
+        "eligibility: MISSING — no value and no decision",
+        "age: MISSING — no value and no decision",
+        "links#APPLY_ONLINE: MISSING — no value and no decision",
+        "links#OFFICIAL_NOTIFICATION: SUPPORTED — an official document states it; not yet checked by a person"
+      ],
+      "tableTotal": {
+        "route": "TABLE_CHECK",
+        "why": [
+          "the total is incomplete",
+          "the total is calculated from the rows"
+        ],
+        "incomplete": true,
+        "pages": [
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55
+        ]
+      },
+      "tableCheck": {
+        "checked": false,
+        "decisionId": null,
+        "pages": [],
+        "revisionId": "ac34baba-5112-4c83-960f-60a929ade071"
+      },
+      "tableNeeds": {
+        "simple": true,
+        "documents": [
+          {
+            "name": "ibps.in — notification, PDF (CRP-RRBs-XV-notification.pdf)",
+            "kind": "PDF",
+            "eligible": true,
+            "pages": [
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              55
+            ],
+            "rowCount": 280
+          }
+        ],
+        "rowsToMap": 0,
+        "official": [
+          "ibps.in — notification, PDF (CRP-RRBs-XV-notification.pdf)"
+        ]
+      },
+      "tableNeedsError": null,
+      "retrievals": [
+        {
+          "kind": "OFFICIAL_NOTIFICATION",
+          "contentKind": "PDF",
+          "authenticity": "ATTESTED"
+        }
+      ]
+    },
+    "vacancySection": null,
+    "vacancyShotError": "Error: not found: VACANCIES\n    at <anonymous>:3:18\n    at <anonymous>:6:138",
+    "panel": {
+      "head": "Check the whole table against the notice\n280 rows; total at least 13,706 (calculated). One decision for the whole table. It is your own check: nothing here is verified by the screen.\n1. Have the original of each official document\nibps.in — notification, PDF (CRP-RRBs-XV-notification.pdf) PDF\nA. Your own copy of this file (read on your computer; nothing is uploaded): \nB. I opened the official notice at https://www.ibps.in/wp-content/uploads/CRP-RRBs-XV-notification.pdf. It may now serve a different or newer version; your own copy (A) is the stronger proof.\n2. Read the table against the original\nibps.in — notification, PDF (CRP-RRBs-XV-notification.pdf) (280 rows)\nOffice Assistants (Multipurpose) › ANDHRA PRADESH › ANDHRA PRADESH GRAMEENA BANK: 900 · page 46\n“1 ANDHRA PRADESH ANDHRA PRADESH GRAMEENA BANK 144 63 243 90 360 900 9 9 9 9 90 41” — as extracted from the PDF's text: check it on the page\nOffice Assistants (Multipurpose) › ARUNACHAL PRADESH › ARUNACHAL PRADESH RURAL BANK: 26 · page 46\n“2 ARUNACHAL PRADESH ARUNACHAL PRADESH RURAL BANK 0 12 0 2 12 26 0 1 0 0 3 1” — as extracted from the PDF's text: check it on the page\nOffice Assistants (Multipurpose) › ASSAM › ASSAM GRAMIN BANK: 181 · page 46\n“3 ASSAM ASSAM GRAMIN BANK 27 14 49 18 73 181 2 2 2 1 18 8” — as extracted from the PDF's text: check it on the page\nOffice Assistants (Multipurpose) › BIHAR › BIHAR GRAMIN BANK: 500 · page 46\n“4 BIHAR BIHAR GRAMIN BANK 75 38 135 50 202 500 5 5 5 5 50 20” — as extracted from the PDF's text: check it on the page\nOffice Assistants (Multipurpose) › CHHATTISGARH › CHHATTISGARH GRAMIN ",
+      "still": "Still needed: how you have the original of ibps.in — notification, PDF (CRP-RRBs-XV-notification.pdf) (step 1); the pages of ibps.in — notification, PDF (CRP-RRBs-XV-notification.pdf) you compared; the document the words you cite are from; a line of the table, copied exactly from the notice; your confirmation that the whole table matches the notice.",
+      "record": "disabled"
+    },
+    "publish": {
+      "status": 422,
+      "code": "IMPORT_CHECKS_PENDING",
+      "error": "Check these before publishing: Applications open, Last date to apply, Fee payment deadline, Total vacancies, Fee (General / OBC), Fee (SC / ST / PwBD), Eligibility, Age limit, Apply Online link, Official notification link.",
+      "blockers": [
+        "dates.applicationOpenDate: SUPPORTED",
+        "dates.applicationCloseDate: SUPPORTED",
+        "dates.feePaymentCloseDate: MISSING",
+        "vacancies.total: UNSUPPORTED",
+        "financial.feeGeneral: MISSING",
+        "financial.feeSCST: MISSING",
+        "eligibility: MISSING",
+        "age: MISSING",
+        "links#APPLY_ONLINE: MISSING",
+        "links#OFFICIAL_NOTIFICATION: SUPPORTED"
+      ]
+    },
+    "afterPublish": "DRAFT"
+  },
+  "btsc": {
+    "id": "f9d10c23-f26a-476b-a246-88990bedadc0",
+    "page": {
+      "header": "Check before publishing: 0 of 10 key details done",
+      "intro": "This job was filled from research only. Add the official notification first (Smart intake into this job), then check each key detail against it.",
+      "tableLine": "Vacancy table: not checked against the notice\nTotal vacancies can be checked only by checking the whole table against the notice (1 row comes from research or an unconfirmed source). It can be checked here when the job is open for editing and has an official document. Until then this total stays pending.",
+      "checkButton": false,
+      "verifyButtons": 0,
+      "publishButtons": [
+        "Approve & Publish"
+      ]
+    },
+    "checks": {
+      "imported": true,
+      "ok": false,
+      "rows": [
+        "dates.applicationOpenDate: RESEARCH_ONLY — only research text states it",
+        "dates.applicationCloseDate: RESEARCH_ONLY — only research text states it",
+        "dates.feePaymentCloseDate: MISSING — no value and no decision",
+        "vacancies.total: UNSUPPORTED — not yet checked: the table has not been checked against the notice",
+        "financial.feeGeneral: RESEARCH_ONLY — only research text states it",
+        "financial.feeSCST: MISSING — no value and no decision",
+        "eligibility: MISSING — no value and no decision",
+        "age: MISSING — no value and no decision",
+        "links#APPLY_ONLINE: MISSING — no value and no decision",
+        "links#OFFICIAL_NOTIFICATION: MISSING — no value and no decision"
+      ],
+      "tableTotal": {
+        "route": "TABLE_CHECK",
+        "why": [
+          "1 row comes from research or an unconfirmed source"
+        ],
+        "incomplete": false,
+        "pages": []
+      },
+      "tableCheck": {
+        "checked": false,
+        "decisionId": null,
+        "pages": [],
+        "revisionId": "8c46c7b0-5f6f-4520-b335-1663c8f6f10c"
+      },
+      "tableNeeds": {
+        "simple": false,
+        "documents": [
+          {
+            "name": "pasted — research, text",
+            "kind": "TEXT",
+            "eligible": false,
+            "pages": [],
+            "rowCount": 1
+          }
+        ],
+        "rowsToMap": 1,
+        "official": []
+      },
+      "tableNeedsError": null,
+      "retrievals": [
+        {
+          "kind": "RESEARCH",
+          "contentKind": "TEXT",
+          "authenticity": "NOT_APPLICABLE"
+        }
+      ]
+    },
+    "vacancySection": null,
+    "vacancyShotError": "Error: not found: VACANCIES\n    at <anonymous>:3:18\n    at <anonymous>:6:138",
+    "publish": {
+      "status": 422,
+      "code": "MISSING_OFFICIAL_EVIDENCE",
+      "error": "Cannot publish yet: add at least one link marked Official (for example the official notification) in the Links section.",
+      "blockers": []
+    },
+    "afterPublish": "DRAFT"
+  }
+}

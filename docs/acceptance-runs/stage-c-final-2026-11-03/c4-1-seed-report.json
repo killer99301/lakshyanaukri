@@ -1,0 +1,182 @@
+{
+  "ibps-pdf": {
+    "recruitmentId": "5abafa4f-f5e4-4bc1-8d11-86a4e838382a",
+    "table": {
+      "equal": true,
+      "rows": [
+        280,
+        280
+      ],
+      "rowsDiffering": 0,
+      "evidenceLinesDiffering": 0,
+      "categoriesEqual": true,
+      "statedTotals": [
+        0,
+        0
+      ]
+    },
+    "fieldsNow": [
+      "dates.applicationCloseDate",
+      "dates.applicationOpenDate",
+      "examPattern",
+      "identity.notificationNumber",
+      "identity.title",
+      "links#OFFICIAL_NOTIFICATION",
+      "links#OFFICIAL_WEBSITE",
+      "vacancies.table"
+    ],
+    "fieldsInRound2NotNow": [
+      "age",
+      "conditions",
+      "dates.feePaymentCloseDate",
+      "eligibility",
+      "examStages",
+      "financial.feeGeneral",
+      "financial.feeSCST",
+      "howToApply",
+      "selection",
+      "vacancies.breakdown"
+    ],
+    "sameValueAsRound2": [
+      "dates.applicationCloseDate",
+      "dates.applicationOpenDate",
+      "examPattern",
+      "identity.title",
+      "links#OFFICIAL_NOTIFICATION",
+      "links#OFFICIAL_WEBSITE"
+    ],
+    "differentValue": [
+      "vacancies.table"
+    ],
+    "tickedNow": [
+      "dates.applicationCloseDate",
+      "dates.applicationOpenDate",
+      "examPattern",
+      "identity.notificationNumber",
+      "links#OFFICIAL_NOTIFICATION",
+      "links#OFFICIAL_WEBSITE",
+      "vacancies.table"
+    ],
+    "flagsNow": {
+      "dates.applicationCloseDate": [
+        "this date has passed (today is 2026-11-03)"
+      ],
+      "dates.applicationOpenDate": [],
+      "examPattern": [
+        "✓ all 7 papers read by code from the notice's tables"
+      ],
+      "identity.notificationNumber": [],
+      "identity.title": [],
+      "links#OFFICIAL_NOTIFICATION": [],
+      "links#OFFICIAL_WEBSITE": [],
+      "vacancies.table": []
+    }
+  },
+  "btsc-article": {
+    "recruitmentId": "f9d10c23-f26a-476b-a246-88990bedadc0",
+    "table": {
+      "equal": true,
+      "rows": [
+        1,
+        1
+      ],
+      "rowsDiffering": 0,
+      "evidenceLinesDiffering": 0,
+      "categoriesEqual": true,
+      "statedTotals": [
+        0,
+        0
+      ]
+    },
+    "fieldsNow": [
+      "dates.applicationCloseDate",
+      "dates.applicationOpenDate",
+      "examPattern",
+      "financial.feeGeneral",
+      "financial.payScale",
+      "identity.notificationNumber",
+      "identity.title",
+      "links#OFFICIAL_WEBSITE",
+      "vacancies.breakdown",
+      "vacancies.table",
+      "vacancies.total"
+    ],
+    "fieldsInRound2NotNow": [
+      "age",
+      "conditions",
+      "eligibility",
+      "examStages",
+      "howToApply",
+      "selection",
+      "syllabus"
+    ],
+    "sameValueAsRound2": [
+      "dates.applicationCloseDate",
+      "dates.applicationOpenDate",
+      "examPattern",
+      "financial.feeGeneral",
+      "financial.payScale",
+      "identity.notificationNumber",
+      "identity.title",
+      "links#OFFICIAL_WEBSITE",
+      "vacancies.breakdown",
+      "vacancies.total"
+    ],
+    "differentValue": [
+      "vacancies.table"
+    ],
+    "tickedNow": [
+      "dates.applicationCloseDate",
+      "dates.applicationOpenDate",
+      "examPattern",
+      "financial.feeGeneral",
+      "financial.payScale",
+      "identity.notificationNumber",
+      "vacancies.table"
+    ],
+    "flagsNow": {
+      "dates.applicationCloseDate": [
+        "from research only — check it against the official notice",
+        "this date has passed (today is 2026-11-03)"
+      ],
+      "dates.applicationOpenDate": [
+        "from research only — check it against the official notice"
+      ],
+      "examPattern": [
+        "from research only — check it against the official notice",
+        "✓ all 1 papers read by code from the notice's tables"
+      ],
+      "financial.feeGeneral": [
+        "from research only — check it against the official notice"
+      ],
+      "financial.payScale": [
+        "from research only — check it against the official notice"
+      ],
+      "identity.notificationNumber": [
+        "from research only — check it against the official notice"
+      ],
+      "identity.title": [
+        "from research only — check it against the official notice"
+      ],
+      "links#OFFICIAL_WEBSITE": [
+        "found in research text"
+      ],
+      "vacancies.breakdown": [
+        "from research only — check it against the official notice",
+        "worked out from the vacancy table below when it is saved"
+      ],
+      "vacancies.table": [
+        "from research only — check it against the official notice"
+      ],
+      "vacancies.total": [
+        "from research only — check it against the official notice",
+        "worked out from the vacancy table below when it is saved"
+      ]
+    }
+  },
+  "aiRequests": {
+    "reachedGoogle": 0,
+    "answeredByStandIn": 1,
+    "answeredEmpty": 0
+  }
+}

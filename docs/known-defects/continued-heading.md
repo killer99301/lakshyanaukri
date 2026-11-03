@@ -2,6 +2,12 @@
 
 Found on 1 November 2026, in Stage C, C1. **Fixed on 1 November 2026** in the B2.5 reader, a narrow correction approved by the owner. See "The fix" below.
 
+**Status: fixed and accepted.** The owner accepted the fix (`8269da8`) on 1 November 2026. Its tests still pass at `c48683b` (3 November 2026):
+- `tests/cms/cross-page.test.ts`: 14 of 14;
+- `tests/local-stack/continued-heading.test.ts`: 8 of 8.
+
+The formal Stage C report is `docs/importer-stage-c-acceptance-report.md`.
+
 ## What happens
 
 The code table reader joins a vacancy table that runs on to the next page. Sometimes that page begins with:
