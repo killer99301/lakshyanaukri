@@ -7,10 +7,17 @@
 // vacancy-table.ts) with each row's page and printed line kept as evidence.
 //
 // How a table is found: a heading with vacancy words (SC, ST, OBC, EWS,
-// General, Total, Vacancies, Posts…) followed by at least three rows that
-// end in the same number of figures. A row is a serial number (when the
-// table has them) and words, possibly wrapped over several lines, then its
-// figures; "NR" is not reported, "-" or a missing figure is no figure.
+// General, Total, Vacancies, Posts…) followed by rows that end in the same
+// number of figures. The heading is the nearest line above that is a vacancy
+// heading whose words fit the figures: a fee, age or marks line naming
+// categories further up is passed over. Three rows or more make a table; one
+// or two only when the heading names a column for every figure, with
+// reservation categories and a Total or "vacancies", and nothing of fees,
+// ages, marks or dates. A table of any size whose heading or rows speak of
+// fees, ages, marks or dates is another kind of table. A row is a serial
+// number (when the table has them) and words, possibly wrapped over several
+// lines, then its figures; "NR" is not reported, "-" or a missing figure is
+// no figure.
 //
 // How columns are understood: the heading words are matched by code, in
 // printed order (SC ST OBC (NCL) EWS GENERAL TOTAL … HI OC VI ID ESM DESM).
@@ -20,8 +27,10 @@
 // place is left for the printed totals to settle (vacancy-table.ts).
 //
 // Nothing is guessed: a table whose columns are not understood is reported
-// as not read, never filled in. The coverage report says which pages held
-// tables, which tables were read, and every line in a table that was not.
+// as not read, never filled in, and so is a short table under a vacancy
+// heading that cannot be taken. The coverage report says which pages held
+// tables, which tables were read, and every line in a table that was not;
+// while anything is not read, no row of the job is offered for removal.
 
 import { callAiJson } from "@/lib/cms/ai-assist";
 import { foundTablesFromTranscription, type TranscribedPage } from "@/lib/cms/importer/scan-tables";
@@ -51,6 +60,8 @@ const FIGURE = /^(?:\d{1,3}(?:,\d{2,3})+|\d+|NR|N\.R\.?|-|–|—)$/i;
 const VACANCY_WORDS = /\b(vacanc\w*|posts?|sc|st|obc|ews|ur|gen(?:eral)?|unreserved|total|pwbd|esm|bank|state|city|district|zone|division|department)\b/i;
 const NOT_VACANCIES = /\b(questions?|marks|duration|minutes|syllabus|fee|amount|rs\.?|salary|pay\s+level|age)\b/i;
 const NOISE = /^(go to index\b.*|p a g e \d+.*|page \d+( of \d+)?|nr\s*=\s*not reported.*|\*.*)$/i;
+/** Words of the other tables a notice prints across categories: fees, ages, relaxations, marks, dates. */
+const OTHER_TABLE = /\b(?:fees?|amount|rs\.?|salary|pay\s+(?:level|scale|band)|age|ages|years?|relaxation|marks|qualifying|cut[- ]?off|percent(?:age)?|duration|minutes|questions?|dates?)\b|₹|%/i;
 
 /** Trailing figure tokens of a line, and the words before them. */
 function splitFigures(text: string): { words: string; figures: string[] } {
@@ -243,14 +254,26 @@ export interface Orphan {
   lines: Line[];
 }
 
+/** A short table under a vacancy heading that could not be taken: reported as not read, never filled in. */
+export interface Suspected {
+  title: string;
+  heading: string;
+  pages: number[];
+  rows: number;
+  why: string;
+  lines: Line[];
+}
+
 /**
  * Every vacancy table in the lines. Pure: the columns of a table whose
  * heading code cannot match are left null for the caller to ask about.
  * With `out.orphans`, rows at the top of a page with no heading above them
  * (a table continuing from the page before) are collected there, to be
- * joined to that table or reported; otherwise they are passed over.
+ * joined to that table or reported; otherwise they are passed over. With
+ * `out.suspected`, a short table under a vacancy heading that cannot be taken
+ * is collected there, to be reported as not read.
  */
-export function findVacancyTables(lines: Line[], out?: { orphans: Orphan[] }): FoundTable[] {
+export function findVacancyTables(lines: Line[], out?: { orphans: Orphan[]; suspected?: Suspected[] }): FoundTable[] {
   const tables: FoundTable[] = [];
   // Data lines: words then figures. Each table is a run of them with the same count.
   const data = lines.map((l) => {
@@ -273,7 +296,8 @@ export function findVacancyTables(lines: Line[], out?: { orphans: Orphan[] }): F
     // line just above it; lines after the heading are row 1's wrapped words.
     // A heading line names two columns, or starts with a serial-number heading:
     // a title that merely contains a column word ("General Banking Officer") does not count.
-    const firstColumnLine = headingLines.findIndex((l) => columnWordCount(l.text) >= 2 || SERIAL_HEADING.test(l.text));
+    const isCandidate = (l: Line) => columnWordCount(l.text) >= 2 || SERIAL_HEADING.test(l.text);
+    let firstColumnLine = headingLines.findIndex(isCandidate);
     if (firstColumnLine < 0) {
       const run = out ? orphanRun(lines, data, i) : null;
       if (run) { out!.orphans.push(run.orphan); i = run.next; continue; }
@@ -282,18 +306,44 @@ export function findVacancyTables(lines: Line[], out?: { orphans: Orphan[] }): F
     }
     // The heading continues until the first row: a line starting with a serial
     // number. A wrapped heading word ("Vacancies", "(NCL", "HI OC VI ID") stays in it.
-    let lastColumnLine = firstColumnLine;
-    for (let j = firstColumnLine + 1; j < headingLines.length; j++) {
-      const t = headingLines[j].text;
-      if (/^\d{1,4}\.?\s/.test(t)) break;
-      if (COLUMN_LINE.test(t) || OUT_OF_WHICH.test(t) || HEADING_ONLY.test(t) || /^\(?vacanc\w*\)?$|^posts?$/i.test(t) || /^[()*.,\s-]+$/.test(t)) lastColumnLine = j;
-      else break;
+    const extend = (from: number) => {
+      let last = from;
+      for (let j = from + 1; j < headingLines.length; j++) {
+        const t = headingLines[j].text;
+        if (/^\d{1,4}\.?\s/.test(t)) break;
+        if (COLUMN_LINE.test(t) || OUT_OF_WHICH.test(t) || HEADING_ONLY.test(t) || /^\(?vacanc\w*\)?$|^posts?$/i.test(t) || /^[()*.,\s-]+$/.test(t)) last = j;
+        else break;
+      }
+      return last;
+    };
+    // A vacancy table names categories or vacancies; marks, fees or ages are other tables.
+    const isVacancyHeading = (from: number, last: number) => {
+      const hd = headingLines.slice(from, last + 1).map((l) => l.text).join(" ");
+      const ctx = headingLines.slice(0, last + 1).map((l) => l.text).join(" ");
+      return /\b(sc|st|obc|ews|vacanc\w*|posts?)\b/i.test(ctx) && !(NOT_VACANCIES.test(hd) && !/vacanc|\bposts?\b/i.test(hd));
+    };
+    const fitsFigures = (from: number, last: number) => columnsFromHeading(headingLines.slice(from, last + 1).map((l) => l.text).join(" "), k) !== null;
+    let lastColumnLine = extend(firstColumnLine);
+    // A line further up that only looks like a heading (a fee, age or marks line naming categories) is not this
+    // table's heading: the next candidate below it is tried before the table is given up.
+    while (!isVacancyHeading(firstColumnLine, lastColumnLine)) {
+      const next = headingLines.findIndex((l, x) => x > lastColumnLine && isCandidate(l));
+      if (next < 0) break;
+      firstColumnLine = next;
+      lastColumnLine = extend(next);
+    }
+    if (!isVacancyHeading(firstColumnLine, lastColumnLine)) { i++; continue; }
+    // A heading whose words cannot be matched to the figures (a sentence naming SC, ST, OBC above the table)
+    // gives way to a later candidate whose words can.
+    if (!fitsFigures(firstColumnLine, lastColumnLine)) {
+      for (let x = lastColumnLine + 1; x < headingLines.length; x++) {
+        if (!isCandidate(headingLines[x])) continue;
+        const last = extend(x);
+        if (isVacancyHeading(x, last) && fitsFigures(x, last)) { firstColumnLine = x; lastColumnLine = last; break; }
+      }
     }
     const headingPart = headingLines.slice(firstColumnLine, lastColumnLine + 1);
     const heading = headingPart.map((l) => l.text).join(" ");
-    const context = headingLines.slice(0, lastColumnLine + 1).map((l) => l.text).join(" ");
-    // A vacancy table names categories or vacancies; marks, fees or ages are other tables.
-    if (!/\b(sc|st|obc|ews|vacanc\w*|posts?)\b/i.test(context) || (NOT_VACANCIES.test(heading) && !/vacanc|\bposts?\b/i.test(heading))) { i++; continue; }
     const firstWrap = headingLines.slice(lastColumnLine + 1);
     const titleLines = headingLines.slice(0, firstColumnLine).filter((l) => looksLikeTitle(l.text) && !OUT_OF_WHICH.test(l.text));
     const title = (titleLines[titleLines.length - 1]?.text ?? "").replace(/:$/, "");
@@ -345,8 +395,21 @@ export function findVacancyTables(lines: Line[], out?: { orphans: Orphan[] }): F
       j++;
     }
     // Words left over after the last row are not part of the table.
-    if (rows.length >= 3) {
-      const columns = columnsFromHeading(heading, k);
+    const columns = columnsFromHeading(heading, k);
+    const namesVacancies = /\bvacanc\w*|\bposts?\b/i.test(heading);
+    const otherRows = rows.filter((r) => OTHER_TABLE.test(r.words)).length;
+    // Fees, ages, relaxations, marks or dates across categories are another kind of table: said by the heading
+    // (unless it names vacancies or posts: "Name of Post Pay Level UR SC ST Total"), or by half the rows or more.
+    const otherTable = (OTHER_TABLE.test(heading) && !namesVacancies) || (rows.length > 0 && otherRows * 2 >= rows.length);
+    // One or two rows make a table only on the heading's own evidence: a column for every figure, matched by
+    // code, two reservation categories or more, a Total column or "vacancies"/"posts" in the title or heading,
+    // and no word of fees, ages, marks or dates in the title, the heading or the rows ("Fee by category" over
+    // "Category SC ST OBC EWS Total" is a fee table).
+    const categories = (columns ?? []).filter((c) => ["sc", "st", "obc", "ews", "ur"].includes(c.key)).length;
+    const vacancyNamed = /\btotal\b|\bvacanc\w*|\bposts?\b/i.test(`${title} ${heading}`);
+    const shortTable = rows.length >= 1 && rows.length < 3 && !!columns && categories >= 2 && vacancyNamed
+      && !OTHER_TABLE.test(`${title} ${heading}`) && otherRows === 0;
+    if ((rows.length >= 3 && !otherTable) || shortTable) {
       const dims = dimensionsFromHeading(heading).filter((d) => d.key !== "post" || !/^posts?$/i.test(d.label));
       tables.push({
         title, heading, headingPage: headingPart[0]?.page ?? null,
@@ -355,6 +418,22 @@ export function findVacancyTables(lines: Line[], out?: { orphans: Orphan[] }): F
       });
       i = j;
     } else {
+      // A short table under a vacancy heading that cannot be taken is said, never passed over in silence: only
+      // where its heading names reservation categories and a total or vacancies, and nothing in it, its heading
+      // or its title speaks of fees, ages, marks or dates. Those are other tables, and say nothing.
+      const categoryWords = new Set([...heading.matchAll(/\b(sc|st|obc|ews|ur|general|unreserved)\b/gi)].map((m) => m[1].toLowerCase())).size;
+      if (out?.suspected && rows.length >= 1 && rows.length < 3 && categoryWords >= 2 && vacancyNamed
+          && !OTHER_TABLE.test(`${title} ${heading}`) && otherRows === 0) {
+        out.suspected.push({
+          title, heading,
+          pages: [...new Set(rows.map((r) => r.page).filter((p): p is number => p != null))],
+          rows: rows.length,
+          why: columns
+            ? "its heading names fewer than two reservation categories"
+            : `its ${k} figures per row could not be matched to the heading's columns by code`,
+          lines: rows.map((r) => ({ page: r.page, text: r.printed.replace(/\n/g, " ") })),
+        });
+      }
       i++;
     }
   }
@@ -563,9 +642,10 @@ export async function readVacancyTables(text: string, opts: {
   const skip = new Set([...(opts.skipPages ?? []), ...(opts.scanPages ?? []).map((p) => p.page)]);
   const lines = skip.size ? all.filter((l) => l.page === null || !skip.has(l.page)) : all;
   const orphans: Orphan[] = [];
+  const suspected: Suspected[] = [];
   const problems: string[] = [];
   const unread: Line[] = [];
-  const textTables = findVacancyTables(lines, { orphans });
+  const textTables = findVacancyTables(lines, { orphans, suspected });
   // A scanned page that continues a table from a text page joins that table (B2.5).
   let scanFound: FoundTable[] = [];
   if (opts.scanPages?.length) {
@@ -601,6 +681,12 @@ export async function readVacancyTables(text: string, opts: {
   }
   const pages = all.reduce((m, l) => Math.max(m, l.page ?? 0), 0) || null;
   const { table, coverage } = buildVacancyTable(found, { ...opts, spelling: new Map((opts.scanPages ?? []).map((p) => [p.page, p.corrections ?? []])) });
+  // A short table under a vacancy heading that could not be taken: a table not read, with its lines. The
+  // reading is then incomplete, so no row of the job is offered for removal on its account.
+  for (const s of suspected) {
+    coverage.tables.push({ title: s.title || "(untitled table)", pages: s.pages, rows: s.rows, read: false, why: s.why });
+    unread.push(...s.lines);
+  }
   coverage.unreadLines.push(...unread.map((l) => ({ page: l.page, text: l.text })));
   return { table, coverage: { pages, ...coverage, ...(problems.length ? { problems } : {}) } };
 }
