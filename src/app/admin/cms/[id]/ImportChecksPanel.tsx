@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
 import { C, PANEL, CLASS_LOOK, badge, inputStyle, labelStyle, quietBtn, showValue } from "../import/ui";
-import { rowActions, type PrintedLine, type TableCheckState, type TableTotalView } from "./check-actions";
+import { badgeWords, rowActions, type PrintedLine, type TableCheckState, type TableTotalView } from "./check-actions";
 import { TableCheckPanel } from "./TableCheckPanel";
 import type { TableNeeds } from "./table-check-form";
 
@@ -215,9 +215,14 @@ export function TableCheckLine({ state, tableTotal, editable, onWithdraw, onOpen
   );
 }
 
-export interface ImportCheckState { toCheck: number; checked: string[]; fields: Record<string, string> }
+export interface ImportCheckState {
+  toCheck: number; checked: string[]; fields: Record<string, string>;
+  /** The documents brought in as research, so the vacancy table never shows their figures as printed in the notice. */
+  researchSources?: string[];
+}
 const checkState = (c: Checks): ImportCheckState => ({
   fields: c.imported ? c.fields ?? {} : {},
+  researchSources: (c.retrievals ?? []).filter((r) => r.declaredKind === "RESEARCH").map((r) => r.id),
   toCheck: c.imported && !c.ok ? c.rows.filter((r) => !(r.cls === "VERIFIED" || r.cls === "NOT_APPLICABLE" || (r.cls === "NOT_STATED" && r.tier === "B"))).length : 0,
   checked: c.imported ? c.rows.filter((r) => r.cls === "VERIFIED").map((r) => r.fieldPath) : [],
 });
@@ -300,7 +305,8 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
       {showList && <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10 }}>
         <tbody>
           {checks.rows.map((row) => {
-            const look = CLASS_LOOK[row.cls] ?? { label: row.cls, color: C.muted };
+            const words = badgeWords(row, checks.tableTotal, checks.tableNeeds);
+            const look = words ? { label: words.words, color: CLASS_LOOK[words.tone].color } : CLASS_LOOK[row.cls] ?? { label: row.cls, color: C.muted };
             const blocking = blockers.includes(row);
             const act = rowActions(row, checks.tableTotal);
             return [

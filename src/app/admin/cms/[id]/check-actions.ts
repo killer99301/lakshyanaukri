@@ -67,3 +67,17 @@ export function rowActions(row: CheckRowLike, tableTotal: TableTotalView | null 
     needsTableCheck: false,
   };
 }
+
+/**
+ * The words on a check row's badge: the server's class as it is, except where its usual words would mislead.
+ * Total Vacancies worked out from a vacancy table that an official document holds is "UNSUPPORTED" while the
+ * table waits for its check: that is not "No official source". The class, the reason and the actions stay the
+ * server's; only the words change. Without an official document behind the table, the class's words stand.
+ */
+export function badgeWords(row: { fieldPath: string; cls: string }, tableTotal: TableTotalView | null | undefined,
+  tableNeeds: { official: unknown[]; rowsToMap: unknown[] } | null | undefined): { words: string; tone: string } | null {
+  if (row.fieldPath !== "vacancies.total" || row.cls !== "UNSUPPORTED" || !tableTotal || !tableNeeds || tableNeeds.official.length === 0) return null;
+  return tableNeeds.rowsToMap.length > 0
+    ? { words: "Partly research — not checked yet", tone: "RESEARCH_ONLY" }
+    : { words: "Official table — not checked yet", tone: "SUPPORTED" };
+}

@@ -39,12 +39,19 @@ const fmt = (n: number) => n.toLocaleString("en-IN");
 let idCounter = 0;
 const newId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
-function FigureBadges({ f }: { f: Figure }) {
-  // A figure from rows prepared outside the notice is research until checked: never shown as printed in it.
+/** How a figure's basis is said, beside its badge: a figure written in research is never "printed in the notice". */
+const methodWords = (f: Figure, research: boolean) => (research && f.basis === "STATED" ? "as written in the research, not the notice" : f.method);
+
+function FigureBadges({ f, research = false }: { f: Figure; research?: boolean }) {
+  // A figure from rows prepared outside the notice, or from a document brought in as research, is research until
+  // checked: never shown as printed in the notice.
   const prepared = f.basis === "STATED" && f.method.startsWith("prepared outside");
+  const fromResearch = f.basis === "STATED" && research && !prepared;
   return (
     <>
-      <span style={chip(prepared || f.basis === "ENTERED" ? C.amber : f.basis === "STATED" ? C.accent : C.green)} title={f.method}>{prepared ? "Prepared outside, to check" : f.basis === "STATED" ? "Printed in the notice" : f.basis === "ENTERED" ? "Entered by hand" : "Calculated"}</span>
+      <span data-figure-basis style={chip(prepared || fromResearch || f.basis === "ENTERED" ? C.amber : f.basis === "STATED" ? C.accent : C.green)} title={methodWords(f, research)}>
+        {prepared ? "Prepared outside, to check" : fromResearch ? "From research, to check" : f.basis === "STATED" ? "Printed in the notice" : f.basis === "ENTERED" ? "Entered by hand" : "Calculated"}
+      </span>
       {!f.complete && <span style={chip(C.amber)} title="Some rows it depends on are not reported, have no figure, or a column's place is not decided.">Incomplete</span>}
     </>
   );
@@ -234,8 +241,14 @@ function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onA
 
 // ─── The table ────────────────────────────────────────────
 
-export function VacancyTableEditor({ record, onSaved }: { record: RecruitmentRecord; onSaved: (r: RecruitmentRecord) => void }) {
+export function VacancyTableEditor({ record, onSaved, researchSources }: {
+  record: RecruitmentRecord; onSaved: (r: RecruitmentRecord) => void;
+  /** The job's documents brought in as research (from its import checks): their rows' figures are not the notice's. */
+  researchSources?: string[];
+}) {
   const editable = record.draftState === "DRAFT" || record.draftState === "APPROVED";
+  const research = useMemo(() => new Set(researchSources ?? []), [researchSources]);
+  const isResearchRow = (r: VacancyTableRow) => r.source.retrievalId != null && research.has(r.source.retrievalId);
   const saved = record.vacancies.table?.value ?? null;
   const [draft, setDraft] = useState<VacancyTable | null>(saved);
   const [baseRevision, setBaseRevision] = useState(record.recordRevision);
@@ -325,15 +338,15 @@ export function VacancyTableEditor({ record, onSaved }: { record: RecruitmentRec
         <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
           <span style={{ fontSize: 12, color: C.muted }}>Total vacancies</span>
           <span data-grand-total style={{ fontSize: 20, fontWeight: 700 }}>{analysis?.grandTotal ? `${analysis.grandTotal.complete ? "" : "at least "}${fmt(analysis.grandTotal.value)}` : "—"}</span>
-          {analysis?.grandTotal && <FigureBadges f={analysis.grandTotal} />}
-          {analysis?.grandTotal && <span style={{ fontSize: 11, color: C.muted, marginLeft: 6 }}>{analysis.grandTotal.method}</span>}
+          {analysis?.grandTotal && <FigureBadges f={analysis.grandTotal} research={draft.rows.some(isResearchRow)} />}
+          {analysis?.grandTotal && <span style={{ fontSize: 11, color: C.muted, marginLeft: 6 }}>{methodWords(analysis.grandTotal, draft.rows.some(isResearchRow))}</span>}
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 8 }}>
           <tbody>
             {analysis?.groups.map((g) => (
               <tr key={g.name}>
                 <td style={{ padding: "4px 0", width: "40%" }}>{g.name || <em style={{ color: C.muted }}>(no {draft.dimensions[0]?.label.toLowerCase()})</em>}</td>
-                <td style={{ padding: "4px 6px", fontWeight: 600, whiteSpace: "nowrap" }}>{g.total ? `${g.total.complete ? "" : "at least "}${fmt(g.total.value)}` : "—"}{g.total && <FigureBadges f={g.total} />}</td>
+                <td style={{ padding: "4px 6px", fontWeight: 600, whiteSpace: "nowrap" }}>{g.total ? `${g.total.complete ? "" : "at least "}${fmt(g.total.value)}` : "—"}{g.total && <FigureBadges f={g.total} research={draft.rows.some((r) => g.rowIds.includes(r.id) && isResearchRow(r))} />}</td>
                 <td style={{ padding: "4px 0", color: C.muted }}>
                   {cats.filter((c) => g.categories[c.key]).map((c) => `${c.label} ${fmt(g.categories[c.key].value)}${g.categories[c.key].complete ? "" : "+"}`).join(" · ")}
                   {g.rowIds.length > 1 && <span> — {g.reported} of {g.rowIds.length} rows with figures{g.notReported ? `, ${g.notReported} not reported` : ""}{g.noFigure ? `, ${g.noFigure} without a figure` : ""}</span>}
@@ -493,7 +506,7 @@ export function VacancyTableEditor({ record, onSaved }: { record: RecruitmentRec
                           </td>
                         </tr>,
                         sourceOf === r.id ? (
-                          <tr key={`${r.id}-src`}><td colSpan={draft.dimensions.length + cats.length + 4} style={{ ...cell, color: C.muted, fontFamily: "ui-monospace, monospace", whiteSpace: "pre-wrap" }}>As printed{r.source.page != null ? ` (page ${r.source.page})` : ""}: {r.source.line}</td></tr>
+                          <tr key={`${r.id}-src`}><td colSpan={draft.dimensions.length + cats.length + 4} style={{ ...cell, color: C.muted, fontFamily: "ui-monospace, monospace", whiteSpace: "pre-wrap" }}>{isResearchRow(r) ? "As written in the research (not the notice)" : "As printed"}{r.source.page != null ? ` (page ${r.source.page})` : ""}: {r.source.line}</td></tr>
                         ) : null,
                       ];
                     })}

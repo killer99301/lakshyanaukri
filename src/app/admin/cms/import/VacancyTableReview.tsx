@@ -51,11 +51,14 @@ function cellsOf(row: VacancyTableRow, table: VacancyTable): string {
 const box = (color: string) => ({ border: `1px solid ${color}55`, background: `${color}0f`, borderRadius: 8, padding: "8px 10px", display: "grid", gap: 4 } as const);
 const small = { fontSize: 12, color: C.muted, lineHeight: 1.5 } as const;
 
-export function VacancyTableReview({ table, note, pageImageUrl }: {
+export function VacancyTableReview({ table, note, pageImageUrl, research = false }: {
   table: VacancyTable; note: VacancyTableNote | null;
   /** Where a scanned page's image can be seen, when it is kept (stage B2.4). */
   pageImageUrl?: (page: number) => string | null;
+  /** The document is research: its own figures are written in the research, never "printed" in the notice. */
+  research?: boolean;
 }) {
+  const stated = research ? "in the research" : "printed";
   const [shownPage, setShownPage] = useState<number | null>(null);
   const an = analyseVacancyTable(table);
   const fromImage = table.rows.filter((r) => r.source.readBy === "AI_IMAGE");
@@ -80,7 +83,7 @@ export function VacancyTableReview({ table, note, pageImageUrl }: {
         <span style={badge(C.accent)}>{plural(table.rows.length, "row")}</span>
         <span style={badge(C.accent)}>{plural(an.groups.length, "post")}</span>
         {an.grandTotal && <span data-vacancy-total style={badge(an.grandTotal.complete ? C.green : C.amber)}>
-          {an.grandTotal.complete ? "" : "at least "}{n(an.grandTotal.value)} vacancies ({an.grandTotal.basis === "STATED" ? "as printed" : "calculated"})
+          {an.grandTotal.complete ? "" : "at least "}{n(an.grandTotal.value)} vacancies ({an.grandTotal.basis === "STATED" ? (research ? "as written in the research" : "as printed") : "calculated"})
         </span>}
         {note?.from === "split" && <span style={badge(C.orange)}>from the whole-text reading&apos;s quoted split</span>}
         {fromImage.length > 0 && <span data-vacancy-ai-image style={badge(C.orange)}>{plural(fromImage.length, "row")} read from scanned page images by AI</span>}
@@ -108,13 +111,15 @@ export function VacancyTableReview({ table, note, pageImageUrl }: {
             <tr key={g.name} style={{ borderTop: `1px solid ${C.border}` }}>
               <td style={{ padding: "3px 6px 3px 0", color: C.text }}>{g.name}</td>
               <td>{g.rowIds.length}</td>
-              <td style={{ color: g.total?.complete ? C.text : C.amber }}>{g.total ? `${g.total.complete ? "" : "≥ "}${n(g.total.value)}` : "—"}{g.total?.basis === "STATED" ? " (printed)" : ""}</td>
+              <td style={{ color: g.total?.complete ? C.text : C.amber }}>{g.total ? `${g.total.complete ? "" : "≥ "}${n(g.total.value)}` : "—"}{g.total?.basis === "STATED" ? ` (${stated})` : ""}</td>
               <td style={{ color: g.notReported + g.noFigure > 0 ? C.amber : C.muted }}>{g.notReported + g.noFigure || "—"}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div style={small}>Totals are calculated by code from the rows; a figure marked “printed” is the document&apos;s own total. Nothing here is verified yet.</div>
+      <div style={small}>{research
+        ? <>Totals are calculated by code from the rows; a figure marked “in the research” is the research&apos;s own figure, not the notice&apos;s. Nothing here is verified yet.</>
+        : <>Totals are calculated by code from the rows; a figure marked “printed” is the document&apos;s own total. Nothing here is verified yet.</>}</div>
 
       {/* Needs a look */}
       {(errors.length > 0 || missing.length > 0 || (note?.problems?.length ?? 0) > 0) && (

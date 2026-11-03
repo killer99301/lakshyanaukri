@@ -195,7 +195,8 @@ export function ReviewPanel(props: {
                       <div style={{ minWidth: 0 }}>
                         {i.fieldPath === "vacancies.table"
                           ? <VacancyTableReview table={i.value as VacancyTable} note={sourceById.get(i.claims[0]?.retrievalId ?? "")?.vacancyTables ?? null}
-                              pageImageUrl={pageImageUrlOf(sourceById.get(i.claims[0]?.retrievalId ?? ""))} />
+                              pageImageUrl={pageImageUrlOf(sourceById.get(i.claims[0]?.retrievalId ?? ""))}
+                              research={sourceById.get(i.claims[0]?.retrievalId ?? "")?.declaredKind === "RESEARCH"} />
                           : <div style={{ color: C.text, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{showValue(i.value, i.fieldPath)}</div>}
                         {(i.action === "REPLACE" || i.action === "REPLACE_VERIFIED") && (
                           <div style={{ fontSize: 12, color: i.action === "REPLACE_VERIFIED" ? C.red : C.amber, marginTop: 2 }}>

@@ -2368,7 +2368,7 @@ export default function CmsRecordEditorPage() {
                 </div>
               </>
             )}
-            <VacancyTableEditor record={record} onSaved={onFieldSaved} />
+            <VacancyTableEditor record={record} onSaved={onFieldSaved} researchSources={importChecks.researchSources} />
           </Section>
         )}
 
