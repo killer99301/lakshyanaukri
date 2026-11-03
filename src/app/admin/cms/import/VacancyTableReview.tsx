@@ -13,7 +13,8 @@ import { ScanPageImage } from "./ScanPage";
 
 type Brief = { at: Record<string, string>; status: string; total: number | null; page: number | null };
 export interface VacancyTableNote {
-  from: "tables" | "split" | null;
+  /** "pasted": a table with pipes, tabs or commas in pasted text, read with the vacancy editor's paste reader (I2). */
+  from: "tables" | "split" | "pasted" | null;
   coverage?: {
     pages: number | null;
     tables: Array<{ title: string; pages: number[]; rows: number; read: boolean; why?: string; columnsBy?: "CODE" | "AI"; columns?: string[] }>;
@@ -86,8 +87,15 @@ export function VacancyTableReview({ table, note, pageImageUrl, research = false
           {an.grandTotal.complete ? "" : "at least "}{n(an.grandTotal.value)} vacancies ({an.grandTotal.basis === "STATED" ? (research ? "as written in the research" : "as printed") : "calculated"})
         </span>}
         {note?.from === "split" && <span style={badge(C.orange)}>from the whole-text reading&apos;s quoted split</span>}
+        {note?.from === "pasted" && <span data-vacancy-pasted style={badge(C.orange)}>from a pasted table</span>}
         {fromImage.length > 0 && <span data-vacancy-ai-image style={badge(C.orange)}>{plural(fromImage.length, "row")} read from scanned page images by AI</span>}
       </div>
+      {note?.from === "pasted" && (
+        <div data-vacancy-pasted-columns style={small}>
+          Read from the pasted text with the vacancy editor&apos;s paste reader. Columns as it took them:{" "}
+          {(cov?.tables.filter((t) => t.read && t.pages.length === 0).flatMap((t) => t.columns ?? []) ?? []).join("; ")}. Check them against the table before ticking.
+        </div>
+      )}
       {fromImage.length > 0 && (
         <div data-vacancy-image-note style={box(C.orange)}>
           <strong style={{ color: C.orange, fontSize: 12 }}>Read from image by AI — human verification required</strong>
@@ -185,7 +193,7 @@ export function VacancyTableReview({ table, note, pageImageUrl, research = false
           {diff.removedRows.map((r, k) => (
             <div key={`r${k}`} style={{ fontSize: 12, color: C.red }}>Removed (the document gives this post&apos;s table in full and no longer lists it): {where(r.at)} — was {figureOf(r)}</div>
           ))}
-          {(note?.removalsHeld ?? 0) > 0 && <div style={{ fontSize: 12, color: C.amber }}>{plural(note!.removalsHeld!, "row")} the document does not list are kept, because {note!.from === "split" ? "its figures come from the AI's reading of the categories, not from a table read in full" : "some of its table lines could not be read"}.</div>}
+          {(note?.removalsHeld ?? 0) > 0 && <div style={{ fontSize: 12, color: C.amber }}>{plural(note!.removalsHeld!, "row")} the document does not list are kept, because {note!.from === "split" ? "its figures come from the AI's reading of the categories, not from a table read in full" : note!.from === "pasted" ? "a pasted table is not taken as the whole notice" : "some of its table lines could not be read"}.</div>}
           {diff.untouchedPosts.length > 0 && <div style={small}>Kept as they are (not in this document): {diff.untouchedPosts.join(", ")}</div>}
         </div>
       )}

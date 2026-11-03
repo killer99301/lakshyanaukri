@@ -25,6 +25,7 @@ import { CRITICAL_FIELDS, FIELD_DEFS, POSITIVE_FLAG, fieldDef, revisionPath } fr
 import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-domains";
 import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
 import { mergeTables, readVacancyTables, tableFromSplit } from "@/lib/cms/importer/vacancy-tables";
+import { joinPastedTables, readPastedTables } from "@/lib/cms/importer/pasted-tables";
 import { readRemovals, type RemovalReading } from "@/lib/cms/importer/post-removal";
 import type { VacancyTable } from "@/lib/vacancy-table";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
@@ -336,11 +337,23 @@ export async function assemblePreview(opts: {
           ...(s.scan ? { scanPages: s.scan.pages } : {}) })
       : { table: null, coverage: { pages: null, tables: [], unreadLines: [] } as Awaited<ReturnType<typeof readVacancyTables>>["coverage"] };
     const readerProblems = coverage.problems ?? [];
-    const fromSplit = !read && breakdown
+    // Pasted text whose tables code did not read: tables with pipes, tabs or commas, read with the vacancy editor's
+    // own paste reader (I2). Each is said in what was read, with its columns as suggested; one whose columns need
+    // choosing, or whose lines are not all rows, is not offered, and its lines are listed as not read.
+    const pasted = !read && s.retrieval.method === "PASTED" ? readPastedTables(s.retrieval.source.text, { retrievalId: s.retrieval.id, prepared: s.summary.prepared === true }) : [];
+    const fromPaste = joinPastedTables(pasted.flatMap((t) => (t.table ? [t.table] : [])));
+    for (const t of pasted) {
+      const offered = !!t.table && !!fromPaste;
+      coverage.tables.push({ title: t.title || "a pasted table", pages: [], rows: t.table?.rows.length ?? Math.max(0, t.lines.length - 1), read: offered,
+        ...(offered ? {} : { why: t.why ?? "the pasted tables are split differently, so none is offered as the job's table" }), columnsBy: "CODE", columns: t.columns });
+      if (!offered) coverage.unreadLines.push(...t.lines.map((text) => ({ page: null, text: text.trim() })));
+    }
+    // The AI's split is no table where the text pastes one: the admin chooses its columns instead.
+    const fromSplit = !read && pasted.length === 0 && breakdown
       ? tableFromSplit(splitRows, typeof totalValue === "number" ? totalValue : null, { retrievalId: s.retrieval.id, page: breakdown.page ?? null, line: breakdown.quote ?? "" }, s.retrieval.source.text)
       : null;
-    const table = read ?? fromSplit;
-    let note: Record<string, unknown> = { coverage, from: read ? "tables" : fromSplit ? "split" : null, ...(readerProblems.length ? { problems: readerProblems } : {}) };
+    const table = read ?? fromPaste ?? fromSplit;
+    let note: Record<string, unknown> = { coverage, from: read ? "tables" : fromPaste ? "pasted" : fromSplit ? "split" : null, ...(readerProblems.length ? { problems: readerProblems } : {}) };
     if (table) {
       // Rows a re-issued notice no longer lists are removed only when every
       // table and line of it was read: a line that was not read may be one of them.
@@ -456,9 +469,13 @@ export async function assemblePreview(opts: {
   }
   // Tables found but not read, and lines in a table that were not read, are said.
   for (const s of sources) {
-    const note = tableNotes.get(s.retrieval.id) as { coverage?: { tables: Array<{ title: string; pages: number[]; read: boolean; why?: string }>; unreadLines: unknown[] } } | undefined;
+    const note = tableNotes.get(s.retrieval.id) as { from?: string | null; coverage?: { tables: Array<{ title: string; pages: number[]; read: boolean; why?: string; columns?: string[] }>; unreadLines: unknown[] } } | undefined;
     for (const t of note?.coverage?.tables.filter((x) => !x.read) ?? []) {
-      proposal.warnings.push(`A vacancy table${t.title ? ` (“${t.title}”)` : ""} on page ${t.pages.join(", ") || "?"} was not read: ${t.why}. Its rows are not in this preview; enter them in the editor's vacancy table.`);
+      // A pasted table (no pages) is said with its columns as the paste reader suggested them, for the paste box.
+      const pastedTable = s.retrieval.method === "PASTED" && t.pages.length === 0;
+      proposal.warnings.push(pastedTable
+        ? `A pasted vacancy table${t.title ? ` (“${t.title}”)` : ""} is not offered: ${t.why}. Its columns as suggested: ${(t.columns ?? []).join("; ")}. Its rows are not in this preview: paste it into the vacancy editor's paste box and choose the columns there.`
+        : `A vacancy table${t.title ? ` (“${t.title}”)` : ""} on page ${t.pages.join(", ") || "?"} was not read: ${t.why}. Its rows are not in this preview; enter them in the editor's vacancy table.`);
     }
     if (note?.coverage?.unreadLines.length) proposal.warnings.push(`${note.coverage.unreadLines.length} line(s) inside a vacancy table could not be read as rows; check them in the preview.`);
   }
