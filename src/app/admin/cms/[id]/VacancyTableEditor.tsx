@@ -12,8 +12,9 @@
 // new revisions, so their checks reopen. Nothing pasted is kept until Save,
 // and a pasted row never replaces a saved one unless that is ticked.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
+import { sourceForHeldRow, type HeldStatus, type HeldTable } from "@/lib/cms/importer/held-tables";
 import {
   analyseVacancyTable, hasEvidence, initialCategoryKind, tableFromLegacy, vacancyTableShapeErrors,
   type CategoryKind, type Figure, type RowStatus, type VacancyCategory, type VacancyTable, type VacancyTableRow,
@@ -59,8 +60,12 @@ function FigureBadges({ f, research = false }: { f: Figure; research?: boolean }
 
 // ─── Paste: read, map columns, preview, add ────────────────
 
-function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onAdd: (t: VacancyTable, summary: string) => void; onClose: () => void }) {
-  const [text, setText] = useState("");
+function PastePanel({ table, onAdd, onClose, held }: {
+  table: VacancyTable | null; onAdd: (t: VacancyTable, summary: string) => void; onClose: () => void;
+  /** Figures a Smart intake import held (I5): opened here with their text, each row keeping the document it came from. */
+  held?: HeldTable | null;
+}) {
+  const [text, setText] = useState(held?.text ?? "");
   const [grid, setGrid] = useState<PastedGrid | null>(null);
   const [roles, setRoles] = useState<ColumnRole[]>([]);
   const [headerLines, setHeaderLines] = useState(0);
@@ -90,9 +95,15 @@ function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onA
       grid.lines.slice(0, headerLines).map((l) => l[i] ?? "").filter(Boolean).join(" ").trim());
     return { ...grid, headerLines, headers };
   }, [grid, headerLines]);
-  const built = useMemo(() => effectiveGrid
-    ? buildRows(effectiveGrid, roles, { constants, page: page ? Number(page) : null, prepared, idPrefix: newId("p") + "-" })
-    : null, [effectiveGrid, roles, constants, page, prepared]);
+  const built = useMemo(() => {
+    if (!effectiveGrid) return null;
+    const rows = buildRows(effectiveGrid, roles, { constants, page: page ? Number(page) : null, prepared, idPrefix: newId("p") + "-" });
+    if (!held) return rows;
+    // Held figures keep their document: a line left as it was keeps the document's own line and page; a line changed
+    // here is marked as corrected. Research stays research (the document says which it is), prepared stays prepared.
+    return { ...rows, rows: rows.rows.map((r) => ({ ...r, source: sourceForHeldRow(r.source.line, held) })),
+      statedTotals: rows.statedTotals.map((s) => ({ ...s, source: sourceForHeldRow(s.source.line, { ...held, lines: held.lines.map((l) => ({ ...l, row: true })) }) })) };
+  }, [effectiveGrid, roles, constants, page, prepared, held]);
   // The table's own dimension order: fixed values and pasted columns arranged to match it.
   const ordered = useMemo(() => {
     if (!built || !table) return built;
@@ -109,9 +120,16 @@ function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onA
   return (
     <div data-vacancy-paste style={{ marginTop: 12, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <strong style={{ fontSize: 13 }}>Paste a vacancy table</strong>
+        <strong style={{ fontSize: 13 }}>{held ? "Held figures from Smart intake" : "Paste a vacancy table"}</strong>
         <button onClick={onClose} style={{ ...quiet, color: C.muted }}>Close</button>
       </div>
+      {held && (
+        <div data-held-source style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 8 }}>
+          <div>From <b>{held.sourceLabel}</b>{held.research ? " (research: its rows stay research, to be checked against the notice)" : ""}. Held because {held.why}.</div>
+          {held.incomplete && <div style={{ color: C.amber }}>{held.incomplete}.</div>}
+          <div style={{ color: C.muted }}>Read it, choose what each column is, check the preview, then put the rows in the table and save. A line you change here is saved as corrected, not as the document’s words.</div>
+        </div>
+      )}
       <label style={label} htmlFor="vacancy-paste-text">Rows copied from a PDF, a web page, Excel or Google Sheets (headings too, if you have them)</label>
       <textarea id="vacancy-paste-text" value={text} onChange={(e) => { setText(e.target.value); setGrid(null); }} rows={6}
         style={{ ...input, fontFamily: "ui-monospace, monospace", resize: "vertical" }}
@@ -127,22 +145,26 @@ function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onA
             <label style={{ fontSize: 12 }}><span style={label}>Heading lines at the top</span>
               <input type="number" min={0} max={3} value={headerLines} onChange={(e) => setHeaderLines(Math.max(0, Math.min(3, Number(e.target.value) || 0)))} style={{ ...input, width: 70 }} />
             </label>
-            <label style={{ fontSize: 12 }}><span style={label}>Page of the notice these rows are on</span>
-              <input value={page} onChange={(e) => setPage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="e.g. 47" style={{ ...input, width: 110 }} />
-            </label>
+            {!held && (
+              <label style={{ fontSize: 12 }}><span style={label}>Page of the notice these rows are on</span>
+                <input value={page} onChange={(e) => setPage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="e.g. 47" style={{ ...input, width: 110 }} />
+              </label>
+            )}
             {constants.map((c) => (
               <label key={c.key} style={{ fontSize: 12 }}><span style={label}>{c.label} for every pasted row</span>
                 <input value={c.value} onChange={(e) => setFixed((all) => ({ ...all, [c.key]: e.target.value }))} placeholder={c.key === "post" ? "e.g. Officer Scale I" : ""} style={{ ...input, width: 220 }} />
               </label>
             ))}
           </div>
-          {!page && <div style={{ fontSize: 11, color: C.amber, marginTop: 6 }}>Without a page, these rows are marked “entered by hand” and cannot count as checked against the notice.</div>}
-          <fieldset data-paste-origin style={{ border: "none", padding: 0, margin: "8px 0 0", fontSize: 12, display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <legend style={{ ...label, padding: 0 }}>Where are these rows from?</legend>
-            <label><input type="radio" name="paste-origin" checked={!prepared} onChange={() => setPrepared(false)} /> Copied from the official notice</label>
-            <label><input type="radio" name="paste-origin" checked={prepared} onChange={() => setPrepared(true)} /> Prepared outside it (by an AI, a person or another website)</label>
-          </fieldset>
-          {prepared && <div style={{ fontSize: 11, color: C.amber, marginTop: 4 }}>Marked “prepared outside”: research, not the notice. The table cannot be published as checked until every row is compared with the notice’s pages.</div>}
+          {!held && !page && <div style={{ fontSize: 11, color: C.amber, marginTop: 6 }}>Without a page, these rows are marked “entered by hand” and cannot count as checked against the notice.</div>}
+          {!held && (
+            <fieldset data-paste-origin style={{ border: "none", padding: 0, margin: "8px 0 0", fontSize: 12, display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <legend style={{ ...label, padding: 0 }}>Where are these rows from?</legend>
+              <label><input type="radio" name="paste-origin" checked={!prepared} onChange={() => setPrepared(false)} /> Copied from the official notice</label>
+              <label><input type="radio" name="paste-origin" checked={prepared} onChange={() => setPrepared(true)} /> Prepared outside it (by an AI, a person or another website)</label>
+            </fieldset>
+          )}
+          {!held && prepared && <div style={{ fontSize: 11, color: C.amber, marginTop: 4 }}>Marked “prepared outside”: research, not the notice. The table cannot be published as checked until every row is compared with the notice’s pages.</div>}
 
           <div style={{ overflowX: "auto", marginTop: 12 }}>
             <table style={{ borderCollapse: "collapse", fontSize: 12 }}>
@@ -239,6 +261,42 @@ function PastePanel({ table, onAdd, onClose }: { table: VacancyTable | null; onA
   );
 }
 
+// ─── Held from Smart intake (I5) ──────────────────────────
+
+type HeldEntry = HeldTable & { importId: string; appliedAt: string; status: HeldStatus; added: number; of: number };
+const HELD_STATUS: Record<HeldStatus, { words: (h: HeldEntry) => string; color: string }> = {
+  NOT_ADDED: { words: () => "Not added", color: C.amber },
+  PARTIAL: { words: (h) => `Partly added (${h.added} of ${h.of} rows)`, color: C.amber },
+  ADDED: { words: () => "Added", color: C.green },
+  UNCERTAIN: { words: () => "Status uncertain", color: C.muted },
+};
+
+/** The figures the job's imports held, newest first; each opens in the paste box. Whether it was added is read from the saved table. */
+function HeldList({ held, editable, onOpen }: { held: HeldEntry[]; editable: boolean; onOpen: (h: HeldEntry) => void }) {
+  if (held.length === 0) return null;
+  return (
+    <details data-held-tables open style={{ marginTop: 10, border: `1px solid ${C.amber}55`, borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+      <summary style={{ cursor: "pointer", fontWeight: 600 }}>Held from Smart intake ({held.length})</summary>
+      <div style={{ color: C.muted, margin: "4px 0 6px" }}>Figures an import read but did not offer as the table. Open one in the paste box to choose its columns and add its rows; nothing is added until you save.</div>
+      {held.map((h) => {
+        const st = HELD_STATUS[h.status];
+        return (
+          <div key={h.key} data-held-table={h.key} data-held-status={h.status} style={{ borderTop: `1px solid ${C.border}`, padding: "6px 0", display: "grid", gap: 2 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+              <b>{h.title}</b>
+              <span style={chip(st.color)}>{st.words(h)}</span>
+              <span style={{ color: C.muted }}>{h.sourceLabel} · imported {new Date(h.appliedAt).toLocaleDateString("en-IN")}</span>
+            </div>
+            <div style={{ color: C.muted }}>Held because {h.why}.</div>
+            {h.incomplete && <div style={{ color: C.amber }}>{h.incomplete}.</div>}
+            {editable && <div><button style={quiet} onClick={() => onOpen(h)}>Open in the paste box</button></div>}
+          </div>
+        );
+      })}
+    </details>
+  );
+}
+
 // ─── The table ────────────────────────────────────────────
 
 export function VacancyTableEditor({ record, onSaved, researchSources }: {
@@ -262,6 +320,16 @@ export function VacancyTableEditor({ record, onSaved, researchSources }: {
   const [newCat, setNewCat] = useState("");
   const [newDim, setNewDim] = useState("");
   const [sourceOf, setSourceOf] = useState<string | null>(null);
+  // Held figures from the job's imports (I5), read again after every save so "Added" follows the saved table only.
+  const [held, setHeld] = useState<HeldEntry[]>([]);
+  const [openHeld, setOpenHeld] = useState<HeldEntry | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/admin/cms/records/${record.id}/held-tables`).then((r) => (r.ok ? r.json() : { held: [] })).then((d) => { if (live) setHeld(Array.isArray(d.held) ? d.held : []); }).catch(() => {});
+    return () => { live = false; };
+  }, [record.id, record.recordRevision]);
+  const openInPaste = (h: HeldEntry) => { setOpenHeld(h); setPasting(true); };
+  const closePaste = () => { setPasting(false); setOpenHeld(null); };
 
   // A save elsewhere on the page (another field) brings a new record: keep
   // unsaved table edits, but take the saved table when nothing is pending.
@@ -320,7 +388,8 @@ export function VacancyTableEditor({ record, onSaved, researchSources }: {
             ) : null}
           </div>
         ) : <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Click “Edit Record” first to add one.</div>}
-        {pasting && <PastePanel table={null} onClose={() => setPasting(false)} onAdd={(t, s) => { change(t, s); setPasting(false); }} />}
+        <HeldList held={held} editable={editable} onOpen={openInPaste} />
+        {pasting && <PastePanel key={openHeld?.key ?? "paste"} table={null} held={openHeld} onClose={closePaste} onAdd={(t, s) => { change(t, s); closePaste(); }} />}
       </div>
     );
   }
@@ -573,7 +642,8 @@ export function VacancyTableEditor({ record, onSaved, researchSources }: {
       <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Saving works out Total Vacancies and the post-wise breakdown again from these rows; checks of them reopen.</div>
       {err && <div role="alert" style={{ color: C.red, fontSize: 12, marginTop: 8 }}>{err}</div>}
       {note && <div role="status" style={{ color: C.green, fontSize: 12, marginTop: 8 }}>{note}</div>}
-      {pasting && <PastePanel table={draft} onClose={() => setPasting(false)} onAdd={(t, s) => { change(t, s); setPasting(false); }} />}
+      <HeldList held={held} editable={editable} onOpen={openInPaste} />
+      {pasting && <PastePanel key={openHeld?.key ?? "paste"} table={draft} held={openHeld} onClose={closePaste} onAdd={(t, s) => { change(t, s); closePaste(); }} />}
     </div>
   );
 }

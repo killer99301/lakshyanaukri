@@ -114,6 +114,13 @@ export async function getImport(importId: string): Promise<StoredImport | null> 
   };
 }
 
+/** A job's applied imports, newest first: when each was applied and its stored preview (read only, I5). */
+export async function appliedImportsFor(recruitmentId: string): Promise<Array<{ importId: string; appliedAt: string; proposal: Proposal & { meta?: Record<string, unknown> } }>> {
+  const rows = await sql`SELECT import_id, applied_at, proposal FROM recruitment_imports
+                         WHERE recruitment_id = ${recruitmentId} AND status = 'APPLIED' ORDER BY applied_at DESC, import_id`;
+  return rows.map((r) => ({ importId: String(r.import_id), appliedAt: new Date(r.applied_at as string).toISOString(), proposal: parse(r.proposal) }));
+}
+
 export async function discardImport(importId: string): Promise<boolean> {
   const rows = await sql`UPDATE recruitment_imports SET status = 'DISCARDED' WHERE import_id = ${importId} AND status = 'PREVIEWED' RETURNING import_id`;
   return rows.length > 0;

@@ -14,6 +14,8 @@ import { analyseVacancyTable, type VacancyTable } from "@/lib/vacancy-table";
 import type { ReadingCoverage } from "@/lib/cms/importer/article";
 import { POSITIVE_FLAG, fieldDef, isPositiveFlag } from "@/lib/cms/importer/fields";
 import { leftOutByField } from "./left-out";
+import { heldTablesOf, type HeldNote } from "@/lib/cms/importer/held-tables";
+import { readPasted, suggestColumns } from "@/lib/vacancy-paste";
 
 export interface ReviewItem {
   id: string; kind: "FIELD" | "LINK"; fieldPath: string; label: string; value: unknown;
@@ -23,6 +25,8 @@ export interface ReviewItem {
 }
 export interface ReviewSource {
   id: string; label: string; declaredKind: string; authenticity: string;
+  /** Pasted research marked as prepared by an AI or a person (I1). */
+  prepared?: boolean;
   notFound: string[]; refused: Array<{ fieldPath: string; reason: string }>; articleSkipped?: string;
   vacancyTables?: VacancyTableNote | null;
   /** Which pages the whole-text reading read (stage B2.2). */
@@ -112,6 +116,8 @@ export function ReviewPanel(props: {
   const ownFlags = (i: ReviewItem) => i.flags.filter((f) => !(allResearch && SAID_ONCE.test(f))).map(readableDates);
   // What a source left out, said beside its field (FR-D1); a field with nothing offered gets a row of its own.
   const leftOutNotes = leftOutByField(sources);
+  // Vacancy figures each source read but held rather than offered (I5).
+  const held = sources.flatMap((s) => heldTablesOf(s.vacancyTables as HeldNote | null | undefined, s));
   const sections = SECTIONS
     .map((s) => ({ ...s, items: items.filter((i) => s.match(i.fieldPath)), leftOut: [...leftOutNotes.keys()].filter((p) => s.match(p)) }))
     .filter((s) => s.items.length > 0 || s.leftOut.length > 0);
@@ -261,6 +267,28 @@ export function ReviewPanel(props: {
           </section>
         );
       })}
+
+      {/* Held vacancy figures (I5): read but not offered; applied later from the job's vacancy editor */}
+      {held.length > 0 && (
+        <section data-held-review style={{ ...PANEL, padding: "12px 16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 6 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Held vacancy figures — not offered</div>
+            <span style={badge(C.amber)}>Review needed</span>
+          </div>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>
+            Read, but not offered as the job&apos;s table. They are kept with the import: after saving, open them from the job&apos;s vacancy editor (“Held from Smart intake”) to choose their columns and add their rows. Nothing here is saved by ticking.
+          </div>
+          {held.map((h) => (
+            <div key={h.key} data-held-review-table={h.key} style={{ borderTop: `1px solid ${C.border}`, padding: "8px 0", display: "grid", gap: 4, fontSize: 12 }}>
+              <div><b style={{ color: C.text }}>{h.title}</b> <span style={{ color: C.muted }}>— {h.sourceLabel}</span></div>
+              <div style={{ color: C.amber }}>Held because {h.why}.</div>
+              {h.incomplete && <div style={{ color: C.amber }}>{h.incomplete}.</div>}
+              <div style={{ color: C.muted }}>Columns {h.columns ? "as taken" : "as the paste box would suggest them"}: {(h.columns ?? suggestColumns(readPasted(h.text)).map((r) => r.role === "category" ? r.label : r.role === "dimension" ? r.label : r.role)).join("; ")}</div>
+              <pre data-held-lines style={{ margin: 0, padding: 8, background: "rgba(0,0,0,0.25)", borderRadius: 6, fontSize: 11, color: C.text, whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 220, overflow: "auto" }}>{h.text}</pre>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* Sources, what was not found or left out, what is kept */}
       <details style={{ ...PANEL, padding: "10px 16px", fontSize: 12, color: C.muted }}>

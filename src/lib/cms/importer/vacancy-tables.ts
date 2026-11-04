@@ -541,7 +541,10 @@ Return JSON: { "columns": [ { "label": the column's name copied exactly from the
 
 export interface CoverageReport {
   pages: number | null;
-  tables: Array<{ title: string; pages: number[]; rows: number; read: boolean; why?: string; columnsBy?: "CODE" | "AI"; columns?: string[]; readBy?: "AI_IMAGE" }>;
+  tables: Array<{ title: string; pages: number[]; rows: number; read: boolean; why?: string; columnsBy?: "CODE" | "AI"; columns?: string[]; readBy?: "AI_IMAGE";
+    /** A table not read (I5): its column heading as printed and its own lines (heading, rows, totals), so its figures can
+     * be opened in the vacancy editor's paste box later, never retyped. Absent on imports made before I5. */
+    heading?: string; lines?: Array<{ page: number | null; text: string }> }>;
   unreadLines: Array<{ page: number | null; text: string }>;
   /** What did not fit and was said rather than guessed: rows repeated at a page break, rows continuing no table read, subtotals that disagree. */
   problems?: string[];
@@ -566,9 +569,16 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
   const usable = found.filter((t) => t.columns && !held.get(t));
   for (const t of found) {
     const why = held.get(t);
-    coverage.tables.push({ title: t.title || "(untitled table)", pages: t.pages, rows: t.rows.length, read: !!t.columns && !why, ...(t.readBy ? { readBy: t.readBy } : {}),
+    const read = !!t.columns && !why;
+    coverage.tables.push({ title: t.title || "(untitled table)", pages: t.pages, rows: t.rows.length, read, ...(t.readBy ? { readBy: t.readBy } : {}),
       ...(t.columns ? { columnsBy: t.columnsBy ?? "CODE", columns: t.columns.map((c) => c.label) } : {}),
-      ...(why ? { why } : t.columns ? {} : { why: `its ${t.figureCount} columns of figures could not be matched to the heading` }) });
+      ...(why ? { why } : t.columns ? {} : { why: `its ${t.figureCount} columns of figures could not be matched to the heading` }),
+      // A table not read keeps its own heading and lines, for the paste box (I5).
+      ...(read ? {} : { heading: t.heading, lines: [
+        ...(t.heading ? [{ page: t.headingPage, text: t.heading }] : []),
+        ...t.rows.map((r) => ({ page: r.page, text: r.printed })),
+        ...t.totals.map((x) => ({ page: x.page, text: x.printed })),
+      ] }) });
     coverage.unreadLines.push(...t.unread.map((l) => ({ page: l.page, text: l.text })));
     // A held table's rows are lines not read: they hold removals, and the admin sees them.
     if (why) coverage.unreadLines.push(...t.rows.map((r) => ({ page: r.page, text: r.printed })));
@@ -740,7 +750,8 @@ export async function readVacancyTables(text: string, opts: {
   // A short table under a vacancy heading that could not be taken: a table not read, with its lines. The
   // reading is then incomplete, so no row of the job is offered for removal on its account.
   for (const s of suspected) {
-    coverage.tables.push({ title: s.title || "(untitled table)", pages: s.pages, rows: s.rows, read: false, why: s.why });
+    coverage.tables.push({ title: s.title || "(untitled table)", pages: s.pages, rows: s.rows, read: false, why: s.why,
+      heading: s.heading, lines: s.lines.map((l) => ({ page: l.page, text: l.text })) });
     unread.push(...s.lines);
   }
   coverage.unreadLines.push(...unread.map((l) => ({ page: l.page, text: l.text })));

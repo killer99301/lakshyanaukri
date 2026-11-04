@@ -26,6 +26,7 @@ import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-d
 import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
 import { mergeTables, readVacancyTables, tableFromSplit } from "@/lib/cms/importer/vacancy-tables";
 import { joinPastedTables, readPastedTables } from "@/lib/cms/importer/pasted-tables";
+import { heldStatus, heldTablesOf, type HeldNote, type HeldStatus, type HeldTable } from "@/lib/cms/importer/held-tables";
 import { readRemovals, type RemovalReading } from "@/lib/cms/importer/post-removal";
 import type { VacancyTable } from "@/lib/vacancy-table";
 import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
@@ -33,7 +34,7 @@ import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
 import { TABLE_PATH, quoteIsPrintedTotal, tableCheckNeeds, tableCheckScope, tableTotalView, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
 import { PAGELESS_KINDS } from "@/lib/vacancy-table";
 import {
-  ImportApplyError, applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
+  ImportApplyError, appliedImportsFor, applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
 } from "@/lib/cms/importer/repository";
 
@@ -345,7 +346,8 @@ export async function assemblePreview(opts: {
     for (const t of pasted) {
       const offered = !!t.table && !!fromPaste;
       coverage.tables.push({ title: t.title || "a pasted table", pages: [], rows: t.table?.rows.length ?? Math.max(0, t.lines.length - 1), read: offered,
-        ...(offered ? {} : { why: t.why ?? "the pasted tables are split differently, so none is offered as the job's table" }), columnsBy: "CODE", columns: t.columns });
+        ...(offered ? {} : { why: t.why ?? "the pasted tables are split differently, so none is offered as the job's table",
+          heading: t.lines[0]?.trim() ?? "", lines: t.lines.map((text) => ({ page: null, text: text.trim() })) }), columnsBy: "CODE", columns: t.columns });
       if (!offered) coverage.unreadLines.push(...t.lines.map((text) => ({ page: null, text: text.trim() })));
     }
     // The AI's split is no table where the text pastes one: the admin chooses its columns instead.
@@ -384,6 +386,8 @@ export async function assemblePreview(opts: {
         // Every held row, not the first 60: nothing of the document's table is lost from view.
         heldRows: merged.diff.held.map((r) => ({ ...brief(r), line: r.source.line.slice(0, 300),
           cells: Object.fromEntries(Object.entries(r.cells).map(([k, v]) => [table.categories.find((c) => c.key === k)?.label ?? k, v])) })),
+        // The held rows' own split (I5), so they can be written out as a table with its column headings.
+        ...(merged.diff.held.length ? { heldDimensions: table.dimensions } : {}),
       } };
     }
     // Posts a corrigendum deletes (P2.3): read by code against the job's table (with what this corrigendum's
@@ -623,6 +627,24 @@ export async function applyImportFlow(opts: {
 }
 
 export { discardImport, getImport };
+
+// ─── Held vacancy figures (I5) ────────────────────────────
+
+/**
+ * The vacancy figures the job's applied imports held rather than offered, newest import first, each with whether the
+ * job's saved table now holds its rows. Read from the stored previews, which are never changed.
+ */
+export async function heldTablesForJob(record: RecruitmentRecord) {
+  const saved = record.vacancies.table?.value?.rows ?? [];
+  const out: Array<HeldTable & { importId: string; appliedAt: string; status: HeldStatus; added: number; of: number }> = [];
+  for (const imp of await appliedImportsFor(record.id)) {
+    const sources = ((imp.proposal.meta as { sources?: Array<{ id: string; label: string; declaredKind: string; prepared?: boolean; vacancyTables?: HeldNote | null }> } | undefined)?.sources) ?? [];
+    for (const s of sources) {
+      for (const h of heldTablesOf(s.vacancyTables, s, `${imp.importId}:`)) out.push({ ...h, importId: imp.importId, appliedAt: imp.appliedAt, ...heldStatus(h, saved) });
+    }
+  }
+  return out;
+}
 
 // ─── The check list and decisions ─────────────────────────
 
