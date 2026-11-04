@@ -29,6 +29,7 @@ import { readPatternTables, statedCoverage, type PatternCoverage } from "@/lib/c
 import { relaxationMembers, statedRelaxations } from "@/lib/cms/importer/age-relaxations";
 import { readPostAgeTable } from "@/lib/cms/importer/post-age-table";
 import { readLabelledLines } from "@/lib/cms/importer/prepared-fields";
+import { FLAG_LABEL_PATHS } from "@/lib/cms/importer/fields";
 import type { AgeCriteria, CmsSelectionInformation, CmsSelectionStage, SelectionStageType } from "@/types/recruitment-record";
 import type { ExamStage } from "@/types";
 import { classifyStageName, STAGE_KIND_LABEL } from "@/lib/exam-stage-kind";
@@ -176,10 +177,7 @@ export function combineReading(opts: {
 
   // The whole-text reading fills what the readers above did not give or
   // refused: their checks are stricter, so they win wherever they speak.
-  const DATE_FLAG_PATHS: Record<string, string> = {
-    "Notification Number": "identity.notificationNumber", "Application Opens": "dates.applicationOpenDate", "Application Closes": "dates.applicationCloseDate",
-    "Fee Payment Deadline": "dates.feePaymentCloseDate", "Correction Window End": "dates.correctionWindowEnd",
-  };
+  const DATE_FLAG_PATHS = FLAG_LABEL_PATHS;
   // One exception: ages set post by post. The details reader can give only one
   // range, so where the whole-text reading found each post's own ages (each
   // checked against its own quote), that reading is the age, not one range.

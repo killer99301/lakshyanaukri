@@ -12,7 +12,8 @@ import { VacancyTableReview, type VacancyTableNote } from "./VacancyTableReview"
 import { ScanPageImage } from "./ScanPage";
 import { analyseVacancyTable, type VacancyTable } from "@/lib/vacancy-table";
 import type { ReadingCoverage } from "@/lib/cms/importer/article";
-import { POSITIVE_FLAG, isPositiveFlag } from "@/lib/cms/importer/fields";
+import { POSITIVE_FLAG, fieldDef, isPositiveFlag } from "@/lib/cms/importer/fields";
+import { leftOutByField } from "./left-out";
 
 export interface ReviewItem {
   id: string; kind: "FIELD" | "LINK"; fieldPath: string; label: string; value: unknown;
@@ -109,9 +110,11 @@ export function ReviewPanel(props: {
   const { items, sources, ticked } = props;
   const allResearch = sources.every((s) => s.declaredKind === "RESEARCH");
   const ownFlags = (i: ReviewItem) => i.flags.filter((f) => !(allResearch && SAID_ONCE.test(f))).map(readableDates);
+  // What a source left out, said beside its field (FR-D1); a field with nothing offered gets a row of its own.
+  const leftOutNotes = leftOutByField(sources);
   const sections = SECTIONS
-    .map((s) => ({ ...s, items: items.filter((i) => s.match(i.fieldPath)) }))
-    .filter((s) => s.items.length > 0);
+    .map((s) => ({ ...s, items: items.filter((i) => s.match(i.fieldPath)), leftOut: [...leftOutNotes.keys()].filter((p) => s.match(p)) }))
+    .filter((s) => s.items.length > 0 || s.leftOut.length > 0);
   const tableItem = items.find((i) => i.fieldPath === "vacancies.table");
   const tableTotal = tableItem ? analyseVacancyTable(tableItem.value as VacancyTable).grandTotal : null;
   const vacancies = tableTotal?.value ?? items.find((i) => i.fieldPath === "vacancies.total")?.value;
@@ -172,9 +175,10 @@ export function ReviewPanel(props: {
 
       {/* Sections */}
       {sections.map((s) => {
-        const fields = [...new Set(s.items.map((i) => i.fieldPath))];
+        const fields = [...new Set([...s.items.map((i) => i.fieldPath), ...s.leftOut])];
         // A note that something was done in full ("✓ all 7 papers read") is no reason to review.
-        const review = s.items.some((i) => i.conflict || ownFlags(i).some((f) => !isPositiveFlag(f)) || i.action === "REPLACE" || i.action === "REPLACE_VERIFIED");
+        const review = s.leftOut.length > 0
+          || s.items.some((i) => i.conflict || ownFlags(i).some((f) => !isPositiveFlag(f)) || i.action === "REPLACE" || i.action === "REPLACE_VERIFIED");
         return (
           <section key={s.name} data-review-section={s.name} style={{ ...PANEL, padding: "12px 16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 6 }}>
@@ -183,8 +187,16 @@ export function ReviewPanel(props: {
             </div>
             {fields.map((path) => {
               const group = s.items.filter((i) => i.fieldPath === path);
+              const notes = leftOutNotes.get(path) ?? [];
               return (
                 <div key={path} style={{ borderTop: `1px solid ${C.border}`, padding: "8px 0", display: "grid", gap: 6 }}>
+                  {group.length === 0 && (
+                    <div data-left-out-field={path} style={{ display: "grid", gridTemplateColumns: "20px minmax(120px, 190px) 1fr", gap: 10, alignItems: "start", fontSize: 13 }}>
+                      <span />
+                      <div style={{ color: C.muted, fontSize: 12, paddingTop: 1 }}>{fieldDef(path).label}</div>
+                      <div style={{ color: C.muted, fontSize: 12 }}>Nothing offered for this field.</div>
+                    </div>
+                  )}
                   {group.length > 1 && group[0].conflict && (
                     <div style={{ fontSize: 12, color: C.red }}>{group[0].label}: the sources disagree — tick one, or none.</div>
                   )}
@@ -230,6 +242,19 @@ export function ReviewPanel(props: {
                       </div>
                     </div>
                   ))}
+                  {notes.length > 0 && (
+                    <div data-left-out-notes={path} style={{ display: "grid", gridTemplateColumns: "20px minmax(120px, 190px) 1fr", gap: 10, fontSize: 12 }}>
+                      <span />
+                      <span />
+                      <div style={{ display: "grid", gap: 2 }}>
+                        {notes.map((n) => (
+                          <div key={`${n.source}|${n.reason}`} data-left-out-note style={{ color: C.amber, overflowWrap: "anywhere" }}>
+                            Not offered from {n.source}: {n.reason}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

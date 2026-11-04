@@ -56,6 +56,15 @@ export const FIELD_DEFS: Record<string, FieldDef> = {
 
 export const CRITICAL_FIELDS: string[] = Object.entries(FIELD_DEFS).filter(([, d]) => d.tier).map(([p]) => p);
 
+/**
+ * The labels some of a reading's left-out values are kept under ("Notification Number", "Application Opens"),
+ * by the checks that name them so, and the field each is.
+ */
+export const FLAG_LABEL_PATHS: Record<string, string> = {
+  "Notification Number": "identity.notificationNumber", "Application Opens": "dates.applicationOpenDate", "Application Closes": "dates.applicationCloseDate",
+  "Fee Payment Deadline": "dates.feePaymentCloseDate", "Correction Window End": "dates.correctionWindowEnd",
+};
+
 export function fieldDef(path: string): FieldDef {
   return FIELD_DEFS[path] ?? (path.startsWith("links#") ? { label: `${path.slice(6).replace(/_/g, " ").toLowerCase()} link`, purpose: "general" } : { label: path, purpose: "general" });
 }
