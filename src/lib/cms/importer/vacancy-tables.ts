@@ -142,6 +142,35 @@ function dimensionsFromHeading(heading: string): VacancyDimension[] {
   return found.sort((a, b) => a.at - b.at).map((f) => f.d);
 }
 
+/**
+ * Whether a table's heading names a column of post names ("Name of Post", "Post Name", "Designation", "Cadre",
+ * or "Post" as its first column), not only a count of posts ("No. of Posts", "Number of Posts", "Total Posts").
+ * The post dimension's label is always "Post", so it is the heading's own words that say which.
+ */
+export function namesPostColumn(heading: string): boolean {
+  if (/\bNAME\s+OF\s+(?:THE\s+)?POSTS?\b|\bPOST\s*NAMES?\b|\bDESIGNATIONS?\b|\bCADRES?\b/i.test(heading)) return true;
+  const columns = heading.replace(/^\s*(?:sr\.?|sl\.?|s\.?)\s*no\.?\s*/i, "");
+  return /^posts?\b/i.test(columns) && !/^posts?\s*(?:total|count)?\s*$/i.test(columns);
+}
+
+/**
+ * Why a table with a post column cannot be read row by row, or null when it can (or has no post column). The
+ * post is never taken from the title or the job instead: a row whose post cannot be read holds the whole table.
+ */
+function postColumnProblem(t: { dimensions: VacancyDimension[]; rows: Array<{ words: string; dimCells?: Record<string, string> }> }): string | null {
+  const at = t.dimensions.findIndex((d) => d.key === "post");
+  if (at < 0) return null;
+  const others = t.dimensions.filter((d) => d.key !== "post");
+  const rows = t.rows.filter((r) => !r.dimCells); // a transcribed row has its own cells
+  if (rows.some((r) => !r.words.trim())) return "a row has no post name in the post column";
+  if (others.length === 0) return null;
+  if (others.length === 1 && others[0].key === "state") {
+    const stuck = rows.find((r) => !splitPostState(r.words, at === 0));
+    return stuck ? `the post and the state cannot be told apart in “${stuck.words}”` : null;
+  }
+  return `each row's post and ${others.map((d) => d.label.toLowerCase()).join(" and ")} run together in one name (“${rows[0]?.words ?? ""}”), and cannot be told apart`;
+}
+
 /** States and union territories, with spellings notices use. */
 const STATES = [
   "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh", "Chhattisgarh", "Chattisgarh",
@@ -156,6 +185,21 @@ export function splitState(words: string): { state: string; rest: string } | nul
   const lower = words.toLowerCase();
   const s = STATES.find((x) => lower === x.toLowerCase() || lower.startsWith(`${x.toLowerCase()} `));
   return s ? { state: words.slice(0, s.length), rest: words.slice(s.length).trim() } : null;
+}
+
+/**
+ * A row of a table with a post and a state column, "Clerk Bihar" or "Bihar Clerk": the post and the state, when
+ * exactly one state starts or ends the words and a post is left; null when they cannot be told apart.
+ */
+export function splitPostState(words: string, postFirst: boolean): { post: string; state: string } | null {
+  const lower = words.toLowerCase();
+  if (postFirst) {
+    const s = STATES.find((x) => lower.endsWith(` ${x.toLowerCase()}`));
+    const post = s ? words.slice(0, words.length - s.length).trim() : "";
+    return s && post ? { post, state: words.slice(words.length - s.length) } : null;
+  }
+  const s = splitState(words);
+  return s && s.rest ? { post: s.rest, state: s.state } : null;
 }
 
 // ─── Finding tables ───────────────────────────────────────
@@ -410,7 +454,9 @@ export function findVacancyTables(lines: Line[], out?: { orphans: Orphan[]; susp
     const shortTable = rows.length >= 1 && rows.length < 3 && !!columns && categories >= 2 && vacancyNamed
       && !OTHER_TABLE.test(`${title} ${heading}`) && otherRows === 0;
     if ((rows.length >= 3 && !otherTable) || shortTable) {
-      const dims = dimensionsFromHeading(heading).filter((d) => d.key !== "post" || !/^posts?$/i.test(d.label));
+      // The post is a dimension of its own only where the heading names a column of post names; a "No. of Posts"
+      // column is a count. (Before, the post was always left out, so every post-wise row took the table's title.)
+      const dims = dimensionsFromHeading(heading).filter((d) => d.key !== "post" || namesPostColumn(heading));
       tables.push({
         title, heading, headingPage: headingPart[0]?.page ?? null,
         pages: [...new Set([...rows.map((r) => r.page), ...totals.map((t) => t.page)].filter((p): p is number => p != null))],
@@ -510,15 +556,22 @@ const titleCase = (s: string) => (s === s.toUpperCase() && /[A-Z]{3}/.test(s)
  * lines; `post` names a table's post when its rows do not (the table's
  * title, or `fallbackPost` for a heading like "Table E"). A dimension the
  * notice gives in one table and not in another (a bank's state) is filled
- * from the tables that do give it, never invented.
+ * from the tables that do give it, never invented. A table whose heading
+ * names a post column takes each row's post from the row; where that cannot
+ * be read safely the table is not read (and said), never given the title.
  */
 export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: string | null; fallbackPost: string; /** Page → spellings the model suggested for printed names on scanned pages (B2.6). */ spelling?: Map<number, Array<{ printed: string; suggested: string }>> }): { table: VacancyTable | null; coverage: Omit<CoverageReport, "pages"> } {
   const coverage: Omit<CoverageReport, "pages"> = { tables: [], unreadLines: [] };
-  const usable = found.filter((t) => t.columns);
+  const held = new Map(found.map((t) => [t, t.columns ? postColumnProblem(t) : null]));
+  const usable = found.filter((t) => t.columns && !held.get(t));
   for (const t of found) {
-    coverage.tables.push({ title: t.title || "(untitled table)", pages: t.pages, rows: t.rows.length, read: !!t.columns, ...(t.readBy ? { readBy: t.readBy } : {}),
-      ...(t.columns ? { columnsBy: t.columnsBy ?? "CODE", columns: t.columns.map((c) => c.label) } : { why: `its ${t.figureCount} columns of figures could not be matched to the heading` }) });
+    const why = held.get(t);
+    coverage.tables.push({ title: t.title || "(untitled table)", pages: t.pages, rows: t.rows.length, read: !!t.columns && !why, ...(t.readBy ? { readBy: t.readBy } : {}),
+      ...(t.columns ? { columnsBy: t.columnsBy ?? "CODE", columns: t.columns.map((c) => c.label) } : {}),
+      ...(why ? { why } : t.columns ? {} : { why: `its ${t.figureCount} columns of figures could not be matched to the heading` }) });
     coverage.unreadLines.push(...t.unread.map((l) => ({ page: l.page, text: l.text })));
+    // A held table's rows are lines not read: they hold removals, and the admin sees them.
+    if (why) coverage.unreadLines.push(...t.rows.map((r) => ({ page: r.page, text: r.printed })));
   }
   if (usable.length === 0) return { table: null, coverage };
 
@@ -568,6 +621,8 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
       const suggested: Record<string, string> = {};
       const postDim = t.dimensions.find((d) => d.key === "post");
       let words = r.words;
+      // A post and a state in the row ("Clerk Bihar"): told apart before this table was taken (postColumnProblem).
+      const postAndState = !r.dimCells && postDim && own.length === 1 && own[0].key === "state" ? splitPostState(words, t.dimensions[0].key === "post") : null;
       if (r.dimCells) {
         // A transcribed row's cells are its dimensions, each as printed: no words to split.
         for (const [k, v] of Object.entries(r.dimCells)) at[k] = k === "post" ? titleCase(v) : v;
@@ -577,7 +632,8 @@ export function buildVacancyTable(found: FoundTable[], opts: { retrievalId: stri
           if (fix) suggested[k] = k === "post" ? titleCase(fix.suggested) : fix.suggested;
         }
       } else if (postDim && !own.length) { at.post = titleCase(words); words = ""; }
-      if (r.dimCells) {
+      else if (postAndState) { at.post = titleCase(postAndState.post); at.state = postAndState.state; words = ""; }
+      if (r.dimCells || postAndState) {
         // placed above
       } else if (own[0]?.key === "state" && own.length > 1) {
         const s = splitState(words);
