@@ -243,6 +243,14 @@ export function buildProposal(input: {
 
   items.sort((a, b) => a.fieldPath.localeCompare(b.fieldPath) || a.id.localeCompare(b.id));
 
+  // A total of vacancies that only research gives waits for the admin's tick, even when printed (F3): it is
+  // still offered with its quote. Totals only; other fields keep the usual rule.
+  for (const t of items.filter((i) => i.fieldPath === "vacancies.total")) {
+    if (!t.claims.every((c) => byRetrieval.get(c.retrievalId)?.declaredKind === "RESEARCH")) continue;
+    t.defaultTicked = false;
+    t.flags.push("a total of vacancies from research is not ticked: tick it only after checking it against the official notice");
+  }
+
   // Posts that do not add up to the stated total: one of them is wrong (BPSC: 18 posts making 1205, a total
   // of 1077, the notice's 1230). Both are said and left for the admin, not saved by default.
   const totals = items.filter((i) => i.fieldPath === "vacancies.total" && typeof i.value === "number");

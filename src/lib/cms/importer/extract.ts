@@ -30,6 +30,7 @@ import { relaxationMembers, statedRelaxations } from "@/lib/cms/importer/age-rel
 import { readPostAgeTable } from "@/lib/cms/importer/post-age-table";
 import { readLabelledLines } from "@/lib/cms/importer/prepared-fields";
 import { FLAG_LABEL_PATHS } from "@/lib/cms/importer/fields";
+import { vacancyCountLine } from "@/lib/cms/importer/vacancy-count";
 import type { AgeCriteria, CmsSelectionInformation, CmsSelectionStage, SelectionStageType } from "@/types/recruitment-record";
 import type { ExamStage } from "@/types";
 import { classifyStageName, STAGE_KIND_LABEL } from "@/lib/exam-stage-kind";
@@ -153,6 +154,21 @@ export function combineReading(opts: {
   };
   for (const c of merged.candidates) {
     if (c.value === null || c.value === undefined) { notFound.push(c.label); continue; }
+    // A total read by code is quoted from the line of this source that states it as the count (F2). With no
+    // such line (a total worked out by adding rows, or a figure that is not a count) it is offered with that
+    // said, and never ticked by default: no quote is made up for it.
+    if (c.fieldPath === "vacancies.total" && typeof c.value === "number") {
+      const line = vacancyCountLine(plain, c.value);
+      add(c.fieldPath, c.value, line ?? undefined);
+      if (!line) {
+        const rows = merged.candidates.find((x) => x.fieldPath === "vacancies.breakdown")?.value as Array<{ count?: number }> | null | undefined;
+        const summed = Array.isArray(rows) && rows.length > 1 && rows.reduce((n, r) => n + (r.count ?? 0), 0) === c.value;
+        values[values.length - 1].doubt = summed
+          ? `no line of this source prints ${c.value} as the total: it was worked out by adding the posts read — check it against the notice`
+          : `no line of this source states ${c.value} as the number of vacancies, posts or seats — check it against the notice`;
+      }
+      continue;
+    }
     add(c.fieldPath, c.value, quoteFor(c.fieldPath));
     if (c.doubt) values[values.length - 1].doubt = c.doubt;
   }

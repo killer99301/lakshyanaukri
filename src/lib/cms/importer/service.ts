@@ -33,6 +33,7 @@ import { createGate, retryingFetch } from "@/lib/cms/importer/pacing";
 import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
 import { TABLE_PATH, quoteIsPrintedTotal, tableCheckNeeds, tableCheckScope, tableTotalView, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
 import { PAGELESS_KINDS } from "@/lib/vacancy-table";
+import { statesVacancyCount } from "@/lib/cms/importer/vacancy-count";
 import {
   ImportApplyError, appliedImportsFor, applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -811,6 +812,17 @@ export async function decide(opts: {
           }
         } else if (!Array.isArray(opts.reviewScope?.pages) || opts.reviewScope.pages.length === 0) throw new ImportInputError("Name the pages of the notice you read for the missing figures");
         notStatedInFull = true;
+      }
+    } else if (opts.kind === "ADMIN_VERIFIED") {
+      // A total not worked out from the table (F5): the words cited must state this figure as the number of
+      // vacancies, posts or seats — "Recruitment of Clerks 2099" does not verify 2099. The words are then
+      // checked against the document below, as for every field.
+      const value = record.vacancies.total?.value;
+      if (typeof value === "number") {
+        if (!opts.quote) throw new ImportInputError(`Cite the line of the notice that gives ${value} as the number of vacancies, for example “Total Vacancies: ${value}”.`);
+        if (!statesVacancyCount(opts.quote, value)) {
+          throw new ImportInputError(`Those words do not state ${value} as the number of vacancies, posts or seats. Cite the line that does, for example “Total Vacancies: ${value}”; a number that only appears in the words (a year, a date, a notice number) does not verify it.`);
+        }
       }
     }
   }

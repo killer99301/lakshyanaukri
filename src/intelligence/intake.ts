@@ -283,17 +283,33 @@ function identifyKnownOrgFromText(text: string): string | undefined {
 
 // ─── Field extraction ─────────────────────────────────────────
 
+// A figure standing on its own (F1): not part of a date, a reference or a range ("30.06.2099", "05/2099",
+// "2099/05", "44-53"), and not an amount ("Rs. 600", "₹600"). Two or more digits, as before.
+const ALONE = String.raw`(?<![\d,])(?<!\d[\/.])(?<!\d\s*[-–]\s*)(?<!\b(?:rs|inr)\.?\s{0,2})(?<!₹\s{0,2})(\d[\d,]+)(?![\d,])(?![\/.]\d)(?!\s*[-–]\s*\d)`;
+
 const VACANCY_RE = [
   // Labeled patterns — require an explicit keyword adjacent to the number.
   // "Total Vacancies: 259", "Total Number of Vacancies 225", "Total Posts: 500"
-  // Negative lookahead (?!\s*[-–]\s*\d) prevents matching page ranges like "44-53".
   // "Number of" is optional so "Total Number of Vacancies 225" and "Total Vacancies: 225" both match.
-  /total\s+(?:number\s+of\s+)?(?:vacancies|posts?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
-  /no\.?\s+of\s+(?:vacancies|posts?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
-  // Proximity patterns — number followed or preceded by keyword within a short span.
-  /(\d[\d,]+)(?!\s*[-–]\s*\d)\s+(?:posts?|vacanc(?:y|ies)|seats?)\b/i,
-  /(?:posts?|vacanc(?:y|ies)|seats?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
+  // Group 1 is the words between the label and the figure (labelledFigureOk); group 2 the figure.
+  new RegExp(String.raw`total\s+(?:number\s+of\s+)?(?:vacancies|posts?)([^0-9]{0,20}?)${ALONE}`, "i"),
+  new RegExp(String.raw`no\.?\s+of\s+(?:vacancies|posts?)([^0-9]{0,20}?)${ALONE}`, "i"),
+  // Proximity patterns — the figure and the word on one line (F1): "70 Posts", "Posts: 70".
+  new RegExp(String.raw`()${ALONE}[ \t]+(?:posts?|vacanc(?:y|ies)|seats?)\b`, "i"),
+  new RegExp(String.raw`(?:posts?|vacanc(?:y|ies)|seats?)([^0-9\n]{0,20}?)${ALONE}`, "i"),
 ];
+
+// A figure that could be a year (1900–2199) is a count only when a label states it: "Total Vacancies: 2030"
+// (a colon, dash or "=" between them), and no other figure follows it ("Total Vacancies 2026: 500" is a heading
+// with its year). Elsewhere ("Recruitment of Clerks 2099 Vacancy details") it is never read as a count (F1, F2).
+function isYearLike(n: number): boolean {
+  return n >= 1900 && n <= 2199;
+}
+function labelledFigureOk(n: number, between: string | null, after: string): boolean {
+  if (!isYearLike(n)) return true;
+  if (between === null || !/[:=\-–]/.test(between)) return false;
+  return !/^\s*[:\-–]?\s*\d/.test(after);
+}
 
 // ─── Structural vacancy extraction for plain-text PDFs ────────
 //
@@ -346,18 +362,19 @@ const DISCIPLINE_ROW_RE =
 
 // Explicit total patterns tried within the vacancy window.
 // Ordered from most specific to least specific.
+// Group 1: the words between the label and the figure; group 2: the figure.
 const SECTION_TOTAL_PATS = [
-  /total\s+(?:posts?|vacancies?)\s*[:–\-]?\s*(\d[\d,]+)/i,  // "Total Posts: 259"
-  /grand\s+total\s*[:–\-]?\s*(\d[\d,]+)/i,                  // "Grand Total: 13,706"
-  /(?:^|\n)[ \t]*total\s*[:\-]\s*(\d[\d,]+)/im,             // "Total: 259" at line start
+  new RegExp(String.raw`total\s+(?:posts?|vacancies?)(\s*[:–\-]?\s*)${ALONE}`, "i"),  // "Total Posts: 259"
+  new RegExp(String.raw`grand\s+total(\s*[:–\-]?\s*)${ALONE}`, "i"),                  // "Grand Total: 13,706"
+  new RegExp(String.raw`(?:^|\n)[ \t]*total(\s*[:\-]\s*)${ALONE}`, "im"),             // "Total: 259" at line start
 ] as const;
 
 function findSectionTotal(windowText: string): number | undefined {
   for (const re of SECTION_TOTAL_PATS) {
     const m = re.exec(windowText);
     if (m) {
-      const n = parseInt(m[1].replace(/,/g, ""), 10);
-      if (!isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n)) return n;
+      const n = parseInt(m[2].replace(/,/g, ""), 10);
+      if (!isNaN(n) && n > 0 && n < 1_000_000 && labelledFigureOk(n, m[1], windowText.slice(m.index + m[0].length))) return n;
     }
   }
   return undefined;
@@ -529,24 +546,25 @@ function extractVacanciesFromCategoryTable(text: string): StructuredVacancyResul
 // "post" (postal mail) + adjacent section number causes false positives.
 function extractVacanciesFromPdfTextFallback(text: string): StructuredVacancyResult | undefined {
   const labeled = [
-    /total\s+(?:vacancies?|posts?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
-    /no\.?\s+of\s+(?:vacancies?|posts?)[^0-9]{0,20}?(\d[\d,]+)(?!\s*[-–]\s*\d)/i,
+    new RegExp(String.raw`total\s+(?:vacancies?|posts?)([^0-9]{0,20}?)${ALONE}`, "i"),
+    new RegExp(String.raw`no\.?\s+of\s+(?:vacancies?|posts?)([^0-9]{0,20}?)${ALONE}`, "i"),
   ];
   for (const re of labeled) {
     const m = re.exec(text);
     if (m) {
-      const n = parseInt(m[1].replace(/,/g, ""), 10);
-      if (!isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n))
+      const n = parseInt(m[2].replace(/,/g, ""), 10);
+      if (!isNaN(n) && n > 0 && n < 1_000_000 && labelledFigureOk(n, m[1], text.slice(m.index + m[0].length)))
         return { total: n, isDerived: false, rows: [] };
     }
   }
-  // Pattern 3 (number before vacancy word) — first 2000 chars only
-  const p3 = /(\d[\d,]+)(?!\s*[-–]\s*\d)\s+(?:posts?|vacanc(?:y|ies)|seats?)\b/i.exec(
+  // Pattern 3 (number before vacancy word) — first 2000 chars only, the figure and the word on one line (F1):
+  // "…30.06.2099" ending one line is not joined to "Vacancy table:" starting the next.
+  const p3 = new RegExp(String.raw`${ALONE}[ \t]+(?:posts?|vacanc(?:y|ies)|seats?)\b`, "i").exec(
     text.slice(0, 2000)
   );
   if (p3) {
     const n = parseInt(p3[1].replace(/,/g, ""), 10);
-    if (!isNaN(n) && n > 0 && n < 1_000_000 && !isCalendarYear(n))
+    if (!isNaN(n) && n > 0 && n < 1_000_000 && !isYearLike(n))
       return { total: n, isDerived: false, rows: [] };
   }
   return undefined;
@@ -741,12 +759,13 @@ function extractUrlRecruitmentTokens(url: string): string {
 }
 
 function extractVacancies(text: string): number | undefined {
-  for (const re of VACANCY_RE) {
+  for (const [k, re] of VACANCY_RE.entries()) {
     const m = re.exec(text);
     if (m) {
-      const n = parseInt(m[1].replace(/,/g, ""), 10);
+      const n = parseInt(m[2].replace(/,/g, ""), 10);
       if (!isNaN(n) && n > 0 && n < 1_000_000) {
-        if (isCalendarYear(n)) continue;
+        // "70 Posts" (pattern 3) has no label: a year-like figure there is never a count.
+        if (!labelledFigureOk(n, k === 2 ? null : m[1], text.slice(m.index + m[0].length))) continue;
         // Skip numbers immediately followed by /digit — a date fragment like
         // "these vacancies is 06/10/2026" where "06" is the day, not a count.
         if (/\/\d/.test(text.slice(m.index + m[0].length, m.index + m[0].length + 2))) continue;
