@@ -24,12 +24,16 @@ export interface Lead {
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 
-export async function listLeads(filter: { status?: LeadStatus; kind?: "NEW" | "UPDATE" } = {}): Promise<Lead[]> {
+export type LeadSort = "last_seen" | "first_seen";
+
+export async function listLeads(filter: { status?: LeadStatus; kind?: "NEW" | "UPDATE"; id?: string; sort?: LeadSort } = {}): Promise<Lead[]> {
+  const byFirst = filter.sort === "first_seen";
   const rows = await sql`
     SELECT * FROM discovery_leads
     WHERE (${filter.status ?? null}::text IS NULL OR status = ${filter.status ?? null})
       AND (${filter.kind ?? null}::text IS NULL OR kind = ${filter.kind ?? null})
-    ORDER BY last_seen_at DESC, first_seen_at DESC`;
+      AND (${filter.id ?? null}::uuid IS NULL OR id = ${filter.id ?? null}::uuid)
+    ORDER BY CASE WHEN ${byFirst} THEN first_seen_at ELSE last_seen_at END DESC, first_seen_at DESC, id`;
   if (!rows.length) return [];
   const srcs = await sql`SELECT * FROM discovery_lead_sources WHERE lead_id = ANY(${rows.map((r) => String(r.id))}) ORDER BY source_tier, first_seen_at`;
   return rows.map((r) => ({
@@ -47,6 +51,74 @@ export async function listLeads(filter: { status?: LeadStatus; kind?: "NEW" | "U
       nearbyDate: (s.nearby_date as string | null) ?? null, official: !!s.official,
       firstSeenAt: iso(s.first_seen_at), lastSeenAt: iso(s.last_seen_at), seenRuns: Number(s.seen_runs) })),
   }));
+}
+
+export async function getLead(id: string): Promise<Lead | null> {
+  if (!UUID.test(id)) return null;
+  return (await listLeads({ id }))[0] ?? null;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const MAX_REASON = 500;
+export const MAX_NOTE = 2000;
+
+/** What the admin can do to a lead in the New Jobs Found inbox (N3). */
+export type LeadAction = "READY_FOR_REVIEW" | "NEEDS_SOURCE" | "NEEDS_CORRECTION" | "DUPLICATE" | "DISMISS" | "REOPEN";
+export const LEAD_ACTIONS: LeadAction[] = ["READY_FOR_REVIEW", "NEEDS_SOURCE", "NEEDS_CORRECTION", "DUPLICATE", "DISMISS", "REOPEN"];
+
+export class LeadReviewError extends Error {
+  constructor(message: string, readonly status = 400) { super(message); this.name = "LeadReviewError"; }
+}
+
+/**
+ * The admin's review of a lead (N3). Changes the lead only, never a recruitment; a collector run never
+ * changes what is recorded here. The previous status and its reason are kept in the notes, with the date.
+ *   DUPLICATE names the CMS job, which must be one the lead was matched to and still in the CMS.
+ *   DISMISS needs a reason. REOPEN brings a dismissed or duplicate lead back to New.
+ */
+export async function reviewLead(opts: { id: string; adminId: string; action: LeadAction; reason?: string | null; note?: string | null; recruitmentId?: string | null }): Promise<Lead> {
+  if (!LEAD_ACTIONS.includes(opts.action)) throw new LeadReviewError("Unknown action");
+  const lead = await getLead(opts.id);
+  if (!lead) throw new LeadReviewError("Lead not found", 404);
+  const reason = (opts.reason ?? "").trim();
+  const note = (opts.note ?? "").trim();
+  if (reason.length > MAX_REASON) throw new LeadReviewError(`Keep the reason under ${MAX_REASON} characters`);
+  if (note.length > MAX_NOTE) throw new LeadReviewError(`Keep the note under ${MAX_NOTE} characters`);
+
+  let status: LeadStatus;
+  let statusReason: string | null = reason || null;
+  switch (opts.action) {
+    case "DISMISS":
+      if (reason.length < 3) throw new LeadReviewError("Say why the lead is dismissed");
+      status = "DISMISSED";
+      break;
+    case "REOPEN":
+      if (lead.status !== "DISMISSED" && lead.status !== "DUPLICATE") throw new LeadReviewError("Only a dismissed or duplicate lead is reopened");
+      status = "NEW";
+      break;
+    case "DUPLICATE": {
+      const job = opts.recruitmentId ?? "";
+      const known = new Set([lead.match.recruitmentId, ...lead.match.candidates.map((c) => c.id)].filter(Boolean));
+      if (!UUID.test(job) || !known.has(job)) throw new LeadReviewError("Choose the CMS job it duplicates from the jobs it was matched to");
+      const rows = await sql`SELECT coalesce(title_text, '') AS title FROM recruitments WHERE id = ${job}::uuid AND draft_state <> 'ARCHIVED'`;
+      if (!rows.length) throw new LeadReviewError("That CMS job is not in the CMS any more");
+      status = "DUPLICATE";
+      statusReason = `duplicate of “${String(rows[0].title)}” (${job})${reason ? ` — ${reason}` : ""}`;
+      break;
+    }
+    default:
+      status = opts.action;
+  }
+  // The earlier status and reason are not lost: they go into the notes, dated.
+  const day = new Date().toISOString().slice(0, 10);
+  const history = lead.status !== status || (lead.statusReason && lead.statusReason !== statusReason)
+    ? `${day}: was ${lead.status}${lead.statusReason ? ` — ${lead.statusReason}` : ""}` : null;
+  const notes = [lead.notes, history, note ? `${day}: ${note}` : null].filter(Boolean).join("\n").slice(-20_000) || null;
+  await sql`
+    UPDATE discovery_leads SET status = ${status}, status_reason = ${statusReason}, notes = ${notes},
+      status_changed_at = now(), status_changed_by = ${opts.adminId}
+    WHERE id = ${opts.id}::uuid`;
+  return (await getLead(opts.id))!;
 }
 
 /** The admin's review of a lead. Changes only the lead: never a recruitment. */

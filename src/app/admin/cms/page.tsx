@@ -187,6 +187,7 @@ export default function CmsListPage() {
           </div>
         </div>
         <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <Link href="/admin/cms/discovery" style={{ ...S.btn, background: "none", boxShadow: "none", border: "1px solid #62b5ff66", color: "#62b5ff" }}>New jobs found</Link>
           <ImporterLink href="/admin/cms/import" style={{ ...S.btn, background: "none", boxShadow: "none", border: "1px solid #62b5ff66", color: "#62b5ff" }}>Smart intake</ImporterLink>
           <Link href="/admin/cms/new" style={S.btn}>+ New job</Link>
         </span>

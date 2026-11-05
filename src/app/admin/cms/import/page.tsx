@@ -14,6 +14,8 @@ import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DiscoverPanel, type FoundJob } from "./DiscoverPanel";
+import { LeadHandoff, type HandoffLead } from "./LeadHandoff";
+import { bareNotice } from "../discovery/lead-view";
 import { ReviewPanel } from "./ReviewPanel";
 import { OpenReadings, ReadingJobPanel, describePdf } from "./ReadingJob";
 import { AttestationField, attestationProblem } from "./AttestationField";
@@ -213,6 +215,17 @@ function Importer() {
     setPreview(null);
     document.querySelector("[data-import-job]")?.scrollIntoView({ block: "start" });
   };
+  // ?lead=… (from New Jobs Found, N3): the lead's links come in as research; its title, organisation and
+  // notice number fill the new job's details. Nothing about the lead is recorded here.
+  const leadId = params.get("lead");
+  const onLead = (lead: HandoffLead, urls: string[]) => {
+    setSources([...urls.map((u) => ({ ...newSource("RESEARCH", "url"), url: u })), ...(urls.length < 4 ? [newSource("OFFICIAL_NOTIFICATION", "upload")] : [])]);
+    if (!recordId) {
+      const title = lead.title.replace(/\s+(notification\s+)?out\b.*$/i, "").replace(/,.*$/, "").trim() || lead.title;
+      setNewJob((n) => ({ ...n, title: title.slice(0, 160), organizationId: lead.organizationId ?? n.organizationId,
+        organizationName: lead.organizationName ?? n.organizationName, notificationNumber: lead.notificationNumber ? bareNotice(lead.notificationNumber) : n.notificationNumber }));
+    }
+  };
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -398,7 +411,8 @@ function Importer() {
         </div>
       ) : (
         <>
-          {!preview && !reading && !recordId && <DiscoverPanel onPick={pickFound} />}
+          {leadId && <LeadHandoff leadId={leadId} onLead={onLead} />}
+          {!preview && !reading && !recordId && !leadId && <DiscoverPanel onPick={pickFound} />}
           {!preview && !reading && <OpenReadings />}
           {!preview && reading && (
             <ReadingJobPanel key={reading.id} jobId={reading.id} files={reading.files} onPreview={onReadingPreview}
