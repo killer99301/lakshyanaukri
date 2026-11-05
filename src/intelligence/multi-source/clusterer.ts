@@ -43,6 +43,14 @@ function checkMergability(a: RawDiscovery, b: RawDiscovery): MergeResult {
   if (a.organizationId !== b.organizationId) {
     return { shouldMerge: false, status: "HELD", reason: "different org" };
   }
+  // Organisation not recognised (the CMS collector keeps such items): a notice number such as "01/2026"
+  // is shared by many bodies, so only the same address identifies the same recruitment.
+  if (!a.organizationId) {
+    const same = !!a.sourceUrlFingerprint && a.sourceUrlFingerprint === b.sourceUrlFingerprint && a.sourceUrlFingerprint.length > 10;
+    return same
+      ? { shouldMerge: true, status: "MERGED", reason: `exact URL fingerprint: ${a.sourceUrlFingerprint.slice(0, 60)}` }
+      : { shouldMerge: false, status: "HELD", reason: "organisation not recognised: only the same address merges" };
+  }
 
   // Strong identity: exact normalized notification number
   if (
@@ -135,7 +143,11 @@ function selectPrimaryHit(hits: RawDiscovery[]): RawDiscovery {
 
 // ─── Main cluster function ────────────────────────────────────
 
-export function clusterDiscoveries(items: RawDiscovery[]): DiscoveryCluster[] {
+/**
+ * opts.strongOnly (the CMS collector): merge on strong identity only (notice number, address). Title
+ * similarity never joins two items into one; the caller records it as a possible match for review.
+ */
+export function clusterDiscoveries(items: RawDiscovery[], opts: { strongOnly?: boolean } = {}): DiscoveryCluster[] {
   if (items.length === 0) return [];
 
   const n = items.length;
@@ -159,7 +171,7 @@ export function clusterDiscoveries(items: RawDiscovery[]): DiscoveryCluster[] {
     }
   }
 
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < n && !opts.strongOnly; i++) {
     for (let j = i + 1; j < n; j++) {
       if (uf.find(i) === uf.find(j)) continue; // already in same component
       const result = checkMergability(items[i], items[j]);

@@ -34,8 +34,8 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   return outsideFetch(input, init);
 }) as typeof fetch;
 
-export async function boot() {
-  const pg = await createDb();
+export async function boot(opts: { discovery?: boolean } = {}) {
+  const pg = await createDb(opts);
   let queries = 0;
   neonConfig.fetchFunction = makeFetch(pg, () => { queries++; });
 

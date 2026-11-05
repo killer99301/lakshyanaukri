@@ -44,7 +44,7 @@ function splitStatements(sqlText: string): string[] {
     .filter(Boolean);
 }
 
-export async function createDb(): Promise<PGlite> {
+export async function createDb(opts: { discovery?: boolean } = {}): Promise<PGlite> {
   const pg = new PGlite();
   for (const file of SCHEMA_FILES) {
     for (const statement of splitStatements(readFileSync(join(process.cwd(), file), "utf8"))) {
@@ -60,6 +60,8 @@ export async function createDb(): Promise<PGlite> {
   // The importer's tables, triggers and functions. Loaded whole: function
   // bodies contain semicolons that splitStatements would cut.
   await pg.exec(readFileSync(join(process.cwd(), "src/lib/cms/importer/schema.sql"), "utf8"));
+  // Discovery leads (N1). Left out only by the test of their own migration, which adds them itself.
+  if (opts.discovery !== false) await pg.exec(readFileSync(join(process.cwd(), "src/lib/cms/discovery/schema.sql"), "utf8"));
   return pg;
 }
 

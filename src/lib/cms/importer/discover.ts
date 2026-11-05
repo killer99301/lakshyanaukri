@@ -68,7 +68,9 @@ export function robotsAllows(robots: string, path: string, agent = AGENT): boole
   return best ? best.allow : true;
 }
 
-const UPDATE_WORDS = /extended|extension|postponed|rescheduled|admit card|hall ticket|result|answer key|cut ?off|merit list|exam date|city intimation|corrigendum|revised/i;
+/** Courses, test series and shop pages: not announcements. */
+export const NOT_ANNOUNCEMENT = /batch|mock test|test series|course|enrol|enroll|mahapack|live class|ebook|previous year/i;
+export const UPDATE_WORDS = /extended|extension|postponed|rescheduled|admit card|hall ticket|result|answer key|cut ?off|merit list|exam date|city intimation|corrigendum|revised/i;
 const STOP = new Set(["the", "and", "for", "of", "in", "out", "to", "on", "a", "check", "apply", "online", "notification", "recruitment", "vacancy", "vacancies", "posts", "post", "pdf", "link", "details", "now", "download", "form", "last", "date", "at", "with", "new"]);
 /** A title's words, without years and filler; plus the initials of each run of words ("food safety officer" → "fso"). */
 // Words most job titles share: they make initials ("food safety officer" →
@@ -98,7 +100,7 @@ export function similarJobs(title: string, jobs: Array<{ id: string; title: stri
 
 // A listed host, or a .gov.in site. Not every .nic.in site: NIC hosts portals
 // for many bodies (pariksha.nic.in), so those count only when listed.
-const officialHost = (host: string | null) => !!host && (
+export const officialHost = (host: string | null) => !!host && (
   /\.gov\.in$/.test(host) || Object.values(TRUSTED_DOMAINS).flat().some((e) => host === e.host || host.endsWith(`.${e.host}`)));
 
 export async function discoverFromPage(opts: {
@@ -133,7 +135,7 @@ export async function discoverFromPage(opts: {
     if (!isUpdate && !isNewRecruitmentNotice(link.text)) continue;
     if (!isUpdate && !/\b20\d{2}\b|recruit|vacanc|bharti|notification|advt|apply/i.test(link.text)) continue;
     // Courses, test series and shop pages are not announcements.
-    if (/batch|mock test|test series|course|enrol|enroll|mahapack|live class|ebook|previous year/i.test(link.text)) continue;
+    if (NOT_ANNOUNCEMENT.test(link.text)) continue;
     seen.add(key);
     const host = hostOf(key);
     found.push({

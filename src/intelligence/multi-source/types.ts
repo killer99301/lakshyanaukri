@@ -24,6 +24,8 @@ export interface RawDiscovery {
   confidence: number;
   discoveredAt: string;
   rawExcerpt: string;
+  /** Set by the CMS discovery collector: a recruitment announced, or an update (result, admit card…) of one. */
+  kind?: "NEW" | "UPDATE";
 }
 
 // ─── Clustering ───────────────────────────────────────────────

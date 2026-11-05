@@ -24,6 +24,7 @@ import { extractNotificationNumber } from "../../discovery";
 import { detectOrgFromText } from "../org-classifier";
 import type { DiscoveryAdapter, AdapterFetchResult } from "./base";
 import type { MultiSourceConfig, RawDiscovery, SourceFetchResult } from "../types";
+import { NOT_ANNOUNCEMENT, UPDATE_WORDS } from "@/lib/cms/importer/discover";
 
 // ─── Keyword filter ───────────────────────────────────────────
 
@@ -119,75 +120,11 @@ export class RssAdapter implements DiscoveryAdapter {
       return { fetchResult: { ...baseResult, status: "UNAVAILABLE", error: fetchResult.error }, discoveries: [] };
     }
 
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = XML_PARSER.parse(htmlContent) as Record<string, unknown>;
-    } catch (err) {
-      return {
-        fetchResult: { ...baseResult, status: "PARSE_ERROR", error: String(err) },
-        discoveries: [],
-      };
+    const read = parseRssFeed(config, htmlContent);
+    if (read.status === "PARSE_ERROR") {
+      return { fetchResult: { ...baseResult, status: "PARSE_ERROR", error: read.error }, discoveries: [] };
     }
-
-    const items = extractItems(parsed);
-    if (items.length === 0) {
-      return { fetchResult: { ...baseResult, status: "EMPTY" }, discoveries: [] };
-    }
-
-    const discoveries: RawDiscovery[] = [];
-    const now = new Date().toISOString();
-
-    for (const item of items) {
-      const title = coerceString(item.title).trim();
-      const href =
-        typeof item.link === "string" ? item.link.trim() : parseAtomLink(item.link);
-      const description = coerceString(item.description).trim();
-      const pubDate = item.pubDate ?? item.published ?? item.updated;
-      const nearbyDate = parseRssDate(typeof pubDate === "string" ? pubDate : "");
-
-      if (!title || !href) continue;
-
-      const combined = `${title} ${description}`.slice(0, 500);
-
-      if (!isRecruitmentItem(combined)) continue;
-
-      // Org identity comes from the title only — NOT the description.
-      // Description may contain other org names in eligibility/context text
-      // (e.g. "experience in any bank listed in Second Schedule of Reserve Bank of India").
-      const orgId = detectOrgFromText(title, config.orgFilter);
-      if (!orgId) continue;
-
-      const orgName = ORG_NAMES[orgId] ?? orgId.toUpperCase();
-      const notificationNumber = extractNotificationNumber(title);
-      const notifTitle = notificationNumber ?? title;
-      const normalizedNotifNumber = normalizeNotificationNumber(notifTitle);
-
-      const pdfUrl = href.toLowerCase().includes(".pdf") ? href : undefined;
-      const confidence = 0.4
-        + (notificationNumber ? 0.2 : 0)
-        + (nearbyDate ? 0.1 : 0)
-        + (pdfUrl ? 0.2 : 0);
-
-      discoveries.push({
-        sourceId: config.id,
-        sourceName: config.name,
-        sourceTier: config.tier,
-        sourceUrl: config.url,
-        organizationId: orgId,
-        organizationName: orgName,
-        title,
-        href,
-        notificationNumber,
-        normalizedNotifNumber,
-        pdfUrl,
-        nearbyDate,
-        titleSimilarityKey: buildTitleSimilarityKey(title),
-        sourceUrlFingerprint: normalizeSourceUrl(pdfUrl ?? href),
-        confidence,
-        discoveredAt: now,
-        rawExcerpt: combined.slice(0, 300),
-      });
-    }
+    const discoveries = read.discoveries;
 
     return {
       fetchResult: {
@@ -198,6 +135,87 @@ export class RssAdapter implements DiscoveryAdapter {
       discoveries,
     };
   }
+}
+
+// ─── Parsing (also used by the CMS discovery collector) ──────
+
+export interface ParseOptions {
+  /** Keep an item whose organisation is not recognised, with an empty organizationId (the collector). */
+  keepUnknownOrg?: boolean;
+  /** Keep update announcements (result, admit card, extension…) as kind "UPDATE" (the collector). */
+  keepUpdates?: boolean;
+  now?: string;
+}
+
+/** The recruitment items of one feed. Without options: exactly what this adapter always kept. */
+export function parseRssFeed(config: MultiSourceConfig, xml: string, opts: ParseOptions = {}): { status: "OK" | "EMPTY" | "PARSE_ERROR"; discoveries: RawDiscovery[]; error?: string } {
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = XML_PARSER.parse(xml) as Record<string, unknown>;
+  } catch (err) {
+    return { status: "PARSE_ERROR", discoveries: [], error: String(err) };
+  }
+  const items = extractItems(parsed);
+  const discoveries: RawDiscovery[] = [];
+  const now = opts.now ?? new Date().toISOString();
+
+  for (const item of items) {
+    const title = coerceString(item.title).trim();
+    const href =
+      typeof item.link === "string" ? item.link.trim() : parseAtomLink(item.link);
+    const description = coerceString(item.description).trim();
+    const pubDate = item.pubDate ?? item.published ?? item.updated;
+    const nearbyDate = parseRssDate(typeof pubDate === "string" ? pubDate : "");
+
+    if (!title || !href) continue;
+
+    const combined = `${title} ${description}`.slice(0, 500);
+
+    // The collector (opts.keepUpdates) also keeps results, admit cards, extensions… as UPDATE items.
+    const kind: "NEW" | "UPDATE" = opts.keepUpdates && UPDATE_WORDS.test(title) ? "UPDATE" : "NEW";
+    if (kind === "NEW" && !isRecruitmentItem(combined)) continue;
+    if (opts.keepUpdates && NOT_ANNOUNCEMENT.test(title)) continue;
+
+    // Org identity comes from the title only — NOT the description.
+    // Description may contain other org names in eligibility/context text
+    // (e.g. "experience in any bank listed in Second Schedule of Reserve Bank of India").
+    const orgId = detectOrgFromText(title, config.orgFilter);
+    // The collector keeps an item whose organisation is not recognised (empty id): it is never dropped.
+    if (!orgId && !opts.keepUnknownOrg) continue;
+
+    const orgName = orgId ? ORG_NAMES[orgId] ?? orgId.toUpperCase() : "";
+    const notificationNumber = extractNotificationNumber(title);
+    const notifTitle = notificationNumber ?? title;
+    const normalizedNotifNumber = normalizeNotificationNumber(notifTitle);
+
+    const pdfUrl = href.toLowerCase().includes(".pdf") ? href : undefined;
+    const confidence = 0.4
+      + (notificationNumber ? 0.2 : 0)
+      + (nearbyDate ? 0.1 : 0)
+      + (pdfUrl ? 0.2 : 0);
+
+    discoveries.push({
+      sourceId: config.id,
+      sourceName: config.name,
+      sourceTier: config.tier,
+      sourceUrl: config.url,
+      organizationId: orgId ?? "",
+      organizationName: orgName,
+      title,
+      href,
+      notificationNumber,
+      normalizedNotifNumber,
+      pdfUrl,
+      nearbyDate,
+      titleSimilarityKey: buildTitleSimilarityKey(title),
+      sourceUrlFingerprint: normalizeSourceUrl(pdfUrl ?? href),
+      confidence,
+      discoveredAt: now,
+      ...(opts.keepUpdates ? { kind } : {}),
+      rawExcerpt: combined.slice(0, 300),
+    });
+  }
+  return { status: discoveries.length > 0 ? "OK" : "EMPTY", discoveries };
 }
 
 // ─── Date parsing ─────────────────────────────────────────────
