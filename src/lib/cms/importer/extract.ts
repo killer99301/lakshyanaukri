@@ -30,7 +30,7 @@ import { relaxationMembers, statedRelaxations } from "@/lib/cms/importer/age-rel
 import { readPostAgeTable } from "@/lib/cms/importer/post-age-table";
 import { readLabelledLines } from "@/lib/cms/importer/prepared-fields";
 import { FLAG_LABEL_PATHS } from "@/lib/cms/importer/fields";
-import { vacancyCountLine } from "@/lib/cms/importer/vacancy-count";
+import { statesVacancyCount, vacancyCountLine } from "@/lib/cms/importer/vacancy-count";
 import type { AgeCriteria, CmsSelectionInformation, CmsSelectionStage, SelectionStageType } from "@/types/recruitment-record";
 import type { ExamStage } from "@/types";
 import { classifyStageName, STAGE_KIND_LABEL } from "@/lib/exam-stage-kind";
@@ -152,8 +152,20 @@ export function combineReading(opts: {
     const d = key ? ai.dates[key] : undefined;
     return d && d.status === "accepted" ? d.quote : undefined;
   };
+  // Post rows read by code whose figure could be a year (1900–2199) and whose own line does not state it as the
+  // count ("Recruitment of Clerks 2099" under a vacancy heading; not "Junior Engineer posts: 2099"). They stay in
+  // the review, said, and neither the rows nor their total is ticked by default.
+  const breakdownRows = merged.candidates.find((x) => x.fieldPath === "vacancies.breakdown")?.value as Array<{ post?: string; count?: number }> | null | undefined;
+  const plainLines = plain.split(/\r?\n/);
+  const ambiguousRows = (Array.isArray(breakdownRows) ? breakdownRows : []).filter((r) => typeof r.count === "number" && r.count >= 1900 && r.count <= 2199
+    && !plainLines.some((l) => (!r.post || l.includes(r.post)) && statesVacancyCount(l, r.count!)));
   for (const c of merged.candidates) {
     if (c.value === null || c.value === undefined) { notFound.push(c.label); continue; }
+    if (c.fieldPath === "vacancies.breakdown" && ambiguousRows.length > 0) {
+      add(c.fieldPath, c.value, quoteFor(c.fieldPath));
+      values[values.length - 1].doubt = `${ambiguousRows.map((r) => `${r.count} for “${r.post ?? "a post"}”`).join(", ")} could be a year, not a number of vacancies — check it against the notice`;
+      continue;
+    }
     // A total read by code is quoted from the line of this source that states it as the count (F2). With no
     // such line (a total worked out by adding rows, or a figure that is not a count) it is offered with that
     // said, and never ticked by default: no quote is made up for it.
@@ -166,7 +178,7 @@ export function combineReading(opts: {
         // could be a year ("Recruitment of Clerks 2099" under a vacancy heading) leaves it in doubt.
         const rows = merged.candidates.find((x) => x.fieldPath === "vacancies.breakdown")?.value as Array<{ count?: number }> | null | undefined;
         const summed = Array.isArray(rows) && rows.length > 0 && rows.reduce((n, r) => n + (r.count ?? 0), 0) === c.value;
-        const yearLike = summed && rows!.some((r) => typeof r.count === "number" && r.count >= 1900 && r.count <= 2199);
+        const yearLike = summed && ambiguousRows.length > 0;
         const v = values[values.length - 1];
         if (summed && !yearLike) {
           v.notes = [rows!.length === 1 ? `the figure of the one post read; no line prints a total` : `worked out by adding the ${rows!.length} posts read; no line prints this total`];

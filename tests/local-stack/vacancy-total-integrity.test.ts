@@ -70,6 +70,10 @@ expectChecks(S.C, [
   "C5b one post row: its figure keeps its usual tick, said, no quote made up",
   "C5c a category-wise table (SBI style): its added-up total keeps its usual tick",
   "C5d a post row whose figure could be a year: the total is in doubt, not ticked",
+  "C5f that row in the breakdown: shown with why, not ticked",
+  "C5g saved with the default ticks: neither the row nor its total is stored",
+  "C5h a post row that states a year-like figure as its count: selectable and ticked as usual",
+  "C5i genuine post-wise counts: ticked, and saved with the default ticks",
   "C5e a figure no line states as the count (an age): said, not ticked",
   "C6 a clean pasted table: its total is worked out from the table when saved",
   "C7 a held table: no total is offered from it",
@@ -179,9 +183,25 @@ expectChecks(S.D, [
   const SBI = "Staff Selection Commission\nRecruitment of Officers\nLast date to apply online: 30.06.2098\nCATEGORY WISE VACANCIES\nNAME OF THE POST: Manager\nUR TOTAL PwBD\nTotal 10 10 1\nNAME OF THE POST: Deputy Manager\nUR TOTAL PwBD\nTotal 15 15 2\n@ - Horizontal vacancy Reservation is horizontal";
   const t5c = totals(await preview({ ...newJob("ssc"), sources: [official(SBI)] }));
   check("C5c a category-wise table (SBI style): its added-up total keeps its usual tick", t5c.length === 1 && t5c[0].value === 25 && t5c[0].defaultTicked, t5c);
-  const t5d = totals(await preview({ ...newJob("ssc"), sources: [official(SEC("Recruitment of Clerks 2099"))] }));
+  const c5d = await preview({ ...newJob("ssc"), sources: [official(SEC("Recruitment of Clerks 2099"))] });
+  const t5d = totals(c5d);
   check("C5d a post row whose figure could be a year: the total is in doubt, not ticked",
     t5d.length === 1 && !t5d[0].defaultTicked && t5d[0].flags.some((f) => /could be a year/.test(f)), t5d);
+  const b5d = c5d.proposal.items.filter((i) => i.fieldPath === "vacancies.breakdown");
+  check("C5f that row in the breakdown: shown with why, not ticked",
+    b5d.length === 1 && JSON.stringify(b5d[0].value).includes("2099") && !b5d[0].defaultTicked && b5d[0].flags.some((f) => /2099 for “Recruitment of Clerks” could be a year/.test(f)), b5d);
+  const s5d = (await getRecruitmentById((await apply(c5d, ticked(c5d))).recruitmentId))!;
+  check("C5g saved with the default ticks: neither the row nor its total is stored",
+    !(s5d.vacancies.breakdown?.value ?? []).length && (s5d.vacancies.total?.value ?? null) === null && !JSON.stringify(s5d.vacancies).includes("2099"), s5d.vacancies);
+  const c5h = await preview({ ...newJob("ssc"), sources: [official(SEC("Junior Engineer (Civil) posts: 2099"))] });
+  const b5h = c5h.proposal.items.filter((i) => i.fieldPath === "vacancies.breakdown");
+  const t5h = totals(c5h);
+  check("C5h a post row that states a year-like figure as its count: selectable and ticked as usual",
+    b5h.length === 1 && b5h[0].defaultTicked && t5h.length === 1 && t5h[0].value === 2099 && t5h[0].defaultTicked, { b5h, t5h });
+  const c5i = await preview({ ...newJob("ssc"), sources: [official(SEC("Assistant Engineer (Civil) 12\nAssistant Engineer (Electrical) 18"))] });
+  const s5i = (await getRecruitmentById((await apply(c5i, ticked(c5i))).recruitmentId))!;
+  check("C5i genuine post-wise counts: ticked, and saved with the default ticks",
+    c5i.proposal.items.some((i) => i.fieldPath === "vacancies.breakdown" && i.defaultTicked) && (s5i.vacancies.breakdown?.value ?? []).length === 2 && s5i.vacancies.total?.value === 30, s5i.vacancies);
   const AGE = `<html><body><p>Staff Selection Commission</p><p>Recruitment of Officers</p><p>Last date to apply online: 30.06.2098</p><p>Posts upto 35 years of age may apply.</p></body></html>`;
   const t5e = totals(await preview({ ...newJob("ssc"), sources: [{ declaredKind: "OFFICIAL_NOTIFICATION", method: "paste", text: AGE, url: "https://ssc.gov.in/notice", attestation: "vacancy-total test" }] }));
   check("C5e a figure no line states as the count (an age): said, not ticked",
