@@ -161,11 +161,20 @@ export function combineReading(opts: {
       const line = vacancyCountLine(plain, c.value);
       add(c.fieldPath, c.value, line ?? undefined);
       if (!line) {
+        // A total that is the posts' rows read by code, added up (one row: its figure), keeps its usual tick: its
+        // evidence is those rows, offered beside it as the breakdown. It is said, not quoted. A row whose figure
+        // could be a year ("Recruitment of Clerks 2099" under a vacancy heading) leaves it in doubt.
         const rows = merged.candidates.find((x) => x.fieldPath === "vacancies.breakdown")?.value as Array<{ count?: number }> | null | undefined;
-        const summed = Array.isArray(rows) && rows.length > 1 && rows.reduce((n, r) => n + (r.count ?? 0), 0) === c.value;
-        values[values.length - 1].doubt = summed
-          ? `no line of this source prints ${c.value} as the total: it was worked out by adding the posts read — check it against the notice`
-          : `no line of this source states ${c.value} as the number of vacancies, posts or seats — check it against the notice`;
+        const summed = Array.isArray(rows) && rows.length > 0 && rows.reduce((n, r) => n + (r.count ?? 0), 0) === c.value;
+        const yearLike = summed && rows!.some((r) => typeof r.count === "number" && r.count >= 1900 && r.count <= 2199);
+        const v = values[values.length - 1];
+        if (summed && !yearLike) {
+          v.notes = [rows!.length === 1 ? `the figure of the one post read; no line prints a total` : `worked out by adding the ${rows!.length} posts read; no line prints this total`];
+        } else {
+          v.doubt = yearLike
+            ? `worked out from the posts read, and a post's figure could be a year — check it against the notice`
+            : `no line of this source states ${c.value} as the number of vacancies, posts or seats — check it against the notice`;
+        }
       }
       continue;
     }

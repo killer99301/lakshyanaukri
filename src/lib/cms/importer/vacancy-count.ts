@@ -9,7 +9,8 @@
 //   "Total Vacancies: 70", "70 Posts", "Number of posts - 1,205", "Grand Total 232",
 //   a total row ("Total 5 3 8 3 11 30": its last figure) — state their figure;
 //   "Recruitment of Clerks 2099", "Recruitment 2099 — 70 vacancies" (for 2099),
-//   "Last date 30.06.2099", "Advt. No. 05/2099", "Rs. 600" — do not.
+//   "Last date 30.06.2099", "Advt. No. 05/2099", "Rs. 600", an age or a limit
+//   ("Posts upto 35 years", "posts in Pay Level 7", "posts: 60 marks") — do not.
 // A figure that could be a year (1900–2199) is stated only by a label with a
 // colon, dash or "=" before it and no other figure after it ("Total Vacancies: 2030").
 
@@ -37,6 +38,13 @@ function figures(line: string): Figure[] {
 
 const yearLike = (n: number) => n >= 1900 && n <= 2199;
 
+// A figure that measures something else: an age, a period, marks, a share, an amount ("Posts upto 35 years",
+// "posts: 60 marks", "posts – 10 lakh"). It is never the count, whatever word stands before it.
+const MEASURE_AFTER = /^\s*(?:\+\s*)?(?:years?|yrs?\.?|year-old|months?|days?|weeks?|hours?|hrs?\.?|minutes?|mins?\.?|%|per\s*cent|percent|marks?|points?|kg|kgs|cm|km|metres?|meters?|lakhs?|lacs?|crores?|rupees?|\/-|वर्ष|साल|अंक|दिन|माह)(?![a-z])/i;
+// Words between the vacancy word and the figure that make it a limit, a fee, a level, a date or a reference
+// ("posts upto 35", "posts in Pay Level 7", "post code 05", "posts — last date 30"), not the count.
+const NOT_COUNT_BETWEEN = /(?:^|[^a-z])(?:up\s*to|upto|age|aged|limit|maximum|minimum|max\.?|min\.?|below|above|under|over|fee|fees|pay|level|scale|grade|class|code|rule|section|page|para|item|serial|sl|date|dated|last|year|years|attempts?|marks|आयु|तक|शुल्क)(?![a-z])/i;
+
 /** Whether this one line states `n` as the number of vacancies, posts or seats. */
 function lineStates(line: string, n: number): boolean {
   const figs = figures(line);
@@ -47,9 +55,11 @@ function lineStates(line: string, n: number): boolean {
     const after = line.slice(f.end);
     // A total row: its last figure.
     if (total && i === figs.length - 1) return true;
+    if (MEASURE_AFTER.test(after)) continue;
     // "Total Vacancies: 70", "Posts - 70", "vacancies are 70": the word, then only words or signs, then the figure.
     const labelled = new RegExp(String.raw`(?:${WORD}|${HINDI})([^\d]{0,25})$`, "i").exec(before);
     if (labelled) {
+      if (NOT_COUNT_BETWEEN.test(labelled[1])) continue;
       if (!yearLike(n)) return true;
       if (/[:=\-–]/.test(labelled[1]) && !/^\s*[:\-–]?\s*\d/.test(after)) return true;
       continue;

@@ -58,13 +58,19 @@ expectChecks(S.B, [
   "B “Total Vacancies: 2030” states 2030",
   "B printed-total lines accepted by Stage C state their total",
   "B dates, notice numbers and fees do not state their figure",
+  "B an age, a limit, a level or marks beside a vacancy word do not state their figure",
+  "B the usual count formats still state their figure",
 ]);
 expectChecks(S.C, [
   "C1 the I5 browser check's sources: no total is offered",
   "C2 an official total is quoted from its own line and ticked",
   "C3 research printing its total: offered with its quote, not ticked",
   "C4 two sources with different totals: both shown, neither ticked",
-  "C5 a total with no line stating it (rows added up): said, not ticked, no quote made up",
+  "C5 rows added up: the total keeps its usual tick, said as worked out, no quote made up",
+  "C5b one post row: its figure keeps its usual tick, said, no quote made up",
+  "C5c a category-wise table (SBI style): its added-up total keeps its usual tick",
+  "C5d a post row whose figure could be a year: the total is in doubt, not ticked",
+  "C5e a figure no line states as the count (an age): said, not ticked",
   "C6 a clean pasted table: its total is worked out from the table when saved",
   "C7 a held table: no total is offered from it",
   "C8 an existing verified total: research offers no replacement, and default ticks keep it",
@@ -79,6 +85,7 @@ expectChecks(S.D, [
   "D6 a total changed to 2099: “Recruitment of Clerks 2099” and “Recruitment 2099 — 70 vacancies” do not verify it",
   "D7 “Total Vacancies: 2030” read, saved and verified with its line",
   "D8 words not in the document still do not verify a total",
+  "D9 verifying 35 citing “Posts upto 35 years”: refused",
 ]);
 
 (async () => {
@@ -119,6 +126,12 @@ expectChecks(S.D, [
   check("B printed-total lines accepted by Stage C state their total", printed.every(([t, n]) => safe(t, n) === true), printed.map(([t, n]) => [t, safe(t, n)]));
   const not: Array<[string, number]> = [["Last date to apply: 30.06.2099", 2099], ["Advt. No. 05/2099 for posts", 2099], ["Advt. No. 05/2099 for posts", 5], ["Application fee for posts: Rs. 600", 600], ["Posts 2099 notification", 2099], ["Total Vacancies 2026: 500", 2026], ["Recruitment of Clerks 2099 Vacancy details", 2099]];
   check("B dates, notice numbers and fees do not state their figure", not.every(([t, n]) => safe(t, n) === false), not.map(([t, n]) => [t, safe(t, n)]));
+  const measures: Array<[string, number]> = [["Posts upto 35 years", 35], ["Age limit for the posts: 35 years", 35], ["Posts: upto 35", 35], ["posts in Pay Level 7", 7], ["Vacancies — maximum age 40", 40],
+    ["Posts: 60 marks", 60], ["Posts — 10 lakh", 10], ["Vacancies: 18 to 35 years", 35], ["Posts reserved: 10%", 10], ["पद हेतु आयु 35 वर्ष", 35], ["Post code 05", 5], ["Vacancies — last date 30", 30]];
+  check("B an age, a limit, a level or marks beside a vacancy word do not state their figure", measures.every(([t, n]) => safe(t, n) === false), measures.map(([t, n]) => [t, safe(t, n)]));
+  const counts: Array<[string, number]> = [["70 Posts", 70], ["Total Vacancies: 2030", 2030], ["Total Vacancies (All categories): 1,205", 1205], ["No. of vacancies - 45", 45], ["Number of posts: 12", 12],
+    ["70 (Seventy) vacancies", 70], ["कुल पद: 45", 45], ["45 पद", 45], ["Recruitment of 35 Posts for candidates aged 18–35 years", 35], ["Grand Total 232", 232]];
+  check("B the usual count formats still state their figure", counts.every(([t, n]) => safe(t, n) === true), counts.map(([t, n]) => [t, safe(t, n)]));
 
   // ── C ──
   section(S.C);
@@ -157,8 +170,22 @@ expectChecks(S.D, [
   const ROWS = "Staff Selection Commission\nRecruitment of Officers 2099\nLast date to apply online: 30.06.2099\n1. Vacancies:\nAssistant Engineer (Civil) 12\nAssistant Engineer (Electrical) 18\n2. Eligibility: degree";
   const c5 = await preview({ ...newJob("ssc"), sources: [official(ROWS)] });
   const t5 = totals(c5);
-  check("C5 a total with no line stating it (rows added up): said, not ticked, no quote made up",
-    t5.length === 1 && t5[0].value === 30 && !t5[0].defaultTicked && !t5[0].claims[0].quote && t5[0].flags.some((f) => /worked out by adding/.test(f)), t5);
+  check("C5 rows added up: the total keeps its usual tick, said as worked out, no quote made up",
+    t5.length === 1 && t5[0].value === 30 && t5[0].defaultTicked && !t5[0].claims[0].quote && t5[0].flags.some((f) => /worked out by adding the 2 posts read/.test(f)), t5);
+  const SEC = (rows: string) => `Staff Selection Commission\nRecruitment of Officers\nLast date to apply online: 30.06.2098\n1. Vacancies:\n${rows}\n2. Eligibility: degree`;
+  const t5b = totals(await preview({ ...newJob("ssc"), sources: [official(SEC("Assistant Engineer (Civil) 12"))] }));
+  check("C5b one post row: its figure keeps its usual tick, said, no quote made up",
+    t5b.length === 1 && t5b[0].value === 12 && t5b[0].defaultTicked && !t5b[0].claims[0].quote && t5b[0].flags.some((f) => /the figure of the one post read/.test(f)), t5b);
+  const SBI = "Staff Selection Commission\nRecruitment of Officers\nLast date to apply online: 30.06.2098\nCATEGORY WISE VACANCIES\nNAME OF THE POST: Manager\nUR TOTAL PwBD\nTotal 10 10 1\nNAME OF THE POST: Deputy Manager\nUR TOTAL PwBD\nTotal 15 15 2\n@ - Horizontal vacancy Reservation is horizontal";
+  const t5c = totals(await preview({ ...newJob("ssc"), sources: [official(SBI)] }));
+  check("C5c a category-wise table (SBI style): its added-up total keeps its usual tick", t5c.length === 1 && t5c[0].value === 25 && t5c[0].defaultTicked, t5c);
+  const t5d = totals(await preview({ ...newJob("ssc"), sources: [official(SEC("Recruitment of Clerks 2099"))] }));
+  check("C5d a post row whose figure could be a year: the total is in doubt, not ticked",
+    t5d.length === 1 && !t5d[0].defaultTicked && t5d[0].flags.some((f) => /could be a year/.test(f)), t5d);
+  const AGE = `<html><body><p>Staff Selection Commission</p><p>Recruitment of Officers</p><p>Last date to apply online: 30.06.2098</p><p>Posts upto 35 years of age may apply.</p></body></html>`;
+  const t5e = totals(await preview({ ...newJob("ssc"), sources: [{ declaredKind: "OFFICIAL_NOTIFICATION", method: "paste", text: AGE, url: "https://ssc.gov.in/notice", attestation: "vacancy-total test" }] }));
+  check("C5e a figure no line states as the count (an age): said, not ticked",
+    t5e.length === 1 && t5e[0].value === 35 && t5e.every((t) => !t.defaultTicked &&t.flags.some((f) => /no line of this source states/.test(f))), t5e);
 
   const c6 = await preview({ ...newJob(), sources: [research(`${FRONT}\nVacancy table:\n| Post | UR | SC | Total |\n| Assistant | 10 | 1 | 11 |\n| Typist | 4 | 0 | 4 |`)] });
   const s6 = await apply(c6, ticked(c6));
@@ -231,6 +258,13 @@ expectChecks(S.D, [
   check("D7 “Total Vacancies: 2030” read, saved and verified with its line",
     t10.length === 1 && t10[0].value === 2030 && t10[0].defaultTicked && t10[0].claims[0].quote === "Total Vacancies: 2030"
     && (await getRecruitmentById(s10.recruitmentId))!.vacancies.total?.value === 2030 && v10 === "accepted", { offered: t10, v10 });
+
+  const c11 = await preview({ ...newJob("ssc"), sources: [official("Staff Selection Commission\nRecruitment of Clerks 2099\nLast date to apply online: 30.06.2099\nTotal Vacancies: 35\nPosts upto 35 years of age may apply.")] });
+  const s11 = await apply(c11, ticked(c11));
+  const v11a = await verify(s11.recruitmentId, "Posts upto 35 years");
+  const v11b = await verify(s11.recruitmentId, "Total Vacancies: 35");
+  check("D9 verifying 35 citing “Posts upto 35 years”: refused",
+    (await getRecruitmentById(s11.recruitmentId))!.vacancies.total?.value === 35 && /^refused: Those words do not state 35/.test(v11a) && v11b === "accepted", { v11a, v11b });
 
   summary();
   process.exit(process.exitCode ?? 0);
