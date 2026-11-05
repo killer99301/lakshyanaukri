@@ -84,11 +84,11 @@ function leadKey(c: DiscoveryCluster, kind: "NEW" | "UPDATE"): string {
 
 async function cmsJobs(): Promise<CmsJob[]> {
   const rows = await sql`
-    SELECT id, organization_id, coalesce(title_text, identity->'title'->>'value', '') AS title,
+    SELECT id, organization_id, organization_name, coalesce(title_text, identity->'title'->>'value', '') AS title,
            identity->'notificationNumber'->>'value' AS notification_number,
            CASE WHEN identity->>'recruitmentYear' ~ '^[0-9]{4}$' THEN (identity->>'recruitmentYear')::int END AS year
     FROM recruitments WHERE draft_state <> 'ARCHIVED'`;
-  return rows.map((r) => ({ id: String(r.id), organizationId: String(r.organization_id), title: String(r.title),
+  return rows.map((r) => ({ id: String(r.id), organizationId: String(r.organization_id), organizationName: (r.organization_name as string | null) ?? null, title: String(r.title),
     notificationNumber: (r.notification_number as string | null) ?? null, year: (r.year as number | null) ?? null }));
 }
 
@@ -100,7 +100,7 @@ async function saveLead(c: DiscoveryCluster, kind: "NEW" | "UPDATE", jobs: CmsJo
   const org = hits.find((h) => h.organizationId)?.organizationId || null;
   const orgName = hits.find((h) => h.organizationName)?.organizationName || null;
   const notice = hits.find((h) => h.notificationNumber)?.notificationNumber ?? null;
-  const match = matchLead({ organizationId: org, title: p.title, notificationNumber: notice }, jobs);
+  const match = matchLead({ organizationId: org, organizationName: orgName, title: p.title, notificationNumber: notice }, jobs);
   const fps = hits.map(fingerprint);
   const found = await sql`
     SELECT l.id, l.status FROM discovery_leads l
