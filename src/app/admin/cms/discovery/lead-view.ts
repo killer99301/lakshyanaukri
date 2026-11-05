@@ -44,6 +44,31 @@ export const STATUS_LABEL: Record<Lead["status"], string> = {
   NEEDS_CORRECTION: "Needs correction", DUPLICATE: "Duplicate", DISMISSED: "Dismissed",
 };
 
+/** An update lead and the CMS job it is tied to: matched (by notice number, or organisation, year and title), possible (only the admin can confirm it), or none. */
+export type UpdateTie = "MATCHED" | "POSSIBLE" | "NONE";
+export function tieOf(lead: Lead): UpdateTie {
+  if (lead.match.recruitmentId && (lead.match.kind === "DUPLICATE" || lead.match.kind === "STRONG")) return "MATCHED";
+  return lead.match.kind === "POSSIBLE" && lead.match.candidates.length > 0 ? "POSSIBLE" : "NONE";
+}
+
+/** What kind of update a lead's title announces; "Update" when its words name none of these. */
+export function updateType(title: string): string {
+  const t = title.toLowerCase();
+  if (/corrigendum|addendum|revised|revision/.test(t)) return "Corrigendum";
+  if (/extend|extension|last date/.test(t)) return "Date extended";
+  if (/postpone|reschedul/.test(t)) return "Postponed or rescheduled";
+  if (/admit card|hall ticket|call letter/.test(t)) return "Admit card";
+  if (/city intimation|exam city/.test(t)) return "Exam city";
+  if (/answer key/.test(t)) return "Answer key";
+  if (/cut ?off|merit list/.test(t)) return "Cut-off or merit list";
+  if (/result/.test(t)) return "Result";
+  if (/exam date|schedule/.test(t)) return "Exam date";
+  return "Update";
+}
+
+/** The job editor's Check for updates panel (it runs only when the admin presses Check there). */
+export const checkUpdatesHref = (recordId: string) => `/admin/cms/${recordId}#check-updates`;
+
 /** A notice number without its label, for Smart intake's notice-number field: "Advt No. 05/2026" → "05/2026". */
 export function bareNotice(n: string | null | undefined): string {
   return (n ?? "").trim().replace(/^(?:(?:advt|advertisement|notification|notice|employment notice)\.?\s*)?(?:no|number)\.?\s*[:.\-]?\s*/i, "");

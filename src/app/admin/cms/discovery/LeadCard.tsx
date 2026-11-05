@@ -7,7 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Lead } from "@/lib/cms/discovery/repository";
 import { C, badge, inputStyle, quietBtn } from "../import/ui";
-import { STATUS_LABEL, attention, classify, intakeHref, safeHref, type Tone } from "./lead-view";
+import { STATUS_LABEL, attention, checkUpdatesHref, classify, intakeHref, safeHref, updateType, type Tone } from "./lead-view";
 
 export type ReviewAction = "READY_FOR_REVIEW" | "NEEDS_SOURCE" | "NEEDS_CORRECTION" | "DUPLICATE" | "DISMISS" | "REOPEN";
 const TONE: Record<Tone, string> = { green: C.green, amber: C.amber, red: C.red, muted: C.muted, accent: C.accent };
@@ -31,6 +31,7 @@ export function LeadCard({ lead, busy, onAction }: {
       style={{ borderTop: `1px solid ${C.border}`, padding: "12px 0", display: "grid", gap: 6, fontSize: 12, color: C.text }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <span data-lead-class style={badge(TONE[cls.tone])}>{cls.label}</span>
+        {lead.kind === "UPDATE" && <span data-lead-update-type style={badge(C.amber)}>{updateType(lead.title)} · found on a portal, not confirmed</span>}
         <span data-lead-status-badge style={badge(closed ? C.muted : C.accent)}>{STATUS_LABEL[lead.status]}</span>
         <span style={{ fontSize: 14, fontWeight: 600, flex: "1 1 320px", minWidth: 0, overflowWrap: "anywhere" }} data-lead-title>{lead.title}</span>
       </div>
@@ -57,7 +58,7 @@ export function LeadCard({ lead, busy, onAction }: {
 
       {linked && (
         <div data-lead-linked style={{ color: lead.match.kind === "DUPLICATE" ? C.muted : C.accent }}>
-          {lead.match.kind === "DUPLICATE" ? "Already in the CMS" : "Matches"}: <Link href={`/admin/cms/${linked.id}`} style={{ color: C.accent }}>{linked.title}</Link> — {lead.match.reason}
+          {lead.kind === "UPDATE" ? "About the CMS job" : lead.match.kind === "DUPLICATE" ? "Already in the CMS" : "Matches"}: <Link href={`/admin/cms/${linked.id}`} style={{ color: C.accent }}>{linked.title}</Link> — {lead.match.reason}
         </div>
       )}
       {lead.match.kind === "POSSIBLE" && lead.match.candidates.length > 0 && (
@@ -71,13 +72,20 @@ export function LeadCard({ lead, busy, onAction }: {
           ))}
         </div>
       )}
+      {lead.kind === "UPDATE" && !linked && lead.match.kind !== "POSSIBLE" && (
+        <div data-lead-unmatched style={{ color: C.amber }}>No CMS job was matched to this update. It stays listed here; when you know which job it is about, open that job and use Smart intake into it.</div>
+      )}
       <ul data-lead-attention style={{ margin: 0, paddingLeft: 18, color: C.amber }}>
         {attention(lead).map((a) => <li key={a}>{a}</li>)}
       </ul>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <Link href={intakeHref(lead)} data-open-intake style={{ ...quietBtn, textDecoration: "none" }}>{lead.kind === "UPDATE" ? "Open in Smart intake" : "Open in Smart intake as a new job"} →</Link>
-        {linked && <Link href={intakeHref(lead, linked.id)} data-review-against={linked.id} style={{ ...quietBtn, textDecoration: "none" }}>Review against “{linked.title}” →</Link>}
+        {/* An update is never opened as a new job: it is brought into the job it is about. */}
+        {lead.kind === "NEW" && <Link href={intakeHref(lead)} data-open-intake style={{ ...quietBtn, textDecoration: "none" }}>Open in Smart intake as a new job →</Link>}
+        {linked && <Link href={intakeHref(lead, linked.id)} data-review-against={linked.id} style={{ ...quietBtn, textDecoration: "none" }}>{lead.kind === "UPDATE" ? `Bring into “${linked.title}” in Smart intake` : `Review against “${linked.title}”`} →</Link>}
+        {linked && lead.kind === "UPDATE" && (
+          <Link href={checkUpdatesHref(linked.id)} data-check-updates-link style={{ ...quietBtn, textDecoration: "none" }} title="Opens the job; its Check for updates uses one AI request, and only when you press Check there">Check for updates on the job (AI, only when you press Check) →</Link>
+        )}
         {!closed && (["READY_FOR_REVIEW", "NEEDS_SOURCE", "NEEDS_CORRECTION"] as const).filter((a) => a !== lead.status).map((a) => (
           <button key={a} disabled={busy} onClick={() => act(a)} style={quietBtn}>{STATUS_LABEL[a]}</button>
         ))}

@@ -54,6 +54,7 @@ const evidenceLabel = (fieldPath: string) => EVIDENCE_LABELS[fieldPath] ?? field
 import { prepublishChecks } from "@/lib/cms/prepublish-checks";
 import { guessLinkType, onGovernmentDomain } from "@/lib/cms/link-guess";
 import { UpdateCheckPanel } from "./UpdateCheckPanel";
+import { UpdatesNeededPanel } from "./UpdatesNeededPanel";
 import { EligibilityEditor, SelectionEditor } from "./EligibilitySelectionEditors";
 import { InfoTip, HELP } from "../InfoTip";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
@@ -1974,7 +1975,12 @@ export default function CmsRecordEditorPage() {
           <PublishChecklist record={record} onJump={jumpTo} importChecks={importChecks} />
         )}
 
-        <UpdateCheckPanel record={record} onRecordChange={onFieldSaved} />
+        {/* Update leads found on portals and the job's date reminders (U2). Read only. */}
+        {record.draftState !== "ARCHIVED" && <UpdatesNeededPanel recordId={record.id} />}
+
+        <div id="check-updates">
+          <UpdateCheckPanel record={record} onRecordChange={onFieldSaved} />
+        </div>
 
         {/* ── AI Assist panel (DRAFT / APPROVED only) ── */}
         {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
