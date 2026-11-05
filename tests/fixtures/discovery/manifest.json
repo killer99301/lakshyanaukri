@@ -1,0 +1,13 @@
+{
+  "_about": "Saved test pages for Check portals now in a local test copy (DISCOVERY_FIXTURES_DIR). Constructed in each portal's format, not saved live pages. Never used on Vercel.",
+  "pages": {
+    "https://www.freejobalert.com/feed/": { "file": "freejobalert-feed.xml", "type": "application/rss+xml" },
+    "https://www.sarkariresult.com/latestjob.php": { "file": "sarkariresult-latest.html", "type": "text/html" },
+    "https://www.govtjobguru.in/": { "file": "govtjobguru-home.html", "type": "text/html" },
+    "https://www.ibps.in/": { "file": "ibps-home.html", "type": "text/html" },
+    "https://updates.example/latest": { "file": "updates-listing.html", "type": "text/html" }
+  },
+  "extraSources": [
+    { "id": "updates-portal", "name": "Updates portal (test)", "type": "HTML_LINKS", "url": "https://updates.example/latest", "tier": 5, "enabled": true }
+  ]
+}

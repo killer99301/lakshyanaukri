@@ -4,6 +4,7 @@
 // never that it is official or verified; anything uncertain is said, not hidden.
 
 import type { Lead } from "@/lib/cms/discovery/repository";
+import { usableNotice } from "@/lib/cms/discovery/notice";
 
 export type Tone = "green" | "amber" | "red" | "muted" | "accent";
 
@@ -34,6 +35,7 @@ export function attention(lead: Lead): string[] {
   if (lead.match.kind === "POSSIBLE") out.push(lead.match.reason ? `Possible match: ${lead.match.reason}.` : "It may be a job already in the CMS.");
   if (lead.relatedLeads.length) out.push(`${lead.relatedLeads.length} other lead${lead.relatedLeads.length === 1 ? "" : "s"} may be the same recruitment (titles alike, not merged).`);
   if (!lead.notificationNumber) out.push("No notice number was printed with it.");
+  else if (!usableNotice(lead.notificationNumber)) out.push(`The notice number “${lead.notificationNumber}” looks like part of the title (no number besides its year), so it is not used to match jobs.`);
   if (lead.sources.every((s) => !s.official)) out.push("Seen only on portals: research, to be checked against the official notice.");
   else out.push("One link is on an official site; that is where to look, not a check of anything.");
   return out;

@@ -15,6 +15,7 @@ import Link from "next/link";
 import type { Lead } from "@/lib/cms/discovery/repository";
 import { C, PANEL, inputStyle, labelStyle } from "../import/ui";
 import { LeadCard, type ReviewAction } from "./LeadCard";
+import { CheckPortals } from "./CheckPortals";
 import { STATUS_LABEL } from "./lead-view";
 
 const STATUSES = Object.keys(STATUS_LABEL) as Array<Lead["status"]>;
@@ -60,8 +61,9 @@ export default function NewJobsFound() {
       <h1 style={{ fontSize: 22, margin: "0 0 4px" }}>New jobs found</h1>
       <p style={{ color: C.muted, fontSize: 13, margin: "0 0 16px", lineHeight: 1.5 }}>
         Leads the portal readers found. They are research, not jobs: nothing here is official or verified, and nothing is saved to a job
-        until you bring a lead into Smart intake and save it there. Update leads (results, admit cards, extensions) are kept here for now.
+        until you bring a lead into Smart intake and save it there. Update leads (results, admit cards, extensions) are also listed in <Link href="/admin/cms/updates" style={{ color: C.accent }}>Updates needed</Link>.
       </p>
+      <CheckPortals onDone={() => setReload((n) => n + 1)} />
       <div data-lead-filters style={{ ...PANEL, padding: 12, display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
         <label style={{ flex: "1 1 180px" }}><span style={labelStyle}>Status</span>
           <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} style={inputStyle}>

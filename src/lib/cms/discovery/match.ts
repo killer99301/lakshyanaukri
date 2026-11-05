@@ -24,13 +24,8 @@ export interface LeadMatch { kind: MatchKind; recruitmentId: string | null; reas
 const RANK: Record<MatchCandidate["kind"], number> = { DUPLICATE: 3, STRONG: 2, POSSIBLE: 1 };
 const CONFIDENCE: Record<MatchCandidate["kind"], number> = { DUPLICATE: 0.95, STRONG: 0.75, POSSIBLE: 0.4 };
 
-/** A notice number as a comparable key: letters and digits only, upper case; too short or digit-less is none. */
-export function noticeKey(n: string | null | undefined): string | null {
-  // The label is not the number: "Advt. No. 05/2026" and "05/2026" are the same notice.
-  const bare = (n ?? "").trim().replace(/^(?:(?:advt|advertisement|notification|notice|employment notice)\.?\s*)?(?:no|number)\.?\s*[:.\-]?\s*/i, "");
-  const k = bare.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  return k.length >= 4 && /\d/.test(k) ? k : null;
-}
+import { noticeKey } from "@/lib/cms/discovery/notice";
+export { noticeKey };
 
 export function matchLead(lead: LeadForMatch, jobs: CmsJob[]): LeadMatch {
   const key = noticeKey(lead.notificationNumber);
