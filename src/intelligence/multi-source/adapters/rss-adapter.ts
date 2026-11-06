@@ -24,7 +24,7 @@ import { extractNotificationNumber } from "../../discovery";
 import { detectOrgFromText } from "../org-classifier";
 import type { DiscoveryAdapter, AdapterFetchResult } from "./base";
 import type { MultiSourceConfig, RawDiscovery, SourceFetchResult } from "../types";
-import { NOT_ANNOUNCEMENT, UPDATE_WORDS } from "@/lib/cms/importer/discover";
+import { classifyLink } from "@/lib/cms/discovery/link-rules";
 
 // ─── Keyword filter ───────────────────────────────────────────
 
@@ -160,7 +160,7 @@ export function parseRssFeed(config: MultiSourceConfig, xml: string, opts: Parse
   const now = opts.now ?? new Date().toISOString();
 
   for (const item of items) {
-    const title = coerceString(item.title).trim();
+    let title = coerceString(item.title).trim();
     const href =
       typeof item.link === "string" ? item.link.trim() : parseAtomLink(item.link);
     const description = coerceString(item.description).trim();
@@ -171,10 +171,16 @@ export function parseRssFeed(config: MultiSourceConfig, xml: string, opts: Parse
 
     const combined = `${title} ${description}`.slice(0, 500);
 
-    // The collector (opts.keepUpdates) also keeps results, admit cards, extensions… as UPDATE items.
-    const kind: "NEW" | "UPDATE" = opts.keepUpdates && UPDATE_WORDS.test(title) ? "UPDATE" : "NEW";
-    if (kind === "NEW" && !isRecruitmentItem(combined)) continue;
-    if (opts.keepUpdates && NOT_ANNOUNCEMENT.test(title)) continue;
+    // The collector (opts.keepUpdates) reads each item's title with the discovery link rules (a feed item is an
+    // article, never a menu link, so no address is given); an item whose recruitment wording is only in its
+    // description is still a new recruitment, as before. Without the option, exactly the older rule.
+    let kind: "NEW" | "UPDATE" = "NEW";
+    if (opts.keepUpdates) {
+      const verdict = classifyLink(title);
+      if ("skip" in verdict && !(verdict.skip === "no recruitment or update wording" && isRecruitmentItem(combined))) continue;
+      kind = "skip" in verdict ? "NEW" : verdict.kind;
+      title = verdict.title;
+    } else if (!isRecruitmentItem(combined)) continue;
 
     // Org identity comes from the title only — NOT the description.
     // Description may contain other org names in eligibility/context text

@@ -49,7 +49,10 @@ export interface ExtractedLink {
 // ─── HTML helpers ─────────────────────────────────────────────
 
 function stripTags(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#\d+;/g, " ");
+  // Numeric entities are characters ("JHT &#038; Other" is "JHT & Other", "&#8211;" a dash), not spaces.
+  return html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_, n) => { const c = Number(n); return c > 0 && c < 0x110000 ? String.fromCodePoint(c) : " "; })
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => { const c = parseInt(n, 16); return c > 0 && c < 0x110000 ? String.fromCodePoint(c) : " "; });
 }
 
 function resolveUrl(href: string, base: string): string {

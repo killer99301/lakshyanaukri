@@ -25,7 +25,7 @@ import { parseRssFeed } from "@/intelligence/multi-source/adapters/rss-adapter";
 import { clusterDiscoveries } from "@/intelligence/multi-source/clusterer";
 import { bigramJaccard } from "@/intelligence/dedup";
 import type { DiscoveryCluster, MultiSourceConfig, RawDiscovery } from "@/intelligence/multi-source/types";
-import { matchLead, noticeKey, type CmsJob, type LeadMatch } from "@/lib/cms/discovery/match";
+import { matchLead, noticeKey, relatedLeadTitles, type CmsJob, type LeadMatch } from "@/lib/cms/discovery/match";
 
 export const MAX_ITEMS_PER_SOURCE = 100;
 const MAX_SOURCES = 10;
@@ -160,10 +160,14 @@ async function relate(groups: Array<{ cluster: DiscoveryCluster; lead: Collected
       const a = groups[i], b = groups[j];
       if (a.lead.id === b.lead.id || a.lead.kind !== b.lead.kind) continue;
       const pa = a.cluster.primaryHit, pb = b.cluster.primaryHit;
-      if (!pa.organizationId || pa.organizationId !== pb.organizationId) continue;
-      const sim = bigramJaccard(pa.titleSimilarityKey, pb.titleSimilarityKey);
-      if (sim < 0.75) continue;
-      const reason = `titles ${Math.round(sim * 100)}% alike (not merged: no shared notice number or address)`;
+      // A recognised organisation and closely alike titles, as before; or, for any two leads, the same body,
+      // exam, year and post count or exam wording (relatedLeadTitles: Stage 1, the same job on two portals
+      // whose organisation is not recognised). Never merged.
+      const sim = pa.organizationId && pa.organizationId === pb.organizationId ? bigramJaccard(pa.titleSimilarityKey, pb.titleSimilarityKey) : 0;
+      const reason = sim >= 0.75
+        ? `titles ${Math.round(sim * 100)}% alike (not merged: no shared notice number or address)`
+        : relatedLeadTitles({ title: pa.title, organizationId: pa.organizationId || null }, { title: pb.title, organizationId: pb.organizationId || null });
+      if (!reason) continue;
       for (const [x, y] of [[a, b], [b, a]] as const) {
         await sql`
           UPDATE discovery_leads SET related_leads = related_leads || ${JSON.stringify([{ leadId: y.lead.id, reason }])}::jsonb

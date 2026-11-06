@@ -38,7 +38,9 @@ const NOTICE_WORDS = new Set(("recruitment notification notice result declared a
   "extended extension last date apply online form out exam examination post vacancy released revised schedule city intimation " +
   "answer key cut off merit list final provisional official website download link update new the for of and in to on advt no " +
   "now check details pdf application registration started start begin begins reopened reopen notified detailed short through via " +
-  "regarding about important latest").split(" ").map((w) => w.replace(/s$/, "")));
+  "regarding about important latest " +
+  // The stage of a notice, not the exam (Stage 1, real pages: "Result Status of Online Preliminary Examination for CRP-SPL-XVI").
+  "status preliminary prelim mains score marks stage phase tier document verification upload correction edit window").split(" ").map((w) => w.replace(/s$/, "")));
 const ROMAN = /^(?:x{1,3}(?:ix|iv|v?i{0,3})|ix|iv|v|v?i{1,3})$/;
 const CYCLE = (t: string) => ROMAN.test(t) || /^\d+(?:st|nd|rd|th)$/.test(t) || /^\d{1,3}$/.test(t);
 
@@ -59,7 +61,7 @@ function examWords(title: string, orgWords: Set<string>): ExamWords {
 }
 
 /** Whether two titles of the same organisation name the same exam; when not, why. */
-export function sameExam(leadTitle: string, jobTitle: string, orgWords: Set<string>): { same: boolean; why?: string } {
+export function sameExam(leadTitle: string, jobTitle: string, orgWords: Set<string>): { same: boolean; why?: string; shared?: number } {
   const a = examWords(leadTitle, orgWords), b = examWords(jobTitle, orgWords);
   if (a.identity.size === 0) return { same: false, why: "the lead's title names no exam, only the organisation and the kind of notice" };
   const covered = (x: ExamWords, y: ExamWords) => {
@@ -74,11 +76,46 @@ export function sameExam(leadTitle: string, jobTitle: string, orgWords: Set<stri
   if (onlyA.length && onlyB.length) return { same: false, why: `the titles name different exams (“${onlyA.join(" ")}” / “${onlyB.join(" ")}”)` };
   if (a.cycles.size && b.cycles.size && ![...a.cycles].some((c) => b.cycles.has(c))) return { same: false, why: `the titles give different cycles (${[...a.cycles].join(", ")} / ${[...b.cycles].join(", ")})` };
   if (onlyA.length === a.identity.size) return { same: false, why: "no exam word of the lead is in this job's title" };
-  return { same: true };
+  return { same: true, shared: coveredA.size };
 }
 
 const orgWordsOf = (...names: Array<string | null | undefined>) =>
   new Set(names.flatMap((n) => (n ?? "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/)).filter((w) => w.length > 1).map((w) => w.replace(/s$/, "")));
+
+// ── Titles whose organisation was not recognised ──
+/** The body a title starts with, when it starts with an acronym ("OPSC ASO …", "AIIMS Patna …"): lower case, as words are compared. */
+export function leadingAcronym(title: string): string | null {
+  const first = title.trim().split(/\s+/)[0]?.replace(/[^A-Za-z0-9]/g, "") ?? "";
+  return /^[A-Z][A-Z0-9]{2,7}$/.test(first) ? first.toLowerCase().replace(/s$/, "") : null;
+}
+/** The number of posts a title gives ("… for 340 Posts", "340 Assistant Section Officer Posts"). */
+export function postCount(title: string): number | null {
+  const m = /\b(\d[\d,]*)\s+(?:[A-Za-z&.,()/'’\- ]{0,50}\s)?posts?\b/i.exec(title);
+  return m ? Number(m[1].replace(/,/g, "")) : null;
+}
+const yearsOf = (t: string) => new Set(t.match(/\b20\d{2}\b/g) ?? []);
+
+/**
+ * Whether two leads seen on different portals may be the same recruitment, and why (Stage 1: "OPSC Assistant
+ * Section Officer Recruitment 2026 – … 340 Posts" and "OPSC ASO Recruitment 2026 – … 340 Assistant Section
+ * Officer Posts"). Only ever a reviewable link between two leads, never a merge. Needs the same organisation
+ * (recognised, or the same acronym the titles start with), the same exam (no exam word on each side the other
+ * lacks, cycles agreeing), no other year, and independent support: the same post count, or three shared exam words.
+ */
+export function relatedLeadTitles(a: { title: string; organizationId: string | null }, b: { title: string; organizationId: string | null }): string | null {
+  const acrA = leadingAcronym(a.title), acrB = leadingAcronym(b.title);
+  const sameBody = a.organizationId && b.organizationId ? a.organizationId === b.organizationId : !!acrA && acrA === acrB;
+  if (!sameBody) return null;
+  const ya = yearsOf(a.title), yb = yearsOf(b.title);
+  if (ya.size && yb.size && ![...ya].some((y) => yb.has(y))) return null;
+  const ca = postCount(a.title), cb = postCount(b.title);
+  if (ca !== null && cb !== null && ca !== cb) return null;
+  const exam = sameExam(a.title, b.title, orgWordsOf(a.organizationId, b.organizationId, acrA, acrB));
+  if (!exam.same) return null;
+  if (ca !== null && ca === cb) return `same body and exam, and the same ${ca} posts (not merged: no shared notice number or address)`;
+  if ((exam.shared ?? 0) >= 3) return `same body and exam wording (not merged: no shared notice number or address)`;
+  return null;
+}
 
 export function matchLead(lead: LeadForMatch, jobs: CmsJob[]): LeadMatch {
   const key = noticeKey(lead.notificationNumber);
@@ -98,6 +135,14 @@ export function matchLead(lead: LeadForMatch, jobs: CmsJob[]): LeadMatch {
     // The job's year counts when its title leaves it out.
     const jobTitle = job.year && year && !job.title.includes(year) && String(job.year) === year ? `${job.title} ${job.year}` : job.title;
     if (similarJobs(lead.title, [{ id: job.id, title: jobTitle }]).length === 0) continue;
+    // Organisation not recognised: no suggestion when the title starts with another body's acronym ("AIIMS Patna
+    // …" is not an IBPS job), nor when the titles do not name the same exam (Stage 1, real pages).
+    if (!lead.organizationId) {
+      const jobWords = orgWordsOf(job.organizationId, job.organizationName);
+      const acr = leadingAcronym(lead.title);
+      if (acr && !jobWords.has(acr) && !orgWordsOf(job.title).has(acr)) continue;
+      if (!sameExam(lead.title, job.title, jobWords).same) continue;
+    }
     // Strong only when the titles also name the same exam; otherwise the admin chooses, told why.
     const exam = sameOrg && year ? sameExam(lead.title, job.title, orgWordsOf(lead.organizationId, lead.organizationName, job.organizationId, job.organizationName)) : null;
     candidates.push(sameOrg && year && exam?.same

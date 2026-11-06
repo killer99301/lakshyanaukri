@@ -21,7 +21,7 @@ import {
 import { detectOrgFromText } from "../org-classifier";
 import type { DiscoveryAdapter, AdapterFetchResult } from "./base";
 import type { MultiSourceConfig, RawDiscovery, SourceFetchResult } from "../types";
-import { NOT_ANNOUNCEMENT, UPDATE_WORDS } from "@/lib/cms/importer/discover";
+import { classifyLink } from "@/lib/cms/discovery/link-rules";
 
 // ─── Adapter ──────────────────────────────────────────────────
 
@@ -89,10 +89,17 @@ export function parseHtmlLinks(config: MultiSourceConfig, html: string, opts: Pa
   const discoveries: RawDiscovery[] = [];
 
   for (const link of links) {
-    // The collector (opts.keepUpdates) also keeps results, admit cards, extensions… as UPDATE leads.
-    const kind: "NEW" | "UPDATE" = opts.keepUpdates && UPDATE_WORDS.test(link.text) ? "UPDATE" : "NEW";
-    if (kind === "NEW" && !isNewRecruitmentNotice(link.text)) continue;
-    if (opts.keepUpdates && NOT_ANNOUNCEMENT.test(link.text)) continue;
+    // The collector (opts.keepUpdates) reads each link with the discovery link rules: a new recruitment, an
+    // update of one (result, admit card, date extended…), or not a lead (menu, course…); its title is cleaned.
+    // Without the option, exactly the older rule.
+    let kind: "NEW" | "UPDATE" = "NEW";
+    let text = link.text;
+    if (opts.keepUpdates) {
+      const verdict = classifyLink(text, link.href);
+      if ("skip" in verdict) continue;
+      kind = verdict.kind;
+      text = verdict.title;
+    } else if (!isNewRecruitmentNotice(text)) continue;
 
     // Org identity comes from the document title only — NOT the hosting URL.
     // ibpsreg.ibps.in can host NMDFC/IOB/RCF notices; the href domain must not override the title org.
@@ -101,7 +108,7 @@ export function parseHtmlLinks(config: MultiSourceConfig, html: string, opts: Pa
     // body text in the link text (e.g. "...listed in Second Schedule of Reserve Bank of India"),
     // which would falsely classify a Bank of Baroda listing as "rbi". The org name always
     // appears in the leading title portion; 150 chars is a safe upper bound for the title.
-    let orgId = detectOrgFromText(link.text.slice(0, 150), config.orgFilter);
+    let orgId = detectOrgFromText(text.slice(0, 150), config.orgFilter);
 
     // Official-source fallback (tier ≤ 3, single orgFilter):
     // When text detection fails on an official source's own hostname, use the configured org.
@@ -125,8 +132,8 @@ export function parseHtmlLinks(config: MultiSourceConfig, html: string, opts: Pa
     if (!orgId && !opts.keepUnknownOrg) continue;
 
     const orgName = orgId ? ORG_NAMES[orgId] ?? orgId.toUpperCase() : "";
-    const notificationNumber = extractNotificationNumber(link.text);
-    const notifTitle = notificationNumber ?? link.text;
+    const notificationNumber = extractNotificationNumber(text);
+    const notifTitle = notificationNumber ?? text;
     const normalizedNotifNumber = normalizeNotificationNumber(notifTitle);
     const pdfUrl = link.pdfUrl;
 
@@ -143,18 +150,18 @@ export function parseHtmlLinks(config: MultiSourceConfig, html: string, opts: Pa
       sourceUrl: config.url,
       organizationId: orgId ?? "",
       organizationName: orgName,
-      title: link.text,
+      title: text,
       href: link.href,
       notificationNumber,
       normalizedNotifNumber,
       pdfUrl,
       nearbyDate: link.nearbyDate,
-      titleSimilarityKey: buildTitleSimilarityKey(link.text),
+      titleSimilarityKey: buildTitleSimilarityKey(text),
       sourceUrlFingerprint: normalizeSourceUrl(pdfUrl ?? link.href),
       confidence,
       discoveredAt: now,
       ...(opts.keepUpdates ? { kind } : {}),
-      rawExcerpt: `[${link.text}] ${link.nearbyDate ?? "no date"} ${pdfUrl ?? link.href}`.slice(0, 300),
+      rawExcerpt: `[${text}] ${link.nearbyDate ?? "no date"} ${pdfUrl ?? link.href}`.slice(0, 300),
     });
   }
   return discoveries;
