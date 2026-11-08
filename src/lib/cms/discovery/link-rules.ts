@@ -68,6 +68,9 @@ export function isMenuLink(text: string, href?: string): boolean {
   return false;
 }
 
+// Eligibility exams (G1): in their own client-safe module, for the inbox; given cleaned titles.
+export { isEligibilityExam } from "@/lib/cms/discovery/eligibility-exam";
+
 export type LinkVerdict = { kind: "NEW" | "UPDATE"; title: string } | { skip: string; title: string };
 
 /** What a portal link is, for the collector: a new recruitment, an update of one, or not a lead (and why). */

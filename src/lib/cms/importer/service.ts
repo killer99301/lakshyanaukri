@@ -34,6 +34,7 @@ import type { TranscribedPage } from "@/lib/cms/importer/scan-tables";
 import { TABLE_PATH, quoteIsPrintedTotal, tableCheckNeeds, tableCheckScope, tableTotalView, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
 import { PAGELESS_KINDS } from "@/lib/vacancy-table";
 import { statesVacancyCount } from "@/lib/cms/importer/vacancy-count";
+import { fieldEvidence, type FieldEvidence } from "@/lib/cms/importer/field-evidence";
 import {
   ImportApplyError, appliedImportsFor, applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
@@ -571,6 +572,9 @@ export async function assemblePreview(opts: {
       duplicates,
       ...(opts.unavailable?.length ? { unavailable: opts.unavailable } : {}),
       aiRequests: { ...paced.stats },
+      // Vacancy figures held rather than offered (I5). Counted here, on the server, so a preview holding only them
+      // can still be saved as a draft (G1): its figures then wait in the job's vacancy editor, added only from there.
+      heldTables: sources.reduce((n, s) => n + heldTablesOf(tableNotes.get(s.retrieval.id) ?? null, s.summary as unknown as Parameters<typeof heldTablesOf>[1]).length, 0),
     },
   };
   await storePreview({
@@ -654,6 +658,8 @@ export interface CheckRow extends FieldVerdict {
   value: unknown;
   latestRevisionId: string | null;
   decisionId: string | undefined;
+  /** What each source said about the field, and the stored evidence the check form can start from (G2). */
+  evidence: FieldEvidence;
 }
 
 export async function checksFor(record: RecruitmentRecord) {
@@ -661,9 +667,19 @@ export async function checksFor(record: RecruitmentRecord) {
   const [states, first, retrievals] = await Promise.all([fieldStates(record, CRITICAL_FIELDS), firstImportAt(record.id), retrievalsFor(record.id)]);
   const tableTotal = await tableTotalContext(record, first);
   const gate = publishGate(states, first, tableTotal);
+  // Each document's name and kept text, to show and test the stored quotes (G2). The text stays on the server.
+  const docs = retrievals.map((r) => ({ ...r, name: docLabel(r) }));
+  const texts = new Map<string, string>(retrievals.length === 0 ? [] : (await sql`
+    SELECT r.id, s.text FROM recruitment_source_retrievals r JOIN recruitment_sources s ON s.id = r.source_id
+    WHERE r.id = ANY(${retrievals.map((r) => r.id)}::uuid[])`).map((r) => [String(r.id), String(r.text ?? "")] as [string, string]));
   const rows: CheckRow[] = gate.verdicts.map((v) => {
     const s = states.find((x) => x.fieldPath === v.fieldPath)!;
-    return { ...v, tier: fieldDef(v.fieldPath).tier, value: s.value, latestRevisionId: s.latestRevisionId, decisionId: effectiveDecision(s)?.id };
+    const evidence = fieldEvidence(s, fieldDef(v.fieldPath).purpose, docs, texts);
+    // A total worked out from the vacancy table, and the table itself, are checked by their own routes (Stage C):
+    // the printed line or the whole-table check. Their evidence is shown, never put in the form.
+    const ownRoute = v.fieldPath === TABLE_PATH || (v.fieldPath === "vacancies.total" && !!tableTotal);
+    return { ...v, tier: fieldDef(v.fieldPath).tier, value: s.value, latestRevisionId: s.latestRevisionId, decisionId: effectiveDecision(s)?.id,
+      evidence: ownRoute ? { ...evidence, prefill: null, suggestions: [] } : evidence };
   });
   // Every imported field's state, for the editor's badges (critical or not).
   // Derived from the claims and the field's current revision; the field's own

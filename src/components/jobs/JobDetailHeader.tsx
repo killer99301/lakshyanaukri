@@ -280,14 +280,16 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                     </a>
                   )}
 
-                  {job.links.apply && (
+                  {(job.links.apply || (job.type === "government" && job.links.website)) && (
+                    // Only a real application link is "Apply Online"; without one, the official website is named as that (G1).
                     <a
-                      href={job.links.apply}
+                      href={job.links.apply || (job.type === "government" ? job.links.website : undefined)}
                       target="_blank"
                       rel="noopener noreferrer"
+                      data-apply-kind={job.links.apply ? "apply" : "website"}
                       className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-[#EA580C] to-[#F95738] text-white font-extrabold text-sm shadow-md shadow-orange-500/20 hover:opacity-95 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
                     >
-                      <span>Apply Online</span>
+                      <span>{job.links.apply ? "Apply Online" : "Official Website"}</span>
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   )}

@@ -7,7 +7,11 @@
 // Shown only on jobs that have had an import applied. Lists every critical
 // field with its class and lets a person record, against one document:
 // verified (page + exact words), not applicable (the words that say so),
-// or not stated (what was read). Each decision is bound to the field's
+// or not stated (what was read). Since G2 each field shows what its sources
+// said (value, document, words, page or web text, standing, disagreements),
+// and Confirm starts from the stored official passage instead of an empty
+// form; the person can still change it or enter other evidence by hand, and
+// the server checks every decision exactly as before. Each decision is bound to the field's
 // current revision; any later change to the field reopens it. Publishing is
 // refused on the server until Tier A fields are verified or not applicable
 // and Tier B fields are also allowed "not stated".
@@ -18,10 +22,13 @@ import { C, PANEL, CLASS_LOOK, badge, inputStyle, labelStyle, quietBtn, showValu
 import { badgeWords, rowActions, type PrintedLine, type TableCheckState, type TableTotalView } from "./check-actions";
 import { TableCheckPanel } from "./TableCheckPanel";
 import type { TableNeeds } from "./table-check-form";
+import type { FieldEvidence, EvidenceItem } from "@/lib/cms/importer/field-evidence";
 
 interface Row {
   fieldPath: string; label: string; cls: string; reason: string; tier?: "A" | "B";
   value: unknown; latestRevisionId: string | null; decisionId?: string;
+  /** What the sources said, and the stored evidence to start a check from (G2). */
+  evidence?: FieldEvidence;
 }
 interface Retrieval {
   id: string; declaredKind: string; versionLabel: string | null; originHost: string | null; originRole: string;
@@ -43,6 +50,45 @@ type Kind = "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED";
 const docName = (r: Retrieval) =>
   `${r.originHost ?? "document"} — ${r.versionLabel ?? r.declaredKind.replace("OFFICIAL_", "").toLowerCase().replace(/_/g, " ")} (${r.authenticity.toLowerCase()}${r.originRole === "PARTNER" ? ", partner" : ""})`;
 
+const STANDING_COLOR: Record<string, string> = { OFFICIAL: C.green, RESEARCH: C.amber, UNCONFIRMED: C.amber, NOT_TRUSTED_FOR_THIS: C.amber };
+const STANDING_WORDS: Record<string, string> = { OFFICIAL: "Official", RESEARCH: "Research", UNCONFIRMED: "Not confirmed", NOT_TRUSTED_FOR_THIS: "Not trusted for this" };
+
+/** What the field's sources said (G2): value, document, words, where, standing; and the values that disagree. */
+export function EvidenceList({ row, onUse, usedClaimId }: { row: Row; onUse?: (item: EvidenceItem) => void; usedClaimId?: string | null }) {
+  const ev = row.evidence;
+  if (!ev || ev.items.length === 0) {
+    return <div data-evidence-none style={{ color: C.muted }}>No source stated this value when it was imported (typed in, or kept from before). Enter the evidence by hand below.</div>;
+  }
+  return (
+    <div data-evidence style={{ display: "grid", gap: 6 }}>
+      {ev.conflicts.length > 0 && (
+        <div data-evidence-conflict role="alert" style={{ color: C.red }}>
+          The sources disagree: {ev.conflicts.map((c, i) => <span key={i}>{i > 0 ? " · " : ""}“{showValue(c.value, row.fieldPath)}” ({c.documents.join("; ")})</span>)}. Confirm only the value the official document states.
+        </div>
+      )}
+      {ev.items.map((it) => (
+        <div key={it.claimId} data-evidence-item={it.claimId} data-evidence-standing={it.standing}
+          style={{ border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 8px", display: "grid", gap: 3, background: usedClaimId === it.claimId ? `${C.green}11` : undefined }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={badge(STANDING_COLOR[it.standing] ?? C.muted)}>{STANDING_WORDS[it.standing] ?? it.standing}</span>
+            <span style={{ color: C.text, overflowWrap: "anywhere" }}>{it.document}</span>
+            <span style={{ color: C.muted }}>· {it.location}</span>
+            {!it.matchesCurrent && <span style={{ color: C.amber }}>· states another value</span>}
+          </div>
+          <div style={{ color: C.muted }}>Value: <span style={{ color: C.text }}>{showValue(it.value, row.fieldPath)}</span></div>
+          {it.quote
+            ? <div data-evidence-quote style={{ color: C.text, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>“{it.quote}”{it.quoteFound === false ? <span style={{ color: C.amber }}> (not found exactly in the document)</span> : null}</div>
+            : <div style={{ color: C.muted }}>No words were kept with it.</div>}
+          <div style={{ color: C.muted, fontSize: 11 }}>{it.standingWords}{!it.usable && it.notUsable && it.standing === "OFFICIAL" ? ` — ${it.notUsable}` : ""}</div>
+          {onUse && it.usable && usedClaimId !== it.claimId && (
+            <div><button data-evidence-use onClick={() => onUse(it)} style={{ ...quietBtn, padding: "1px 8px" }}>Use this passage</button></div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel, inFull, printedLine }: {
   recordId: string; row: Row; kind: Kind; retrievals: Retrieval[]; onDone: () => void; onCancel: () => void;
   /** "Not stated in full" for an incomplete total worked out from the table: the table's pages, to tick those read. */
@@ -54,9 +100,18 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
     && (kind === "ADMIN_NOT_STATED" ? r.originRole === "AUTHORITY" : r.originRole === "AUTHORITY" || r.originRole === "PARTNER"));
   // The printed total's own document, when it names one (a web page or text, C2.1); otherwise the first eligible.
   const citedDoc = printedLine && printedLine.page === null && eligible.some((r) => r.id === printedLine.retrievalId) ? printedLine.retrievalId : null;
-  const [retrievalId, setRetrievalId] = useState(citedDoc ?? eligible[0]?.id ?? "");
-  const [page, setPage] = useState("");
-  const [quote, setQuote] = useState("");
+  // Confirm starts from the stored official passage that states this value (G2), when there is one and the form
+  // is not the printed-total route, whose line the person cites. Changing anything below is always possible.
+  const stored = row.evidence?.prefill ?? null;
+  const prefill = kind === "ADMIN_VERIFIED" && !printedLine && stored && eligible.some((r) => r.id === stored.retrievalId) ? stored : null;
+  const [retrievalId, setRetrievalId] = useState(prefill?.retrievalId ?? citedDoc ?? eligible[0]?.id ?? "");
+  const [page, setPage] = useState(prefill?.page ? String(prefill.page) : "");
+  const [quote, setQuote] = useState(prefill?.quote ?? "");
+  const [usedClaim, setUsedClaim] = useState<string | null>(prefill?.claimId ?? null);
+  const useItem = (it: EvidenceItem) => {
+    if (!it.retrievalId || !it.quote) return;
+    setRetrievalId(it.retrievalId); setPage(it.page ? String(it.page) : ""); setQuote(it.quote); setUsedClaim(it.claimId);
+  };
   const [whole, setWhole] = useState(!inFull);
   const [pages, setPages] = useState("");
   const [ticked, setTicked] = useState<number[]>([]);
@@ -101,10 +156,32 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
     );
   }
   const title = inFull ? "Not stated in full: the notice does not give these figures"
-    : { ADMIN_VERIFIED: "Checked against the official document", ADMIN_NOT_APPLICABLE: "Not applicable to this job", ADMIN_NOT_STATED: "The notice does not state this" }[kind];
+    : { ADMIN_VERIFIED: "Confirm against the official document", ADMIN_NOT_APPLICABLE: "Not applicable to this job", ADMIN_NOT_STATED: "The notice does not state this" }[kind];
   return (
     <div data-decision-form style={{ border: `1px solid ${C.accent}44`, borderRadius: 8, padding: 10, margin: "6px 0 10px", display: "grid", gap: 8, fontSize: 12 }}>
       <strong style={{ color: C.text }}>{title}</strong>
+      {kind === "ADMIN_VERIFIED" && !inFull && (
+        <div style={{ display: "grid", gap: 6 }}>
+          <div style={{ color: C.muted }}>Proposed value: <span data-proposed-value style={{ color: C.text }}>{showValue(row.value, row.fieldPath)}</span></div>
+          {!printedLine && <EvidenceList row={row} onUse={useItem} usedClaimId={usedClaim} />}
+          {!prefill && !printedLine && (row.evidence?.suggestions.length ?? 0) > 0 && (
+            <div data-suggestions style={{ display: "grid", gap: 4 }}>
+              <div style={{ color: C.muted }}>Lines of the official document that hold this value, found by searching it (not stored with the value). Read the line in the document before using it: it may be about another date or figure.</div>
+              {row.evidence!.suggestions.map((sg, i) => (
+                <div key={i} data-suggestion style={{ border: `1px dashed ${C.border}`, borderRadius: 6, padding: "4px 8px", display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+                  <span style={{ flex: "1 1 300px", color: C.text, overflowWrap: "anywhere" }}>“{sg.quote}” <span style={{ color: C.muted }}>— {sg.document} · {sg.location}</span></span>
+                  {eligible.some((r) => r.id === sg.retrievalId) && (
+                    <button data-suggestion-use onClick={() => { setRetrievalId(sg.retrievalId); setPage(sg.page ? String(sg.page) : ""); setQuote(sg.quote); setUsedClaim(null); }} style={{ ...quietBtn, padding: "1px 8px" }}>Use this passage</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {prefill
+            ? <div data-prefilled style={{ color: C.muted }}>The document, page and words below are the stored official passage. Read them against the document before you confirm; change them if they are not right. The server checks the words against the document again.</div>
+            : !printedLine && <div data-manual-evidence style={{ color: C.muted }}>No stored official passage can be used for this value: {(row.evidence?.suggestions.length ?? 0) > 0 ? "use a line above, or " : ""}choose the document and copy its words below.</div>}
+        </div>
+      )}
       {kind === "ADMIN_VERIFIED" && printedLine && (
         <div data-printed-line style={{ color: C.muted }}>
           {printedLine.page === null
@@ -119,17 +196,17 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
         </div>
       )}
       <label><span style={labelStyle}>Document</span>
-        <select value={retrievalId} onChange={(e) => setRetrievalId(e.target.value)} style={inputStyle}>
+        <select value={retrievalId} onChange={(e) => { setRetrievalId(e.target.value); setUsedClaim(null); }} style={inputStyle}>
           {eligible.map((r) => <option key={r.id} value={r.id}>{docName(r)}</option>)}
         </select>
       </label>
       {kind !== "ADMIN_NOT_STATED" && (
         <div style={{ display: "grid", gridTemplateColumns: pagelessDoc ? "1fr" : "100px 1fr", gap: 8 }}>
           {!pagelessDoc && <label><span style={labelStyle}>Page{doc?.contentKind === "PDF" ? " (required)" : ""}</span>
-            <input value={page} onChange={(e) => setPage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" style={inputStyle} />
+            <input value={page} onChange={(e) => { setPage(e.target.value.replace(/\D/g, "")); setUsedClaim(null); }} inputMode="numeric" style={inputStyle} />
           </label>}
           <label><span style={labelStyle}>The exact words in the document</span>
-            <textarea value={quote} onChange={(e) => setQuote(e.target.value)} rows={2} style={{ ...inputStyle, resize: "vertical" }} placeholder="Copy them from the PDF" />
+            <textarea value={quote} onChange={(e) => { setQuote(e.target.value); setUsedClaim(null); }} rows={2} style={{ ...inputStyle, resize: "vertical" }} placeholder="Copy them from the PDF" />
           </label>
         </div>
       )}
@@ -165,7 +242,7 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
       )}
       {err && <div role="alert" style={{ color: C.red }}>{err}</div>}
       <div style={{ display: "flex", gap: 6 }}>
-        <button onClick={() => { void submit(); }} disabled={busy || !retrievalId || !inFullReady} style={{ ...quietBtn, borderColor: C.green, color: C.green }}>{busy ? "Saving…" : "Record"}</button>
+        <button onClick={() => { void submit(); }} disabled={busy || !retrievalId || !inFullReady} style={{ ...quietBtn, borderColor: C.green, color: C.green }}>{busy ? "Saving…" : kind === "ADMIN_VERIFIED" ? "Confirm" : "Record"}</button>
         <button onClick={onCancel} style={{ ...quietBtn, color: C.muted, borderColor: C.border }}>Cancel</button>
       </div>
     </div>
@@ -227,8 +304,18 @@ const checkState = (c: Checks): ImportCheckState => ({
   checked: c.imported ? c.rows.filter((r) => r.cls === "VERIFIED").map((r) => r.fieldPath) : [],
 });
 
-export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
+/** The editor section a check row's field is in, for "Correct" (G2). */
+export function sectionOf(fieldPath: string): string {
+  if (fieldPath.startsWith("links#")) return "Links";
+  const ns = fieldPath.split(".")[0];
+  return ({ identity: "Identity", dates: "Dates", vacancies: "Vacancies", financial: "Financial", age: "Age", eligibility: "Eligibility",
+    selection: "Selection", examStages: "Exam Stages", howToApply: "How to Apply", examPattern: "Exam Pattern", syllabus: "Syllabus" } as Record<string, string>)[ns] ?? "Identity";
+}
+
+export function ImportChecksPanel({ record, onRecordChange, onChecks, onJump }: {
   record: RecruitmentRecord;
+  /** Opens the editor at a field, for "Correct": a change there reopens the field's check. */
+  onJump?: (section: string, fieldPath?: string) => void;
   onRecordChange: (r: RecruitmentRecord) => void;
   /** How many imported fields still need a person's check, and which are checked. */
   onChecks?: (s: ImportCheckState) => void;
@@ -318,12 +405,24 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks }: {
                   <span style={badge(look.color)}>{look.label}</span>
                   {row.reason && <div data-check-reason style={{ color: C.muted, fontSize: 11, marginTop: 3, lineHeight: 1.4, overflowWrap: "anywhere" }}>{row.reason}</div>}
                 </td>
-                <td style={{ padding: "7px 8px 7px 0", color: C.muted, whiteSpace: "pre-wrap", maxWidth: 320, overflowWrap: "anywhere" }}>{row.value === null || row.value === undefined ? "—" : showValue(row.value, row.fieldPath)}</td>
+                <td style={{ padding: "7px 8px 7px 0", color: C.muted, whiteSpace: "pre-wrap", maxWidth: 320, overflowWrap: "anywhere" }}>
+                  {row.value === null || row.value === undefined ? "—" : showValue(row.value, row.fieldPath)}
+                  {row.evidence && row.evidence.items.length > 0 && (
+                    <div data-evidence-summary style={{ fontSize: 11, marginTop: 3, color: row.evidence.conflicts.length ? C.red : C.muted }}>
+                      {row.evidence.conflicts.length ? `Sources disagree (${row.evidence.conflicts.length} values) · ` : ""}
+                      From {[...new Set(row.evidence.items.map((i) => `${i.document} (${(STANDING_WORDS[i.standing] ?? i.standing).toLowerCase()}, ${i.location})`))].join("; ")}
+                      {row.evidence.prefill ? " · stored official passage ready to confirm" : ""}
+                    </div>
+                  )}
+                </td>
                 <td style={{ padding: "7px 0", textAlign: "right", whiteSpace: "nowrap" }}>
                   {editable && canCheck && (
                     <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
                       {act.verify && (
-                        <button onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_VERIFIED" })} style={{ ...quietBtn, padding: "2px 8px" }}>Verify</button>
+                        <button data-confirm onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_VERIFIED" })} style={{ ...quietBtn, padding: "2px 8px" }}>Confirm</button>
+                      )}
+                      {onJump && row.fieldPath !== "vacancies.table" && (
+                        <button data-correct title="Change the value in the editor; the change reopens this check" onClick={() => onJump(sectionOf(row.fieldPath), row.fieldPath)} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Correct</button>
                       )}
                       {act.notApplicable && <button onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_NOT_APPLICABLE" })} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Not applicable</button>}
                       {act.notStated && <button onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_NOT_STATED" })} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Not stated</button>}

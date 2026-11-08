@@ -82,7 +82,8 @@ function leadKey(c: DiscoveryCluster, kind: "NEW" | "UPDATE"): string {
   return `${kind}:${p.organizationId || "?"}:${notice}`;
 }
 
-async function cmsJobs(): Promise<CmsJob[]> {
+/** The CMS jobs leads are matched against (also the listing-page Grab, G1). */
+export async function cmsJobs(): Promise<CmsJob[]> {
   const rows = await sql`
     SELECT id, organization_id, organization_name, coalesce(title_text, identity->'title'->>'value', '') AS title,
            identity->'notificationNumber'->>'value' AS notification_number,

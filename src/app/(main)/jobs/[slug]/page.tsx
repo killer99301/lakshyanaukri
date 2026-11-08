@@ -86,7 +86,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
       job.shortDescription ||
       `Check eligibility, application dates, vacancies, exam pattern, and official notifications for ${job.title}.`,
     url: `${siteConfig.url}/jobs/${job.slug}`,
-    dateModified: job.provenance.lastVerifiedAt,
+    dateModified: job.provenance.pageUpdatedAt || job.provenance.lastVerifiedAt || undefined,
     publisher: {
       "@type": "Organization",
       name: "LakshyaNaukri",
@@ -147,8 +147,9 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
             <OfficialNotificationCard
               notificationPdfUrl={job.type === "government" ? job.links.notification : undefined}
               officialWebsiteUrl={job.links.website}
-              sourceName={job.provenance.primarySourceType.replace(/_/g, " ")}
-              verifiedAt={job.provenance.lastVerifiedAt}
+              sourceType={job.provenance.primarySourceType}
+              verifiedAt={job.provenance.lastVerifiedAt || undefined}
+              keyDetailsChecked={job.provenance.keyDetailsChecked === true}
             />
 
             <JobDownloads items={job.downloads} />

@@ -5,6 +5,7 @@
 
 import type { Lead } from "@/lib/cms/discovery/repository";
 import { usableNotice } from "@/lib/cms/discovery/notice";
+import { isEligibilityExam } from "@/lib/cms/discovery/eligibility-exam";
 
 export type Tone = "green" | "amber" | "red" | "muted" | "accent";
 
@@ -18,6 +19,8 @@ export function safeHref(url: string | null | undefined): string | null {
 }
 
 export function classify(lead: Lead): { label: string; tone: Tone } {
+  // A standalone eligibility exam (G1): kept as found, with its sources, and said to be no recruitment.
+  if (isEligibilityExam(lead.title)) return { label: lead.kind === "UPDATE" ? "Eligibility exam update — not a recruitment" : "Eligibility exam — not a recruitment", tone: "muted" };
   if (lead.kind === "UPDATE") return { label: lead.match.recruitmentId && lead.match.kind !== "POSSIBLE" ? "Update of a CMS job" : "Possible update", tone: "amber" };
   switch (lead.match.kind) {
     case "DUPLICATE": return { label: "Duplicate of a CMS job", tone: "muted" };
@@ -31,6 +34,7 @@ export function classify(lead: Lead): { label: string; tone: Tone } {
 /** What needs the admin's eye on this lead. */
 export function attention(lead: Lead): string[] {
   const out: string[] = [];
+  if (isEligibilityExam(lead.title)) out.push("A standalone eligibility exam (such as UGC NET, CTET, a TET or SET, GATE): it qualifies candidates and recruits no one. Kept here as found; dismiss it if it is not wanted.");
   if (!lead.organizationId) out.push("The organisation was not recognised: check who is recruiting.");
   if (lead.match.kind === "POSSIBLE") out.push(lead.match.reason ? `Possible match: ${lead.match.reason}.` : "It may be a job already in the CMS.");
   if (lead.relatedLeads.length) out.push(`${lead.relatedLeads.length} other lead${lead.relatedLeads.length === 1 ? "" : "s"} may be the same recruitment (titles alike, not merged).`);

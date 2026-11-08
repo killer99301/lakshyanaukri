@@ -49,7 +49,9 @@ export type VerificationStatus =
 
 export interface Provenance {
   status: VerificationStatus;
-  lastVerifiedAt: string;         // ISO date — the actual day this record was checked
+  lastVerifiedAt: string;         // ISO date — the actual day this record was checked; "" when nobody has (CMS jobs, G1)
+  /** CMS jobs: when the public page was last built. A page date, never a verification date (G1). */
+  pageUpdatedAt?: string;
   primarySourceUrl?: string;      // direct link to the authoritative document
   primarySourceType: SourceType;
   notes?: string;                 // "Vacancy verified from corrigendum PDF page 3"

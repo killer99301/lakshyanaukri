@@ -453,12 +453,16 @@ export function getProvenanceSummary(opp: Opportunity): ProvenanceSummary {
     ? { label: "Key details checked against official sources", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" }
     : statusMap[provenance.status] ?? statusMap.NOT_VERIFIED;
 
-  const lastVerifiedDate = formatDate(provenance.lastVerifiedAt);
+  // A date only when a person checked the job; never the day the page was built (G1).
+  const checked = !!provenance.lastVerifiedAt
+    && (provenance.keyDetailsChecked === true || provenance.status === "VERIFIED" || provenance.status === "PARTIALLY_VERIFIED");
 
   return {
     statusLabel: status.label,
     statusClass: status.cls,
-    lastVerifiedLabel: `Last verified: ${lastVerifiedDate}`,
+    lastVerifiedLabel: checked
+      ? `${provenance.keyDetailsChecked ? "Key details checked" : "Last verified"}: ${formatDate(provenance.lastVerifiedAt)}`
+      : "Not yet checked against the official notice",
     sourceLabel: sourceTypeLabels[provenance.primarySourceType] ?? "Unknown Source",
     sourceUrl: provenance.primarySourceUrl,
   };

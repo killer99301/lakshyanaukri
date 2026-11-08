@@ -5,14 +5,21 @@
 // Server only. The admin gives the address of a listing page (a portal's
 // "Bihar jobs" page, a commission's notices page). The page is fetched once,
 // through the importer's safe fetch, if the site's robots.txt allows it. Its
-// links are sorted into new recruitments and updates to existing ones, and
-// each is compared with the jobs already in the CMS. Nothing is saved, no AI
-// is used, and nothing follows the links: the admin picks one and opens it
-// in Smart intake, where a portal's page stays research.
+// links are sorted into new recruitments and updates to existing ones, with
+// the same rules the portal collector uses (link-rules.ts, Stage 1), and each
+// is compared with the jobs already in the CMS with the collector's matching
+// (match.ts). Nothing is saved, no AI is used, and nothing follows the links:
+// the admin picks one and opens it in Smart intake, where a portal's page
+// stays research.
 //
 // One page per request, no crawling, no logins.
 
-import { extractLinks, isNewRecruitmentNotice } from "@/intelligence/discovery";
+import { extractLinks, extractNotificationNumber } from "@/intelligence/discovery";
+import { detectOrgFromText } from "@/intelligence/multi-source/org-classifier";
+import { ORG_NAMES } from "@/intelligence/org-registry";
+import { classifyLink } from "@/lib/cms/discovery/link-rules";
+import { isEligibilityExam } from "@/lib/cms/discovery/eligibility-exam";
+import { matchLead, type CmsJob, type MatchKind } from "@/lib/cms/discovery/match";
 import { fetchSource, type FetchedSource } from "@/lib/cms/importer/fetch-source";
 import { hostOf } from "@/lib/cms/importer/trusted-domains";
 import { TRUSTED_DOMAINS } from "@/lib/cms/importer/trusted-domains";
@@ -29,8 +36,18 @@ export interface FoundJob {
   date?: string;
   /** The recruiting body's own site (a listed host or a government domain), or a portal. */
   official: boolean;
-  /** Jobs in the CMS this may already be. */
-  maybe: Array<{ id: string; title: string }>;
+  /** A standalone eligibility exam (UGC NET, CTET, a TET or SET, GATE): kept and shown as found, never a recruitment. */
+  eligibilityExam?: true;
+  /** The organisation recognised from the title, when one was. */
+  organizationId?: string;
+  organizationName?: string;
+  /** The notice number printed in the title, when one was. */
+  notificationNumber?: string;
+  /** How it compares with the CMS's jobs, as the collector would match it. */
+  match: MatchKind;
+  matchReason: string | null;
+  /** Jobs in the CMS this may already be, strongest first, each with why. */
+  maybe: Array<{ id: string; title: string; kind?: string; reason?: string }>;
 }
 
 export interface DiscoverResult { ok: true; page: string; found: FoundJob[] }
@@ -68,9 +85,6 @@ export function robotsAllows(robots: string, path: string, agent = AGENT): boole
   return best ? best.allow : true;
 }
 
-/** Courses, test series and shop pages: not announcements. */
-export const NOT_ANNOUNCEMENT = /batch|mock test|test series|course|enrol|enroll|mahapack|live class|ebook|previous year/i;
-export const UPDATE_WORDS = /extended|extension|postponed|rescheduled|admit card|hall ticket|result|answer key|cut ?off|merit list|exam date|city intimation|corrigendum|revised/i;
 const STOP = new Set(["the", "and", "for", "of", "in", "out", "to", "on", "a", "check", "apply", "online", "notification", "recruitment", "vacancy", "vacancies", "posts", "post", "pdf", "link", "details", "now", "download", "form", "last", "date", "at", "with", "new"]);
 /** A title's words, without years and filler; plus the initials of each run of words ("food safety officer" → "fso"). */
 // Words most job titles share: they make initials ("food safety officer" →
@@ -105,7 +119,8 @@ export const officialHost = (host: string | null) => !!host && (
 
 export async function discoverFromPage(opts: {
   url: string;
-  jobs: Array<{ id: string; title: string }>;
+  /** The CMS's jobs; organisation, notice number and year make the match as good as the collector's. */
+  jobs: Array<{ id: string; title: string } & Partial<CmsJob>>;
   fetchSourceFn?: (url: string) => Promise<FetchedSource>;
 }): Promise<DiscoverOutcome> {
   const fetchOne = opts.fetchSourceFn ?? ((u: string) => fetchSource(u));
@@ -123,6 +138,7 @@ export async function discoverFromPage(opts: {
 
   const seen = new Set<string>();
   const found: FoundJob[] = [];
+  const jobs: CmsJob[] = opts.jobs.map((j) => ({ organizationId: "", organizationName: null, notificationNumber: null, year: null, ...j }));
   for (const link of extractLinks(got.bytes.toString("utf8"), got.finalUrl)) {
     if (found.length >= MAX_FOUND) break;
     let href: URL;
@@ -131,18 +147,25 @@ export async function discoverFromPage(opts: {
     href.hash = "";
     const key = href.toString();
     if (seen.has(key) || key === got.finalUrl) continue;
-    const isUpdate = UPDATE_WORDS.test(link.text);
-    if (!isUpdate && !isNewRecruitmentNotice(link.text)) continue;
-    if (!isUpdate && !/\b20\d{2}\b|recruit|vacanc|bharti|notification|advt|apply/i.test(link.text)) continue;
-    // Courses, test series and shop pages are not announcements.
-    if (NOT_ANNOUNCEMENT.test(link.text)) continue;
+    // The collector's own rules (Stage 1): menus, courses and links with no recruitment or update wording are not leads.
+    const verdict = classifyLink(link.text, link.href);
+    if ("skip" in verdict) continue;
     seen.add(key);
+    const title = verdict.title;
     const host = hostOf(key);
+    // The organisation from the title only, as the collector reads it (the leading part, not a table row's cells).
+    const orgId = detectOrgFromText(title.slice(0, 150)) ?? null;
+    const notice = extractNotificationNumber(title) ?? null;
+    const match = matchLead({ organizationId: orgId, organizationName: orgId ? ORG_NAMES[orgId] ?? null : null, title, notificationNumber: notice }, jobs);
     found.push({
-      title: link.text.slice(0, 200), url: key, kind: isUpdate ? "UPDATE" : "NEW",
+      title: title.slice(0, 200), url: key, kind: verdict.kind,
       ...(link.nearbyDate ? { date: link.nearbyDate } : {}),
       official: officialHost(host) && linkFlags(key, key).length === 0,
-      maybe: similarJobs(link.text, opts.jobs),
+      ...(isEligibilityExam(title) ? { eligibilityExam: true as const } : {}),
+      ...(orgId ? { organizationId: orgId, organizationName: ORG_NAMES[orgId] ?? orgId.toUpperCase() } : {}),
+      ...(notice ? { notificationNumber: notice } : {}),
+      match: match.kind, matchReason: match.reason,
+      maybe: match.candidates.map((c) => ({ id: c.id, title: c.title, kind: c.kind, reason: c.reason })),
     });
   }
   return { ok: true, page: got.finalUrl, found };

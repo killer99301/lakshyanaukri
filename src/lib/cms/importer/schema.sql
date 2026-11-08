@@ -538,14 +538,17 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'UNKNOWN_ADMIN' USING ERRCODE = 'P0001';
   END IF;
-  IF p_selected IS NULL OR cardinality(p_selected) = 0 THEN
+  -- Nothing ticked is refused, unless the preview holds vacancy figures (counted by the server when it stored the
+  -- preview, G1): saving keeps the sources and those figures with the job, to be added from its vacancy editor.
+  IF (p_selected IS NULL OR cardinality(p_selected) = 0)
+     AND coalesce(nullif(imp.proposal->'meta'->>'heldTables', '')::int, 0) = 0 THEN
     RAISE EXCEPTION 'NOTHING_SELECTED' USING ERRCODE = 'P0001';
   END IF;
   IF rec IS NULL OR jsonb_typeof(rec) <> 'object' THEN
     RAISE EXCEPTION 'NO_RECORD' USING ERRCODE = 'P0001';
   END IF;
 
-  FOREACH sel IN ARRAY p_selected LOOP
+  FOREACH sel IN ARRAY coalesce(p_selected, ARRAY[]::TEXT[]) LOOP
     item := NULL;
     SELECT i INTO item FROM jsonb_array_elements(imp.proposal->'items') AS i WHERE i->>'id' = sel;
     IF item IS NULL THEN

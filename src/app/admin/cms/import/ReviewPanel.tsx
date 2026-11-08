@@ -328,10 +328,18 @@ export function ReviewPanel(props: {
         )}
         {props.err && <div role="alert" style={{ color: C.red, fontSize: 13 }}>{props.err}</div>}
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <button onClick={props.onSave} disabled={props.busy || ticked.size === 0 || (props.needsVerifiedConfirm && !props.confirmVerified)} style={{ ...primaryBtn, opacity: props.busy || ticked.size === 0 ? 0.6 : 1 }}>
-            {props.busy ? "Saving…" : `${props.existing ? "Save to the job's draft" : "Save as draft"} (${ticked.size} value${ticked.size === 1 ? "" : "s"})`}
+          {/* Held vacancy figures alone can be saved (G1): the sources and the figures stay with the job, and the figures are
+              added only from its vacancy editor ("Held from Smart intake"), where they are reviewed and checked as before. */}
+          <button data-save-import onClick={props.onSave} disabled={props.busy || (ticked.size === 0 && held.length === 0) || (props.needsVerifiedConfirm && !props.confirmVerified)} style={{ ...primaryBtn, opacity: props.busy || (ticked.size === 0 && held.length === 0) ? 0.6 : 1 }}>
+            {props.busy ? "Saving…" : ticked.size === 0 && held.length > 0
+              ? `${props.existing ? "Save to the job's draft" : "Save as draft"} (no values; keep the held vacancy figures)`
+              : `${props.existing ? "Save to the job's draft" : "Save as draft"} (${ticked.size} value${ticked.size === 1 ? "" : "s"})`}
           </button>
-          <span style={{ fontSize: 12, color: C.muted }}>Saved together as Pending, or not at all. Nothing is published or verified.</span>
+          <span style={{ fontSize: 12, color: C.muted }}>
+            {ticked.size === 0 && held.length > 0
+              ? "No value is saved. The sources and the held vacancy figures are kept with the job; add the figures from its vacancy editor (“Held from Smart intake”). Nothing is published or verified."
+              : "Saved together as Pending, or not at all. Nothing is published or verified."}
+          </span>
         </div>
       </div>
     </div>

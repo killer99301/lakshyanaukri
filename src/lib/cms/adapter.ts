@@ -15,9 +15,11 @@
 //   - eligibility: CmsRecruitmentPost[] → string[] (post field per item).
 //   - selectionProcess: CmsSelectionInformation → string[] (stage names).
 //   - vacancyBreakdown: VacancyRow[] shared type — cast directly.
-//   - provenance.lastVerifiedAt = snapshot.projectedAt (projection time).
-//   - provenance.primarySourceType = OFFICIAL_NOTIFICATION (CMS requirement
-//     for publication: must have official evidence before publish is allowed).
+//   - provenance.lastVerifiedAt = the day a person actually checked the job
+//     (the import checks in force, or the record's own verified date); empty
+//     when nobody has. Never the projection time, which is pageUpdatedAt (G1).
+//   - provenance.primarySourceType = the source standing the job's links show:
+//     an official notification link, an official website link, or none (G1).
 // ═══════════════════════════════════════════════════════════
 
 import type {
@@ -31,6 +33,22 @@ import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
 import { fieldDef } from "@/lib/cms/importer/fields";
 
 // ─── Internal helpers ─────────────────────────────────────
+
+/**
+ * What the job's sources are, as its links and documents show it (G1): the official notification when a link or
+ * document of that kind is marked official, else the official website, else research only. A standing, never a
+ * check: a trusted host or an official link says where a document is from, not that any value was verified.
+ */
+export function sourceStanding(snapshot: Pick<PublishedRecruitmentSnapshot, "links" | "documents" | "sourceType">): SourceType {
+  const official = [...snapshot.links.filter((l) => !l.savedFrom), ...snapshot.documents].filter((l) => l.official);
+  const has = (...types: string[]) => official.some((l) => types.includes(l.type));
+  if (has("OFFICIAL_NOTIFICATION", "NOTIFICATION")) return "OFFICIAL_NOTIFICATION";
+  if (has("CORRIGENDUM", "OFFICIAL_CORRIGENDUM")) return "OFFICIAL_CORRIGENDUM";
+  const own = snapshot.sourceType;
+  if (official.length > 0 && own && own.startsWith("OFFICIAL_")) return own as SourceType;
+  if (official.length > 0) return "OFFICIAL_WEBSITE";
+  return snapshot.links.length + snapshot.documents.length > 0 ? "SECONDARY_SOURCE" : "NOT_VERIFIED";
+}
 
 function ageCriteriaToAgeLimit(age: AgeCriteria): AgeLimit {
   const relaxation: AgeRelaxation[] = (age.relaxations ?? []).map((r) => ({
@@ -198,7 +216,8 @@ export function snapshotToGovernmentRecruitment(
 
     links: {
       notification: linkByType("OFFICIAL_NOTIFICATION"),
-      apply:        linkByType("APPLY_ONLINE") ?? linkByType("OFFICIAL_WEBSITE") ?? "",
+      // Only a real application link is "Apply Online"; a general website is shown as the website (G1).
+      apply:        linkByType("APPLY_ONLINE") ?? "",
       website:      linkByType("OFFICIAL_WEBSITE") ?? "",
       correction:   linkByType("CORRIGENDUM"),
       admitCard:    linkByType("ADMIT_CARD"),
@@ -209,9 +228,10 @@ export function snapshotToGovernmentRecruitment(
 
     provenance: {
       status:            snapshot.provenanceStatus as VerificationStatus,
-      lastVerifiedAt:    snapshot.projectedAt,
+      lastVerifiedAt:    (snapshot.keyDetailsChecked ? snapshot.keyDetailsCheckedOn : snapshot.verifiedOn) ?? "",
+      pageUpdatedAt:     snapshot.projectedAt,
       primarySourceUrl:  snapshot.primarySourceUrl ?? undefined,
-      primarySourceType: "OFFICIAL_NOTIFICATION" as SourceType,
+      primarySourceType: sourceStanding(snapshot),
       ...(snapshot.keyDetailsChecked ? { keyDetailsChecked: true } : {}),
     },
     updates,

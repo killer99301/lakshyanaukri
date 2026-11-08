@@ -10,7 +10,7 @@
 // Provenance badges are always visible.
 // ═══════════════════════════════════════════════════════════
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useContext } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type {
   RecruitmentRecord,
@@ -158,6 +158,9 @@ function EditableField<T>({
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState<string>("");
   const [evidenceIds, setEvidenceIds] = useState<string>("");
+  // An imported job is checked in "Check before publishing", against the documents brought in (G2): the old
+  // evidence-id box would only set the field's own status, so it is not offered there.
+  const importedJob = Object.keys(useContext(ImportVerdicts)).length > 0;
   const [reason, setReason] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -271,6 +274,11 @@ function EditableField<T>({
               placeholder={placeholder ?? `Enter ${label.toLowerCase()}`}
             />
           )}
+          {importedJob ? (
+            <div data-checks-hint style={{ marginTop: 8, fontSize: 12, color: C.muted }}>
+              Saving changes the value and reopens its check: confirm it against the official document in “Check before publishing” above.
+            </div>
+          ) : (
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <div style={{ flex: 1 }}>
               <label style={labelStyle}>Evidence IDs (comma-separated, for VERIFIED)</label>
@@ -283,6 +291,7 @@ function EditableField<T>({
               />
             </div>
           </div>
+          )}
           <div style={{ marginTop: 8 }}>
             <label style={labelStyle}>Reason (optional)</label>
             <input
@@ -1964,7 +1973,7 @@ export default function CmsRecordEditorPage() {
         <LiveChangesPanel record={record} onJump={jumpTo} />
 
         {/* Imported jobs only: a person's check on every critical field. */}
-        <ImportChecksPanel record={record} onRecordChange={onFieldSaved} onChecks={setImportChecks} />
+        <ImportChecksPanel record={record} onRecordChange={onFieldSaved} onChecks={setImportChecks} onJump={jumpTo} />
         {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
           <div style={{ marginBottom: 12, fontSize: 12 }}>
             <ImporterLink href={`/admin/cms/import?record=${record.id}`} style={{ color: C.accent, textDecoration: "none" }}>Smart intake: fill this job from an article, notice, screenshot or link →</ImporterLink>
@@ -3453,8 +3462,9 @@ function DraftPreviewOverlay({
             <OfficialNotificationCard
               notificationPdfUrl={previewJob.type === "government" ? previewJob.links.notification : undefined}
               officialWebsiteUrl={previewJob.links.website}
-              sourceName={previewJob.provenance.primarySourceType.replace(/_/g, " ")}
-              verifiedAt={previewJob.provenance.lastVerifiedAt}
+              sourceType={previewJob.provenance.primarySourceType}
+              verifiedAt={previewJob.provenance.lastVerifiedAt || undefined}
+              keyDetailsChecked={previewJob.provenance.keyDetailsChecked === true}
             />
             <div style={{ marginTop: 24 }}>
               <JobDetailHeader job={previewJob} />

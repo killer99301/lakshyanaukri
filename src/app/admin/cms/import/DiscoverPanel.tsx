@@ -11,8 +11,17 @@ import { C, PANEL, badge, inputStyle, labelStyle, quietBtn } from "./ui";
 
 export interface FoundJob {
   title: string; url: string; kind: "NEW" | "UPDATE"; date?: string; official: boolean;
-  maybe: Array<{ id: string; title: string }>;
+  /** A standalone eligibility exam (UGC NET, CTET, a TET or SET, GATE): shown as found, never as a recruitment. */
+  eligibilityExam?: boolean;
+  organizationName?: string; notificationNumber?: string;
+  /** How it compares with the CMS's jobs, as the portal collector matches its leads. */
+  match?: string; matchReason?: string | null;
+  maybe: Array<{ id: string; title: string; kind?: string; reason?: string }>;
 }
+
+const MATCH_WORDS: Record<string, string> = {
+  DUPLICATE: "Already in the CMS", STRONG: "Strong match to a CMS job", POSSIBLE: "May already be in the CMS",
+};
 
 export function DiscoverPanel({ onPick }: { onPick: (job: FoundJob) => void }) {
   const [open, setOpen] = useState(false);
@@ -58,17 +67,20 @@ export function DiscoverPanel({ onPick }: { onPick: (job: FoundJob) => void }) {
         <div style={{ display: "grid", gap: 6 }}>
           {found.map((f) => (
             <div key={f.url} data-found-job style={{ display: "flex", gap: 10, alignItems: "flex-start", borderTop: `1px solid ${C.border}`, paddingTop: 6, flexWrap: "wrap" }}>
-              <span style={badge(f.kind === "NEW" ? C.green : C.amber)}>{f.kind === "NEW" ? "New" : "Update"}</span>
+              {f.eligibilityExam
+                ? <span data-eligibility-exam style={badge(C.muted)}>{f.kind === "UPDATE" ? "Eligibility exam update — not a recruitment" : "Eligibility exam — not a recruitment"}</span>
+                : <span style={badge(f.kind === "NEW" ? C.green : C.amber)}>{f.kind === "NEW" ? "New" : "Update"}</span>}
               <div style={{ flex: "1 1 360px", minWidth: 0 }}>
                 <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: C.text, textDecoration: "none" }}>{f.title}</a>
                 <div style={{ color: C.muted, fontSize: 11 }}>
                   {new URL(f.url).host}{f.official ? " · the body's own site" : " · portal or news site: research only"}{f.date ? ` · ${f.date}` : ""}
+                  {f.organizationName ? ` · ${f.organizationName}` : " · organisation not recognised"}{f.notificationNumber ? ` · notice ${f.notificationNumber}` : ""}
                 </div>
                 {f.maybe.length > 0 && (
-                  <div style={{ color: C.amber, fontSize: 11 }}>
-                    May already be in the CMS:{" "}
+                  <div data-found-match={f.match ?? ""} style={{ color: f.match === "DUPLICATE" ? C.muted : C.amber, fontSize: 11 }}>
+                    {MATCH_WORDS[f.match ?? ""] ?? "May already be in the CMS"}{f.matchReason ? ` (${f.matchReason})` : ""}:{" "}
                     {f.maybe.map((m) => (
-                      <span key={m.id} style={{ marginRight: 8 }}>
+                      <span key={m.id} style={{ marginRight: 8 }} title={m.reason}>
                         <Link href={`/admin/cms/${m.id}`} style={{ color: C.accent }}>{m.title}</Link>
                         {" "}(<Link href={`/admin/cms/import?record=${m.id}&url=${encodeURIComponent(f.url)}`} style={{ color: C.accent }}>bring this into it</Link>)
                       </span>

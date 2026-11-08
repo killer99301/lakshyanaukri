@@ -96,6 +96,11 @@ export interface PublishedRecruitmentSnapshot {
   updates: unknown[];
   provenanceStatus: string;
   primarySourceUrl: string | null;
+  /** The record's own source type (G1). Absent on snapshots published before it was kept. */
+  sourceType?: string;
+  /** The day a person last verified the record (its provenance says VERIFIED or PARTIALLY_VERIFIED); otherwise absent. Never the build time. */
+  verifiedOn?: string;
+  /** When this snapshot was built: the page's last change, never a verification date. */
   projectedAt: string;
   /** When the record first went live. Not stored in the snapshot — filled in when listings are read. */
   firstPublishedAt?: string;
@@ -105,6 +110,8 @@ export interface PublishedRecruitmentSnapshot {
   notStated?: Record<string, string>;
   /** Imported jobs only: published after every critical field passed the import checks. */
   keyDetailsChecked?: boolean;
+  /** Imported jobs only: the day the latest of those checks in force was recorded (G1). */
+  keyDetailsCheckedOn?: string;
   projectionVersion: string;
   sourceRecordRevision: string;
 }
@@ -196,6 +203,9 @@ function buildSnapshot(record: RecruitmentRecord): PublishedRecruitmentSnapshot 
     updates:            record.updates ?? [],
     provenanceStatus:   record.provenance.status,
     primarySourceUrl:   record.provenance.primarySourceUrl ?? null,
+    sourceType:         record.provenance.primarySourceType,
+    ...((record.provenance.status === "VERIFIED" || record.provenance.status === "PARTIALLY_VERIFIED") && record.provenance.lastVerifiedAt
+      ? { verifiedOn: record.provenance.lastVerifiedAt } : {}),
 
     projectedAt:          new Date().toISOString(),
     projectionVersion:    PROJECTION_VERSION,

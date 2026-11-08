@@ -253,7 +253,13 @@ async function checkPublishable(
         .filter((v) => v.cls === cls)
         .map((v) => [v.fieldPath, v.publicNote ?? ""]));
       // The gate passed (it refused above otherwise): say so on the public page.
-      snapshot = { ...snapshot, notApplicable: words("NOT_APPLICABLE"), notStated: words("NOT_STATED"), keyDetailsChecked: gate.ok };
+      // The day the latest check in force was recorded: what "checked on" means on the public page, never the publish time.
+      const decisionIds = gate.verdicts.map((v) => v.decisionId).filter((id): id is string => !!id);
+      const checkedOn = decisionIds.length > 0
+        ? ((await sql`SELECT max(claimed_at) AS at FROM recruitment_field_claims WHERE id = ANY(${decisionIds}::uuid[])`)[0]?.at as string | Date | null) ?? null
+        : null;
+      snapshot = { ...snapshot, notApplicable: words("NOT_APPLICABLE"), notStated: words("NOT_STATED"), keyDetailsChecked: gate.ok,
+        ...(gate.ok && checkedOn ? { keyDetailsCheckedOn: new Date(checkedOn).toISOString().slice(0, 10) } : {}) };
     }
     return { ok: true, snapshot };
   } catch (err) {

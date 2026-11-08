@@ -16,7 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Dynamic job pages
   const jobUrls: MetadataRoute.Sitemap = opportunities.map((job) => ({
     url: `${baseUrl}/jobs/${job.slug}`,
-    lastModified: new Date(job.provenance.lastVerifiedAt || new Date()),
+    lastModified: new Date(job.provenance.pageUpdatedAt || job.provenance.lastVerifiedAt || new Date()),
     changeFrequency: "daily",
     priority: 0.8,
   }));
