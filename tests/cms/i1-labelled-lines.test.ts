@@ -101,7 +101,8 @@ test("B6 two lines that disagree give nothing for the field, and both are said",
 });
 test("B7 unlabelled prose, other fields' labels and bad values are not read", () => {
   const r = read("The fee is six hundred rupees for most.\nFee payment deadline: 10.02.2097\nPosts: 58\nAge: 18 years\nAge limit: 40-21 years\nPayment mode: online");
-  assert.deepEqual(r.values, []);
+  // Since G3 a labelled date is read as its own field (the fee deadline here); it is still never taken as a fee.
+  assert.deepEqual(r.values.map((v) => [v.fieldPath, v.value]), [["dates.feePaymentCloseDate", "2097-02-10"]]);
   assert.match(why(r, "age"), /minimum age is above the maximum/);
 });
 

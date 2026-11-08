@@ -234,7 +234,10 @@ export function combineReading(opts: {
   // Labelled lines of pasted text, read by code (I1), beside what the AI read: the same value is one item with both
   // quotes; a different one is a second value of the field, so the two are shown and neither is ticked.
   if (opts.labelledLines) {
-    const lines = readLabelledLines(plain, { stageType: selectionStageType });
+    // Pasted text with no markup is read as it was pasted (G3): its tabs mark copied table cells, which the
+    // web-page reading turns into spaces. Pasted HTML is read as its text, as before.
+    const asPasted = /<[a-z!/][^>]*>/i.test(content) ? plain : content.replace(/\r/g, "");
+    const lines = readLabelledLines(asPasted, { stageType: selectionStageType });
     for (const v of lines.values) {
       values.push({ fieldPath: v.fieldPath, value: v.value, quote: v.quote, page: pageOf(plain, v.quote), ...(v.doubt ? { doubt: v.doubt } : {}),
         notes: [`read by code from a labelled line`, ...(v.notes ?? [])] });

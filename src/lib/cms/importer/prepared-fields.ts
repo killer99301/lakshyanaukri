@@ -10,9 +10,16 @@
 // fee for women, a PwBD fee apart from SC/ST, ages by category, an
 // eligibility line naming no post) is said for the editor, never widened or
 // dropped. Two lines that disagree give nothing, and both are said.
+//
+// G3: a pasted article's table rows ("Label<TAB>value", "| Label | value |"),
+// labels with their value on the next line, and fee tables are read as
+// labelled lines too (pasted-article.ts), each quoted with the text's own
+// words; and its notice number, vacancies, dates, selection section, steps to
+// apply and conditions are read there.
 
 import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, SelectionStageType } from "@/types/recruitment-record";
 import { parseDatesInText } from "@/lib/cms/ai-assist";
+import { labelledFromPairs, pairsOf, readArticle } from "@/lib/cms/importer/pasted-article";
 
 export interface LabelledValue { fieldPath: string; value: unknown; quote: string; doubt?: string; notes?: string[] }
 export interface LabelledReading { values: LabelledValue[]; refused: Array<{ fieldPath: string; reason: string }> }
@@ -20,9 +27,11 @@ export interface LabelledReading { values: LabelledValue[]; refused: Array<{ fie
 /** "Label: value", "Label - value" or "Label – value" at the start of a line (after a bullet or a number). */
 const labelled = (label: string) => new RegExp(`^\\s*(?:[-*•]\\s*|\\d{1,2}[.)]\\s*)?(?:${label})\\b[^:\\n]{0,40}?(?:\\s*[:：]\\s*|\\s+[-–—]\\s+)(.*)$`, "i");
 const FEE_LINE = labelled("(?:application|exam(?:ination)?|registration)\\s+fees?|fees?(?:\\s+details)?");
-const PAY_LINE = labelled("pay\\s*scale|pay\\s*level|pay\\s*band|pay|salary|emoluments|remuneration|stipend");
-const AGE_LINE = labelled("age\\s*limits?|age");
-const ELIGIBILITY_LINE = labelled("eligibility(?:\\s+criteria)?|(?:educational|essential|academic)\\s+qualifications?|qualifications?");
+const PAY_LINE = labelled("pay\\s*scale|pay\\s*level|pay\\s*band|pay|salary|(?:total\\s+)?ctc|cost\\s+to\\s+company|emoluments|remuneration|stipend");
+const AGE_LINE = labelled("age\\s*limits?|age|(?:maximum|minimum|upper|lower)\\s+age(?:\\s+limits?)?");
+const RELAXATION_LINE = labelled("age\\s+relaxations?");
+const ELIGIBILITY_LINE = labelled("eligibility(?:\\s+criteria)?|(?:minimum|educational|essential|academic)\\s+qualifications?|qualifications?");
+const EXPERIENCE_LINE = labelled("(?:work\\s+|minimum\\s+|required\\s+)?experience");
 const POST_LINE = labelled("name\\s+of\\s+(?:the\\s+)?posts?|post\\s+names?|posts?");
 const SELECTION_LINE = labelled("selection\\s+process|selection\\s+procedure|mode\\s+of\\s+selection|selection");
 const HOW_LINE = labelled("how\\s+to\\s+apply|application\\s+procedure|procedure\\s+to\\s+apply|steps\\s+to\\s+apply");
@@ -156,8 +165,15 @@ function readAge(lines: string[], out: LabelledReading): void {
     if (!m) continue;
     const line = cleanLine(raw);
     const range = /\b(\d{2})\s*(?:-|–|—|to)\s*(\d{2})\s*(?:years?|yrs?)\b/i.exec(line);
-    const min = range ? Number(range[1]) : Number(/\b(?:minimum|min\.?|at\s+least)\s*(?:age\s*)?(?:of\s*)?(\d{2})\b/i.exec(line)?.[1] ?? NaN);
-    const max = range ? Number(range[2]) : Number(/\b(?:maximum|max\.?|not\s+more\s+than|upper\s+age(?:\s+limit)?(?:\s+of)?|up\s*to|below)\s*(\d{2})\b/i.exec(line)?.[1] ?? NaN);
+    if (RELAXATION_LINE.test(raw)) continue;
+    let min = range ? Number(range[1]) : Number(/\b(?:minimum|min\.?|at\s+least)\s*[:\-]?\s*(?:age\s*[:\-]?\s*)?(?:of\s*)?(\d{2})\b/i.exec(line)?.[1] ?? NaN);
+    let max = range ? Number(range[2]) : Number(/\b(?:maximum|max\.?|not\s+more\s+than|upper\s+age(?:\s+limit)?(?:\s+of)?|up\s*to|below)\s*[:\-]?\s*(\d{2})\b/i.exec(line)?.[1] ?? NaN);
+    // "Maximum Age: 30 years": the label says which bound its one figure is (G3).
+    const bound = /^\s*(?:[-*•]\s*)?(maximum|upper|minimum|lower)\s+age/i.exec(raw)?.[1]?.toLowerCase();
+    const only = /\b(\d{2})\s*(?:years?|yrs?)\b/i.exec(m[1]);
+    if (bound && !range && only && Number.isNaN(bound === "maximum" || bound === "upper" ? max : min)) {
+      if (bound === "maximum" || bound === "upper") max = Number(only[1]); else min = Number(only[1]);
+    }
     const ok = (n: number) => Number.isInteger(n) && n >= 14 && n <= 70;
     if (!ok(min) && !ok(max)) continue;
     if (ok(min) && ok(max) && min > max) { out.refused.push({ fieldPath: "age", reason: `“${line}”: the minimum age is above the maximum — not offered` }); continue; }
@@ -172,7 +188,64 @@ function readAge(lines: string[], out: LabelledReading): void {
     found.push({ value, quote: line, notes });
   }
   const one = single("age", "age limits", found, out);
-  if (one) out.values.push({ fieldPath: "age", value: one.value, quote: one.quote, notes: found.find((f) => f.quote === one.quote)?.notes });
+  if (!one) {
+    for (const raw of lines) if (RELAXATION_LINE.test(raw)) out.refused.push({ fieldPath: "age", reason: `“${cleanLine(raw)}”: an age relaxation, but no age limit was read to put it with — enter it in the editor` });
+    return;
+  }
+  const value: AgeCriteria = { ...one.value, relaxations: [...(one.value.relaxations ?? [])] };
+  const notes = [...(found.find((f) => f.quote === one.quote)?.notes ?? [])];
+  const evidence: NonNullable<AgeCriteria["evidence"]> = [];
+  // Relaxations written "Age Relaxation: 5 years for SC/ST" (G3); in words only, they are said, not guessed.
+  for (const raw of lines) {
+    const r = RELAXATION_LINE.exec(raw);
+    if (!r) continue;
+    const line = cleanLine(raw);
+    const parts = [...r[1].matchAll(/(\d{1,2})\s*(?:years?|yrs?)\s+(?:for|to)\s+([A-Za-z][A-Za-z/&, ()-]{1,40}?)(?:\s+candidates)?(?=[,;.]|$|\s+and\s+\d)/gi)];
+    if (parts.length === 0) { out.refused.push({ fieldPath: "age", reason: `“${line}”: the relaxation is given in words only, no years by category — enter it in the editor` }); continue; }
+    for (const p of parts) {
+      const category = p[2].trim();
+      if (!value.relaxations.some((x) => x.category === category)) value.relaxations.push({ category, years: Number(p[1]) });
+      evidence.push({ about: `relaxation (read by code): ${category}`.slice(0, 120), value: p[1], quote: line });
+    }
+  }
+  // The date the age is counted on, from a sentence that states this age limit "as on" one date (G3).
+  if (!value.asOf && value.max !== undefined) {
+    const said = lines.map(cleanLine).find((l) => /\bage\b/i.test(l) && /\bas\s+(?:on|of)\b/i.test(l) && new RegExp(`\\b${value.max}\\s*years?\\b`, "i").test(l) && parseDatesInText(l).length === 1 && l.length <= 300);
+    if (said) {
+      value.asOf = parseDatesInText(said)[0];
+      evidence.push({ about: "asOf (read by code)", value: value.asOf, quote: said });
+      const at = notes.indexOf("the line gives no date the age is counted on");
+      if (at >= 0) notes.splice(at, 1);
+    }
+  }
+  // "Born on or after 1 August 1996": the window as written; said when it does not fit the age limit and its date.
+  let doubt: string | undefined;
+  const born = lines.map(cleanLine).find((l) => /\bborn\s+on\s+or\s+after\b/i.test(l) && l.length <= 300);
+  const bornDate = born ? writtenDate(born.slice(born.search(/\bborn\s+on\s+or\s+after\b/i))) : null;
+  if (born && bornDate) {
+    value.bornFrom = bornDate;
+    evidence.push({ about: "bornFrom (read by code)", value: bornDate, quote: born });
+    if (value.max !== undefined && value.asOf) {
+      const d = new Date(`${value.asOf}T00:00:00Z`);
+      d.setUTCFullYear(d.getUTCFullYear() - value.max - 1);
+      d.setUTCDate(d.getUTCDate() + 1);
+      const expected = d.toISOString().slice(0, 10);
+      if (expected !== bornDate) doubt = `the text says born on or after ${bornDate}, but a maximum of ${value.max} years as on ${value.asOf} means born on or after ${expected} — check the notice`;
+    }
+  }
+  if (evidence.length) value.evidence = [...(value.evidence ?? []), ...evidence];
+  out.values.push({ fieldPath: "age", value, quote: one.quote, ...(notes.length ? { notes } : {}), ...(doubt ? { doubt } : {}) });
+}
+
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+/** A date written "1 August 1996" or "01.08.1996" (any year: a date of birth), as YYYY-MM-DD. */
+function writtenDate(s: string): string | null {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const w = /\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?,?\s+((?:19|20)\d{2})\b/.exec(s);
+  if (w) { const m = MONTHS.findIndex((x) => x.startsWith(w[2].toLowerCase().slice(0, 3))); if (m >= 0 && Number(w[1]) <= 31) return `${w[3]}-${pad(m + 1)}-${pad(Number(w[1]))}`; }
+  const n = /\b(\d{1,2})[./-](\d{1,2})[./-]((?:19|20)\d{2})\b/.exec(s);
+  if (n && Number(n[1]) <= 31 && Number(n[2]) <= 12) return `${n[3]}-${pad(Number(n[2]))}-${pad(Number(n[1]))}`;
+  return null;
 }
 
 function readPay(lines: string[], out: LabelledReading): void {
@@ -185,27 +258,58 @@ function readPay(lines: string[], out: LabelledReading): void {
   if (one) out.values.push({ fieldPath: "financial.payScale", value: one.value, quote: one.quote });
 }
 
-function readEligibility(lines: string[], out: LabelledReading): void {
-  const found = lines.flatMap((raw) => {
-    const m = ELIGIBILITY_LINE.exec(raw);
-    const value = m ? cleanLine(m[1]).replace(/[;]+$/, "") : "";
-    return value.length >= 6 && value.length <= 240 ? [{ value, quote: cleanLine(raw) }] : [];
-  });
-  const one = single("eligibility", "eligibility lines", found, out);
-  if (!one) return;
-  // Eligibility is kept post by post: the post is the one the text names, when it names exactly one.
-  // "Posts: Clerk, Typist" names two posts: no single one to put the eligibility under.
-  const posts = [...new Set(lines.flatMap((raw) => {
+/** The posts the text names in its post lines ("Post Name: Assistant Manager"). */
+export function postsNamed(lines: string[]): string[] {
+  return [...new Set(lines.flatMap((raw) => {
     const m = POST_LINE.exec(raw);
     const named = m ? cleanLine(m[1]).replace(/[.;]+$/, "").split(/,|\band\b/i).map((p) => p.trim()) : [];
     return named.filter((p) => p.length <= 120 && /[a-z]{3}/i.test(p));
   }))];
+}
+
+// A qualification and the experience written after it: "B.E. (Fire) …; with minimum 2 years experience in fire safety".
+const EXPERIENCE_TAIL = /[;,]?\s*(?:with|and|plus)\s+(?:a\s+)?(?:minimum|min\.?|at\s+least)\s+(?:of\s+)?\d+\s*(?:\+\s*)?years?\b.*\bexperience\b.*$/i;
+/** A qualification compared as written, but with "National Fire Service College (NFSC)" read as "NFSC" (G3). */
+const sameQualification = (s: string) => s.replace(/\b((?:[A-Z][a-z]+\s+){1,6})\(([A-Z]{2,8})\)/g, (all, words: string, acr: string) =>
+  (words.trim().split(/\s+/).map((w) => w[0]).join("") === acr ? acr : all)).toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+function readEligibility(lines: string[], out: LabelledReading): void {
+  const experience: Array<{ value: string; quote: string }> = [];
+  const found = lines.flatMap((raw) => {
+    const m = ELIGIBILITY_LINE.exec(raw);
+    let value = m ? cleanLine(m[1]).replace(/[;]+$/, "") : "";
+    const tail = EXPERIENCE_TAIL.exec(value);
+    if (tail) {
+      experience.push({ value: tail[0].replace(/^[;,]?\s*(?:with|and|plus)\s+/i, "").replace(/[.;]+$/, "").trim(), quote: cleanLine(raw) });
+      value = value.slice(0, tail.index).trim();
+    }
+    return value.length >= 6 && value.length <= 600 ? [{ value, quote: cleanLine(raw) }] : [];
+  });
+  for (const raw of lines) {
+    const m = EXPERIENCE_LINE.exec(raw);
+    const value = m ? cleanLine(m[1]).replace(/[.;]+$/, "") : "";
+    if (value.length >= 3 && value.length <= 300 && /\d|\bno\b|\bnot\b|\bfresher/i.test(value)) experience.push({ value, quote: cleanLine(raw) });
+  }
+  // Two lines that say the same qualification, one abbreviating a name the other spells out, are one.
+  const distinct = [...new Map(found.map((f) => [sameQualification(f.value), f])).values()];
+  const one = single("eligibility", "eligibility lines", distinct.map((f) => ({ value: sameQualification(f.value), quote: f.quote })), out);
+  const chosen = one ? distinct.find((f) => f.quote === one.quote) ?? null : null;
+  if (!chosen && found.length > 0) return;
+  if (!chosen && experience.length === 0) return;
+  // Eligibility is kept post by post: the post is the one the text names, when it names exactly one.
+  // "Posts: Clerk, Typist" names two posts: no single one to put the eligibility under.
+  const posts = postsNamed(lines);
+  const quote = chosen?.quote ?? experience[0].quote;
   if (posts.length !== 1) {
-    out.refused.push({ fieldPath: "eligibility", reason: `“${one.quote}” names no${posts.length > 1 ? " single" : ""} post, and eligibility is kept post by post — enter it under its post in the editor` });
+    out.refused.push({ fieldPath: "eligibility", reason: `“${quote}” names no${posts.length > 1 ? " single" : ""} post, and eligibility is kept post by post — enter it under its post in the editor` });
     return;
   }
-  out.values.push({ fieldPath: "eligibility", value: [{ post: posts[0], qualification: [one.value] }] satisfies CmsRecruitmentPost[], quote: one.quote,
-    notes: [`the post is the one the text names (“${posts[0]}”)`] });
+  const exp = [...new Map(experience.map((e) => [e.value.toLowerCase(), e.value])).values()];
+  const notes = [`the post is the one the text names (“${posts[0]}”)`];
+  if (found.length > distinct.length) notes.push("two lines give the same qualification (one abbreviates a name the other spells out): one is kept");
+  if (exp.length) notes.push(`experience as written: ${exp.map((e) => `“${e}”`).join("; ")}`);
+  out.values.push({ fieldPath: "eligibility", quote,
+    value: [{ post: posts[0], ...(chosen ? { qualification: [chosen.value] } : {}), ...(exp.length ? { experience: exp } : {}) }] satisfies CmsRecruitmentPost[], notes });
 }
 
 function readSelection(lines: string[], out: LabelledReading, stageType: (name: string) => SelectionStageType): void {
@@ -244,12 +348,24 @@ function readHowToApply(lines: string[], out: LabelledReading): void {
 /** What the labelled lines of a pasted text give, each value quoted from its own line. */
 export function readLabelledLines(text: string, opts: { stageType: (name: string) => SelectionStageType }): LabelledReading {
   const out: LabelledReading = { values: [], refused: [] };
-  const lines = text.replace(/\r/g, "").split("\n");
+  const raw = text.replace(/\r/g, "").split("\n");
+  // G3: a pasted article's table rows, next-line values and fee tables, as labelled lines, each with its own words.
+  const pairs = pairsOf(raw);
+  const extra = labelledFromPairs(raw, pairs);
+  const quoteOf = new Map(extra.map((e) => [cleanLine(e.line), e.quote]));
+  // A copied table row ("Post Name<TAB>Assistant Manager - Engineer (Fire)") is read as its pair above, never as a
+  // labelled line, whose " - " would split it in the wrong place.
+  const lines = [...raw.map((l) => (l.includes("\t") ? "" : l)), ...extra.map((e) => e.line)];
   readFees(lines, out);
   readPay(lines, out);
   readAge(lines, out);
   readEligibility(lines, out);
-  readSelection(lines, out, opts.stageType);
-  readHowToApply(lines, out);
+  readSelection(raw, out, opts.stageType);
+  readHowToApply(raw, out);
+  // A value read from a written-out line is quoted with the words of the text it came from.
+  for (const v of out.values) v.quote = quoteOf.get(v.quote) ?? v.quote;
+  const article = readArticle(raw, pairs, postsNamed(lines), opts);
+  out.values.push(...article.values);
+  out.refused.push(...article.refused);
   return out;
 }

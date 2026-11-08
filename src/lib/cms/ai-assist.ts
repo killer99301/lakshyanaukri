@@ -295,6 +295,10 @@ export function buildAssistCandidates(
   // A notice whose only number is its file number (SSC: "F. No. HQ-C11018/1/2026-C-1") gives that, as printed.
   const plainText = kind === "pdf" ? content : content.replace(/<[^>]+>/g, " ");
   let notificationNumber: string | null = extraction.notificationNumber ?? labelledNoticeNumber(content) ?? fileNumberInOpening(plainText) ?? null;
+  // A closing bracket the number does not open is the sentence's: "(Advt No. CRPD/SCO/2026-27/29)" (G3).
+  if (notificationNumber && notificationNumber.endsWith(")") && (notificationNumber.match(/\(/g) ?? []).length < (notificationNumber.match(/\)/g) ?? []).length) {
+    notificationNumber = notificationNumber.slice(0, -1);
+  }
   const numberIssue = notificationNumber !== null ? notificationNumberIssue(notificationNumber) : null;
   if (numberIssue) {
     flagged.push({ label: "Notification Number", value: notificationNumber, reason: `${numberIssue} — not applied` });
