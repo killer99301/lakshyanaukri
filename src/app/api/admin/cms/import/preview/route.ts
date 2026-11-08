@@ -48,14 +48,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
   const sources: SourceInput[] = [];
-  for (const s of rawSources) {
+  for (const [n, s] of rawSources.entries()) {
     const declaredKind = KINDS.includes(s.declaredKind as DeclaredKind) ? (s.declaredKind as DeclaredKind) : null;
     const method = s.method === "url" || s.method === "upload" || s.method === "paste" ? s.method : null;
     if (!declaredKind || !method) return NextResponse.json({ error: "Each source needs a kind and a way in" }, { status: 400 });
     let bytes: Buffer | undefined;
     if (method === "upload") {
       const file = form.get(String(s.file ?? ""));
-      if (!(file instanceof File)) return NextResponse.json({ error: "A file is missing" }, { status: 400 });
+      if (!(file instanceof File)) return NextResponse.json({ error: `Source ${n + 1}: its file is missing. Choose the file, or remove that source.` }, { status: 400 });
       if (file.size > MAX_UPLOAD_BYTES) return NextResponse.json({ error: "A file is larger than 4 MB" }, { status: 413 });
       bytes = Buffer.from(await file.arrayBuffer());
     }

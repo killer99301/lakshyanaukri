@@ -143,10 +143,13 @@ expectChecks(S.R, [
   check("Q: a page not compared: the form names it, and the server refuses it too",
     stillNeeded(c2.tableNeeds!, fQ3, 0).includes("the page of the words you cite must be one you compared") && r.status === 400, [stillNeeded(c2.tableNeeds!, fQ3, 0), r]);
   check("Q: nothing was recorded by the refused attempts", !(await checks(p2)).tableCheck.checked && !(await storedScope(p2)));
-  r = await record(p2, c2, fQ("2"));
+  // The heading is printed on page 1: cited with page 2 (a page compared, but not its page) it is refused (8 Nov 2026).
+  const wrongPage = await record(p2, c2, fQ("2"));
+  r = await record(p2, c2, fQ("1"));
   const cQ = await checks(p2);
   check("Q: a page compared: nothing still needed, and recorded",
-    stillNeeded(c2.tableNeeds!, fQ("2"), 0).length === 0 && r.status === 201 && cQ.tableCheck.checked && totalCls(cQ) === "VERIFIED", [r, totalCls(cQ)]);
+    stillNeeded(c2.tableNeeds!, fQ("1"), 0).length === 0 && wrongPage.status === 400 && /on page 1 of this PDF, not page 2/.test(JSON.stringify(wrongPage))
+    && r.status === 201 && cQ.tableCheck.checked && totalCls(cQ) === "VERIFIED", [wrongPage, r, totalCls(cQ)]);
 
   // ── W ──
   section(S.W);

@@ -68,7 +68,7 @@ test("PV02 every bank reported: the split, PwBD 'of which' and never added", () 
 suite("LIC HFL Table E: state and city");
 test("PV03 the notice's 232, complete; 181 cities folded", () => {
   const t = text(render(lic));
-  assert.match(t, /The total is as printed in the notification\./);
+  assert.match(t, /The total is as printed in the source this table was taken from, not added up here\./);
   assert.match(t, /Show state and city-wise vacancies \(181 cities\)/);
   assert.match(t, /Apprentice 232 /);
   assert.ok(!t.includes("At least") && !t.includes("without a figure") && !t.includes("add up to"), "nothing missing to explain");

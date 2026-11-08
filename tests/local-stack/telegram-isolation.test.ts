@@ -28,14 +28,14 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
     new NextRequest(`${ORIGIN}${path}`, { method, headers: { "content-type": "application/json", origin: ORIGIN, cookie: `admin_sid=${token}` }, body: body === undefined ? undefined : JSON.stringify(body) });
   const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 
-  section("A first publish, which posts by default");
+  section("A first publish, ticked to post (posting is an explicit opt-in)");
   const r0 = await records.POST(req("/api/admin/cms/records", "POST", { organizationId: "canara-bank", organizationName: "Canara Bank", govType: "PSU", title: "TEST RECORD Telegram isolation 2026", recruitmentYear: 2026 }));
   const created = (await r0.json()).record;
   await fields.PATCH(req(`/api/admin/cms/records/${created.id}/fields`, "PATCH", {
     fieldPath: "links", field: { value: [{ type: "OFFICIAL_WEBSITE", label: "Canara Bank", url: "https://www.canarabank.bank.in/", official: true }], status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true }, clientRevision: created.recordRevision, reason: "test",
   }), ctx(created.id));
   await approve.POST(req(`/api/admin/cms/records/${created.id}/approve`, "POST"), ctx(created.id));
-  const r = await publish.POST(req(`/api/admin/cms/records/${created.id}/publish`, "POST"), ctx(created.id));
+  const r = await publish.POST(req(`/api/admin/cms/records/${created.id}/publish`, "POST", { announce: true }), ctx(created.id));
   const d = await r.json();
   check("published, and with no settings nothing was sent", r.status === 200 && d.announced === "skipped", d.announced);
 

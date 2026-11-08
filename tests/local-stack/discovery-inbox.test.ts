@@ -235,7 +235,7 @@ expectChecks(S.H, [
   const { bareNotice } = await import("@/app/admin/cms/discovery/lead-view");
   check("F5 the notice number goes to Smart intake without its label",
     bareNotice("Advt No. 05/2026") === "05/2026" && bareNotice("Notification No.: CRP/RRB/XV/2026") === "CRP/RRB/XV/2026" && bareNotice("22/2026") === "22/2026"
-    && /bareNotice\(lead\.notificationNumber\)/.test(page));
+    && /handoffJob\(lead\)/.test(page) && /bareNotice\(lead\.notificationNumber\)/.test(readFileSync(join(process.cwd(), "src/app/admin/cms/import/handoff.ts"), "utf8")));
 
   // ── G ──
   section(S.G);

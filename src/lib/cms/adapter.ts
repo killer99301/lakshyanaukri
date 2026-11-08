@@ -88,7 +88,8 @@ export function snapshotToGovernmentRecruitment(
     snapshot.links.find((l) => l.type === type && !l.savedFrom)?.url;
 
   const govType = (() => {
-    if (snapshot.govType === "PSU") return "PSU Bank" as const;
+    // "PSU Bank" only for a bank; any other public sector body (IBPS, an insurer, a PSU) is shown as "PSU".
+    if (snapshot.govType === "PSU") return /\bbank\b/i.test(snapshot.organizationName ?? "") ? "PSU Bank" as const : "PSU" as const;
     if (snapshot.govType === "State Govt") return "State Govt" as const;
     return "Central Govt" as const;
   })();

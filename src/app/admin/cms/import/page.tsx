@@ -15,7 +15,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DiscoverPanel, type FoundJob } from "./DiscoverPanel";
 import { LeadHandoff, type HandoffLead } from "./LeadHandoff";
-import { bareNotice } from "../discovery/lead-view";
+import { emptyNewJob, handoffJob, type NewJobDraft } from "./handoff";
 import { ReviewPanel } from "./ReviewPanel";
 import { OpenReadings, ReadingJobPanel, describePdf } from "./ReadingJob";
 import { AttestationField, attestationProblem } from "./AttestationField";
@@ -200,7 +200,7 @@ function Importer() {
   const recordId = params.get("record");
   const [on, setOn] = useState<boolean | null>(null);
   const [job, setJob] = useState<{ title: string; draftState: string } | null>(null);
-  const [newJob, setNewJob] = useState({ organizationId: "", organizationName: "", recruitmentYear: String(new Date().getFullYear()), title: "", govType: "Central Govt", notificationNumber: "" });
+  const [newJob, setNewJob] = useState<NewJobDraft>(() => emptyNewJob());
   // ?url=… (from "Find jobs on a page"): that page comes in as research.
   const startUrl = params.get("url");
   const [sources, setSources] = useState<SourceDraft[]>(() => startUrl
@@ -208,9 +208,9 @@ function Importer() {
     : [newSource("OFFICIAL_NOTIFICATION", "upload"), newSource("RESEARCH", "paste")]);
   const pickFound = (f: FoundJob) => {
     const kind: Kind = !f.official ? "RESEARCH" : /\.pdf(\?|$)/i.test(f.url) ? "OFFICIAL_NOTIFICATION" : "OFFICIAL_PAGE";
-    // "BTSC FSO Recruitment 2026 Notification Out For 105 Posts, Apply Online" → "BTSC FSO Recruitment 2026"
-    const title = f.title.replace(/\s+(notification\s+)?out\b.*$/i, "").replace(/,.*$/, "").trim() || f.title;
-    setNewJob((n) => ({ ...n, title: title.slice(0, 160) }));
+    // Fresh details from this job alone: nothing of the job shown before carries over. The portal's own title
+    // stays in the source it came from.
+    setNewJob(handoffJob(f));
     setSources([{ ...newSource(kind, "url"), url: f.url }, newSource("OFFICIAL_NOTIFICATION", "upload")]);
     setPreview(null);
     document.querySelector("[data-import-job]")?.scrollIntoView({ block: "start" });
@@ -221,9 +221,7 @@ function Importer() {
   const onLead = (lead: HandoffLead, urls: string[]) => {
     setSources([...urls.map((u) => ({ ...newSource("RESEARCH", "url"), url: u })), ...(urls.length < 4 ? [newSource("OFFICIAL_NOTIFICATION", "upload")] : [])]);
     if (!recordId) {
-      const title = lead.title.replace(/\s+(notification\s+)?out\b.*$/i, "").replace(/,.*$/, "").trim() || lead.title;
-      setNewJob((n) => ({ ...n, title: title.slice(0, 160), organizationId: lead.organizationId ?? n.organizationId,
-        organizationName: lead.organizationName ?? n.organizationName, notificationNumber: lead.notificationNumber ? bareNotice(lead.notificationNumber) : n.notificationNumber }));
+      setNewJob(handoffJob(lead));
     }
   };
   const [busy, setBusy] = useState(false);
@@ -262,9 +260,11 @@ function Importer() {
 
   const subject = recordId ? job?.title ?? "" : `${newJob.title} — ${newJob.organizationName}`;
 
+  /** A row with nothing in it: no file, no address, no text and no "I downloaded this myself" ticked. */
+  const isBlank = (s: SourceDraft) => !s.attest && !s.url.trim() && (s.method === "upload" ? !s.file : s.method === "paste" ? !s.text.trim() : true);
   /** PDFs (split in this browser) and pasted text are read as a reading job: any size, in steps, resumable. */
   const isPdf = (s: SourceDraft) => s.method === "upload" && !!s.file && (s.file.type === "application/pdf" || /\.pdf$/i.test(s.file.name)) && !s.scanText;
-  const startReading = async () => {
+  const startReading = async (sources: SourceDraft[]) => {
     setBusy(true);
     setErr(null);
     setPreview(null);
@@ -299,6 +299,12 @@ function Importer() {
   };
 
   const makePreview = async () => {
+    if (!recordId && !newJob.govType) { setErr("Choose the government type of the new job. Nothing was sent."); return; }
+    // A source row left empty (no file, no address, no text) is not sent; sources are numbered as shown.
+    const missingFile = sources.findIndex((s) => s.method === "upload" && !s.file && !isBlank(s));
+    if (missingFile >= 0) { setErr(`Source ${missingFile + 1}: choose its file, or remove that source. Nothing was sent.`); return; }
+    const used = sources.filter((s) => !isBlank(s));
+    if (used.length === 0) { setErr("Add a source: upload a file, give an address or paste text. Nothing was sent."); return; }
     // A ticked "I downloaded this myself" without its address or note would be sent and quietly left unconfirmed:
     // it is not sent, and the source says what it needs.
     const incomplete = sources.findIndex((s) => s.declaredKind !== "RESEARCH" && s.method !== "url" && attestationProblem(s));
@@ -306,8 +312,8 @@ function Importer() {
       setErr(`Source ${incomplete + 1}: ${ATTESTATION_NOT_SENT}`);
       return;
     }
-    if (sources.some(isPdf) && sources.every((s) => isPdf(s) || s.method === "paste")) { await startReading(); return; }
-    if (sources.some((s) => s.method === "upload" && s.file && s.file.size > 4 * 1024 * 1024)) {
+    if (used.some(isPdf) && used.every((s) => isPdf(s) || s.method === "paste")) { await startReading(used); return; }
+    if (used.some((s) => s.method === "upload" && s.file && s.file.size > 4 * 1024 * 1024)) {
       setErr("A PDF over 4 MB is read as a long reading, which takes PDFs and pasted text. Remove the address or image source here, and bring it into the same job afterwards.");
       return;
     }
@@ -320,7 +326,7 @@ function Importer() {
     if (recordId) f.set("recordId", recordId);
     if (recordId) f.set("recruitmentId", recordId);
     else f.set("newJob", JSON.stringify({ ...newJob, recruitmentYear: Number(newJob.recruitmentYear), notificationNumber: newJob.notificationNumber || undefined }));
-    const list = sources.map((s, i) => {
+    const list = used.map((s, i) => {
       if (s.method === "upload" && s.file) f.set(`file${i}`, s.file);
       return {
         declaredKind: s.declaredKind, method: s.method, url: s.url || undefined,
@@ -437,8 +443,8 @@ function Importer() {
                 <label><span style={labelStyle}>Organisation ID</span><input value={newJob.organizationId} onChange={(e) => setNewJob({ ...newJob, organizationId: e.target.value.toLowerCase() })} placeholder="lic-hfl" style={inputStyle} /></label>
                 <label><span style={labelStyle}>Year</span><input value={newJob.recruitmentYear} onChange={(e) => setNewJob({ ...newJob, recruitmentYear: e.target.value })} inputMode="numeric" style={inputStyle} /></label>
                 <label><span style={labelStyle}>Government type</span>
-                  <select value={newJob.govType} onChange={(e) => setNewJob({ ...newJob, govType: e.target.value })} style={inputStyle}>
-                    <option>Central Govt</option><option>State Govt</option><option>PSU</option>
+                  <select value={newJob.govType} onChange={(e) => setNewJob({ ...newJob, govType: e.target.value as NewJobDraft["govType"] })} style={inputStyle}>
+                    <option value="">Choose…</option><option>Central Govt</option><option>State Govt</option><option>PSU</option>
                   </select>
                 </label>
                 <label><span style={labelStyle}>Notification number (if known)</span><input value={newJob.notificationNumber} onChange={(e) => setNewJob({ ...newJob, notificationNumber: e.target.value })} style={inputStyle} /></label>

@@ -29,12 +29,28 @@ export interface EvidenceRow {
 
 export interface FieldQuote { quote: string; source: string; url: string; at: string }
 
-const Ctx = createContext<{ rows: EvidenceRow[]; byField: Map<string, FieldQuote[]> }>({ rows: [], byField: new Map() });
+/** A document Smart intake brought in for the job, as stored with its import (never re-checked here). */
+export interface ImportedDoc {
+  id: string; name: string; declaredKind: string; method: string; originUrl: string | null; authenticity: string;
+  retrievedAt: string; contentKind: string; pageCount: number | null; versionLabel: string | null; documentDate: string | null;
+}
+
+const Ctx = createContext<{ rows: EvidenceRow[]; docs: ImportedDoc[]; byField: Map<string, FieldQuote[]> }>({ rows: [], docs: [], byField: new Map() });
 
 const when = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 export function EvidenceProvider({ recordId, revision, children }: { recordId: string; revision: string; children: React.ReactNode }) {
   const [rows, setRows] = useState<EvidenceRow[]>([]);
+  const [docs, setDocs] = useState<ImportedDoc[]>([]);
+  useEffect(() => {
+    let alive = true;
+    // The documents Smart intake brought in, as kept with each import (nothing when the job was not imported).
+    fetch(`/api/admin/cms/records/${recordId}/checks`)
+      .then((r) => (r.ok ? r.json() : { retrievals: [] }))
+      .then((d) => { if (alive) setDocs(Array.isArray(d.retrievals) ? d.retrievals : []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [recordId, revision]);
   useEffect(() => {
     let alive = true;
     // Looked up again after each save: AI Assist may just have added quotes.
@@ -58,7 +74,7 @@ export function EvidenceProvider({ recordId, revision, children }: { recordId: s
     return map;
   }, [rows]);
 
-  return <Ctx.Provider value={{ rows, byField }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ rows, docs, byField }}>{children}</Ctx.Provider>;
 }
 
 /** A "Source words" toggle for one field; nothing when no quote is kept for it. */
@@ -99,19 +115,55 @@ const SOURCE_TYPES: Record<string, string> = {
   SECONDARY: "Other source (found by the old automatic intake)",
 };
 
-/** Every source kept for the record, with its quotes field by field. */
+const DECLARED: Record<string, string> = {
+  OFFICIAL_NOTIFICATION: "Official notification", OFFICIAL_CORRIGENDUM: "Official corrigendum", OFFICIAL_PAGE: "Official web page",
+  RESEARCH: "Research (not official evidence)", OTHER: "Other document",
+};
+const STANDING: Record<string, string> = {
+  CONFIRMED: "confirmed as the official document",
+  ATTESTED: "attested by an admin as downloaded or copied by hand",
+  UNCONFIRMED: "not confirmed as official",
+  NOT_APPLICABLE: "not checked (research)",
+};
+const HOW: Record<string, string> = { FETCHED: "fetched from its address by the server", UPLOADED: "uploaded", PASTED: "pasted" };
+
+/** The documents Smart intake brought in for this job. */
+function ImportedDocs({ docs }: { docs: ImportedDoc[] }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ fontSize: 12, color: C.muted }}>Documents brought in by Smart intake ({docs.length})</div>
+      {docs.map((d) => (
+        <div key={d.id} data-imported-doc style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
+          <div style={{ fontSize: 13, color: C.text }}>{d.name}</div>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 4, lineHeight: 1.5 }}>
+            {DECLARED[d.declaredKind] ?? d.declaredKind} · {HOW[d.method] ?? d.method} · {STANDING[d.authenticity] ?? d.authenticity}
+            {d.pageCount ? ` · ${d.pageCount} page${d.pageCount === 1 ? "" : "s"}` : ""} · brought in {when(d.retrievedAt)}
+            {d.documentDate ? ` · dated ${d.documentDate}` : ""}
+          </div>
+          {d.originUrl && (
+            <a href={d.originUrl} target="_blank" rel="noopener noreferrer" style={{ color: C.accent, fontSize: 12, wordBreak: "break-all" }}>{d.originUrl}</a>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Every source kept for the record: the documents Smart intake brought in, and AI Assist's quotes field by field. */
 export function EvidenceList({ labelFor }: { labelFor: (fieldPath: string) => string }) {
-  const { rows } = useContext(Ctx);
-  if (rows.length === 0) {
+  const { rows, docs } = useContext(Ctx);
+  if (rows.length === 0 && docs.length === 0) {
     return (
       <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.6 }}>
-        No sources are kept for this record yet. From now on, each AI Assist run keeps the words it read every value from, and they appear here
-        and beside each field.
+        No sources are kept for this record. Documents brought in by Smart intake, and the words each AI Assist run read every value from,
+        appear here.
       </div>
     );
   }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {docs.length > 0 && <ImportedDocs docs={docs} />}
+      {docs.length > 0 && rows.length > 0 && <div style={{ fontSize: 12, color: C.muted }}>Read by AI Assist</div>}
       {rows.map((row) => (
         <div key={row.id} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
           <div style={{ fontSize: 12, color: C.muted }}>{SOURCE_TYPES[row.sourceType] ?? row.sourceType} · {when(row.fetchedAt)}</div>

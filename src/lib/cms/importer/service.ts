@@ -20,7 +20,7 @@ import { readSource, htmlToText, type SourceReading } from "@/lib/cms/importer/e
 import { sourceOwnLink } from "@/lib/cms/importer/links";
 import { buildProposal, comparable, type DeclaredKind, type RetrievalSummary } from "@/lib/cms/importer/proposal";
 import { classifyField, effectiveDecision, publishGate, type FieldVerdict, type TableTotalContext } from "@/lib/cms/importer/classify";
-import { contentHash, valueHash } from "@/lib/cms/importer/evidence-text";
+import { contentHash, quoteOnPage, valueHash } from "@/lib/cms/importer/evidence-text";
 import { CRITICAL_FIELDS, FIELD_DEFS, POSITIVE_FLAG, fieldDef, revisionPath } from "@/lib/cms/importer/fields";
 import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-domains";
 import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
@@ -245,6 +245,7 @@ export async function resolveTarget(opts: { mode: "NEW" | "EXISTING"; recruitmen
     const j = opts.newJob;
     if (!j || !j.organizationId || !j.title || !Number.isInteger(j.recruitmentYear)) throw new ImportInputError("A new job needs an organisation, a title and a year");
     if (!/^[a-z0-9][a-z0-9-]{1,39}$/.test(j.organizationId)) throw new ImportInputError("Organisation ID must be 2–40 lowercase letters, digits or hyphens");
+    if (j.govType !== undefined && !["Central Govt", "State Govt", "PSU"].includes(j.govType)) throw new ImportInputError("Choose the government type of the new job");
     organizationId = j.organizationId;
     subject = `${j.title} — ${j.organizationName}`;
   }
@@ -696,7 +697,7 @@ export async function checksFor(record: RecruitmentRecord) {
   // What the whole-table check needs (C3 step 3, S1): the documents with their standing and pages, and the rows to compare.
   const tableValue = record.vacancies.table?.value;
   const needs = tableValue && tableValue.rows?.length ? tableCheckNeeds(tableValue, tableTotal?.docs ?? await docStandings(record.id)) : null;
-  return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals, fields, tableCheck: await tableCheckFor(record), tableTotal: totalView,
+  return { imported, ok: gate.ok, rows, blockers: gate.blockers.map((b) => b.fieldPath), retrievals: docs, fields, tableCheck: await tableCheckFor(record), tableTotal: totalView,
     tableNeeds: needs && !("error" in needs) ? needs : null, tableNeedsError: needs && "error" in needs ? needs.error : null };
 }
 
@@ -852,10 +853,35 @@ export async function decide(opts: {
       ? "\"Not stated\" must be checked against the recruiting body's own document"
       : `${retrieval.originHost ?? "This source"} is not trusted for ${purpose.replace(/_/g, " ")} details of this organisation`);
   }
+  // A table cell given without words (no screen sends one): on a PDF it is checked on its page like words, never
+  // recorded as checked on a page unchecked.
+  if (!opts.quote && opts.tableCell && retrieval.contentKind === "PDF") {
+    const text = (await sql`SELECT s.text FROM recruitment_sources s JOIN recruitment_source_retrievals r ON r.source_id = s.id WHERE r.id = ${opts.retrievalId}`)[0]?.text as string | undefined;
+    const page = opts.page ?? opts.tableCell.page ?? null;
+    if (!text || page === null || !opts.tableCell.text.trim() || !quoteOnPage(text, opts.tableCell.text, page).ok) {
+      throw new ImportInputError("Copy the words from the page of the PDF, with its page number. A table cell alone is not checked on a page.");
+    }
+  }
   // The words cited must be in the document (a table cell is shown as typed).
   if (opts.quote) {
     const text = (await sql`SELECT s.text FROM recruitment_sources s JOIN recruitment_source_retrievals r ON r.source_id = s.id WHERE r.id = ${opts.retrievalId}`)[0]?.text as string | undefined;
     if (!text || !squash(text).includes(squash(opts.quote))) throw new ImportInputError("Those words are not in the document. Copy them exactly.");
+    // A PDF: the words must be on the page cited, by the reader's page markers. Without them the page cannot be
+    // checked, and the decision is not recorded as checked on a page. A web page or text has no pages (unchanged).
+    if (retrieval.contentKind === "PDF") {
+      if (opts.page === null) {
+        if (opts.kind !== "ADMIN_NOT_STATED") throw new ImportInputError("Give the page of the PDF these words are on.");
+      } else {
+        const onPage = quoteOnPage(text, opts.quote, opts.page);
+        if (!onPage.ok) {
+          throw new ImportInputError(
+            onPage.reason === "OTHER_PAGE" ? `Those words are on page ${onPage.foundOn} of this PDF, not page ${opts.page}. Cite the page they are on.`
+            : onPage.reason === "NO_SUCH_PAGE" ? `This PDF has no page ${opts.page} in what was read${onPage.pages ? ` (it has ${onPage.pages} pages)` : ""}.`
+            : onPage.reason === "NOT_ON_ONE_PAGE" ? "Those words run across two pages. Cite words from one page."
+            : "The pages of this PDF were not kept when it was read, so the page cannot be checked. Nothing was recorded.");
+        }
+      }
+    }
   }
 
   const path = revisionPath(opts.fieldPath);

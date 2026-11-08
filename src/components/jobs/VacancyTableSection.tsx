@@ -30,7 +30,8 @@ function figureText(f: Figure | null): string {
 function basisText(f: Figure | null, detail: string): string | null {
   if (!f) return null;
   if (f.basis === "CALCULATED") return `Calculated by adding the ${detail} figures given for this recruitment.`;
-  if (f.basis === "STATED") return "The total is as printed in the notification.";
+  // The printed total of the source the table came from, which may be a research source: never said to be the notification.
+  if (f.basis === "STATED") return "The total is as printed in the source this table was taken from, not added up here.";
   return null;
 }
 

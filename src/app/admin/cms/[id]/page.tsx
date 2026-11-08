@@ -34,7 +34,7 @@ import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { LiveChangesPanel } from "./LiveChangesPanel";
 import { ImportChecksPanel, type ImportCheckState } from "./ImportChecksPanel";
-import { ImportVerdictBadge, ImportVerdicts } from "./ImportVerdict";
+import { ImportVerdictBadge, ImportVerdicts, useHasImportVerdict } from "./ImportVerdict";
 import { ImporterLink } from "../import/ImporterLink";
 import { TakeDownControl, TakenDownBanner } from "./SiteVisibility";
 import { currentValue, restorable, sameAsNow } from "@/lib/cms/restore-value";
@@ -161,6 +161,7 @@ function EditableField<T>({
   // An imported job is checked in "Check before publishing", against the documents brought in (G2): the old
   // evidence-id box would only set the field's own status, so it is not offered there.
   const importedJob = Object.keys(useContext(ImportVerdicts)).length > 0;
+  const hasVerdict = useHasImportVerdict(fieldPath);
   const [reason, setReason] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -231,7 +232,7 @@ function EditableField<T>({
           {label}
         </span>
         <InfoTip id={fieldPath} />
-        {field && <Badge status={field.status} />}
+        {field && !hasVerdict && <Badge status={field.status} />}
         <ImportVerdictBadge fieldPath={fieldPath} />
         {field?.conflict && (
           <span style={{ marginLeft: 6, fontSize: 11, color: C.red }}>⚠ conflict</span>
@@ -1359,8 +1360,8 @@ export default function CmsRecordEditorPage() {
   const [publishingSeq, setPublishingSeq] = useState(false);
   const [publishSeqErr, setPublishSeqErr] = useState<string | null>(null);
   const [publishNote, setPublishNote] = useState<string | null>(null);
-  // Post to the Telegram channel on this publish? null = the default: yes for a
-  // job going live the first time, no for a republish.
+  // Post to the Telegram channel on this publish? Only when the admin ticks it:
+  // it starts unticked, for a first publish and a republish alike (explicit opt-in).
   const [announceChoice, setAnnounceChoice] = useState<boolean | null>(null);
   const [reverting, setReverting] = useState(false);
   const [importChecks, setImportChecks] = useState<ImportCheckState>({ toCheck: 0, checked: [], fields: {} });
@@ -1528,7 +1529,7 @@ export default function CmsRecordEditorPage() {
       // A draft is approved and published in one request: the server checks
       // everything publishing needs before approving, and undoes the approval
       // if the publish still fails, so a refusal leaves the job a draft.
-      const announce = announceChoice ?? !record.publishedAt;
+      const announce = announceChoice === true;
       setPublishNote(null);
       const publishRes = await fetch(`/api/admin/cms/records/${id}/publish`, {
         method: "POST",
@@ -1813,7 +1814,7 @@ export default function CmsRecordEditorPage() {
             >
               <input
                 type="checkbox"
-                checked={announceChoice ?? !record.publishedAt}
+                checked={announceChoice === true}
                 onChange={(e) => setAnnounceChoice(e.target.checked)}
                 style={{ marginTop: 1 }}
               />
@@ -2837,6 +2838,7 @@ function ProvenanceBlockDisplay({
   field: ProvenanceField<unknown> | undefined;
   renderContent: (v: unknown) => React.ReactNode;
 }) {
+  const hasVerdict = useHasImportVerdict(fieldPath);
   if (!field) {
     return <div style={{ color: C.muted, fontSize: 13 }}>— not set —</div>;
   }
@@ -2844,7 +2846,7 @@ function ProvenanceBlockDisplay({
     <div>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
-        <Badge status={field.status} />
+        {!hasVerdict && <Badge status={field.status} />}
         {fieldPath && <ImportVerdictBadge fieldPath={fieldPath} />}
         {field.evidenceIds.length > 0 && (
           <span style={{ marginLeft: 6, fontSize: 11, color: C.muted }}>{field.evidenceIds.length} source(s)</span>

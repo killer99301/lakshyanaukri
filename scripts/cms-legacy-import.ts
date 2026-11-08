@@ -114,9 +114,9 @@ function selectionProcessToCmsInfo(stages: string[]): CmsSelectionInformation {
 }
 
 function govTypeFromPublic(
-  gt: "Central Govt" | "State Govt" | "PSU Bank",
+  gt: "Central Govt" | "State Govt" | "PSU Bank" | "PSU",
 ): "Central Govt" | "State Govt" | "PSU" {
-  if (gt === "PSU Bank") return "PSU";
+  if (gt === "PSU Bank" || gt === "PSU") return "PSU";
   return gt;
 }
 

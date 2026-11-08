@@ -677,7 +677,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
           <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
             <CheckCircle className="h-5 w-5" />
           </div>
-          <h2 className="text-lg font-black text-[#0F172A]">How to Apply Online Step-by-Step</h2>
+          <h2 className="text-lg font-black text-[#0F172A]">{isGov && job.howToApply && job.howToApply.length > 0 ? "How to Apply Online Step-by-Step" : "How to Apply"}</h2>
         </div>
 
         {isGov && job.howToApply && job.howToApply.length > 0 ? (
@@ -692,8 +692,13 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
             ))}
           </ol>
         ) : (
-          <p className="text-xs font-semibold text-[#475569]">
-            Visit the official portal link provided above to register and complete your application.
+          // Only a link the job has is referred to; nothing is said about steps it does not give.
+          <p data-how-to-apply-fallback className="text-xs font-semibold text-[#475569]">
+            {job.links?.apply
+              ? "Apply through the official application link given on this page. Read the official notification first for the full steps."
+              : job.links && "notification" in job.links && job.links.notification
+                ? "The way to apply is given in the official notification. Read it before applying."
+                : "The way to apply has not been added here yet. Check the recruiting body's official notification."}
           </p>
         )}
 
@@ -705,10 +710,8 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
         <div className="flex items-center gap-2 text-orange-400 font-extrabold text-xs uppercase tracking-wider">
           <Building2 className="h-4 w-4" /> About Recruiting Body
         </div>
+        {/* Only the name: no description is written for a body the record does not describe. */}
         <h3 className="text-xl font-black text-white">{job.organizationName}</h3>
-        <p className="text-xs text-slate-300 leading-relaxed font-medium">
-          {job.organizationName} is a premier organization responsible for conducting recruitment examinations and selecting qualified candidates across India.
-        </p>
       </section>
     </div>
   );

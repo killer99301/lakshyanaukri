@@ -54,7 +54,7 @@ export async function POST(
   const { id } = await params;
 
   // { announce: true | false } says whether to post to the Telegram channel.
-  // Without it, a first publish posts and a republish does not.
+  // Without it, nothing is posted: posting is an explicit opt-in (the box starts unticked).
   // { approveFirst: true } is Approve & Publish (see the header).
   let requested: boolean | undefined;
   let approveFirst = false;
@@ -162,7 +162,7 @@ export async function POST(
           AND created_at > now() - make_interval(hours => ${REPEAT_WINDOW_HOURS})
         LIMIT 1
       `;
-      const decision = decideChannelPost({ requested, isNew, sameMessageRecently: recent.length > 0 });
+      const decision = decideChannelPost({ requested: requested ?? false, isNew, sameMessageRecently: recent.length > 0 });
       if (decision.post) {
         announced = await sendToChannel(message);
         if (announced === "sent") {

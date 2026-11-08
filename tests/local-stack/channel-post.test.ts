@@ -51,20 +51,22 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   const logged = async () => ((await pg.query("SELECT count(*)::int AS n FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type = 'TELEGRAM_CHANNEL_POST'", [id])).rows[0] as { n: number }).n;
 
   section("First publish");
+  // Posting is an explicit opt-in (8 Nov 2026): with no choice given, even a job going live posts nothing.
   let out = await cycle();
-  check("with no choice given, a job going live posts “New job”", out.status === 200 && out.announced === "sent" && posts.length === 1 && /NEW JOB/.test(posts[0]), { out, posts: posts.length });
-  check("the post is recorded", (await logged()) === 1);
+  check("with no choice given, a job going live posts nothing (explicit opt-in)", out.status === 200 && out.announced === "not-asked" && posts.length === 0, { out, posts: posts.length });
+  check("nothing is recorded", (await logged()) === 0);
 
   section("Republishing");
   out = await cycle();
-  check("with no choice given, a republish posts nothing", out.announced === "not-asked" && posts.length === 1, out);
+  check("with no choice given, a republish posts nothing", out.announced === "not-asked" && posts.length === 0, out);
   out = await cycle({ announce: false });
-  check("unticked: nothing", out.announced === "not-asked" && posts.length === 1, out);
+  check("unticked: nothing", out.announced === "not-asked" && posts.length === 0, out);
   out = await cycle({ announce: true });
-  check("ticked: “Updated” is posted", out.announced === "sent" && posts.length === 2 && /UPDATED/.test(posts[1]), out);
+  check("ticked: “Updated” is posted", out.announced === "sent" && posts.length === 1 && /UPDATED/.test(posts[0]), out);
+  check("the post is recorded", (await logged()) === 1);
   out = await cycle({ announce: true });
-  check("the same message again within 24 hours is not posted", out.announced === "duplicate" && posts.length === 2, out);
-  check("two posts recorded, no more", (await logged()) === 2);
+  check("the same message again within 24 hours is not posted", out.announced === "duplicate" && posts.length === 1, out);
+  check("one post recorded, no more", (await logged()) === 1);
 
   globalThis.fetch = realFetch;
   summary();

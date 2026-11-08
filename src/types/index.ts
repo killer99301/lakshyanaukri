@@ -312,7 +312,7 @@ export interface BaseOpportunity {
 export interface GovernmentRecruitment extends BaseOpportunity {
   type: "government";
   notificationNumber: string;     // "Advt No. 72/2024", "CEN 05/2024"
-  govType: "Central Govt" | "State Govt" | "PSU Bank";
+  govType: "Central Govt" | "State Govt" | "PSU Bank" | "PSU";
 
   totalVacancies: number;
   vacanciesDisplay: string;       // "1,186 Revised Vacancies"
