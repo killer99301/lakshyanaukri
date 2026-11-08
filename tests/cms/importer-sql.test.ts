@@ -17,8 +17,10 @@ test("SQ01 semicolons in strings, identifiers, comments and function bodies do n
 test("SQ02 the importer schema splits into whole statements", () => {
   const parts = splitSqlStatements(readFileSync("src/lib/cms/importer/schema.sql", "utf8"));
   assert.ok(parts.length > 30);
-  for (const p of parts) assert.ok(/^(CREATE|DROP|REVOKE)\b/.test(p), p.slice(0, 60));
+  for (const p of parts) assert.ok(/^(CREATE|DROP|REVOKE|DO)\b/.test(p), p.slice(0, 60));
   assert.ok(parts.some((p) => p.startsWith("CREATE OR REPLACE FUNCTION public.cms_apply_import") && p.endsWith("$fn$")));
+  // The "link not released yet" checks (revision 3) are replaced in one dollar-quoted block, kept whole.
+  assert.ok(parts.some((p) => p.startsWith("DO $mig$") && p.endsWith("$mig$") && p.includes("recruitment_field_claims_not_yet_open")));
 });
 
 suite("Migration object check");

@@ -345,6 +345,8 @@ export interface GovernmentRecruitment extends BaseOpportunity {
   /** Subjects and topics, from the official notification. */
   syllabus?: SyllabusSubject[];
   howToApply?: string[];
+  /** CMS jobs: the official notice says the application link will be released later; no Apply Online link is given (revision 3). */
+  applyLinkLater?: { linkReleaseOn: string | null; applicationsOpenOn: string | null; where: string | null };
 
   links: {
     notification?: string;        // PDF URL

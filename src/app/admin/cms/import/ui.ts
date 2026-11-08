@@ -100,6 +100,7 @@ export const CLASS_LOOK: Record<string, { label: string; color: string }> = {
   VERIFIED: { label: "Verified", color: C.green },
   NOT_APPLICABLE: { label: "Not applicable", color: C.green },
   NOT_STATED: { label: "Not stated", color: C.accent },
+  NOT_YET_OPEN: { label: "Link not released yet — reviewed", color: C.accent },
   SUPPORTED: { label: "In the official notice — not checked yet", color: C.amber },
   RESEARCH_ONLY: { label: "From research only", color: C.orange },
   UNSUPPORTED: { label: "No official source", color: C.red },

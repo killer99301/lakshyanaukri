@@ -261,7 +261,7 @@ BEGIN
 
   IF NEW.kind = 'ADMIN_REVOKED' THEN
     SELECT * INTO rev FROM public.recruitment_field_claims WHERE id = NEW.revokes_claim_id;
-    IF NOT FOUND OR rev.kind NOT IN ('ADMIN_VERIFIED', 'ADMIN_NOT_APPLICABLE', 'ADMIN_NOT_STATED')
+    IF NOT FOUND OR rev.kind NOT IN ('ADMIN_VERIFIED', 'ADMIN_NOT_APPLICABLE', 'ADMIN_NOT_STATED', 'ADMIN_NOT_YET_OPEN')
        OR rev.recruitment_id <> NEW.recruitment_id OR rev.field_path <> NEW.field_path THEN
       RAISE EXCEPTION 'Only an admin decision on the same field of the same job can be revoked'
         USING ERRCODE = 'P0001';
@@ -269,7 +269,10 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- ADMIN_VERIFIED / ADMIN_NOT_APPLICABLE / ADMIN_NOT_STATED
+  -- ADMIN_VERIFIED / ADMIN_NOT_APPLICABLE / ADMIN_NOT_STATED / ADMIN_NOT_YET_OPEN
+  IF NEW.kind = 'ADMIN_NOT_YET_OPEN' AND NEW.field_path <> 'links#APPLY_ONLINE' THEN
+    RAISE EXCEPTION 'Link not released yet is recorded on the Apply Online link only' USING ERRCODE = 'P0001';
+  END IF;
   SELECT * INTO fr FROM public.field_revisions WHERE id = NEW.field_revision_id;
   -- A link decision may cite a revision of the whole list ("links") or its own ("links#APPLY_ONLINE").
   IF NOT FOUND OR fr.recruitment_id <> NEW.recruitment_id
@@ -287,12 +290,12 @@ BEGIN
     RAISE EXCEPTION 'Only a confirmed or attested document from a listed host can support a decision'
       USING ERRCODE = 'P0001';
   END IF;
-  IF NEW.kind = 'ADMIN_NOT_STATED' AND r.origin_role <> 'AUTHORITY' THEN
+  IF NEW.kind IN ('ADMIN_NOT_STATED', 'ADMIN_NOT_YET_OPEN') AND r.origin_role <> 'AUTHORITY' THEN
     RAISE EXCEPTION 'Not stated must be checked against the recruiting body''s own document'
       USING ERRCODE = 'P0001';
   END IF;
   SELECT s.content_kind INTO kind_src FROM public.recruitment_sources s WHERE s.id = r.source_id;
-  IF kind_src = 'PDF' AND NEW.kind IN ('ADMIN_VERIFIED', 'ADMIN_NOT_APPLICABLE') AND NEW.page IS NULL THEN
+  IF kind_src = 'PDF' AND NEW.kind IN ('ADMIN_VERIFIED', 'ADMIN_NOT_APPLICABLE', 'ADMIN_NOT_YET_OPEN') AND NEW.page IS NULL THEN
     RAISE EXCEPTION 'A page number is required when the document is a PDF' USING ERRCODE = 'P0001';
   END IF;
   RETURN NEW;
@@ -756,3 +759,35 @@ CREATE TABLE IF NOT EXISTS recruitment_import_job_pages (
   CHECK (page >= 1),
   CHECK (status = 'UPLOADED' OR reason IS NOT NULL)
 );
+
+-- "Link not released yet" (ADMIN_NOT_YET_OPEN, docs/apply-link-not-yet-open-design.md, revision 3).
+-- Additive and re-runnable: the claim kind check and the public-note check (first created unnamed, inline)
+-- are replaced by named ones that also allow the new kind, and the new kind's own rule is added. No row is
+-- changed; every existing row passes the new checks (they only widen the old ones).
+DO $mig$
+DECLARE c RECORD;
+BEGIN
+  FOR c IN
+    SELECT con.conname FROM pg_constraint con
+    WHERE con.conrelid = 'public.recruitment_field_claims'::regclass AND con.contype = 'c'
+      -- the kind list (the only check naming both ADMIN_REVOKED and ADMIN_NOT_STATED), the public-note check, and this rule
+      AND ((pg_get_constraintdef(con.oid) LIKE '%ADMIN_REVOKED%' AND pg_get_constraintdef(con.oid) LIKE '%ADMIN_NOT_STATED%'
+            AND pg_get_constraintdef(con.oid) NOT LIKE '%revokes_claim_id%')
+           OR pg_get_constraintdef(con.oid) LIKE '%public_note IS NULL%'
+           OR con.conname = 'recruitment_field_claims_not_yet_open')
+  LOOP
+    EXECUTE format('ALTER TABLE public.recruitment_field_claims DROP CONSTRAINT %I', c.conname);
+  END LOOP;
+  ALTER TABLE public.recruitment_field_claims ADD CONSTRAINT recruitment_field_claims_kind_v2 CHECK (kind IN
+    ('EXTRACTED', 'ADMIN_VERIFIED', 'ADMIN_NOT_APPLICABLE', 'ADMIN_NOT_STATED', 'ADMIN_NOT_YET_OPEN', 'ADMIN_REVOKED'));
+  ALTER TABLE public.recruitment_field_claims ADD CONSTRAINT recruitment_field_claims_public_note_v2
+    CHECK (public_note IS NULL OR (kind IN ('ADMIN_NOT_STATED', 'ADMIN_NOT_APPLICABLE') AND length(public_note) <= 160));
+  ALTER TABLE public.recruitment_field_claims ADD CONSTRAINT recruitment_field_claims_not_yet_open CHECK (
+    kind <> 'ADMIN_NOT_YET_OPEN' OR (
+      field_path = 'links#APPLY_ONLINE' AND retrieval_id IS NOT NULL AND field_revision_id IS NOT NULL
+      AND length(trim(coalesce(quote, ''))) > 0 AND value_hash IS NULL AND public_note IS NULL
+      AND jsonb_typeof(value) = 'object' AND value->>'linkNotReleased' = 'true' AND value->>'reviewerConfirmed' = 'true'
+      AND (coalesce(value->>'linkReleaseOn', '') <> '' OR coalesce(value->>'where', '') <> '')
+      AND length(trim(coalesce(justification, ''))) >= 10));
+END
+$mig$;

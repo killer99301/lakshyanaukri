@@ -36,6 +36,8 @@ export interface RowActions {
   printedLine: PrintedLine | null;
   /** The whole vacancy table must still be checked against the notice for this total (not yet on this screen). */
   needsTableCheck: boolean;
+  /** "Link not released yet" (revision 3): the Apply Online link only, while the job has no link and it is not already recorded. */
+  linkLater: boolean;
 }
 
 const hasValue = (v: unknown) => v !== null && v !== undefined;
@@ -54,6 +56,7 @@ export function rowActions(row: CheckRowLike, tableTotal: TableTotalView | null 
       printedLine: printed ? tableTotal.evidence : null,
       // Said only while the total is still pending: not once the table check has verified it, or "not stated in full" stands.
       needsTableCheck: tableTotal.route === "TABLE_CHECK" && row.cls !== "VERIFIED" && row.cls !== "NOT_STATED",
+      linkLater: false,
     };
   }
   // Every other field: exactly as before step 2.
@@ -65,6 +68,7 @@ export function rowActions(row: CheckRowLike, tableTotal: TableTotalView | null 
     withdraw,
     printedLine: null,
     needsTableCheck: false,
+    linkLater: row.fieldPath === "links#APPLY_ONLINE" && !hasValue(row.value) && row.cls !== "NOT_YET_OPEN",
   };
 }
 

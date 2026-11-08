@@ -8,6 +8,7 @@
 // revision, the unrevoked one with the highest seq is in force.
 
 import { valueHash } from "@/lib/cms/importer/evidence-text";
+import { LINK_LATER_FIELD, readLinkLater, type PublicLinkLater } from "@/lib/cms/importer/link-later";
 import { authorityCovers, type OriginRole } from "@/lib/cms/importer/trusted-domains";
 import { CRITICAL_FIELDS, fieldDef } from "@/lib/cms/importer/fields";
 import { comparable } from "@/lib/cms/importer/proposal";
@@ -15,13 +16,13 @@ import { calculatedTotalReady, type VacancyTable } from "@/lib/vacancy-table";
 import { isIncompletenessReason, quoteIsPrintedTotal, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
 
 export type FieldClass =
-  | "VERIFIED" | "NOT_APPLICABLE" | "NOT_STATED"
+  | "VERIFIED" | "NOT_APPLICABLE" | "NOT_STATED" | "NOT_YET_OPEN"
   | "SUPPORTED" | "RESEARCH_ONLY" | "UNSUPPORTED" | "CONFLICTING" | "LEGACY" | "MISSING";
 
 export interface ClaimView {
   id: string;
   seq: number;
-  kind: "EXTRACTED" | "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED" | "ADMIN_REVOKED";
+  kind: "EXTRACTED" | "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED" | "ADMIN_NOT_YET_OPEN" | "ADMIN_REVOKED";
   value: unknown;
   fieldRevisionId?: string | null;
   revokesClaimId?: string | null;
@@ -52,12 +53,14 @@ export interface FieldVerdict {
   decisionId?: string;
   publicNote?: string;
   reason: string;
+  /** NOT_YET_OPEN only: what the official notice announced (revision 3). */
+  linkLater?: PublicLinkLater;
 }
 
 export function effectiveDecision(state: FieldState): ClaimView | undefined {
   const revoked = new Set(state.claims.filter((c) => c.kind === "ADMIN_REVOKED").map((c) => c.revokesClaimId));
   return state.claims
-    .filter((c) => (c.kind === "ADMIN_VERIFIED" || c.kind === "ADMIN_NOT_APPLICABLE" || c.kind === "ADMIN_NOT_STATED")
+    .filter((c) => (c.kind === "ADMIN_VERIFIED" || c.kind === "ADMIN_NOT_APPLICABLE" || c.kind === "ADMIN_NOT_STATED" || c.kind === "ADMIN_NOT_YET_OPEN")
       && !revoked.has(c.id) && state.latestRevisionId !== null && c.fieldRevisionId === state.latestRevisionId)
     .sort((a, b) => b.seq - a.seq)[0];
 }
@@ -86,6 +89,14 @@ export function classifyField(state: FieldState, firstImportAt: string | null, t
   if (decision?.kind === "ADMIN_VERIFIED") return verdict("VERIFIED", "checked against the official document", { decisionId: decision.id });
   if (decision?.kind === "ADMIN_NOT_APPLICABLE") return verdict("NOT_APPLICABLE", "recorded as not applicable", { decisionId: decision.id, publicNote: decision.publicNote ?? decision.quote ?? undefined });
   if (decision?.kind === "ADMIN_NOT_STATED") return verdict("NOT_STATED", "recorded as not stated in the notice", { decisionId: decision.id, publicNote: decision.publicNote ?? undefined });
+  // "Link not released yet" (revision 3): only on the Apply Online link, and only while no link is on the job.
+  if (decision?.kind === "ADMIN_NOT_YET_OPEN") {
+    const later = readLinkLater(decision.value);
+    if (fieldPath === LINK_LATER_FIELD && !state.hasValue && later) {
+      return verdict("NOT_YET_OPEN", "the official notice says the application link will be released later", { decisionId: decision.id,
+        linkLater: { linkReleaseOn: later.linkReleaseOn, applicationsOpenOn: later.applicationsOpenOn, where: later.where } });
+    }
+  }
 
   if (!state.hasValue) return verdict("MISSING", "no value and no decision");
 
@@ -126,6 +137,8 @@ export function publishGate(states: FieldState[], firstImportAt: string | null, 
     const tier = fieldDef(v.fieldPath).tier;
     if (v.cls === "VERIFIED" || v.cls === "NOT_APPLICABLE") return false;
     if (v.cls === "NOT_STATED" && tier === "B") return false;
+    // The application link to be released later passes for the Apply Online link only (revision 3, §3).
+    if (v.cls === "NOT_YET_OPEN" && v.fieldPath === LINK_LATER_FIELD) return false;
     return true;
   });
   return { ok: blockers.length === 0, verdicts, blockers };

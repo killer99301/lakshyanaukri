@@ -22,7 +22,9 @@ export interface AttentionItem {
   /** Stable key for the rule, for tests and for telling items apart. */
   code:
     | "EDITS_NOT_LIVE" | "CLOSES_SOON" | "CLOSED_NO_NEXT_STAGE" | "EXAM_NEAR_NO_ADMIT_CARD" | "STAGE_DATE_PASSED"
-    | "TENTATIVE_DATE_NEAR" | "POSTPONED_NO_DATE" | "RESULT_MAY_BE_OUT" | "RESULT_DATE_PASSED" | "NOT_LOOKED_AT";
+    | "TENTATIVE_DATE_NEAR" | "POSTPONED_NO_DATE" | "RESULT_MAY_BE_OUT" | "RESULT_DATE_PASSED" | "NOT_LOOKED_AT"
+    // The Apply Online link the official notice says will be released later, until a verified link is on the public page (revision 3).
+    | "APPLY_LINK_PENDING";
   message: string;
 }
 

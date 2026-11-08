@@ -22,6 +22,7 @@ import { formatDate } from "@/lib/utils";
 import { stageGroups } from "@/lib/exam-stage-kind";
 import { vacancyCategoryTable } from "@/lib/vacancy-categories";
 import { VacancyTableSection } from "@/components/jobs/VacancyTableSection";
+import { durableWords } from "@/lib/cms/importer/link-later";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
 import { RecruitmentTimeline } from "@/components/jobs/RecruitmentTimeline";
 import { ExamPatternSection, SyllabusSection } from "@/components/jobs/ExamPatternSyllabus";
@@ -694,7 +695,9 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
         ) : (
           // Only a link the job has is referred to; nothing is said about steps it does not give.
           <p data-how-to-apply-fallback className="text-xs font-semibold text-[#475569]">
-            {job.links?.apply
+            {!job.links?.apply && job.type === "government" && job.applyLinkLater
+              ? durableWords(job.applyLinkLater).join(" ")
+              : job.links?.apply
               ? "Apply through the official application link given on this page. Read the official notification first for the full steps."
               : job.links && "notification" in job.links && job.links.notification
                 ? "The way to apply is given in the official notification. Read it before applying."

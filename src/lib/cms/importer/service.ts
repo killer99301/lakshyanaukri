@@ -21,6 +21,7 @@ import { sourceOwnLink } from "@/lib/cms/importer/links";
 import { buildProposal, comparable, type DeclaredKind, type RetrievalSummary } from "@/lib/cms/importer/proposal";
 import { classifyField, effectiveDecision, publishGate, type FieldVerdict, type TableTotalContext } from "@/lib/cms/importer/classify";
 import { contentHash, quoteOnPage, valueHash } from "@/lib/cms/importer/evidence-text";
+import { checkLinkLater, LINK_LATER_FIELD, type LinkLaterValue } from "@/lib/cms/importer/link-later";
 import { CRITICAL_FIELDS, FIELD_DEFS, POSITIVE_FLAG, fieldDef, revisionPath } from "@/lib/cms/importer/fields";
 import { authorityCovers, hostOf, originFor } from "@/lib/cms/importer/trusted-domains";
 import { buildApplyPayload, blankRecord, editorValue } from "@/lib/cms/importer/apply-build";
@@ -778,7 +779,7 @@ export async function decide(opts: {
   recruitmentId: string;
   adminId: string;
   fieldPath: string;
-  kind: "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED";
+  kind: "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED" | "ADMIN_NOT_YET_OPEN";
   retrievalId: string;
   page: number | null;
   quote: string | null;
@@ -787,15 +788,35 @@ export async function decide(opts: {
   justification: string | null;
   publicNote: string | null;
   seen: { revisionId: string | null; decisionId: string | null };
+  /** "Link not released yet" (ADMIN_NOT_YET_OPEN) only: the two dates kept apart, the place, the reviewer's statement. */
+  linkLater?: { linkReleaseOn: string | null; applicationsOpenOn: string | null; where: string | null; reviewerConfirmed: boolean } | null;
 }) {
   if (!(opts.fieldPath in FIELD_DEFS)) throw new ImportInputError("Unknown field");
   const record = await getRecruitmentById(opts.recruitmentId);
   if (!record) throw new ImportInputError("Job not found", 404);
   if (record.draftState !== "DRAFT" && record.draftState !== "APPROVED") throw new ImportInputError("Open the job for editing first", 409);
+  // "Link not released yet" (revision 3, §2): the Apply Online link only, never with a link on the job, the
+  // notice's own words, a reason and the reviewer's statement; the dates kept apart. Page and document below.
+  let linkLaterValue: LinkLaterValue | null = null;
+  if (opts.kind === "ADMIN_NOT_YET_OPEN") {
+    if (opts.fieldPath !== LINK_LATER_FIELD) throw new ImportInputError("“Link not released yet” is recorded on the Apply Online link only");
+    if (record.links.some((l) => l.type === "APPLY_ONLINE")) throw new ImportInputError("This job has an Apply Online link: verify that link against the official notice instead.");
+    if (!opts.quote) throw new ImportInputError("Copy the notice's words that say the application link will be released later.");
+    if ((opts.justification ?? "").trim().length < 10) throw new ImportInputError("Say why, in at least 10 characters (kept in the history).");
+    if (opts.publicNote) throw new ImportInputError("The public words for this are written from the notice's dates; no other words are taken.");
+    const l = opts.linkLater ?? { linkReleaseOn: null, applicationsOpenOn: null, where: null, reviewerConfirmed: false };
+    // The job's own "Applications open" date counts only when it is verified against this same notice.
+    const [openState] = await fieldStates(record, ["dates.applicationOpenDate"]);
+    const openDecision = openState ? effectiveDecision(openState) : undefined;
+    const verifiedOpenDate = openDecision?.kind === "ADMIN_VERIFIED" && openDecision.retrievalId === opts.retrievalId && typeof openState.value === "string" ? openState.value.slice(0, 10) : null;
+    const checked = checkLinkLater({ quote: opts.quote, linkReleaseOn: l.linkReleaseOn, applicationsOpenOn: l.applicationsOpenOn, where: l.where, reviewerConfirmed: l.reviewerConfirmed === true, verifiedOpenDate });
+    if (!checked.ok) throw new ImportInputError(checked.error);
+    linkLaterValue = checked.value;
+  }
   // The vacancy table is checked as a whole, against every page it comes from (Stage C, C1).
   let reviewScope = opts.reviewScope;
   if (opts.fieldPath === TABLE_PATH) {
-    const t = tableCheckScope({ kind: opts.kind, table: record.vacancies.table?.value, quote: opts.quote, page: opts.page, reviewScope: opts.reviewScope,
+    const t = tableCheckScope({ kind: opts.kind as "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED", table: record.vacancies.table?.value, quote: opts.quote, page: opts.page, reviewScope: opts.reviewScope,
       docs: await docStandings(record.id), retrievalId: opts.retrievalId });
     if ("error" in t) throw new ImportInputError(t.error);
     reviewScope = t.scope as typeof reviewScope;
@@ -848,8 +869,10 @@ export async function decide(opts: {
   if (!retrieval) throw new ImportInputError("That document was not brought in for this job");
   if (retrieval.authenticity !== "CONFIRMED" && retrieval.authenticity !== "ATTESTED") throw new ImportInputError("Only a confirmed or attested document can support a decision");
   const purpose = fieldDef(opts.fieldPath).purpose;
-  if (opts.kind === "ADMIN_NOT_STATED" ? retrieval.originRole !== "AUTHORITY" : !authorityCovers(retrieval.originRole, retrieval.originPurposes, purpose)) {
-    throw new ImportInputError(opts.kind === "ADMIN_NOT_STATED"
+  if (opts.kind === "ADMIN_NOT_STATED" || opts.kind === "ADMIN_NOT_YET_OPEN" ? retrieval.originRole !== "AUTHORITY" : !authorityCovers(retrieval.originRole, retrieval.originPurposes, purpose)) {
+    throw new ImportInputError(opts.kind === "ADMIN_NOT_YET_OPEN"
+      ? "“Link not released yet” needs the recruiting body's own confirmed or attested notice; a portal's or a partner's document is not enough."
+      : opts.kind === "ADMIN_NOT_STATED"
       ? "\"Not stated\" must be checked against the recruiting body's own document"
       : `${retrieval.originHost ?? "This source"} is not trusted for ${purpose.replace(/_/g, " ")} details of this organisation`);
   }
@@ -899,7 +922,8 @@ export async function decide(opts: {
     // The figure stays as it is, a minimum, and the page goes on saying so ("At least N").
     revision = { oldValue: currentField ?? null, newValue: currentField ?? null, reason: `Recorded as not stated in full (${docName}): ${opts.justification}` };
   } else if (opts.fieldPath.startsWith("links#")) {
-    revision = { oldValue: record.links, newValue: record.links, reason: `${opts.kind === "ADMIN_NOT_STATED" ? "Recorded as not stated" : "Recorded as not applicable"} (${docName}): ${opts.justification}` };
+    const what = opts.kind === "ADMIN_NOT_YET_OPEN" ? "Recorded as link not released yet" : opts.kind === "ADMIN_NOT_STATED" ? "Recorded as not stated" : "Recorded as not applicable";
+    revision = { oldValue: record.links, newValue: record.links, reason: `${what} (${docName}): ${opts.justification}` };
   } else {
     const field: ProvenanceField<unknown> = { value: null, status: "NOT_SPECIFIED", evidenceIds: [], conflict: false, manuallyEdited: true };
     const reason = `${opts.kind === "ADMIN_NOT_STATED" ? "Recorded as not stated" : "Recorded as not applicable"} (${docName}): ${opts.justification}`;
@@ -911,7 +935,7 @@ export async function decide(opts: {
   return recordDecision({
     record, newRecord, fieldPath: opts.fieldPath, kind: opts.kind, adminId: opts.adminId, seen: opts.seen,
     claim: {
-      value: opts.kind === "ADMIN_VERIFIED" ? current : null,
+      value: opts.kind === "ADMIN_VERIFIED" ? current : opts.kind === "ADMIN_NOT_YET_OPEN" ? linkLaterValue : null,
       valueHash: opts.kind === "ADMIN_VERIFIED" ? valueHash(comparable(opts.fieldPath, current)) : null,
       retrievalId: opts.retrievalId, page: opts.page, quote: opts.quote, tableCell: opts.tableCell, reviewScope,
       justification: opts.justification, publicNote: opts.publicNote,

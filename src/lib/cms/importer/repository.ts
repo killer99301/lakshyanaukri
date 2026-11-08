@@ -283,7 +283,7 @@ export async function recordDecision(input: {
   record: RecruitmentRecord;
   newRecord: RecruitmentRecord | null;
   fieldPath: string;
-  kind: "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED";
+  kind: "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED" | "ADMIN_NOT_YET_OPEN";
   adminId: string;
   seen: { revisionId: string | null; decisionId: string | null };
   claim: { value: unknown; valueHash: string | null; retrievalId: string; page: number | null; quote: string | null;
@@ -301,7 +301,7 @@ export async function recordDecision(input: {
                            ORDER BY revised_at DESC, id DESC LIMIT 1) IS NOT DISTINCT FROM ${seen.revisionId}::uuid`;
   const decisionCond = sql`(SELECT c.id FROM recruitment_field_claims c
                              WHERE c.recruitment_id = ${record.id} AND c.field_path = ${fieldPath}
-                               AND c.kind IN ('ADMIN_VERIFIED', 'ADMIN_NOT_APPLICABLE', 'ADMIN_NOT_STATED')
+                               AND c.kind IN ('ADMIN_VERIFIED', 'ADMIN_NOT_APPLICABLE', 'ADMIN_NOT_STATED', 'ADMIN_NOT_YET_OPEN')
                                AND c.field_revision_id IS NOT DISTINCT FROM ${seen.revisionId}::uuid
                                AND NOT EXISTS (SELECT 1 FROM recruitment_field_claims v WHERE v.revokes_claim_id = c.id)
                              ORDER BY c.seq DESC LIMIT 1) IS NOT DISTINCT FROM ${seen.decisionId}::uuid`;

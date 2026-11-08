@@ -23,6 +23,7 @@ import { badgeWords, rowActions, type PrintedLine, type TableCheckState, type Ta
 import { TableCheckPanel } from "./TableCheckPanel";
 import type { TableNeeds } from "./table-check-form";
 import type { FieldEvidence, EvidenceItem } from "@/lib/cms/importer/field-evidence";
+import { REVIEWER_STATEMENT } from "@/lib/cms/importer/link-later";
 
 interface Row {
   fieldPath: string; label: string; cls: string; reason: string; tier?: "A" | "B";
@@ -45,7 +46,7 @@ interface Checks {
   tableNeeds?: TableNeeds | null;
   tableNeedsError?: string | null;
 }
-type Kind = "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED";
+type Kind = "ADMIN_VERIFIED" | "ADMIN_NOT_APPLICABLE" | "ADMIN_NOT_STATED" | "ADMIN_NOT_YET_OPEN";
 
 const docName = (r: Retrieval) =>
   `${r.originHost ?? "document"} — ${r.versionLabel ?? r.declaredKind.replace("OFFICIAL_", "").toLowerCase().replace(/_/g, " ")} (${r.authenticity.toLowerCase()}${r.originRole === "PARTNER" ? ", partner" : ""})`;
@@ -97,7 +98,7 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
   printedLine?: PrintedLine | null;
 }) {
   const eligible = retrievals.filter((r) => (r.authenticity === "CONFIRMED" || r.authenticity === "ATTESTED")
-    && (kind === "ADMIN_NOT_STATED" ? r.originRole === "AUTHORITY" : r.originRole === "AUTHORITY" || r.originRole === "PARTNER"));
+    && (kind === "ADMIN_NOT_STATED" || kind === "ADMIN_NOT_YET_OPEN" ? r.originRole === "AUTHORITY" : r.originRole === "AUTHORITY" || r.originRole === "PARTNER"));
   // The printed total's own document, when it names one (a web page or text, C2.1); otherwise the first eligible.
   const citedDoc = printedLine && printedLine.page === null && eligible.some((r) => r.id === printedLine.retrievalId) ? printedLine.retrievalId : null;
   // Confirm starts from the stored official passage that states this value (G2), when there is one and the form
@@ -123,6 +124,11 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
   const [readWhole, setReadWhole] = useState(false);
   const inFullReady = !inFull || ((pagelessDoc ? readWhole : pagesRead.length > 0) && justification.trim().length > 0);
   const [publicNote, setPublicNote] = useState("");
+  // "Link not released yet": the two dates kept apart, the place, and the reviewer's own statement (revision 3, §2.1).
+  const [linkReleaseOn, setLinkReleaseOn] = useState("");
+  const [applicationsOpenOn, setApplicationsOpenOn] = useState("");
+  const [where, setWhere] = useState("");
+  const [reviewerConfirmed, setReviewerConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const doc = eligible.find((r) => r.id === retrievalId);
@@ -136,7 +142,8 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
     };
     if (page && !pagelessDoc) body.page = Number(page);
     if (kind !== "ADMIN_NOT_STATED") body.quote = quote;
-    if (kind !== "ADMIN_VERIFIED") { body.justification = justification; if (publicNote) body.publicNote = publicNote; }
+    if (kind !== "ADMIN_VERIFIED") { body.justification = justification; if (publicNote && kind !== "ADMIN_NOT_YET_OPEN") body.publicNote = publicNote; }
+    if (kind === "ADMIN_NOT_YET_OPEN") body.linkLater = { linkReleaseOn: linkReleaseOn || null, applicationsOpenOn: applicationsOpenOn || null, where: where || null, reviewerConfirmed };
     if (kind === "ADMIN_NOT_STATED") {
       body.reviewScope = inFull ? (pagelessDoc ? { whole_document: true } : { pages: pagesRead }) : whole ? { whole_document: true } : { pages: pages.split(/[,\s]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0) };
     }
@@ -150,13 +157,14 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
   if (eligible.length === 0) {
     return (
       <div style={{ fontSize: 12, color: C.amber, padding: "8px 0" }}>
-        No document brought in for this job can support this: it needs a confirmed or attested document from {kind === "ADMIN_NOT_STATED" ? "the recruiting body itself" : "the recruiting body or a listed partner"}. Import the official notice first.
+        No document brought in for this job can support this: it needs a confirmed or attested document from {kind === "ADMIN_NOT_STATED" || kind === "ADMIN_NOT_YET_OPEN" ? "the recruiting body itself" : "the recruiting body or a listed partner"}. Import the official notice first.
         <button onClick={onCancel} style={{ ...quietBtn, marginLeft: 8, padding: "2px 8px" }}>Close</button>
       </div>
     );
   }
   const title = inFull ? "Not stated in full: the notice does not give these figures"
-    : { ADMIN_VERIFIED: "Confirm against the official document", ADMIN_NOT_APPLICABLE: "Not applicable to this job", ADMIN_NOT_STATED: "The notice does not state this" }[kind];
+    : { ADMIN_VERIFIED: "Confirm against the official document", ADMIN_NOT_APPLICABLE: "Not applicable to this job", ADMIN_NOT_STATED: "The notice does not state this",
+        ADMIN_NOT_YET_OPEN: "The official notice says the application link will be released later" }[kind];
   return (
     <div data-decision-form style={{ border: `1px solid ${C.accent}44`, borderRadius: 8, padding: 10, margin: "6px 0 10px", display: "grid", gap: 8, fontSize: 12 }}>
       <strong style={{ color: C.text }}>{title}</strong>
@@ -234,10 +242,27 @@ export function DecisionForm({ recordId, row, kind, retrievals, onDone, onCancel
           {!whole && <label><span style={labelStyle}>Pages read</span><input value={pages} onChange={(e) => setPages(e.target.value)} placeholder="1, 2, 3" style={inputStyle} /></label>}
         </div>
       )}
+      {kind === "ADMIN_NOT_YET_OPEN" && (
+        <div data-link-later-form style={{ display: "grid", gap: 6 }}>
+          <div style={{ color: C.muted, lineHeight: 1.5 }}>
+            Copy the notice&apos;s words that say the <strong>link itself</strong> will be released later. A schedule of dates, or
+            &ldquo;apply online from …&rdquo;, is not enough. If the notice gives the application address, add it as the Apply Online
+            link and verify it instead. No link is shown on the public page until one is added and verified.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+            <label><span style={labelStyle}>Link release date in the notice</span><input data-link-release type="date" value={linkReleaseOn} onChange={(e) => setLinkReleaseOn(e.target.value)} style={inputStyle} /></label>
+            <label><span style={labelStyle}>Applications open (only if the notice says)</span><input data-applications-open type="date" value={applicationsOpenOn} onChange={(e) => setApplicationsOpenOn(e.target.value)} style={inputStyle} /></label>
+            <label><span style={labelStyle}>Site named (e.g. www.ibps.in)</span><input data-link-where value={where} onChange={(e) => setWhere(e.target.value)} style={inputStyle} /></label>
+          </div>
+          <label style={{ display: "flex", gap: 6, color: C.text }}>
+            <input data-reviewer-statement type="checkbox" checked={reviewerConfirmed} onChange={(e) => setReviewerConfirmed(e.target.checked)} /> {REVIEWER_STATEMENT} (required)
+          </label>
+        </div>
+      )}
       {kind !== "ADMIN_VERIFIED" && (
         <>
-          <label><span style={labelStyle}>Why (kept in the history){inFull ? " (required)" : ""}</span><input value={justification} onChange={(e) => setJustification(e.target.value)} style={inputStyle} placeholder={kind === "ADMIN_NOT_STATED" ? "e.g. Vacancies are not given; the notice says they will be notified later" : "e.g. The notice says no application fee is charged"} /></label>
-          <label><span style={labelStyle}>Words for the public page (optional)</span><input value={publicNote} onChange={(e) => setPublicNote(e.target.value)} maxLength={160} style={inputStyle} placeholder={kind === "ADMIN_NOT_STATED" ? "Vacancies will be notified later" : "No application fee"} /></label>
+          <label><span style={labelStyle}>Why (kept in the history){inFull || kind === "ADMIN_NOT_YET_OPEN" ? " (required)" : ""}</span><input value={justification} onChange={(e) => setJustification(e.target.value)} style={inputStyle} placeholder={kind === "ADMIN_NOT_STATED" ? "e.g. Vacancies are not given; the notice says they will be notified later" : "e.g. The notice says no application fee is charged"} /></label>
+          {kind !== "ADMIN_NOT_YET_OPEN" && <label><span style={labelStyle}>Words for the public page (optional)</span><input value={publicNote} onChange={(e) => setPublicNote(e.target.value)} maxLength={160} style={inputStyle} placeholder={kind === "ADMIN_NOT_STATED" ? "Vacancies will be notified later" : "No application fee"} /></label>}
         </>
       )}
       {err && <div role="alert" style={{ color: C.red }}>{err}</div>}
@@ -300,7 +325,7 @@ export interface ImportCheckState {
 const checkState = (c: Checks): ImportCheckState => ({
   fields: c.imported ? c.fields ?? {} : {},
   researchSources: (c.retrievals ?? []).filter((r) => r.declaredKind === "RESEARCH").map((r) => r.id),
-  toCheck: c.imported && !c.ok ? c.rows.filter((r) => !(r.cls === "VERIFIED" || r.cls === "NOT_APPLICABLE" || (r.cls === "NOT_STATED" && r.tier === "B"))).length : 0,
+  toCheck: c.imported && !c.ok ? c.rows.filter((r) => !(r.cls === "VERIFIED" || r.cls === "NOT_APPLICABLE" || (r.cls === "NOT_STATED" && r.tier === "B") || (r.cls === "NOT_YET_OPEN" && r.fieldPath === "links#APPLY_ONLINE"))).length : 0,
   checked: c.imported ? c.rows.filter((r) => r.cls === "VERIFIED").map((r) => r.fieldPath) : [],
 });
 
@@ -425,6 +450,7 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks, onJump }: 
                         <button data-correct title="Change the value in the editor; the change reopens this check" onClick={() => onJump(sectionOf(row.fieldPath), row.fieldPath)} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Correct</button>
                       )}
                       {act.notApplicable && <button onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_NOT_APPLICABLE" })} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Not applicable</button>}
+                      {act.linkLater && <button data-link-later onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_NOT_YET_OPEN" })} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Link not released yet</button>}
                       {act.notStated && <button onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_NOT_STATED" })} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Not stated</button>}
                       {act.notStatedInFull && <button onClick={() => setOpen({ path: row.fieldPath, kind: "ADMIN_NOT_STATED", inFull: true })} style={{ ...quietBtn, padding: "2px 8px", color: C.muted, borderColor: C.border }}>Not stated in full</button>}
                       {act.withdraw && <button onClick={() => { void revoke(row); }} style={{ ...quietBtn, padding: "2px 8px", color: C.red, borderColor: `${C.red}55` }}>Withdraw</button>}

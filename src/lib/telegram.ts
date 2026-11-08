@@ -43,6 +43,14 @@ export function buildJobAnnouncement(snapshot: PublishedRecruitmentSnapshot, kin
   }
   if (snapshot.dates.applicationOpenDate) lines.push(`Apply from: <b>${formatDate(snapshot.dates.applicationOpenDate)}</b>`);
   if (snapshot.dates.applicationCloseDate) lines.push(`<b>Last date: ${formatDate(snapshot.dates.applicationCloseDate)}</b>`);
+  // The application link to be released later (revision 3, §4.3): what the notice announced, never a link.
+  const later = snapshot.applyLinkLater && !snapshot.links.some((l) => l.type === "APPLY_ONLINE") ? snapshot.applyLinkLater : null;
+  if (later) {
+    lines.push(later.linkReleaseOn
+      ? `Application link: <b>scheduled for release on ${formatDate(later.linkReleaseOn)}</b> (official notice); not provided here yet`
+      : `Application link: <b>to be released at ${escapeHtml(later.where ?? "the official website")}</b> (official notice); not provided here yet`);
+    if (later.applicationsOpenOn && later.applicationsOpenOn !== snapshot.dates.applicationOpenDate) lines.push(`Applications open: <b>${formatDate(later.applicationsOpenOn)}</b> (official notice)`);
+  }
   if (lines[lines.length - 1] !== "") lines.push("");
   lines.push(`<b>Details and official links:</b> ${siteConfig.url}/jobs/${snapshot.slug}`);
   return lines.join("\n");

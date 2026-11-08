@@ -23,7 +23,7 @@ suite("C3 step 2: the actions offered for each field");
 
 test("S201 a printed total: Verify, naming its printed line and page; no Not applicable, no plain Not stated", () => {
   const a = rowActions(total("UNSUPPORTED"), PRINTED);
-  assert.deepEqual(a, { verify: true, notApplicable: false, notStated: false, notStatedInFull: false, withdraw: false, printedLine: { line: "Total 5 3 8 3 11 30", page: 2 }, needsTableCheck: false });
+  assert.deepEqual(a, { verify: true, notApplicable: false, notStated: false, notStatedInFull: false, withdraw: false, printedLine: { line: "Total 5 3 8 3 11 30", page: 2 }, needsTableCheck: false, linkLater: false });
 });
 test("S202 the whole-table route (calculated, AI-read, prepared, no printed line): no Verify; the whole-table check said", () => {
   const a = rowActions(total("UNSUPPORTED"), CALCULATED);

@@ -115,3 +115,29 @@ export function describeProblems(cat: Catalogue): string[] {
   for (const name of IMPORTER_OBJECTS.indexes) if (!cat.indexes.includes(name)) problems.push(`index ${name} is missing`);
   return problems;
 }
+
+// ─── "Link not released yet" (ADMIN_NOT_YET_OPEN), revision 3 ─────────────
+
+/** The named checks the "link not released yet" migration leaves on recruitment_field_claims. */
+export const LINK_LATER_CONSTRAINTS = ["recruitment_field_claims_kind_v2", "recruitment_field_claims_public_note_v2", "recruitment_field_claims_not_yet_open"] as const;
+
+/**
+ * What is still wrong for the "link not released yet" decision: its three named checks, no older kind or
+ * public-note check left beside them, and the decision trigger function aware of the new kind.
+ */
+export function describeLinkLaterProblems(cat: { checks: Array<{ name: string; def: string }>; claimFunctionSource: string | null }): string[] {
+  const problems: string[] = [];
+  for (const name of LINK_LATER_CONSTRAINTS) {
+    const c = cat.checks.find((x) => x.name === name);
+    if (!c) problems.push(`check ${name} is missing`);
+    else if (name !== "recruitment_field_claims_public_note_v2" && !c.def.includes("ADMIN_NOT_YET_OPEN")) problems.push(`check ${name} does not name ADMIN_NOT_YET_OPEN`);
+  }
+  for (const c of cat.checks) {
+    if ((LINK_LATER_CONSTRAINTS as readonly string[]).includes(c.name)) continue;
+    if (c.def.includes("ADMIN_REVOKED") && c.def.includes("ADMIN_NOT_STATED") && !c.def.includes("revokes_claim_id")) problems.push(`an older kind check (${c.name}) is still there`);
+    if (c.def.includes("public_note IS NULL")) problems.push(`an older public-note check (${c.name}) is still there`);
+  }
+  if (!cat.claimFunctionSource) problems.push("function cms_importer_check_claim is missing");
+  else if (!cat.claimFunctionSource.includes("ADMIN_NOT_YET_OPEN")) problems.push("function cms_importer_check_claim does not know ADMIN_NOT_YET_OPEN");
+  return problems;
+}

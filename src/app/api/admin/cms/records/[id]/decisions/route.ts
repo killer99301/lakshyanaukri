@@ -19,7 +19,8 @@ import { guardImporter } from "@/lib/cms/importer/route-guard";
 import { decide, ImportInputError, revoke } from "@/lib/cms/importer/service";
 import { DecisionConflictError } from "@/lib/cms/importer/repository";
 
-const KINDS = ["ADMIN_VERIFIED", "ADMIN_NOT_APPLICABLE", "ADMIN_NOT_STATED"] as const;
+const KINDS = ["ADMIN_VERIFIED", "ADMIN_NOT_APPLICABLE", "ADMIN_NOT_STATED", "ADMIN_NOT_YET_OPEN"] as const;
+const day = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? v.trim() : null);
 const str = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
@@ -48,6 +49,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       recruitmentId: id, adminId: guard.adminId, fieldPath, kind, retrievalId, page,
       quote: str(b.quote, 1000), tableCell: cell, reviewScope: scope,
       justification: str(b.justification, 500), publicNote: str(b.publicNote, 160),
+      // { linkLater: { linkReleaseOn?, applicationsOpenOn?, where?, reviewerConfirmed } } for ADMIN_NOT_YET_OPEN only.
+      linkLater: kind === "ADMIN_NOT_YET_OPEN" && b.linkLater && typeof b.linkLater === "object" ? (() => {
+        const l = b.linkLater as Record<string, unknown>;
+        return { linkReleaseOn: day(l.linkReleaseOn), applicationsOpenOn: day(l.applicationsOpenOn), where: str(l.where, 120), reviewerConfirmed: l.reviewerConfirmed === true };
+      })() : null,
       seen: { revisionId: typeof seen.revisionId === "string" ? seen.revisionId : null, decisionId: typeof seen.decisionId === "string" ? seen.decisionId : null },
     });
     return NextResponse.json(result, { status: 201 });

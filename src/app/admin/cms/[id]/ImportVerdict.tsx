@@ -13,6 +13,7 @@ export const ImportVerdicts = createContext<Record<string, string>>({});
 const LOOK: Record<string, { label: string; color: string; help: string }> = {
   VERIFIED: { label: "Verified against an official document", color: "#22c55e", help: "A person checked this exact value against an official document brought in for this job (the notification, a corrigendum or the official web page)." },
   NOT_APPLICABLE: { label: "Not applicable — reviewed", color: "#22c55e", help: "Recorded as not applicable after reading the official notification." },
+  NOT_YET_OPEN: { label: "Link not released yet — reviewed", color: "#62b5ff", help: "The recruiting body's own notice says the application link will be released later; recorded after reading it. No link is shown until one is added and verified." },
   NOT_STATED: { label: "Not stated — reviewed", color: "#62b5ff", help: "The official notification does not state this; recorded after reading it." },
   SUPPORTED: { label: "Official source — needs review", color: "#d29922", help: "An official document in the import gives this value; a person has not checked it yet." },
   RESEARCH_ONLY: { label: "Research — pending", color: "#f97316", help: "Only research (an article, ChatGPT) gives this value. Check it against the official notification." },

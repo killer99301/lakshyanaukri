@@ -112,6 +112,8 @@ export interface PublishedRecruitmentSnapshot {
   keyDetailsChecked?: boolean;
   /** Imported jobs only: the day the latest of those checks in force was recorded (G1). */
   keyDetailsCheckedOn?: string;
+  /** Imported jobs only: the official notice says the application link will be released later (revision 3). */
+  applyLinkLater?: { linkReleaseOn: string | null; applicationsOpenOn: string | null; where: string | null };
   projectionVersion: string;
   sourceRecordRevision: string;
 }

@@ -258,7 +258,10 @@ async function checkPublishable(
       const checkedOn = decisionIds.length > 0
         ? ((await sql`SELECT max(claimed_at) AS at FROM recruitment_field_claims WHERE id = ANY(${decisionIds}::uuid[])`)[0]?.at as string | Date | null) ?? null
         : null;
-      snapshot = { ...snapshot, notApplicable: words("NOT_APPLICABLE"), notStated: words("NOT_STATED"), keyDetailsChecked: gate.ok,
+      // The application link to be released later (revision 3): what the notice announced, never a link.
+      const later = gate.verdicts.find((v) => v.cls === "NOT_YET_OPEN" && v.fieldPath === "links#APPLY_ONLINE")?.linkLater;
+      snapshot = { ...snapshot, ...(later ? { applyLinkLater: later } : {}),
+        notApplicable: words("NOT_APPLICABLE"), notStated: words("NOT_STATED"), keyDetailsChecked: gate.ok,
         ...(gate.ok && checkedOn ? { keyDetailsCheckedOn: new Date(checkedOn).toISOString().slice(0, 10) } : {}) };
     }
     return { ok: true, snapshot };

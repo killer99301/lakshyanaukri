@@ -33,6 +33,7 @@ import {
   getCurrentExamSummary,
 } from "@/lib/lifecycle";
 import { NewBadge } from "@/components/common/NewBadge";
+import { ApplyLinkLaterNotice } from "@/components/jobs/ApplyLinkLaterNotice";
 import { getDeadlineUrgency, formatDeadlineDate } from "@/lib/urgency";
 
 interface JobDetailHeaderProps {
@@ -321,6 +322,8 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
             </div>
           </div>
         </div>
+
+        {job.type === "government" && job.applyLinkLater && !job.links.apply && <ApplyLinkLaterNotice later={job.applyLinkLater} />}
 
         {/* Highlight Key Specs Ribbon */}
         <div className="mt-6 pt-5 border-t border-[#E2E8F0] grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">

@@ -236,5 +236,7 @@ export function snapshotToGovernmentRecruitment(
       ...(snapshot.keyDetailsChecked ? { keyDetailsChecked: true } : {}),
     },
     updates,
+    // Only while the job gives no Apply Online link: a verified link always replaces it (revision 3).
+    ...(snapshot.applyLinkLater && !linkByType("APPLY_ONLINE") ? { applyLinkLater: snapshot.applyLinkLater } : {}),
   };
 }
