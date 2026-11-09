@@ -608,9 +608,13 @@ export async function applyImportFlow(opts: {
     record = r;
   } else {
     const j = meta.newJob!;
+    // What the admin typed for the new job: the title and, when given, the notice number. The preview counted the
+    // typed number as the job's current value ("same as the job has now"), so the new job must hold it too.
+    const typedNumber = j.notificationNumber?.trim();
     record = blankRecord({
       organizationId: j.organizationId, organizationName: j.organizationName, govType: j.govType, recruitmentYear: j.recruitmentYear,
       title: { value: j.title, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true },
+      ...(typedNumber ? { notificationNumber: { value: typedNumber, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true } } : {}),
     } as RecruitmentRecord["identity"], opts.adminId);
     slug = buildSlug(j.organizationId, j.title, j.recruitmentYear);
   }

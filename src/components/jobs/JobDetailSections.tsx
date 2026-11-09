@@ -27,6 +27,7 @@ import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
 import { RecruitmentTimeline } from "@/components/jobs/RecruitmentTimeline";
 import { ExamPatternSection, SyllabusSection } from "@/components/jobs/ExamPatternSyllabus";
 import { EligibilityChecker } from "@/components/jobs/EligibilityChecker";
+import { EXPERIENCE_PREFIX } from "@/lib/eligibility-lines";
 
 interface JobDetailSectionsProps {
   job: Opportunity;
@@ -450,7 +451,9 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Educational Qualification Box */}
           <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
-            <h3 className="text-xs font-black text-[#475569] uppercase tracking-wider">Educational Qualification</h3>
+            <h3 className="text-xs font-black text-[#475569] uppercase tracking-wider">
+              {isGov && job.eligibility?.some((q) => q.startsWith(EXPERIENCE_PREFIX)) ? "Qualification & Experience" : "Educational Qualification"}
+            </h3>
             <ul className="space-y-2">
               {isGov && job.eligibility && job.eligibility.length > 0 ? (
                 job.eligibility.map((q, idx) => (

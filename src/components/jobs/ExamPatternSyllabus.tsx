@@ -102,7 +102,7 @@ export function ExamPatternSection({ papers, noWrittenExam }: { papers?: ExamPat
       </div>
 
       <p className="text-[11px] text-slate-400 font-medium">
-        As stated in the official notification. Check it for the final word.
+        Check the official notification for the final word.
       </p>
     </section>
   );
@@ -166,7 +166,7 @@ export function SyllabusSection({ subjects }: { subjects?: SyllabusSubject[] }) 
       </div>
 
       <p className="text-[11px] text-slate-400 font-medium">
-        As listed in the official notification. Check it for the final word.
+        Check the official notification for the final word.
       </p>
 
       {/* The bridge to preparation content, which is not hosted here */}

@@ -22,6 +22,7 @@ import { originFor, type OriginRole } from "@/lib/cms/importer/trusted-domains";
 import { isAggregatorHost } from "@/lib/public-link-labels";
 import { CRITICAL_FIELDS, fieldDef } from "@/lib/cms/importer/fields";
 import type { FieldClass } from "@/lib/cms/importer/classify";
+import { groupByMeaning, type DisagreementKind } from "@/lib/cms/importer/same-meaning";
 
 // ─── What counts as material (P3) ─────────────────────────────
 
@@ -45,7 +46,11 @@ const READY_SECTIONS: Array<[string, string]> = [
 
 export type ReviewStanding = "VERIFIED" | "DECIDED" | "OFFICIAL_UNCHECKED" | "RESEARCH" | "ENTERED" | "MISSING" | "CONFLICTING";
 
-export interface ReviewConflict { fieldPath: string; label: string; values: string[]; part?: "qualification" | "experience" | "both" }
+export interface ReviewConflict {
+  fieldPath: string; label: string; values: string[]; part?: "qualification" | "experience" | "both";
+  /** SOURCES: the sources disagree. READINGS: one source was read two ways, or itself gives two values. */
+  kind?: DisagreementKind;
+}
 export interface ReviewRule { code: string; message: string; fieldPaths?: string[] }
 export interface ReviewWarning { code: string; text: string; recordId?: string }
 export interface ReviewLink { state: "NONE" | "RESEARCH" | "ENTERED" | "VERIFIED" | "LINK_LATER" | "NOT_APPLICABLE"; url: string | null; host: string | null; standing: OriginRole | null }
@@ -77,6 +82,8 @@ export interface ReviewInput {
   standings: Record<string, ReviewStanding>;
   /** The disagreeing values of each conflicting field, short and readable. */
   conflictValues: Record<string, string[]>;
+  /** How each disagreeing field disagrees (absent: sources). */
+  conflictKinds?: Record<string, DisagreementKind>;
   eligibilityPart?: "qualification" | "experience" | "both";
   /** The decision recorded on the Apply Online link, when there is one: link not released yet, or not applicable (offline). */
   applyDecision?: "LINK_LATER" | "NOT_APPLICABLE";
@@ -106,7 +113,7 @@ export function assembleReview(input: ReviewInput): PublicationReview {
 
   const missing = CRITICAL_FIELDS.filter((p) => standings[p] === "MISSING").map((p) => ({ fieldPath: p, label: label(p) }));
   const conflicts: ReviewConflict[] = MATERIAL_FIELDS.filter((p) => standings[p] === "CONFLICTING").map((p) => ({
-    fieldPath: p, label: label(p), values: (input.conflictValues[p] ?? []).slice(0, 6),
+    fieldPath: p, label: label(p), values: (input.conflictValues[p] ?? []).slice(0, 6), kind: input.conflictKinds?.[p] ?? "SOURCES",
     ...(p === "eligibility" && input.eligibilityPart ? { part: input.eligibilityPart } : {}),
   }));
 
@@ -224,6 +231,7 @@ export async function buildPublicationReview(record: RecruitmentRecord, today: s
 
   const standings: Record<string, ReviewStanding> = {};
   const conflictValues: Record<string, string[]> = {};
+  const conflictKinds: Record<string, DisagreementKind> = {};
   let eligibilityPart: ReviewInput["eligibilityPart"];
   let applyDecision: ReviewInput["applyDecision"];
   let officialDocuments = 0;
@@ -236,11 +244,14 @@ export async function buildPublicationReview(record: RecruitmentRecord, today: s
     const first = await repo.firstImportAt(record.id);
     const ctx = await tableTotalContext(record, first);
     for (const s of await repo.fieldStates(record, MATERIAL_FIELDS)) {
-      const cls = classifyField(s, first, ctx).cls;
+      const verdict = classifyField(s, first, ctx);
+      const cls = verdict.cls;
       standings[s.fieldPath] = CLASS_TO_STANDING[cls] ?? "RESEARCH";
       if (cls === "CONFLICTING") {
         const extracted = s.claims.filter((c) => c.kind === "EXTRACTED" && !c.superseded);
-        conflictValues[s.fieldPath] = [...new Set(extracted.map((c) => short(c.value)))];
+        // One entry per meaning: forms of the same value are not listed twice.
+        conflictValues[s.fieldPath] = [...new Set(groupByMeaning(s.fieldPath, extracted).map((g) => short(g.value)))];
+        conflictKinds[s.fieldPath] = verdict.conflictKind ?? "SOURCES";
         if (s.fieldPath === "eligibility") eligibilityPart = eligibilityDisagreement(extracted.map((c) => c.value));
       }
       if (s.fieldPath === "links#APPLY_ONLINE" && (cls === "NOT_YET_OPEN" || cls === "NOT_APPLICABLE")) applyDecision = cls === "NOT_YET_OPEN" ? "LINK_LATER" : "NOT_APPLICABLE";
@@ -266,7 +277,7 @@ export async function buildPublicationReview(record: RecruitmentRecord, today: s
     ORDER BY created_at LIMIT 5`;
 
   return assembleReview({
-    record, today, imported, freshness: fresh, standings, conflictValues, eligibilityPart, applyDecision, officialDocuments,
+    record, today, imported, freshness: fresh, standings, conflictValues, conflictKinds, eligibilityPart, applyDecision, officialDocuments,
     duplicates: dups.map((d) => ({ id: String(d.id), title: String(d.title ?? "") })), filled,
   });
 }

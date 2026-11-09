@@ -20,7 +20,7 @@ import { readPasted, suggestColumns } from "@/lib/vacancy-paste";
 export interface ReviewItem {
   id: string; kind: "FIELD" | "LINK"; fieldPath: string; label: string; value: unknown;
   claims: Array<{ retrievalId: string; page?: number | null; quote?: string | null; fromImage?: boolean }>;
-  action: "FILL" | "MATCHES" | "REPLACE" | "REPLACE_VERIFIED"; conflict: boolean;
+  action: "FILL" | "MATCHES" | "REPLACE" | "REPLACE_VERIFIED"; conflict: boolean; conflictKind?: "SOURCES" | "READINGS";
   defaultTicked: boolean; flags: string[]; current?: unknown;
 }
 export interface ReviewSource {
@@ -204,7 +204,11 @@ export function ReviewPanel(props: {
                     </div>
                   )}
                   {group.length > 1 && group[0].conflict && (
-                    <div style={{ fontSize: 12, color: C.red }}>{group[0].label}: the sources disagree — tick one, or none.</div>
+                    <div data-conflict-kind={group[0].conflictKind ?? "SOURCES"} style={{ fontSize: 12, color: C.red }}>
+                      {group[0].conflictKind === "READINGS"
+                        ? `${group[0].label}: one source was read two different ways, or it gives two values — check which is right, then tick one, or none.`
+                        : `${group[0].label}: the sources disagree — tick one, or none.`}
+                    </div>
                   )}
                   {group.map((i) => (
                     <div key={i.id} data-import-item={i.id} style={{ display: "grid", gridTemplateColumns: "20px minmax(120px, 190px) 1fr", gap: 10, alignItems: "start", fontSize: 13 }}>

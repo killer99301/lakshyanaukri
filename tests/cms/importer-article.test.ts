@@ -195,8 +195,9 @@ test("IA09 a passed last date is flagged and kept; research-only and missing lin
   assert.ok(close.flags.includes("this date has passed (today is 2026-10-25)"));
   assert.ok(!p.items.find((i) => i.fieldPath === "dates.applicationOpenDate")!.flags.some((f) => /passed/.test(f)), "an opening date is not a deadline");
   assert.equal(p.warnings.length, 3);
-  assert.ok(p.warnings.some((w) => /official notification link/.test(w)));
-  assert.ok(p.warnings.some((w) => /official apply link/.test(w)));
+  assert.ok(p.warnings.some((w) => /No notification link from the recruiting body/.test(w)));
+  assert.ok(p.warnings.some((w) => /No Apply Online link from the recruiting body/.test(w)));
+  assert.ok(!p.warnings.some((w) => /cannot be published until/.test(w)), "no mandatory-verification wording (owner-controlled publication)");
   assert.ok(p.warnings.some((w) => /Every source here is research/.test(w)));
 });
 

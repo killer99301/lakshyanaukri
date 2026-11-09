@@ -288,7 +288,11 @@ function readEligibility(lines: string[], out: LabelledReading): void {
   for (const raw of lines) {
     const m = EXPERIENCE_LINE.exec(raw);
     const value = m ? cleanLine(m[1]).replace(/[.;]+$/, "") : "";
-    if (value.length >= 3 && value.length <= 300 && /\d|\bno\b|\bnot\b|\bfresher/i.test(value)) experience.push({ value, quote: cleanLine(raw) });
+    if (!m || value.length < 3 || !/\d|\bno\b|\bnot\b|\bfresher/i.test(value)) continue;
+    // As long as a qualification may be: alternative pathways are often written out in one line (SBI Fire: 399
+    // characters). Longer still: said for the editor, never dropped without a word.
+    if (value.length <= 600) experience.push({ value, quote: cleanLine(raw) });
+    else out.refused.push({ fieldPath: "eligibility", reason: `the experience line is too long to read (${value.length} characters): enter it under its post in the editor — “${cleanLine(raw).slice(0, 120)}…”` });
   }
   // Two lines that say the same qualification, one abbreviating a name the other spells out, are one.
   const distinct = [...new Map(found.map((f) => [sameQualification(f.value), f])).values()];

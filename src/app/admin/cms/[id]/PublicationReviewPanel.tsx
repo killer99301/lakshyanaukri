@@ -34,7 +34,10 @@ const LINK_STATE: Record<ReviewLink["state"], string> = {
   NONE: "none", RESEARCH: "from research, not checked", ENTERED: "entered by hand, not checked", VERIFIED: "checked against an official document",
   LINK_LATER: "link not yet released (recorded)", NOT_APPLICABLE: "not applicable (recorded)",
 };
-const STANDING: Record<string, string> = { AUTHORITY: "the recruiting body's own site", PARTNER: "a listed partner site", NONE: "a site not established for this organisation" };
+const STANDING: Record<string, string> = {
+  AUTHORITY: "the recruiting body's own site", PARTNER: "a listed partner site",
+  UNLISTED: "a site not listed for this organisation", NONE: "a site not established for this organisation",
+};
 
 export function PublicationReviewPanel({ record, onJump, onPublished, onRefused }: {
   record: RecruitmentRecord;
@@ -166,11 +169,14 @@ export function PublicationReviewPanel({ record, onJump, onPublished, onRefused 
 
       {v.conflicts.length > 0 && (
         <div data-review-conflicts>
-          {heading(`The sources disagree (${v.conflicts.length})`, C.amber)}
+          {heading(`Values that disagree (${v.conflicts.length})`, C.amber)}
           <div style={{ color: C.muted, marginBottom: 4 }}>Correct the value, or acknowledge each disagreement to publish the value shown in the editor.</div>
           {v.conflicts.map((c) => (
             <div key={c.fieldPath} data-review-conflict={c.fieldPath} style={{ borderTop: `1px solid ${C.border}`, padding: "6px 0" }}>
               <div style={{ fontWeight: 600 }}>{c.label}{c.part ? ` — ${c.part === "both" ? "qualification and experience" : c.part}` : ""}</div>
+              <div data-conflict-kind={c.kind ?? "SOURCES"} style={{ color: C.muted, fontSize: 11 }}>
+                {c.kind === "READINGS" ? "One source, read two different ways — or it gives two different values. Check which is right." : "The sources disagree."}
+              </div>
               {c.values.map((x, i) => <div key={i} style={{ color: C.muted, wordBreak: "break-word" }}>Source value {i + 1}: {x}</div>)}
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
                 <button onClick={() => jump(c.fieldPath)} style={{ ...quietBtn, padding: "2px 8px" }}>Edit</button>

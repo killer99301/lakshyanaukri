@@ -15,6 +15,7 @@
 
 import { canonicalJson, valueHash } from "@/lib/cms/importer/evidence-text";
 import { fieldDef } from "@/lib/cms/importer/fields";
+import { disagreement, groupByMeaning, type DisagreementKind } from "@/lib/cms/importer/same-meaning";
 import type { FoundLink } from "@/lib/cms/importer/links";
 
 export type DeclaredKind = "OFFICIAL_NOTIFICATION" | "OFFICIAL_CORRIGENDUM" | "OFFICIAL_PAGE" | "RESEARCH" | "OTHER";
@@ -90,6 +91,8 @@ export interface ProposalItem {
   claims: ItemClaim[];
   action: ItemAction;
   conflict: boolean;
+  /** A conflict only: SOURCES (the sources disagree) or READINGS (one source read two ways, or it gives two values). */
+  conflictKind?: DisagreementKind;
   /** Existing EXTRACTED claim ids this value replaces (corrigendum). */
   supersedes: string[];
   defaultTicked: boolean;
@@ -120,6 +123,22 @@ export function comparable(fieldPath: string, value: unknown): unknown {
 }
 
 const shortHash = (fieldPath: string, value: unknown) => valueHash(comparable(fieldPath, value)).slice(0, 12);
+
+type Candidate = [string, { value: unknown; claims: ItemClaim[]; notes: string[]; doubts: string[]; doubted: number }];
+
+/** Candidates whose values mean the same (same-meaning.ts) become one: the fuller value, all claims, notes and doubts. */
+function mergeSameMeaning(fieldPath: string, candidates: Candidate[]): Candidate[] {
+  if (candidates.length < 2) return candidates;
+  return groupByMeaning(fieldPath, candidates.map(([h, g]) => ({ value: g.value, h, g }))).map((grp): Candidate => {
+    if (grp.members.length === 1) return [grp.members[0].h, grp.members[0].g];
+    const notes: string[] = [], doubts: string[] = [];
+    for (const m of grp.members) {
+      for (const n of m.g.notes) if (!notes.includes(n)) notes.push(n);
+      for (const d of m.g.doubts) if (!doubts.includes(d)) doubts.push(d);
+    }
+    return [shortHash(fieldPath, grp.value), { value: grp.value, claims: grp.members.flatMap((m) => m.g.claims), notes, doubts, doubted: grp.members.reduce((n, m) => n + m.g.doubted, 0) }];
+  });
+}
 
 const eligibleRetrieval = (r: RetrievalSummary) =>
   (r.authenticity === "CONFIRMED" || r.authenticity === "ATTESTED") && (r.originRole === "AUTHORITY" || r.originRole === "PARTNER");
@@ -157,7 +176,9 @@ export function buildProposal(input: {
   }
 
   for (const [fieldPath, perField] of groups) {
-    let candidates = [...perField.entries()];
+    // Forms of the same value (a kept passage, an empty list, a full stop, a note filed elsewhere) are one value,
+    // with every source's claim kept; only a real difference is offered as a choice.
+    let candidates = mergeSameMeaning(fieldPath, [...perField.entries()]);
     // A corrigendum in this import states the current value of the fields it mentions.
     const fromCorrigendum = candidates.filter(([, g]) => g.claims.some((c) => byRetrieval.get(c.retrievalId)?.declaredKind === "OFFICIAL_CORRIGENDUM"));
     let supersedes: string[] = [];
@@ -171,6 +192,9 @@ export function buildProposal(input: {
         .map((c) => c.id);
     }
     const conflict = candidates.length > 1;
+    const conflictKind = conflict
+      ? disagreement(fieldPath, candidates.flatMap(([, g]) => g.claims.map((c) => ({ value: g.value, retrievalId: c.retrievalId })))) ?? "SOURCES"
+      : undefined;
     const cur = input.current(fieldPath);
     for (const [h, g] of candidates) {
       const sources = g.claims.map((c) => byRetrieval.get(c.retrievalId)!).filter(Boolean);
@@ -199,6 +223,7 @@ export function buildProposal(input: {
         claims: g.claims,
         action,
         conflict,
+        ...(conflictKind ? { conflictKind } : {}),
         supersedes: conflict ? [] : supersedes,
         // A critical value that only research gives, while the official
         // document in this import is silent on it, waits for the admin's tick.
@@ -305,10 +330,10 @@ export function buildProposal(input: {
     items.some((i) => i.fieldPath === `links#${type}` && (i.value as { official?: boolean }).official === true)
     || (input.currentLinks ?? []).some((l) => l.type === type && l.official === true);
   if (!hasOfficial("OFFICIAL_NOTIFICATION")) {
-    warnings.push("No official notification link was found. Add the recruiting body's own notice (its PDF or page) as a source, or add the link in Links: the job cannot be published until it is checked.");
+    warnings.push("No notification link from the recruiting body's own site was found. You can add its notice (PDF or page) as a source or link; the publication review will tell you what is unconfirmed, and you decide whether to publish.");
   }
   if (!hasOfficial("APPLY_ONLINE")) {
-    warnings.push("No official apply link was found. A portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) when checking.");
+    warnings.push("No Apply Online link from the recruiting body was found. A job-news portal's link is never used for it. Add it in Links, or mark it not applicable (walk-in, offline form) in the quality checks.");
   }
   if (input.extractions.length > 0 && input.extractions.every((e) => e.retrieval.declaredKind === "RESEARCH")) {
     warnings.push("Every source here is research. Its values are saved as Pending, but none can be checked until an official document is added.");

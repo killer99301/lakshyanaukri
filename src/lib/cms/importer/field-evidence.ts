@@ -18,6 +18,7 @@
 // offered as suggestions, copied as they are, for the person to choose.
 
 import { valueHash } from "@/lib/cms/importer/evidence-text";
+import { groupByMeaning } from "@/lib/cms/importer/same-meaning";
 import { comparable } from "@/lib/cms/importer/proposal";
 import { authorityCovers, type OriginRole } from "@/lib/cms/importer/trusted-domains";
 import type { FieldState } from "@/lib/cms/importer/classify";
@@ -151,15 +152,10 @@ export function fieldEvidence(state: FieldState, purpose: Purpose, docs: Evidenc
       standing, standingWords: words, quoteFound, usable: !notUsable, ...(notUsable ? { notUsable } : {}),
     };
   });
-  // Values that disagree: every distinct value the sources give, when there is more than one.
-  const groups = new Map<string, { value: unknown; documents: string[] }>();
-  for (const i of items) {
-    const h = valueHash(comparable(state.fieldPath, i.value));
-    const g = groups.get(h) ?? { value: i.value, documents: [] };
-    g.documents.push(i.document);
-    groups.set(h, g);
-  }
-  const conflicts = groups.size > 1 ? [...groups.values()] : [];
+  // Values that disagree: every value the sources give that means something different, when there is more than
+  // one (forms of the same value, such as one with a full stop and one without, are one value).
+  const groups = groupByMeaning(state.fieldPath, items).map((g) => ({ value: g.value, documents: g.members.map((m) => m.document) }));
+  const conflicts = groups.length > 1 ? groups : [];
   const best = items.find((i) => i.usable);
   // Found, not stored: only when nothing stored can be used, only in documents that could support the check.
   const suggestions: FieldEvidence["suggestions"] = [];

@@ -35,6 +35,11 @@ export const TRUSTED_DOMAINS: Record<string, HostEntry[]> = {
     { host: "onlinebpsc.bihar.gov.in", role: "AUTHORITY", purposes: ["all"] },
   ],
   ibps: [{ host: "ibps.in", role: "AUTHORITY", purposes: ["all"] }],
+  // State Bank of India (owner's decision, 2026-11-09): sbi.bank.in, where SBI's careers page and its notice PDFs
+  // are served. Its other names are not added until confirmed. The IBPS-run registration site
+  // (ibpsreg.ibps.in) is NOT listed: SBI links to it advertisement by advertisement, and this registry is per
+  // organisation, so it stays neutrally labelled ("Application link").
+  sbi: [{ host: "sbi.bank.in", role: "AUTHORITY", purposes: ["all"] }],
   // Bihar Technical Service Commission. Its online form runs on its own NIC
   // PARIKSHA portal (owner's decision, 2026-10-25): trusted for applications
   // only, never for the notice, eligibility, age, vacancies or fees. Other

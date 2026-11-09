@@ -30,6 +30,7 @@ import type { FeeRow } from "@/types";
 import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, ExamPatternPaper, SyllabusSubject } from "@/types/recruitment-record";
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
+import { EXPERIENCE_PREFIX } from "@/lib/eligibility-lines";
 import { fieldDef } from "@/lib/cms/importer/fields";
 
 // ─── Internal helpers ─────────────────────────────────────
@@ -68,8 +69,10 @@ function ageCriteriaToAgeLimit(age: AgeCriteria): AgeLimit {
   };
 }
 
+// Each post, its qualifications and its experience, as written: alternative pathways stay in the words
+// they were given in, under the post they belong to (never merged into one general requirement).
 function postsToEligibilityStrings(posts: CmsRecruitmentPost[]): string[] {
-  return posts.flatMap((p) => [p.post, ...(p.qualification ?? [])]);
+  return posts.flatMap((p) => [p.post, ...(p.qualification ?? []), ...(p.experience ?? []).map((e) => `${EXPERIENCE_PREFIX}${e}`)]);
 }
 
 function selectionInfoToProcessStrings(info: CmsSelectionInformation): string[] {

@@ -6,8 +6,8 @@
 //
 // Add sources (official PDF, official page, ChatGPT or portal research),
 // make a preview, tick what to keep, apply. Nothing is saved before Apply,
-// every saved value is Pending, and an imported job cannot be published until
-// a person has checked its critical fields on the job's page.
+// every saved value is Pending. Publishing is the owner's decision in the job's
+// publication review; checking fields against an official notice is optional.
 // With ?record=<id> it imports into that job instead of creating one.
 
 import React, { Suspense, useEffect, useMemo, useState } from "react";

@@ -365,7 +365,7 @@ function fakeGemini(prompt: string): J {
   check("exam stage: the walk-in on 15 Nov 2026, scheduled", stage?.dateIso === "2026-11-15" && stage?.status === "SCHEDULED", stage);
   check("the notice's rule is kept as an admin note", JSON.stringify(get(walk, "conditions")?.value) === JSON.stringify(["Candidates should report with original documents."]));
   check("age and eligibility come from the whole-text reading (the topic readers found no section)", (get(walk, "age")?.value as J)?.max === 45 && !!get(walk, "eligibility"));
-  check("the preview warns: no official notification or apply link", walk.proposal.warnings.some((w) => /notification link/.test(w)) && walk.proposal.warnings.some((w) => /apply link/.test(w)), walk.proposal.warnings);
+  check("the preview warns: no official notification or apply link", walk.proposal.warnings.some((w) => /notification link/.test(w)) && walk.proposal.warnings.some((w) => /Apply Online link/.test(w)), walk.proposal.warnings);
   check("its own address is offered, but not as official", link(walk, WALKIN_URL)?.official === false && link(walk, WALKIN_URL)?.ticked === false);
   const walkJob = await apply(walk, ticked(walk));
   const walkPdf = sources(walk)[0];

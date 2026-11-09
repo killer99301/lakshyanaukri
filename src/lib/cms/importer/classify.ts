@@ -12,6 +12,7 @@ import { LINK_LATER_FIELD, readLinkLater, type PublicLinkLater } from "@/lib/cms
 import { authorityCovers, type OriginRole } from "@/lib/cms/importer/trusted-domains";
 import { CRITICAL_FIELDS, fieldDef } from "@/lib/cms/importer/fields";
 import { comparable } from "@/lib/cms/importer/proposal";
+import { compatible, disagreement, type DisagreementKind } from "@/lib/cms/importer/same-meaning";
 import { calculatedTotalReady, type VacancyTable } from "@/lib/vacancy-table";
 import { isIncompletenessReason, quoteIsPrintedTotal, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
 
@@ -55,6 +56,8 @@ export interface FieldVerdict {
   reason: string;
   /** NOT_YET_OPEN only: what the official notice announced (revision 3). */
   linkLater?: PublicLinkLater;
+  /** CONFLICTING only: the sources disagree, or one source was read two ways (or gives two values). */
+  conflictKind?: DisagreementKind;
 }
 
 export function effectiveDecision(state: FieldState): ClaimView | undefined {
@@ -101,11 +104,14 @@ export function classifyField(state: FieldState, firstImportAt: string | null, t
   if (!state.hasValue) return verdict("MISSING", "no value and no decision");
 
   const extracted = state.claims.filter((c) => c.kind === "EXTRACTED" && !c.superseded);
-  const hashes = new Set(extracted.map((c) => valueHash(comparable(fieldPath, c.value))));
-  if (hashes.size > 1) return verdict("CONFLICTING", "the sources disagree");
+  // A difference in form only (a kept passage, an empty list, a full stop) is not a disagreement; a real
+  // difference is, whether between sources or inside one source (never hidden).
+  const kind = disagreement(fieldPath, extracted.map((c) => ({ value: c.value, retrievalId: c.retrievalId ?? null })));
+  if (kind === "SOURCES") return verdict("CONFLICTING", "the sources disagree", { conflictKind: kind });
+  if (kind === "READINGS") return verdict("CONFLICTING", "the readings of one source differ, or it gives two values", { conflictKind: kind });
 
   const current = valueHash(comparable(fieldPath, state.value));
-  const matching = extracted.filter((c) => valueHash(comparable(fieldPath, c.value)) === current);
+  const matching = extracted.filter((c) => valueHash(comparable(fieldPath, c.value)) === current || compatible(fieldPath, c.value, state.value));
   if (matching.length === 0) {
     const legacy = extracted.length === 0 && firstImportAt !== null
       && (state.latestRevisionAt === null || state.latestRevisionAt < firstImportAt);

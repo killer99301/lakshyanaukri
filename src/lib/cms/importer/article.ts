@@ -60,7 +60,7 @@ Return one JSON object with any of:
 - "feeSCST": { "value": integer rupees, 0 only when the text says exempt/nil, "quote" } — only when the text states the SC/ST fee separately.
 - "payScale": { "value": as written, e.g. "Pay Level 6, Grade Pay Rs 4,200", "quote" }
 - "age": { "min"?: integer, "max"?: integer for General/UR men — only when one range applies to every post, "asOf"?: "YYYY-MM-DD", "quote", "categoryMax"?: [ { "category", "max": integer, "quote" } ] — upper ages printed by category, "postWise"?: [ { "post": the post's name as printed, "min"?: integer, "max"?: integer, "bornFrom"?: "YYYY-MM-DD", "bornTo"?: "YYYY-MM-DD" — the date-of-birth range printed for the post, "quote": the post's own line(s) with its name and figures, "asOf"?: { "value": "YYYY-MM-DD", "quote" } — only when this post's age is counted on a date of its own, "relaxations"?: [ { "category", "years"?: integer, "text"?: as written, "quote" } ] — relaxations printed for this post only, "categoryMax"?: [ { "category", "max": integer, "quote" } ] — upper ages printed for this post } ] — when the notice sets ages post by post: one item per post, as printed; never a range worked out across posts }
-- "eligibility": [ { "post", "qualifications": [ each copied from the text ], "quote" } ]
+- "eligibility": [ { "post", "qualifications": [ each copied from the text ], "experience"?: [ each experience requirement copied from the text as written — keep alternative pathways together as written (e.g. "2 years … for X; OR 3 years … for Y"), never merged or shortened ], "quote" } ]
 - "selectionStages": [ { "name", "type": one of WRITTEN, CBT, INTERVIEW, SKILL_TEST, DOCUMENT_VERIFICATION, PHYSICAL, OTHER, "description"?: copied from the text, "quote" } ] in order.
 - "examStages": [ { "name", "date"?: "YYYY-MM-DD" or null when not announced, "dateText"?: as written, e.g. "To be announced", "quote" } ] — each entry of the schedule after applying, in the notice's order: examinations, interviews and document verification, and also call-letter or admit-card downloads, results and training, each as its own entry with its name as printed. Not the notification, the application or registration window, the fee payment or document deadlines: those dates are read separately. Include an entry from a schedule or "important dates" table whose date is only a month or "to be announced": then "date" is null and "dateText" is the month or words as written.
 - "examPattern": [ { "name": paper name, "durationMinutes"?: integer, "totalQuestions"?: integer, "totalMarks"?: integer, "sections": [ { "subject", "questions"?: integer, "marks"?: integer } ], "note"?: copied, "quote" } ]
@@ -369,8 +369,10 @@ export function judgeArticle(raw: J, text: string): Omit<ArticleReading, "skippe
   for (const e of arr(raw.eligibility)) {
     const post = str(e.post, 160);
     const quals = (Array.isArray(e.qualifications) ? e.qualifications : []).map((x) => str(x, 400)).filter((x): x is string => !!x && inText(x));
+    // Experience as written (alternative pathways kept together), only when its words are in the text.
+    const exp = (Array.isArray(e.experience) ? e.experience : []).map((x) => str(x, 600)).filter((x): x is string => !!x && inText(x));
     if (!post || quals.length === 0 || !inText(e.quote)) continue;
-    posts.push({ post, qualification: quals });
+    posts.push({ post, qualification: quals, ...(exp.length ? { experience: exp } : {}) });
     eligQuote ||= e.quote as string;
   }
   if (posts.length > 0) keep("eligibility", posts, eligQuote);
