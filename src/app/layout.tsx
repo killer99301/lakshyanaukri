@@ -14,7 +14,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: `${siteConfig.name} — Verified Government Jobs & Competitive Exams`,
+    default: `${siteConfig.name} | Government Jobs & Competitive Exams`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     "LakshyaNaukri",
   ],
   openGraph: {
-    title: `${siteConfig.name} — Verified Government Jobs & Competitive Exams`,
+    title: `${siteConfig.name} | Government Jobs & Competitive Exams`,
     description: siteConfig.description,
     url: siteConfig.url,
     siteName: siteConfig.name,
@@ -44,13 +44,13 @@ export const metadata: Metadata = {
         url: "/og.jpg",
         width: 1200,
         height: 630,
-        alt: "LakshyaNaukri — Verified Government Jobs & Competitive Exams",
+        alt: "LakshyaNaukri | Government Jobs & Competitive Exams",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${siteConfig.name} — Verified Government Jobs & Competitive Exams`,
+    title: `${siteConfig.name} | Government Jobs & Competitive Exams`,
     description: siteConfig.description,
     creator: "@lakshyanaukri",
     images: ["/og.jpg"],

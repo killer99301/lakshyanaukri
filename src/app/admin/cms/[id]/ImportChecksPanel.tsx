@@ -1,7 +1,7 @@
 "use client";
 
 // ═══════════════════════════════════════════════════════════
-// Admin: "Check before publishing" for an imported job
+// Admin: "Quality checks (optional)" for an imported job
 // ═══════════════════════════════════════════════════════════
 //
 // Shown only on jobs that have had an import applied. Lists every critical
@@ -12,9 +12,9 @@
 // and Confirm starts from the stored official passage instead of an empty
 // form; the person can still change it or enter other evidence by hand, and
 // the server checks every decision exactly as before. Each decision is bound to the field's
-// current revision; any later change to the field reopens it. Publishing is
-// refused on the server until Tier A fields are verified or not applicable
-// and Tier B fields are also allowed "not stated".
+// current revision; any later change to the field reopens it. Since
+// owner-controlled publication (Stage 2) the checks are optional: they never
+// stop a publish (the publication review decides), and they start collapsed.
 
 import { useCallback, useEffect, useState } from "react";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
@@ -396,16 +396,16 @@ export function ImportChecksPanel({ record, onRecordChange, onChecks, onJump }: 
   return (
     // Typing here is not an edit of the job (each check is sent by its own
     // button), so it must not set off the page's "not saved" warning.
-    <section data-import-checks aria-label="Check before publishing" onInput={(e) => e.stopPropagation()} style={{ ...PANEL, padding: "14px 18px", marginBottom: 16, fontSize: 12, color: C.text }}>
+    <section data-import-checks aria-label="Quality checks (optional)" onInput={(e) => e.stopPropagation()} style={{ ...PANEL, padding: "14px 18px", marginBottom: 16, fontSize: 12, color: C.text }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700 }}>
-            {checks.ok ? "Key details checked — ready to publish" : `Check before publishing: ${done} of ${checks.rows.length} key details done`}
+            Quality checks (optional): {done} of {checks.rows.length} key details checked
           </div>
           <div style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>
             {checks.ok ? "Every key detail was checked against the official notification, or recorded as not applicable or not stated."
-              : canCheck ? "This job was imported. Each key detail needs a person's check against the official notification before it can go live."
-                : "This job was filled from research only. Add the official notification first (Smart intake into this job), then check each key detail against it."}
+              : canCheck ? "You can check each key detail against the official notification. Optional: publishing does not wait for it."
+                : "Filled from research only. To check details against an official notice, add it first (Smart intake into this job). Optional: publishing does not wait for it."}
           </div>
         </div>
         <button onClick={() => setExpanded((x) => !x)} style={{ ...quietBtn, padding: "4px 10px" }}>{showList ? "Hide the checks" : "Show the checks"}</button>

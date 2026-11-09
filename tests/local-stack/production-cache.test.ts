@@ -9,6 +9,9 @@
 //   npm run test:stack:start    production server on :3000
 // then:
 //   npm run test:stack:cache
+// With 3000 taken by another app: node tests/local-stack/run-next.mjs start --port 3111, and
+// node tests/local-stack/run-next.mjs cache-test --port 3111. Publishing goes through the owner's
+// publication review (owner-controlled publication): the launcher makes the test admin the publisher.
 //
 // Talks only to localhost. Refuses to run against any other database.
 // ═══════════════════════════════════════════════════════════
@@ -17,13 +20,13 @@ import { NextRequest } from "next/server";
 
 // Set before any project module loads. Never falls back to .env.local.
 process.env.DATABASE_URL = "postgresql://test:test@localhost/test";
-process.env.ADMIN_ALLOWED_ORIGINS = "http://localhost:3000";
+const BASE = process.env.TEST_STACK_BASE ?? "http://localhost:3000";
+process.env.ADMIN_ALLOWED_ORIGINS = BASE;
 if (!process.env.NODE_EXTRA_CA_CERTS) {
   console.error("Run this through the launcher so the local certificate is trusted: npm run test:stack:cache");
   process.exit(1);
 }
 
-const BASE = "http://localhost:3000";
 
 let passed = 0, failed = 0;
 const check = (name: string, ok: boolean, detail?: unknown) => {
@@ -49,6 +52,12 @@ const section = (s: string) => console.log(`\n── ${s}`);
     const r = await fetch(`${BASE}${path}`, { headers: { accept: "text/html" } });
     return { status: r.status, html: await r.text(), cache: r.headers.get("x-nextjs-cache") };
   };
+  // The owner's approval, built from the review the running app returns (as the review panel sends it).
+  const ownerApproval = async (id: string) => {
+    const v = (await api(`/api/admin/cms/records/${id}/publication-review`, "GET")).data.review;
+    return { ownerApproval: { acknowledged: true, reviewHash: v.reviewHash, ...v.freshness, conflictsAcknowledged: v.conflicts.map((c: { fieldPath: string }) => c.fieldPath) } };
+  };
+  const { approved } = await import("./owner-approval");
   const manual = (value: unknown) => ({ value, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true });
   const OFFICIAL = [{ type: "OFFICIAL_NOTIFICATION", label: "Official Notification", url: "https://www.ibps.in/x.pdf", official: true }];
 
@@ -82,7 +91,7 @@ const section = (s: string) => console.log(`\n── ${s}`);
   const x = (await r.json()).record;
   r = await fields.PATCH(inproc(`/x`, "PATCH", { fieldPath: "links", field: manual(OFFICIAL), clientRevision: x.recordRevision }), ctx(x.id));
   await approve.POST(inproc("/x", "POST"), ctx(x.id));
-  r = await publish.POST(inproc("/x", "POST"), ctx(x.id));
+  r = await publish.POST(inproc("/x", "POST", await approved(x.id)), ctx(x.id));
   const xPub = await r.json();
   check("record X published in the database without revalidation", r.status === 200 && xPub.revalidated === false, xPub);
   jobs = await page("/jobs");
@@ -96,7 +105,7 @@ const section = (s: string) => console.log(`\n── ${s}`);
   c = await api(`/api/admin/cms/records/${b.id}/fields`, "PATCH", { fieldPath: "links", field: manual(OFFICIAL), clientRevision: c.data.record.recordRevision });
   check("edit B (vacancies, official link)", c.status === 200, c.data);
   c = await api(`/api/admin/cms/records/${b.id}/approve`, "POST");
-  c = await api(`/api/admin/cms/records/${b.id}/publish`, "POST");
+  c = await api(`/api/admin/cms/records/${b.id}/publish`, "POST", await ownerApproval(b.id));
   check("publish B → 200 and revalidated: true", c.status === 200 && c.data.revalidated === true, c.data);
 
   jobs = await page("/jobs");
@@ -122,7 +131,7 @@ const section = (s: string) => console.log(`\n── ${s}`);
   jobs = await page("/jobs");
   check("I. listing still shows the record while in draft", jobs.html.includes("TEST SEED IBPS Clerk 2026"));
   await api(`/api/admin/cms/records/${seed.id}/approve`, "POST");
-  c = await api(`/api/admin/cms/records/${seed.id}/publish`, "POST");
+  c = await api(`/api/admin/cms/records/${seed.id}/publish`, "POST", await ownerApproval(seed.id));
   check("republish → revalidated: true", c.status === 200 && c.data.revalidated === true, c.data);
   const after = await page(`/jobs/${seed.slug}`);
   check("H. public detail page shows the update (1,234) without a redeploy", after.html.includes("1,234 Posts") && !after.html.includes("1,000 Posts"));

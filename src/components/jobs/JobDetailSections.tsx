@@ -134,8 +134,8 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                 <History className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-[#0F172A]">Official Corrigenda & Updates History</h2>
-                <p className="text-xs text-[#475569] font-medium">Verified notices published by {job.organizationName}</p>
+                <h2 className="text-lg font-black text-[#0F172A]">Corrigenda & Updates History</h2>
+                <p className="text-xs text-[#475569] font-medium">Recruitment information for {job.organizationName}</p>
               </div>
             </div>
             <span className="text-xs font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
@@ -151,7 +151,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                 organization: job.organizationName,
                 publishedDate: item.date,
                 documentTitle: item.title,
-                customPdfLabel: "Official PDF Notice",
+                customPdfLabel: "Notice PDF",
               });
 
               return (
@@ -337,7 +337,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
                             officialPdfUrl: stage.noticeUrl,
                             organization: job.organizationName,
                             documentTitle: `${job.title} - ${stage.name}`,
-                            customPdfLabel: "Official Stage Notice",
+                            customPdfLabel: "Stage notice",
                           });
 
                           return stageDoc.isAvailable && stageDoc.url ? (
@@ -698,7 +698,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
             {!job.links?.apply && job.type === "government" && job.applyLinkLater
               ? durableWords(job.applyLinkLater).join(" ")
               : job.links?.apply
-              ? "Apply through the official application link given on this page. Read the official notification first for the full steps."
+              ? "Apply through the application link given on this page. Read the notification first for the full steps."
               : job.links && "notification" in job.links && job.links.notification
                 ? "The way to apply is given in the official notification. Read it before applying."
                 : "The way to apply has not been added here yet. Check the recruiting body's official notification."}

@@ -13,7 +13,6 @@ import {
   ChevronRight,
   AlertTriangle,
   Lock,
-  ShieldCheck,
   Compass,
 } from "lucide-react";
 import { siteConfig } from "@/config/site";
@@ -25,7 +24,7 @@ import {
   getDaysRemaining,
   deriveStatusBadge,
   getVacancyDisplay,
-  getProvenanceSummary,
+  pageUpdatedLabel,
   getLatestUpdate,
   isFreshUpdate,
   getCategoryBadgeClass,
@@ -34,6 +33,7 @@ import {
 } from "@/lib/lifecycle";
 import { NewBadge } from "@/components/common/NewBadge";
 import { ApplyLinkLaterNotice } from "@/components/jobs/ApplyLinkLaterNotice";
+import { NO_NOTICE_ADVICE, publicLinkWords } from "@/lib/public-link-labels";
 import { getDeadlineUrgency, formatDeadlineDate } from "@/lib/urgency";
 
 interface JobDetailHeaderProps {
@@ -55,7 +55,12 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
   const derivedStatus = deriveStatusBadge(job, now);
   const isClosed = urgency.isClosed || derivedStatus.isClosed;
   const vacancyText = getVacancyDisplay(job);
-  const provenance = getProvenanceSummary(job);
+  const updated = pageUpdatedLabel(job);
+  const site = publicLinkWords(job.organizationId, job.links.website, "website");
+  const notice = publicLinkWords(job.organizationId, "notification" in job.links ? job.links.notification : undefined, "notification");
+  const apply = publicLinkWords(job.organizationId, job.links.apply, "apply");
+  // An aggregator is never the Apply button (P2); without an application link the website is named by its standing.
+  const applyHref = job.links.apply && apply.asApply ? job.links.apply : job.type === "government" ? job.links.website : undefined;
   const latestUpdate = getLatestUpdate(job);
 
   const deadlineFormatted = formatDeadlineDate(closeDate);
@@ -123,7 +128,7 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                     </span>
                     {isFreshUpdate(latestUpdate, now) && <NewBadge />}
                     {/* "Official" only when the entry carries the official notice it came from. */}
-                    <span>{latestUpdate.sourceUrl ? "Official Update" : "Update"} • {latestUpdate.type.replace(/_/g, " ")}</span>
+                    <span>Update • {latestUpdate.type.replace(/_/g, " ")}</span>
                   </span>
                   <span className="text-xs text-amber-950 font-extrabold">
                     {latestUpdate.sourceUrl ? "Published" : "Updated"}: {formatDate(latestUpdate.date)}
@@ -150,7 +155,7 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-amber-600 text-white font-extrabold text-xs shadow-xs hover:bg-amber-700 active:scale-95 transition-all shrink-0 cursor-pointer"
               >
-                <span>Official PDF</span>
+                <span>Notice PDF</span>
                 <ExternalLink className="h-3 w-3" />
               </a>
             )}
@@ -187,13 +192,6 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                   {derivedStatus.label}
                 </span>
 
-                <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${provenance.statusClass}`}
-                  title={provenance.lastVerifiedLabel}
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  <span>{provenance.statusLabel}</span>
-                </span>
               </div>
 
               {/* Title & Organization */}
@@ -210,10 +208,12 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                   <MapPin className="h-4 w-4 text-slate-400" />
                   {job.state}
                 </span>
-                <span className="inline-flex items-center gap-1.5 text-slate-500">
-                  <Calendar className="h-4 w-4 text-slate-400" />
-                  {provenance.lastVerifiedLabel}
-                </span>
+                {updated && (
+                  <span data-page-updated className="inline-flex items-center gap-1.5 text-slate-500">
+                    <Calendar className="h-4 w-4 text-slate-400" />
+                    {updated}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -239,7 +239,7 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                       rel="noopener noreferrer"
                       className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-colors cursor-pointer"
                     >
-                      <span>Official Portal ↗</span>
+                      <span>{site.label} ↗</span>
                     </a>
                   )}
                 </>
@@ -251,7 +251,7 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-colors cursor-pointer"
-                      title="View Official Notification PDF"
+                      title={notice.label}
                     >
                       <FileText className="h-4 w-4 text-orange-400" />
                       <span className="hidden sm:inline">PDF Advt</span>
@@ -260,7 +260,7 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                   {job.type === "government" && !job.links.notification && (
                     <span
                       className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-slate-800/50 text-slate-500 border border-slate-700 font-semibold text-xs cursor-default"
-                      title="Official notification PDF link not yet verified"
+                      title={NO_NOTICE_ADVICE}
                     >
                       <FileText className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">PDF Unavailable</span>
@@ -281,16 +281,17 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                     </a>
                   )}
 
-                  {(job.links.apply || (job.type === "government" && job.links.website)) && (
-                    // Only a real application link is "Apply Online"; without one, the official website is named as that (G1).
+                  {applyHref && (
+                    // Only a real application link is an Apply button; its words come from the registry (§1.3).
                     <a
-                      href={job.links.apply || (job.type === "government" ? job.links.website : undefined)}
+                      href={applyHref}
                       target="_blank"
                       rel="noopener noreferrer"
-                      data-apply-kind={job.links.apply ? "apply" : "website"}
+                      title={applyHref === job.links.apply ? apply.note : undefined}
+                      data-apply-kind={applyHref === job.links.apply ? "apply" : "website"}
                       className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-[#EA580C] to-[#F95738] text-white font-extrabold text-sm shadow-md shadow-orange-500/20 hover:opacity-95 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
                     >
-                      <span>{job.links.apply ? "Apply Online" : "Official Website"}</span>
+                      <span>{applyHref === job.links.apply ? apply.label : site.label}</span>
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   )}

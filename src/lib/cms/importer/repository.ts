@@ -184,7 +184,7 @@ export async function applyImport(input: {
   }
 }
 
-// ─── Field states for the gate and the "Check before publishing" list ─────
+// ─── Field states for the gate and the "Quality checks (optional)" list ─────
 
 export async function firstImportAt(recruitmentId: string): Promise<string | null> {
   const rows = await sql`SELECT min(applied_at) AS at FROM recruitment_imports WHERE recruitment_id = ${recruitmentId} AND status = 'APPLIED'`;

@@ -86,7 +86,7 @@ export const HELP: Record<string, string> = {
   "ARCHIVED": "Taken off the website.",
 
   // ── Actions ──
-  "Approve & Publish": "Makes this record live on the website. Needs at least one link marked official.",
+  "Approve & Publish": "Opens the publication review. You review the job there, acknowledge each disagreement, accept editorial responsibility and publish. An official link is optional.",
   "Publish Record": "Makes this approved record live on the website.",
   "Edit Record": "Reopens a live record for editing. Visitors keep seeing the last published version until you publish again.",
   "Preview public page": "Shows how the job page will look with what is saved now, without publishing.",

@@ -11,7 +11,7 @@ import {
   getDaysRemaining,
   deriveStatusBadge,
   getVacancyDisplay,
-  getProvenanceSummary,
+  pageUpdatedLabel,
   getFreshUpdate,
 } from "@/lib/lifecycle";
 import { NewBadge } from "@/components/common/NewBadge";
@@ -37,7 +37,7 @@ export const JobCard: React.FC<JobCardProps> = ({
   const derivedStatus = deriveStatusBadge(job, now);
   const freshUpdate = getFreshUpdate(job, now);
   const formattedVacancies = getVacancyDisplay(job);
-  const provenance = getProvenanceSummary(job);
+  const updated = pageUpdatedLabel(job);
 
   const deadlineFormatted = formatDeadlineDate(closeDate);
 
@@ -102,8 +102,8 @@ export const JobCard: React.FC<JobCardProps> = ({
                 <span className="font-extrabold text-[#0F172A] truncate block">{job.qualification}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 font-bold uppercase block">Verification</span>
-                <span className="font-extrabold text-[#0F172A] truncate block">{provenance.statusLabel}</span>
+                <span className="text-[10px] text-slate-500 font-bold uppercase block">Updated</span>
+                <span className="font-extrabold text-[#0F172A] truncate block">{updated ? updated.replace(/^Updated: /, "") : "—"}</span>
               </div>
             </div>
 

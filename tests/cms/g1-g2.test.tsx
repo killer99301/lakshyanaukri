@@ -18,7 +18,7 @@ import type { RecruitmentRecord } from "@/types/recruitment-record";
 import type { Opportunity } from "@/types";
 import { projectForPreview } from "@/lib/cms/projector";
 import { snapshotToGovernmentRecruitment, sourceStanding } from "@/lib/cms/adapter";
-import { getProvenanceSummary } from "@/lib/lifecycle";
+import { pageUpdatedLabel } from "@/lib/lifecycle";
 import { OfficialNotificationCard } from "@/components/jobs/OfficialNotificationCard";
 import { fieldEvidence, writtenForms, type EvidenceDoc } from "@/lib/cms/importer/field-evidence";
 import type { FieldState } from "@/lib/cms/importer/classify";
@@ -151,7 +151,8 @@ test("G108 nobody checked it: no check date (not the build time); the page's own
   const job = snapshotToGovernmentRecruitment(snap);
   assert.equal(job.provenance.lastVerifiedAt, "");
   assert.equal(job.provenance.pageUpdatedAt, snap.projectedAt);
-  assert.equal(getProvenanceSummary(job as unknown as Opportunity).lastVerifiedLabel, "Not yet checked against the official notice");
+  // Public pages show the page date only (owner-controlled publication, D5), never a check date or badge.
+  assert.ok(pageUpdatedLabel(job as unknown as Opportunity)?.startsWith("Updated: "));
 });
 test("G109 the standing is what the links show: official notice, official website, research, none", () => {
   const std = (links: ReturnType<typeof link>[]) => sourceStanding({ ...projectForPreview(record({ links } as never)) });
@@ -171,21 +172,20 @@ test("G111 checked: imported jobs carry the day of the checks in force; a legacy
   const snap = projectForPreview(record());
   const imported = snapshotToGovernmentRecruitment({ ...snap, keyDetailsChecked: true, keyDetailsCheckedOn: "2026-11-06" });
   assert.equal(imported.provenance.lastVerifiedAt, "2026-11-06");
-  assert.ok(getProvenanceSummary(imported as unknown as Opportunity).lastVerifiedLabel.startsWith("Key details checked: "));
   const legacy = snapshotToGovernmentRecruitment(projectForPreview(record({ provenance: { status: "VERIFIED", lastVerifiedAt: "2026-09-01", primarySourceType: "OFFICIAL_NOTIFICATION" } } as never)));
   assert.equal(legacy.provenance.lastVerifiedAt, "2026-09-01");
   const oldSnapshot = snapshotToGovernmentRecruitment({ ...snap, keyDetailsChecked: true });
   assert.equal(oldSnapshot.provenance.lastVerifiedAt, "", "a snapshot published before the date was kept shows no invented date");
 });
-test("G112 the notice card: no “Direct Official Source”; research says so; “Checked” only with a real date", () => {
+test("G112 the notice card (Stage 2): no badge or check line; link words from the registry; advice without a notice", () => {
   const card = (p: React.ComponentProps<typeof OfficialNotificationCard>) => text(renderToStaticMarkup(<OfficialNotificationCard {...p} />));
-  const none = card({ sourceType: "SECONDARY_SOURCE" });
-  assert.ok(!/Direct Official Source|government portal servers/.test(none), none);
-  assert.ok(none.includes("Not from an official source") && none.includes("Details not yet checked against the official notice") && !none.includes("Checked:"), none);
-  const official = card({ sourceType: "OFFICIAL_NOTIFICATION", notificationPdfUrl: "https://sbi.bank.in/n.pdf" });
-  assert.ok(official.includes("Official notice link") && official.includes("Details not yet checked"), official);
-  const checked = card({ sourceType: "OFFICIAL_NOTIFICATION", verifiedAt: "2026-11-06", keyDetailsChecked: true });
-  assert.ok(checked.includes("Key details checked against the official notice"), checked);
+  const none = card({ organizationId: "sbi" });
+  assert.ok(!/Direct Official Source|government portal servers|Verified|checked/i.test(none), none);
+  assert.ok(/Check the recruiting body.s official notice before applying./.test(none) || none.includes("Check the recruiting body s official notice before applying."), none);
+  const own = card({ organizationId: "ibps", notificationPdfUrl: "https://www.ibps.in/n.pdf", officialWebsiteUrl: "https://www.ibps.in/" });
+  assert.ok(own.includes("Notification ↗") && own.includes("Official Website"), own);
+  const other = card({ organizationId: "ibps", notificationPdfUrl: "https://example.org/n.pdf", officialWebsiteUrl: "https://example.org/" });
+  assert.ok(other.includes("Notification link") && other.includes("Website link") && !other.includes("Official Website"), other);
 });
 
 suite("G2: what each source said, and the evidence the check form starts from");

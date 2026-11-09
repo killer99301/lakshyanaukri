@@ -11,7 +11,7 @@ import { LifecycleLinkGrid } from "@/components/lifecycle/LifecycleLinkList";
 export const metadata = {
   title: "Admit Cards & Hall Tickets 2026 | LakshyaNaukri",
   description:
-    "Download official admit cards, hall tickets, and call letters for UPSC, SSC, Banking, Railway, and State PSC examinations. Sourced directly from official exam authority portals.",
+    "Admit cards, hall tickets and call letters for UPSC, SSC, Banking, Railway and State PSC examinations, with download links.",
 };
 
 const OFFICIAL_ADMIT_CARD_PORTALS = [
@@ -85,7 +85,7 @@ export default async function AdmitCardsPage() {
               </div>
               <div>
                 <h3 className="text-sm font-extrabold text-[#0F172A]">
-                  Direct Official Sourcing Guarantee
+                  Admit cards and download links
                 </h3>
                 <p className="text-xs text-[#475569]">
                   We do not guess admit card links. All candidate login pages are sourced from official commission servers.

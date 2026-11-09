@@ -152,7 +152,7 @@ export default async function ResultsPage() {
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-semibold">
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>Official Source</span>
+                      <span>Source link</span>
                     </div>
 
                     <a

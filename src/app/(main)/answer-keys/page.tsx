@@ -11,7 +11,7 @@ import { LifecycleLinkGrid } from "@/components/lifecycle/LifecycleLinkList";
 export const metadata = {
   title: "Answer Keys & Response Sheets 2026 | LakshyaNaukri",
   description:
-    "Download official exam answer keys and candidate response sheets for competitive exams. Sourced directly from official exam authority portals.",
+    "Answer keys and candidate response sheets for competitive exams, with source links.",
 };
 
 const OFFICIAL_ANSWER_KEY_PORTALS = [
@@ -85,7 +85,7 @@ export default async function AnswerKeysPage() {
               </div>
               <div>
                 <h3 className="text-sm font-extrabold text-[#0F172A]">
-                  Verified Answer Key Pipeline
+                  Answer keys and source links
                 </h3>
                 <p className="text-xs text-[#475569]">
                   Answer keys and response challenge links are published only from official authority releases.
@@ -152,7 +152,7 @@ export default async function AnswerKeysPage() {
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1 text-[11px] text-purple-700 font-semibold">
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>Official Source</span>
+                      <span>Source link</span>
                     </div>
 
                     <a

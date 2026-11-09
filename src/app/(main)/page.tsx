@@ -7,16 +7,17 @@ import { getLifecycleLinks } from "@/lib/cms/lifecycle-links";
 import HomePageClient from "./HomePageClient";
 
 export const metadata: Metadata = {
-  title: `${siteConfig.name} — Verified Government Jobs & Competitive Exams`,
+  // Absolute: the layout's template would add the brand a second time.
+  title: { absolute: `${siteConfig.name} | Government Jobs & Competitive Exams` },
   description:
-    "Find verified UPSC, SSC CGL, BPSC, RRB NTPC, and IBPS PO government jobs and competitive exam updates with official notification dates, vacancies, admit cards, results, and answer keys.",
+    "Recruitment information, important dates, eligibility, vacancies and application links.",
   alternates: {
     canonical: siteConfig.url,
   },
   openGraph: {
-    title: `${siteConfig.name} — Verified Government Jobs & Competitive Exams`,
+    title: `${siteConfig.name} | Government Jobs & Competitive Exams`,
     description:
-      "Find verified UPSC, SSC CGL, BPSC, RRB NTPC, and IBPS PO government jobs and competitive exam updates with official notification dates, vacancies, admit cards, results, and answer keys.",
+      "Recruitment information, important dates, eligibility, vacancies and application links.",
     url: siteConfig.url,
     siteName: siteConfig.name,
     type: "website",
@@ -25,15 +26,15 @@ export const metadata: Metadata = {
         url: "/og.jpg",
         width: 1200,
         height: 630,
-        alt: "LakshyaNaukri — Verified Government Jobs & Competitive Exams",
+        alt: "LakshyaNaukri | Government Jobs & Competitive Exams",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${siteConfig.name} — Verified Government Jobs & Competitive Exams`,
+    title: `${siteConfig.name} | Government Jobs & Competitive Exams`,
     description:
-      "Find verified UPSC, SSC CGL, BPSC, RRB NTPC, and IBPS PO government jobs and competitive exam updates.",
+      "Recruitment information, important dates, eligibility, vacancies and application links.",
     images: ["/og.jpg"],
   },
 };

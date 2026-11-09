@@ -402,70 +402,13 @@ export function getUpdatesSortedByDate(opp: Opportunity): UpdateRecord[] {
 
 // ─── Provenance Helpers ──────────────────────────────────
 
-export interface ProvenanceSummary {
-  statusLabel: string;       // "✓ Verified" | "Partially Verified" | "Not Verified" | "Needs Update"
-  statusClass: string;       // Tailwind class for the badge
-  lastVerifiedLabel: string; // "Last verified: 16 Aug 2026"
-  sourceLabel: string;       // "Official Website" | "Official Notification" | etc.
-  sourceUrl?: string;
-}
-
 /**
- * Derive a human-readable provenance summary for UI display.
- * Used in cards and detail pages to show data trustworthiness.
+ * The page date for public display, as "Updated: <date>" (owner-controlled publication, D5): when the page was
+ * last published or rebuilt from the CMS. Public pages carry no verification badge; null when there is no date.
  */
-export function getProvenanceSummary(opp: Opportunity): ProvenanceSummary {
-  const { provenance } = opp;
-
-  const statusMap: Record<string, { label: string; cls: string }> = {
-    VERIFIED: {
-      label: "✓ Verified",
-      cls: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    },
-    PARTIALLY_VERIFIED: {
-      label: "Partially Verified",
-      cls: "bg-amber-50 text-amber-700 border-amber-200",
-    },
-    NOT_VERIFIED: {
-      label: "Not Verified",
-      cls: "bg-slate-50 text-slate-600 border-slate-200",
-    },
-    NEEDS_UPDATE: {
-      label: "Needs Update",
-      cls: "bg-rose-50 text-rose-700 border-rose-200",
-    },
-  };
-
-  const sourceTypeLabels: Record<string, string> = {
-    OFFICIAL_NOTIFICATION: "Official Notification",
-    OFFICIAL_CORRIGENDUM: "Official Corrigendum",
-    OFFICIAL_EXAM_NOTICE: "Official Exam Notice",
-    OFFICIAL_PORTAL: "Official Portal",
-    OFFICIAL_WEBSITE: "Official Website",
-    SECONDARY_SOURCE: "Secondary Source",
-    NOT_VERIFIED: "Not Verified",
-  };
-
-  // An imported job published after a person checked every critical detail
-  // against the official notification. Not "Verified": some details may be
-  // recorded as not stated in the notice.
-  const status = provenance.keyDetailsChecked
-    ? { label: "Key details checked against official sources", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" }
-    : statusMap[provenance.status] ?? statusMap.NOT_VERIFIED;
-
-  // A date only when a person checked the job; never the day the page was built (G1).
-  const checked = !!provenance.lastVerifiedAt
-    && (provenance.keyDetailsChecked === true || provenance.status === "VERIFIED" || provenance.status === "PARTIALLY_VERIFIED");
-
-  return {
-    statusLabel: status.label,
-    statusClass: status.cls,
-    lastVerifiedLabel: checked
-      ? `${provenance.keyDetailsChecked ? "Key details checked" : "Last verified"}: ${formatDate(provenance.lastVerifiedAt)}`
-      : "Not yet checked against the official notice",
-    sourceLabel: sourceTypeLabels[provenance.primarySourceType] ?? "Unknown Source",
-    sourceUrl: provenance.primarySourceUrl,
-  };
+export function pageUpdatedLabel(opp: Opportunity): string | null {
+  const d = opp.provenance.pageUpdatedAt;
+  return d ? `Updated: ${formatDate(d)}` : null;
 }
 
 // ─── Vacancy Display ─────────────────────────────────────

@@ -132,7 +132,7 @@ export default function HomePageClient({ opportunities, lifecycleLinks }: HomePa
 
             {/* Supporting Subtitle */}
             <p className="text-sm sm:text-lg text-[#475569] font-medium max-w-lg leading-relaxed">
-              Find government & private jobs, exam updates, prepare smart, use powerful tools and choose the right time to begin.
+              Explore government recruitment opportunities across India.
             </p>
 
             {/* Universal Search Bar */}
@@ -242,7 +242,7 @@ export default function HomePageClient({ opportunities, lifecycleLinks }: HomePa
         <Container>
           <SectionHeading
             title="Latest Opportunities"
-            subtitle="Verified government recruitment notices, private jobs, and exam schedules."
+            subtitle="Government recruitment information and exam schedules."
             actionText="View All Jobs"
             actionHref="/jobs"
           />
@@ -421,7 +421,7 @@ export default function HomePageClient({ opportunities, lifecycleLinks }: HomePa
                   </a>
                 )}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">Free. No spam. Verified government updates only.</p>
+              <p className="text-[11px] text-slate-400 mt-1">Free. No spam.</p>
             </div>
           </div>
         </Container>

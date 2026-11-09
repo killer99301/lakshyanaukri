@@ -1,6 +1,9 @@
 // Starts Next.js against the LOCAL in-memory test database only.
 //
-//   node tests/local-stack/run-next.mjs dev | build | start | cache-test | auth-test   [--no-gemini]
+//   node tests/local-stack/run-next.mjs dev | build | start | cache-test | auth-test   [--no-gemini] [--port N]
+//
+// --port N (default 3000): the app's port, and the one the cache test talks to. Use another port when
+// 3000 is taken by another app on this machine (the owner's own dev server, say).
 //
 // Requires `npm run test:stack:db` to be running. Process environment wins over
 // .env.local, so the real DATABASE_URL, Redis, email and Telegram settings are
@@ -10,7 +13,7 @@
 // --no-gemini is passed.
 
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -22,6 +25,16 @@ if (!existsSync(cert)) {
 }
 
 const mode = process.argv[2] ?? "dev";
+const portArg = process.argv.indexOf("--port");
+const port = portArg > 0 ? Number(process.argv[portArg + 1]) : 3000;
+if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+  console.error("--port needs a number from 1024 to 65535");
+  process.exit(1);
+}
+const base = `http://localhost:${port}`;
+// Owner-controlled publication: the local test admin is the only publisher (its admin ID, from the test database).
+let publishers = "";
+try { publishers = JSON.parse(readFileSync(join(root, "tests", "local-stack", ".tmp", "creds.json"), "utf8")).adminId ?? ""; } catch { /* older test database */ }
 const env = {
   ...process.env,
   DATABASE_URL: "postgresql://test:test@localhost/test",
@@ -34,8 +47,10 @@ const env = {
   TELEGRAM_CHANNEL_ID: "",
   TELEGRAM_ADMIN_CHAT_ID: "",
   CRON_SECRET: "",
-  ADMIN_ALLOWED_ORIGINS: "http://localhost:3000",
+  ADMIN_ALLOWED_ORIGINS: base,
   ADMIN_OTP_HMAC_KEY: "local-test-hmac-key-not-a-secret",
+  CMS_PUBLISHERS: publishers,
+  TEST_STACK_BASE: base,
 };
 if (process.argv.includes("--no-gemini")) env.GEMINI_API_KEY = "";
 // --fake-ai: AI requests are answered by tests/local-stack/fake-ai.mjs inside
@@ -58,7 +73,7 @@ if (TESTS[mode]) {
   child = spawn("npx", ["tsx", "--tsconfig", "tsconfig.json", TESTS[mode]], { cwd: root, env, stdio: "inherit", shell: true });
 } else {
   const args = [join(root, "node_modules", "next", "dist", "bin", "next"), mode];
-  if (mode !== "build") args.push("-p", "3000");
+  if (mode !== "build") args.push("-p", String(port));
   child = spawn(process.execPath, args, { cwd: root, env, stdio: "inherit" });
 }
 child.on("exit", (code) => process.exit(code ?? 0));

@@ -98,7 +98,7 @@ function SwitchPanel({ on, onChange }: { on: boolean | null; onChange: (on: bool
     <div data-importer-switch style={{ ...PANEL, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", fontSize: 13, color: C.text }}>
       <span style={badge(on ? C.green : C.muted)}>{on ? "Importer on" : "Importer off"}</span>
       <span style={{ flex: "1 1 300px", color: C.muted, fontSize: 12 }}>
-        {on ? "Admins can make previews and apply imports. Switching off takes effect at once; imported jobs stay checkable and gated."
+        {on ? "Admins can make previews and apply imports. Switching off takes effect at once; imported jobs stay checkable and publishable through the publication review."
           : "The importer is off: nothing can be imported. The rest of the CMS works as usual."}
       </span>
       {!confirming ? (
@@ -412,7 +412,7 @@ function Importer() {
       {on === null ? <div style={{ color: C.muted, fontSize: 13 }}>Checking the importer switch…</div> : on === false ? null : applied ? (
         <div data-import-applied style={{ ...PANEL, padding: 18, color: C.text, fontSize: 14, lineHeight: 1.6 }}>
           <div style={{ fontWeight: 700, color: C.green }}>{applied.replayed ? "This was already saved." : "Saved as a draft."} Nothing is published or verified.</div>
-          <div style={{ color: C.muted, fontSize: 13 }}>Open the job: its sections hold these values as Pending. “Check before publishing” lists the key details to check against the official notification before it can go live.</div>
+          <div style={{ color: C.muted, fontSize: 13 }}>Open the job: its sections hold these values as Pending. Review it in “Publication review” and publish when you are satisfied; “Quality checks (optional)” lets you check key details against an official notification.</div>
           <Link href={`/admin/cms/${applied.recruitmentId}`} style={{ ...primaryBtn, display: "inline-block", marginTop: 12, textDecoration: "none" }}>Open the job</Link>
         </div>
       ) : (

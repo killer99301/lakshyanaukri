@@ -63,7 +63,7 @@ export const JobsHero: React.FC<JobsHeroProps> = ({
                 Career <span className="text-[#EA580C] underline decoration-[#FED7AA] underline-offset-4">Opportunity</span>
               </h1>
               <p className="text-xs sm:text-sm text-[#475569] font-semibold max-w-lg">
-                Discover verified government & private jobs from across India.
+                Explore government recruitment opportunities across India.
               </p>
             </div>
 
@@ -138,9 +138,6 @@ export const JobsHero: React.FC<JobsHeroProps> = ({
               <span className="text-[10px] font-black text-[#EA580C] uppercase tracking-wider block">
                 MARKETPLACE
               </span>
-              <h4 className="text-xs font-black text-[#0F172A] leading-tight mt-0.5">
-                Verified Career <br /> Intelligence
-              </h4>
             </div>
           </div>
         </div>

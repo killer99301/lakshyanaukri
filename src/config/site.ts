@@ -10,7 +10,7 @@ export const siteConfig = {
   name: "LakshyaNaukri",
   tagline: "Your Trusted Partner for Government Jobs & Competitive Exams",
   description:
-    "LakshyaNaukri is a verified government job and competitive exam intelligence platform offering trustworthy, updated information on UPSC, SSC, BPSC, RRB, IBPS, and State PSC recruitments across India.",
+    "Recruitment information, important dates, eligibility, vacancies and application links.",
   url: process.env.NEXT_PUBLIC_SITE_URL || "https://lakshyanaukri.in",
   ogImage: `${process.env.NEXT_PUBLIC_SITE_URL || "https://lakshyanaukri.in"}/og.jpg`,
   contact: {

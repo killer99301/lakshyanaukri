@@ -19,7 +19,7 @@ export const Footer: React.FC = () => {
               </span>
             </Link>
             <p className="text-xs sm:text-sm text-[#475569] leading-relaxed max-w-sm">
-              Your trusted partner for finding career opportunities, government recruitment updates, competitive exam guides, and smart preparation tools.
+              Career opportunities, government recruitment updates, competitive exam guides and preparation tools.
             </p>
           </div>
 

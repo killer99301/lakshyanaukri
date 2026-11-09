@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // GET /api/admin/cms/records/[id]/checks
 //
-// The "Check before publishing" list for an imported job: each critical
+// The "Quality checks (optional)" list for an imported job: each critical
 // field's class, its latest revision and the decision in force, and the
 // documents that can support a decision. Admin only; works with the importer
 // switched off (an imported job must stay checkable).

@@ -9,7 +9,6 @@ import {
   Bookmark,
   ArrowRight,
   Lock,
-  ShieldCheck,
 } from "lucide-react";
 import type { Opportunity } from "@/types";
 import { Card } from "../ui/Card";
@@ -21,7 +20,6 @@ import {
   getDaysRemaining,
   deriveStatusBadge,
   getVacancyDisplay,
-  getProvenanceSummary,
   getCurrentExamSummary,
   getFreshUpdate,
 } from "@/lib/lifecycle";
@@ -55,7 +53,6 @@ export const MarketplaceJobCard: React.FC<MarketplaceJobCardProps> = ({
   const isNew = isNewlyAdded(job, now);
   const freshUpdate = getFreshUpdate(job, now);
   const vacancyText = getVacancyDisplay(job);
-  const provenance = getProvenanceSummary(job);
 
   const deadlineFormatted = formatDeadlineDate(closeDate);
 
@@ -214,17 +211,6 @@ export const MarketplaceJobCard: React.FC<MarketplaceJobCardProps> = ({
               })()
             )}
             
-            {/* Provenance Badge */}
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border",
-                provenance.statusClass
-              )}
-              title={provenance.lastVerifiedLabel}
-            >
-              <ShieldCheck className="h-3 w-3" />
-              <span>{provenance.statusLabel}</span>
-            </span>
           </div>
 
           <Link href={`/jobs/${job.slug}`} className="shrink-0">

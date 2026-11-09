@@ -34,6 +34,7 @@ import { ContentImportBox } from "./ContentImportBox";
 import { LibraryCompare } from "./LibraryCompare";
 import { LiveChangesPanel } from "./LiveChangesPanel";
 import { ImportChecksPanel, type ImportCheckState } from "./ImportChecksPanel";
+import { PublicationReviewPanel } from "./PublicationReviewPanel";
 import { ImportVerdictBadge, ImportVerdicts, useHasImportVerdict } from "./ImportVerdict";
 import { ImporterLink } from "../import/ImporterLink";
 import { TakeDownControl, TakenDownBanner } from "./SiteVisibility";
@@ -158,7 +159,7 @@ function EditableField<T>({
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState<string>("");
   const [evidenceIds, setEvidenceIds] = useState<string>("");
-  // An imported job is checked in "Check before publishing", against the documents brought in (G2): the old
+  // An imported job is checked in "Quality checks (optional)", against the documents brought in (G2): the old
   // evidence-id box would only set the field's own status, so it is not offered there.
   const importedJob = Object.keys(useContext(ImportVerdicts)).length > 0;
   const hasVerdict = useHasImportVerdict(fieldPath);
@@ -277,7 +278,7 @@ function EditableField<T>({
           )}
           {importedJob ? (
             <div data-checks-hint style={{ marginTop: 8, fontSize: 12, color: C.muted }}>
-              Saving changes the value and reopens its check: confirm it against the official document in “Check before publishing” above.
+              Saving changes the value and reopens its quality check (optional).
             </div>
           ) : (
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -1180,7 +1181,7 @@ const STATE_INFO: Record<string, { label: string; note: string }> = {
 // ─── Publish checklist ────────────────────────────────────
 
 /** Every value still marked Pending, with the section that holds it. */
-// Fields a person has checked in "Check before publishing" are left out.
+// Fields a person has checked in "Quality checks (optional)" are left out.
 function pendingValues(record: RecruitmentRecord, checked: string[] = []): Array<{ label: string; section: string }> {
   type Field = { value: unknown; status?: string } | null | undefined;
   const dates = record.dates as unknown as Record<string, Field>;
@@ -1215,7 +1216,7 @@ function PublishChecklist({ record, onJump, importChecks }: { record: Recruitmen
   const importToCheck = importChecks.toCheck;
   const live = record.draftState === "PUBLISHED";
   const items: Array<{ label: string; section: string; done: boolean; required?: boolean }> = [
-    { label: "Official link",    section: "Links",        done: record.links.some((l) => l.official), required: true },
+    { label: "Official link",    section: "Links",        done: record.links.some((l) => l.official) },
     { label: "Last date",        section: "Dates",        done: hasValue(record.dates.applicationCloseDate) },
     { label: "Vacancies",        section: "Vacancies",    done: hasValue(record.vacancies.total) },
     { label: "Eligibility",      section: "Eligibility",  done: hasValue(record.eligibility) },
@@ -1227,8 +1228,8 @@ function PublishChecklist({ record, onJump, importChecks }: { record: Recruitmen
   ];
   const done = items.filter((i) => i.done).length;
   const missing = items.filter((i) => !i.done);
-  // An imported job also waits for its critical fields to be checked (panel above).
-  const blocked = !items[0].done || importToCheck > 0;
+  // Owner-controlled publication: nothing here stops a publish. Only the hard rules in the publication
+  // review do; the official link and the quality checks are advice.
   const pendingList = pendingValues(record, importChecks.checked);
   const pending = pendingList.length;
   // Values that contradict each other. Today in India, the site's working day.
@@ -1258,10 +1259,10 @@ function PublishChecklist({ record, onJump, importChecks }: { record: Recruitmen
   return (
     <div style={{ ...PANEL, padding: "14px 18px", marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: blocked && !live ? C.amber : C.text }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
           {where
             ? missing.length === 0 ? `${where} — nothing is missing` : `${where} — ${missing.length} detail${missing.length === 1 ? " is" : "s are"} still empty on the public page`
-            : blocked ? "Not ready to publish yet" : missing.length === 0 ? "Ready to publish" : "Can be published — some details are still empty"}
+            : missing.length === 0 ? "Nothing is empty" : `${missing.length} detail${missing.length === 1 ? " is" : "s are"} still empty`}
         </div>
         <button onClick={() => setShowDetails((x) => !x)} style={{ background: "none", border: "none", color: C.muted, fontSize: 12, cursor: "pointer", padding: 0 }}>
           {done} of {items.length} filled · {showDetails ? "Hide details" : "Details"}
@@ -1269,13 +1270,8 @@ function PublishChecklist({ record, onJump, importChecks }: { record: Recruitmen
       </div>
 
       {/* What stops publishing. Always shown. */}
-      {!live && !items[0].done && line(
-        <>
-          <b style={{ color: C.red }}>Needed to publish:</b> a link marked official. Open{" "}
-          <button onClick={() => onJump("Links")} style={{ background: "none", border: "none", padding: 0, color: C.accent, cursor: "pointer", fontSize: 12 }}>Links</button>, or run AI Assist and click “Add as official link”.
-        </>, C.text)}
       {!live && importToCheck > 0 && line(
-        <><b style={{ color: C.red }}>Needed to publish:</b> {importToCheck} imported key detail{importToCheck === 1 ? "" : "s"} to check in “Check before publishing” above.</>, C.text)}
+        <>{importToCheck} imported key detail{importToCheck === 1 ? " is" : "s are"} not checked in “Quality checks (optional)”. You can publish without it.</>, C.muted)}
 
       {/* Empty details: only the empty ones, each opens its section. */}
       {missing.filter((i) => !i.required).length > 0 && (
@@ -1357,15 +1353,10 @@ export default function CmsRecordEditorPage() {
   const [activeSection, setActiveSection] = useState<string>("Identity");
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [publishingSeq, setPublishingSeq] = useState(false);
   const [publishSeqErr, setPublishSeqErr] = useState<string | null>(null);
   const [publishNote, setPublishNote] = useState<string | null>(null);
-  // Post to the Telegram channel on this publish? Only when the admin ticks it:
-  // it starts unticked, for a first publish and a republish alike (explicit opt-in).
-  const [announceChoice, setAnnounceChoice] = useState<boolean | null>(null);
   const [reverting, setReverting] = useState(false);
   const [importChecks, setImportChecks] = useState<ImportCheckState>({ toCheck: 0, checked: [], fields: {} });
-  const importToCheck = importChecks.toCheck;
   const [revertErr, setRevertErr] = useState<string | null>(null);
   const [showAddUpdate, setShowAddUpdate] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -1518,54 +1509,6 @@ export default function CmsRecordEditorPage() {
       setRevertErr(String(e));
     } finally {
       setReverting(false);
-    }
-  }
-
-  async function handlePublishSequence() {
-    if (!record) return;
-    setPublishingSeq(true);
-    setPublishSeqErr(null);
-    try {
-      // A draft is approved and published in one request: the server checks
-      // everything publishing needs before approving, and undoes the approval
-      // if the publish still fails, so a refusal leaves the job a draft.
-      const announce = announceChoice === true;
-      setPublishNote(null);
-      const publishRes = await fetch(`/api/admin/cms/records/${id}/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ announce, approveFirst: record.draftState === "DRAFT" }),
-      });
-      const publishData = await publishRes.json();
-      if (!publishRes.ok) {
-        setPublishSeqErr(
-          (publishData.error ?? `Publish failed: HTTP ${publishRes.status}`)
-            + (publishData.approvalWithdrawn ? " The job is still a draft." : ""),
-        );
-        // The status shown must be the job's real one after a refusal.
-        void loadRecord();
-        return;
-      }
-      setRecord(publishData.record);
-      if (publishData.revalidated === false) {
-        setPublishSeqErr(
-          "Published, but the public site cache could not be refreshed. The public pages will update after the next deployment.",
-        );
-      }
-      if (publishData.announced === "failed") {
-        setPublishSeqErr("Published. The Telegram channel post did not go through — post it by hand if you want it there.");
-      } else if (publishData.announced === "sent") {
-        setPublishNote("Published and posted to the Telegram channel.");
-      } else if (publishData.announced === "duplicate") {
-        setPublishNote("Published. Not posted to Telegram: the same message went out in the last 24 hours.");
-      } else {
-        setPublishNote("Published. Nothing was posted to Telegram.");
-      }
-      setAnnounceChoice(null);
-    } catch (e) {
-      setPublishSeqErr(String(e));
-    } finally {
-      setPublishingSeq(false);
     }
   }
 
@@ -1788,9 +1731,8 @@ export default function CmsRecordEditorPage() {
         {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
           <div>
             <button
-              onClick={() => { void handlePublishSequence(); }}
-              title={HELP["Approve & Publish"]}
-              disabled={publishingSeq}
+              onClick={() => { document.querySelector<HTMLElement>("[data-publication-review]")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+              title="Opens the publication review: you review the job there, acknowledge any disagreement, and publish."
               style={{
                 width: "100%",
                 padding: "9px 14px",
@@ -1804,22 +1746,8 @@ export default function CmsRecordEditorPage() {
                 cursor: "pointer",
               }}
             >
-              {publishingSeq
-                ? (record.draftState === "DRAFT" ? "Approving…" : "Publishing…")
-                : (record.draftState === "DRAFT" ? "Approve & Publish" : "Publish Record")}
+              Review and publish
             </button>
-            <label
-              title="A first publish posts “New job” to the channel. A republish posts “Updated” only when this is ticked, so small corrections do not reach every subscriber."
-              style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 8, fontSize: 11, color: C.muted, cursor: "pointer", lineHeight: 1.4 }}
-            >
-              <input
-                type="checkbox"
-                checked={announceChoice === true}
-                onChange={(e) => setAnnounceChoice(e.target.checked)}
-                style={{ marginTop: 1 }}
-              />
-              <span>{record.publishedAt ? "Post “Updated” to the Telegram channel" : "Post “New job” to the Telegram channel"}</span>
-            </label>
             {record.takenDown && (
               <div style={{ fontSize: 11, color: C.amber, marginTop: 6, lineHeight: 1.4 }}>
                 This job is off the website. Publishing puts this version back on it.
@@ -1938,7 +1866,6 @@ export default function CmsRecordEditorPage() {
             {record.takenDown
               ? "Off the website: visitors cannot see it"
               : editingLive ? "The public still sees the last published version until you publish again"
-                : record.draftState === "APPROVED" && importToCheck > 0 ? "Approved — not yet public; imported fields still need checking"
                 : STATE_INFO[record.draftState]?.note}
             {(record.draftState === "PUBLISHED" || editingLive) && !record.takenDown && (
               <>
@@ -1973,6 +1900,13 @@ export default function CmsRecordEditorPage() {
 
         <LiveChangesPanel record={record} onJump={jumpTo} />
 
+        {/* The owner's review: publishing happens here (owner-controlled publication). */}
+        <PublicationReviewPanel
+          record={record}
+          onJump={jumpTo}
+          onPublished={(o) => { setRecord(o.record); setPublishNote(o.note); setPublishSeqErr(o.error); void loadRevisions(); }}
+          onRefused={() => { void loadRecord(); }}
+        />
         {/* Imported jobs only: a person's check on every critical field. */}
         <ImportChecksPanel record={record} onRecordChange={onFieldSaved} onChecks={setImportChecks} onJump={jumpTo} />
         {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
@@ -3464,9 +3398,7 @@ function DraftPreviewOverlay({
             <OfficialNotificationCard
               notificationPdfUrl={previewJob.type === "government" ? previewJob.links.notification : undefined}
               officialWebsiteUrl={previewJob.links.website}
-              sourceType={previewJob.provenance.primarySourceType}
-              verifiedAt={previewJob.provenance.lastVerifiedAt || undefined}
-              keyDetailsChecked={previewJob.provenance.keyDetailsChecked === true}
+              organizationId={previewJob.organizationId}
             />
             <div style={{ marginTop: 24 }}>
               <JobDetailHeader job={previewJob} />

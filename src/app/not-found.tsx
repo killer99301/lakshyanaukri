@@ -47,7 +47,7 @@ export default function NotFound() {
         </div>
 
         <div className="pt-4 border-t border-slate-100 text-xs text-slate-400">
-          LakshyaNaukri • Verified Government Jobs & Exams
+          LakshyaNaukri | Government Jobs & Competitive Exams
         </div>
       </div>
     </div>

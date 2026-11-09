@@ -238,9 +238,9 @@ function fakeGemini(prompt: string): J {
     && (snap?.notApplicable as J)?.["links#APPLY_ONLINE"] === "Apply through the NATS portal", { notStated: snap?.notStated, notApplicable: snap?.notApplicable });
   check("snapshot carries no claims, quotes or source text", !JSON.stringify(snap).includes("Rs.800/- plus GST") && !JSON.stringify(snap).includes("retrieval"));
   const { snapshotToGovernmentRecruitment } = await import("@/lib/cms/adapter");
-  const { getProvenanceSummary } = await import("@/lib/lifecycle");
-  check("public badge: \"Key details checked against official sources\", not a generic Verified",
-    snap?.keyDetailsChecked === true && getProvenanceSummary(snapshotToGovernmentRecruitment(snap as never) as never).statusLabel === "Key details checked against official sources");
+  const { pageUpdatedLabel } = await import("@/lib/lifecycle");
+  check("the snapshot still records the checks (admin data); the public page shows only its date, no badge",
+    snap?.keyDetailsChecked === true && /^Updated: /.test(pageUpdatedLabel(snapshotToGovernmentRecruitment(snap as never) as never) ?? ""));
 
   section("A job that was never imported publishes exactly as before");
   r = await records.POST(req("/api/admin/cms/records", "POST", { organizationId: "ssc", organizationName: "Staff Selection Commission", govType: "Central Govt", title: "TEST RECORD SSC CHSL 2026", recruitmentYear: 2026 }));
@@ -250,7 +250,7 @@ function fakeGemini(prompt: string): J {
   r = await publish.POST(req(`/api/admin/cms/records/${plainId}/publish`, "POST", await approved(plainId, { announce: false })), ctx("id", plainId));
   check("published with Pending values and no decisions", r.status === 200);
   const plainSnap = (await pg.query("SELECT snapshot FROM published_recruitments WHERE recruitment_id = $1 ORDER BY published_at DESC LIMIT 1", [plainId])).rows[0]?.snapshot as J;
-  check("…and keeps its usual public badge", plainSnap?.keyDetailsChecked === undefined && getProvenanceSummary(snapshotToGovernmentRecruitment(plainSnap as never) as never).statusLabel !== "Key details checked against official sources");
+  check("…and claims no checks", plainSnap?.keyDetailsChecked === undefined && /^Updated: /.test(pageUpdatedLabel(snapshotToGovernmentRecruitment(plainSnap as never) as never) ?? ""));
 
   section("Approve & Publish in one request, for a job that was never imported");
   const plainNew = async (title: string, links: unknown[]) => {

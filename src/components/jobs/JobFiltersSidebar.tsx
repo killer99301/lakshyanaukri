@@ -56,7 +56,8 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
 
   const opportunityTypeOptions = [
     { label: "Government Jobs", value: "government", count: counts.byType.government || 0 },
-    { label: "Private Jobs", value: "private", count: counts.byType.private || 0 },
+    // "Private Jobs" is hidden until private-job classification exists (owner-controlled publication, D5);
+    // the "private" type itself, its pages and its data are unchanged.
     { label: "Internships", value: "internship", count: counts.byType.internship || 0 },
   ];
 

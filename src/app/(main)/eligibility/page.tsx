@@ -9,7 +9,7 @@ import EligibilityFinderClient from "./EligibilityFinderClient";
 export const metadata: Metadata = {
   title: "Which Jobs Can I Apply For? | Eligibility Finder",
   description:
-    "Enter your date of birth, category and qualification to see which open government and private jobs you are eligible for, checked against each notice's age limit and cut-off date.",
+    "Enter your date of birth, category and qualification to see which open government jobs you are eligible for, checked against each notice's age limit and cut-off date.",
 };
 
 /**

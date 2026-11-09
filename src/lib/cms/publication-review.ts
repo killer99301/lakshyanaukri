@@ -19,8 +19,7 @@ import type { RecruitmentRecord } from "@/types/recruitment-record";
 import { validateRecord } from "@/lib/cms/validation";
 import { canonicalJson, valueHash } from "@/lib/cms/importer/evidence-text";
 import { originFor, type OriginRole } from "@/lib/cms/importer/trusted-domains";
-import { PORTALS } from "@/lib/cms/importer/links";
-import { KNOWN_AGGREGATORS } from "@/intelligence/org-registry";
+import { isAggregatorHost } from "@/lib/public-link-labels";
 import { CRITICAL_FIELDS, fieldDef } from "@/lib/cms/importer/fields";
 import type { FieldClass } from "@/lib/cms/importer/classify";
 
@@ -95,13 +94,8 @@ const isHttp = (url: string) => {
   try { const u = new URL(url); return u.protocol === "http:" || u.protocol === "https:"; } catch { return false; }
 };
 
-/** A job-news site or aggregator: never an Apply Online destination (P2). */
-export function isAggregatorHost(host: string | null): boolean {
-  if (!host) return false;
-  const h = host.toLowerCase().replace(/^www\./, "");
-  if (PORTALS.test(h)) return true;
-  return Object.keys(KNOWN_AGGREGATORS).some((d) => h === d.toLowerCase() || h.endsWith(`.${d.toLowerCase()}`));
-}
+/** A job-news site or aggregator: never an Apply Online destination (P2). Shared with the public link labels. */
+export { isAggregatorHost };
 
 // ─── The pure review ──────────────────────────────────────────
 
@@ -187,8 +181,18 @@ const CLASS_TO_STANDING: Record<FieldClass, ReviewStanding> = {
   MISSING: "MISSING", CONFLICTING: "CONFLICTING",
 };
 
+// A disagreeing value in words: the stored evidence is left out, an age limit reads as a range.
 const short = (v: unknown): string => {
-  const s = typeof v === "string" ? v : JSON.stringify(v);
+  let x = v;
+  if (x && typeof x === "object" && !Array.isArray(x)) {
+    const { evidence: _e, ...rest } = x as Record<string, unknown>;
+    void _e;
+    if ("min" in rest || "max" in rest) {
+      const relax = Array.isArray(rest.relaxations) ? (rest.relaxations as Array<{ category?: string; years?: number }>).map((r) => `${r.category} +${r.years}`).join(", ") : "";
+      x = `${rest.min ?? "?"} to ${rest.max ?? "?"} years${rest.asOf ? ` (as of ${rest.asOf})` : ""}${relax ? `; relaxation: ${relax}` : ""}`;
+    } else x = rest;
+  }
+  const s = typeof x === "string" ? x : JSON.stringify(x);
   return s.length > 140 ? `${s.slice(0, 137)}…` : s;
 };
 

@@ -5,7 +5,7 @@ import JobsPageClient from "./JobsPageClient";
 export const metadata: Metadata = {
   title: "Government Jobs & Exams 2026 | LakshyaNaukri",
   description:
-    "Browse verified government job notifications, competitive exam schedules, and private job opportunities across India.",
+    "Government recruitment information: dates, eligibility, vacancies and application links.",
 };
 
 export default async function JobsPage() {

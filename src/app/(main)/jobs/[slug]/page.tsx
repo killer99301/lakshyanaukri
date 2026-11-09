@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: JobDetailPageProps) {
     };
   }
 
-  const title = `${job.title} — Official Notification & Details`;
+  const title = `${job.title} — Notification & Details`;
   const description =
     job.shortDescription ||
     `Check eligibility, application dates, vacancies, exam pattern, and official notifications for ${job.title}.`;
@@ -81,7 +81,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: `${job.title} — Official Notification & Details`,
+    name: `${job.title} — Notification & Details`,
     description:
       job.shortDescription ||
       `Check eligibility, application dates, vacancies, exam pattern, and official notifications for ${job.title}.`,
@@ -147,9 +147,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
             <OfficialNotificationCard
               notificationPdfUrl={job.type === "government" ? job.links.notification : undefined}
               officialWebsiteUrl={job.links.website}
-              sourceType={job.provenance.primarySourceType}
-              verifiedAt={job.provenance.lastVerifiedAt || undefined}
-              keyDetailsChecked={job.provenance.keyDetailsChecked === true}
+              organizationId={job.organizationId}
             />
 
             <JobDownloads items={job.downloads} />
