@@ -125,17 +125,25 @@ export function buildApplyPayload(input: {
     pushRevision("links", { value: [...record.links, ...newLinks], status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: false } as ProvenanceField<unknown>);
   }
 
+  const pushClaims = (item: ProposalItem): string[] => item.claims.map((c) => {
+    const id = randomUUID();
+    claims.push({
+      id, fieldPath: item.fieldPath, value: item.value, valueHash: valueHash(comparable(item.fieldPath, item.value)),
+      retrievalId: c.retrievalId, page: c.page ?? null, quote: c.quote ?? null, tableCell: c.tableCell ?? null,
+    });
+    return id;
+  });
   for (const item of chosen) {
-    const newClaimIds: string[] = [];
-    for (const c of item.claims) {
-      const id = randomUUID();
-      newClaimIds.push(id);
-      claims.push({
-        id, fieldPath: item.fieldPath, value: item.value, valueHash: valueHash(comparable(item.fieldPath, item.value)),
-        retrievalId: c.retrievalId, page: c.page ?? null, quote: c.quote ?? null, tableCell: c.tableCell ?? null,
-      });
-    }
+    const newClaimIds = pushClaims(item);
     for (const superseded of item.supersedes) for (const superseding of newClaimIds) supersessions.push({ superseding, superseded });
+  }
+  // Where the sources disagree, the values not ticked keep their claims (what each source said, with its
+  // document and words). They change nothing on the record: the job holds only the ticked value, and no
+  // revision is written for them. They supersede nothing (a disagreement's items never do), so the field
+  // reads as "the sources disagree" until a person decides, and the publication review shows it.
+  const chosenIds = new Set(chosen.map((i) => i.id));
+  for (const item of input.proposal.items) {
+    if (item.kind === "FIELD" && item.conflict && !chosenIds.has(item.id)) pushClaims(item);
   }
 
   return { record: recordColumns(record, input.slug), revisions, claims, supersessions };

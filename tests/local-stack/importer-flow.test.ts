@@ -151,7 +151,9 @@ function fakeGemini(prompt: string): J {
   r = await checksRoute.GET(req(`/api/admin/cms/records/${jobId}/checks`, "GET"), ctx("id", jobId));
   let checks = await r.json() as { imported: boolean; ok: boolean; rows: Array<J>; retrievals: Array<J> };
   const row = (f: string) => checks.rows.find((x) => x.fieldPath === f)!;
-  check("imported, not ok; last date SUPPORTED, vacancies MISSING", checks.imported && !checks.ok && row("dates.applicationCloseDate").cls === "SUPPORTED" && row("vacancies.total").cls === "MISSING", checks.rows.map((x) => `${x.fieldPath}:${x.cls}`));
+  // The research text's 3 Nov was not ticked but is kept as a claim (conflict retention): the last date reads
+  // "the sources disagree" until a person decides, instead of "supported".
+  check("imported, not ok; last date CONFLICTING (the unticked 3 Nov is kept), vacancies MISSING", checks.imported && !checks.ok && row("dates.applicationCloseDate").cls === "CONFLICTING" && row("vacancies.total").cls === "MISSING", checks.rows.map((x) => `${x.fieldPath}:${x.cls}`));
   const approvals = () => count("SELECT count(*)::int AS n FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type = 'RECORD_APPROVED'", [jobId]);
   const approvalsBefore = await approvals();
   const reviewOf = (x: J) => (x.review ?? {}) as { missing?: Array<{ fieldPath: string }>; warnings?: Array<{ code: string }> };
@@ -195,7 +197,7 @@ function fakeGemini(prompt: string): J {
   await fields.PATCH(req(`/api/admin/cms/records/${jobId}/fields`, "PATCH", { fieldPath: "dates.applicationCloseDate", field: pend("2026-11-10"), clientRevision: await rev(), reason: "test" }), ctx("id", jobId));
   await fields.PATCH(req(`/api/admin/cms/records/${jobId}/fields`, "PATCH", { fieldPath: "dates.applicationCloseDate", field: pend("2026-11-01"), clientRevision: await rev(), reason: "test restore" }), ctx("id", jobId));
   checks = await (await checksRoute.GET(req(`/api/admin/cms/records/${jobId}/checks`, "GET"), ctx("id", jobId))).json() as typeof checks;
-  check("edited to 10 Nov and back to 1 Nov → NOT verified any more", row("dates.applicationCloseDate").cls === "SUPPORTED", row("dates.applicationCloseDate"));
+  check("edited to 10 Nov and back to 1 Nov → NOT verified any more (the sources still disagree)", row("dates.applicationCloseDate").cls === "CONFLICTING", row("dates.applicationCloseDate"));
 
   r = await decideReq({ fieldPath: "age", kind: "ADMIN_NOT_STATED", reviewScope: { whole_document: true }, justification: "Checked the whole notice", seen: await seenOf("age") });
   check("not stated is recorded for age (Tier A field)", r.status === 201);
