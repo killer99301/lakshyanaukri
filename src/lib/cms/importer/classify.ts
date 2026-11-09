@@ -12,7 +12,7 @@ import { LINK_LATER_FIELD, readLinkLater, type PublicLinkLater } from "@/lib/cms
 import { authorityCovers, type OriginRole } from "@/lib/cms/importer/trusted-domains";
 import { CRITICAL_FIELDS, fieldDef } from "@/lib/cms/importer/fields";
 import { comparable } from "@/lib/cms/importer/proposal";
-import { compatible, disagreement, type DisagreementKind } from "@/lib/cms/importer/same-meaning";
+import { compatible, disagreement, leavesOut, type DisagreementKind } from "@/lib/cms/importer/same-meaning";
 import { calculatedTotalReady, type VacancyTable } from "@/lib/vacancy-table";
 import { isIncompletenessReason, quoteIsPrintedTotal, totalRoute, type DocStandings } from "@/lib/cms/importer/table-check";
 
@@ -109,6 +109,11 @@ export function classifyField(state: FieldState, firstImportAt: string | null, t
   const kind = disagreement(fieldPath, extracted.map((c) => ({ value: c.value, retrievalId: c.retrievalId ?? null })));
   if (kind === "SOURCES") return verdict("CONFLICTING", "the sources disagree", { conflictKind: kind });
   if (kind === "READINGS") return verdict("CONFLICTING", "the readings of one source differ, or it gives two values", { conflictKind: kind });
+  // Directional: the saved value must not leave out part of what a source states (an experience requirement, one
+  // of two alternative pathways). A source that says less than the saved value is not an omission.
+  if (extracted.some((c) => leavesOut(fieldPath, state.value, c.value))) {
+    return verdict("CONFLICTING", "the saved value leaves out part of what the source says", { conflictKind: "OMITTED" });
+  }
 
   const current = valueHash(comparable(fieldPath, state.value));
   const matching = extracted.filter((c) => valueHash(comparable(fieldPath, c.value)) === current || compatible(fieldPath, c.value, state.value));

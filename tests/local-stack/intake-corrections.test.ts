@@ -38,6 +38,7 @@ const S = {
   N: "N: the notice number typed in the new-job form",
   P: "P: the SBI Fire text, read by code and by the AI (stand-in)",
   R: "R: saved, reviewed, public preview, published",
+  O: "O: experience removed in the editor after saving",
 };
 expectChecks(S.N, [
   "N1 typed and its item ticked: saved, the job has the number",
@@ -58,6 +59,13 @@ expectChecks(S.R, [
   "R4 the publication review lists only eligibility, as one source read two ways",
   "R5 the public preview shows the experience, whole, in “Qualification & Experience”",
   "R6 published without an official document after one acknowledgement; Telegram not asked; the audit records the acknowledgement",
+]);
+
+expectChecks(S.O, [
+  "O1 the saved value without the experience reads as leaving out part of what the source says",
+  "O2 the publication review lists it, with the saved value and what the source says",
+  "O3 publishing without acknowledging it is refused",
+  "O4 acknowledged: published, and the audit records the acknowledgement with its kind",
 ]);
 
 (async () => {
@@ -159,6 +167,35 @@ expectChecks(S.R, [
     r.status === 200 && d.announced !== "sent" && audit?.telegram === false
     && JSON.stringify((audit?.conflicts as Array<{ fieldPath: string; action: string }>)?.map((c) => [c.fieldPath, c.action])) === JSON.stringify([["eligibility", "ACKNOWLEDGED"]]),
     [r.status, d.error, audit?.conflicts]);
+
+  section(S.O);
+  const fields = await import("@/app/api/admin/cms/records/[id]/fields/route");
+  p = await preview({ number: NUMBER });
+  const o = await apply(p.importId, ticked(p.items));
+  const oid = o.recruitmentId;
+  const rev = async () => (await pg.query("SELECT record_revision FROM recruitments WHERE id = $1", [oid])).rows[0].record_revision as string;
+  const qualOnly = ((await getRecruitmentById(oid))!.eligibility!.value as Array<{ post: string; qualification?: string[] }>).map((x) => ({ post: x.post, qualification: x.qualification }));
+  const patched = await fields.PATCH(req(`/api/admin/cms/records/${oid}/fields`, "PATCH", { fieldPath: "eligibility",
+    field: { value: qualOnly, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true }, clientRevision: await rev(), reason: "editor removed the experience (test)" }), ctx(oid));
+  const orows = (await (await checksRoute.GET(req(`/api/admin/cms/records/${oid}/checks`, "GET"), ctx(oid))).json()).rows as Array<{ fieldPath: string; cls: string; reason: string }>;
+  const oel = orows.find((x) => x.fieldPath === "eligibility");
+  check("O1 the saved value without the experience reads as leaving out part of what the source says",
+    patched.status === 200 && oel?.cls === "CONFLICTING" && /leaves out part of what the source says/.test(oel.reason), [patched.status, oel]);
+  const ov = (await (await reviewRoute.GET(req(`/api/admin/cms/records/${oid}/publication-review`, "GET"), ctx(oid))).json()).review as
+    { reviewHash: string; freshness: J; conflicts: Array<{ fieldPath: string; kind: string; values: string[] }> };
+  const oc = ov.conflicts.find((c) => c.fieldPath === "eligibility");
+  check("O2 the publication review lists it, with the saved value and what the source says",
+    oc?.kind === "OMITTED" && oc.values[0].startsWith("Saved: ") && !oc.values[0].includes("Station Officer") && oc.values.some((x) => x.startsWith("Source says: ") && x.includes("Station Officer")), oc);
+  const body = (acks: string[]) => ({ approveFirst: true, ownerApproval: { acknowledged: true, reviewHash: ov.reviewHash, ...ov.freshness, conflictsAcknowledged: acks } });
+  const others = ov.conflicts.map((c) => c.fieldPath).filter((f) => f !== "eligibility");
+  const refused = await publish.POST(req(`/api/admin/cms/records/${oid}/publish`, "POST", body(others)), ctx(oid));
+  const rd = (await refused.json()) as J;
+  check("O3 publishing without acknowledging it is refused", refused.status === 422 && rd.code === "CONFLICT_NOT_ACKNOWLEDGED" && JSON.stringify(rd.fieldPaths) === JSON.stringify(["eligibility"]), [refused.status, rd.code, rd.fieldPaths]);
+  const ok = await publish.POST(req(`/api/admin/cms/records/${oid}/publish`, "POST", body(ov.conflicts.map((c) => c.fieldPath))), ctx(oid));
+  const oaudit = (await pg.query("SELECT metadata FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type = 'OWNER_PUBLICATION_APPROVAL'", [oid])).rows[0]?.metadata as J | undefined;
+  const ack = (oaudit?.conflicts as Array<{ fieldPath: string; kind: string; action: string; values: string[] }> | undefined)?.find((c) => c.fieldPath === "eligibility");
+  check("O4 acknowledged: published, and the audit records the acknowledgement with its kind",
+    ok.status === 200 && ack?.kind === "OMITTED" && ack.action === "ACKNOWLEDGED" && ack.values.length >= 2, [ok.status, ack]);
 
   summary();
 })().catch((e) => { console.error("HARNESS ERROR:", e); process.exit(1); });

@@ -22,7 +22,7 @@ import { originFor, type OriginRole } from "@/lib/cms/importer/trusted-domains";
 import { isAggregatorHost } from "@/lib/public-link-labels";
 import { CRITICAL_FIELDS, fieldDef } from "@/lib/cms/importer/fields";
 import type { FieldClass } from "@/lib/cms/importer/classify";
-import { groupByMeaning, type DisagreementKind } from "@/lib/cms/importer/same-meaning";
+import { groupByMeaning, leavesOut, type DisagreementKind } from "@/lib/cms/importer/same-meaning";
 
 // ─── What counts as material (P3) ─────────────────────────────
 
@@ -189,7 +189,7 @@ const CLASS_TO_STANDING: Record<FieldClass, ReviewStanding> = {
 };
 
 // A disagreeing value in words: the stored evidence is left out, an age limit reads as a range.
-const short = (v: unknown): string => {
+const short = (v: unknown, max = 140): string => {
   let x = v;
   if (x && typeof x === "object" && !Array.isArray(x)) {
     const { evidence: _e, ...rest } = x as Record<string, unknown>;
@@ -200,7 +200,7 @@ const short = (v: unknown): string => {
     } else x = rest;
   }
   const s = typeof x === "string" ? x : JSON.stringify(x);
-  return s.length > 140 ? `${s.slice(0, 137)}…` : s;
+  return s.length > max ? `${s.slice(0, max - 3)}…` : s;
 };
 
 /** Which part of eligibility the sources disagree on: qualification, experience, or both (D3). */
@@ -249,8 +249,11 @@ export async function buildPublicationReview(record: RecruitmentRecord, today: s
       standings[s.fieldPath] = CLASS_TO_STANDING[cls] ?? "RESEARCH";
       if (cls === "CONFLICTING") {
         const extracted = s.claims.filter((c) => c.kind === "EXTRACTED" && !c.superseded);
-        // One entry per meaning: forms of the same value are not listed twice.
-        conflictValues[s.fieldPath] = [...new Set(groupByMeaning(s.fieldPath, extracted).map((g) => short(g.value)))];
+        // One entry per meaning: forms of the same value are not listed twice. An omission shows the saved value
+        // beside what the source states (research or official alike: "the source", never "the official notice").
+        conflictValues[s.fieldPath] = verdict.conflictKind === "OMITTED"
+          ? [`Saved: ${short(s.value, 700)}`, ...new Set(extracted.filter((c) => leavesOut(s.fieldPath, s.value, c.value)).map((c) => `Source says: ${short(c.value, 700)}`))]
+          : [...new Set(groupByMeaning(s.fieldPath, extracted).map((g) => short(g.value)))];
         conflictKinds[s.fieldPath] = verdict.conflictKind ?? "SOURCES";
         if (s.fieldPath === "eligibility") eligibilityPart = eligibilityDisagreement(extracted.map((c) => c.value));
       }
@@ -345,7 +348,7 @@ export function approvalMetadata(review: PublicationReview, adminId: string, kin
     recordRevision: review.freshness.recordRevision, claimSeq: review.freshness.claimSeq, retrievals: review.freshness.retrievals,
     reviewHash: review.reviewHash, kind, acknowledged: true, standing: review.standing,
     missing: review.missing.map((m) => m.fieldPath),
-    conflicts: review.conflicts.map((c) => ({ fieldPath: c.fieldPath, ...(c.part ? { part: c.part } : {}), values: c.values, action: "ACKNOWLEDGED" })),
+    conflicts: review.conflicts.map((c) => ({ fieldPath: c.fieldPath, ...(c.part ? { part: c.part } : {}), kind: c.kind ?? "SOURCES", values: c.values, action: "ACKNOWLEDGED" })),
     links: {
       applyOnline: review.links.applyOnline.state, applyHost: review.links.applyOnline.host, applyStanding: review.links.applyOnline.standing,
       notification: review.links.notification.state, officialSourceLink: review.links.officialSourceLink,

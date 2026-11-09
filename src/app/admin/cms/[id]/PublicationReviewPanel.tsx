@@ -175,7 +175,8 @@ export function PublicationReviewPanel({ record, onJump, onPublished, onRefused 
             <div key={c.fieldPath} data-review-conflict={c.fieldPath} style={{ borderTop: `1px solid ${C.border}`, padding: "6px 0" }}>
               <div style={{ fontWeight: 600 }}>{c.label}{c.part ? ` — ${c.part === "both" ? "qualification and experience" : c.part}` : ""}</div>
               <div data-conflict-kind={c.kind ?? "SOURCES"} style={{ color: C.muted, fontSize: 11 }}>
-                {c.kind === "READINGS" ? "One source, read two different ways — or it gives two different values. Check which is right." : "The sources disagree."}
+                {c.kind === "OMITTED" ? "The saved value leaves out part of what the source says. Correct it, or acknowledge that you publish it as saved."
+                  : c.kind === "READINGS" ? "One source, read two different ways — or it gives two different values. Check which is right." : "The sources disagree."}
               </div>
               {c.values.map((x, i) => <div key={i} style={{ color: C.muted, wordBreak: "break-word" }}>Source value {i + 1}: {x}</div>)}
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>

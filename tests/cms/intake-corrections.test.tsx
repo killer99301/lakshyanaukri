@@ -177,3 +177,48 @@ test("C14 sbi.bank.in is SBI's own site; the IBPS registration site is not liste
   assert.equal(originFor("sbi", "ibpsreg.ibps.in").role, "UNLISTED");
   assert.equal(originFor("sbi", "sbi.co.in").role, "UNLISTED", "other names wait for confirmation");
 });
+
+suite("Saved value against what the source states (directional)");
+
+// The SBI requirement as the source states it, and saved values that leave parts out.
+const QUAL = "B.E. (Fire) from NFSC Nagpur OR B.E./B.Tech (Safety & Fire Engineering)";
+const FULL = [{ post: POST, qualification: [QUAL], experience: [EXPERIENCE] }];
+const QUAL_ONLY = [{ post: POST, qualification: [QUAL] }];
+const ONE_PATHWAY = [{ post: POST, qualification: [QUAL], experience: [EXPERIENCE.split("; OR")[0]] }];
+
+test("C15 (case 1) the complete requirement saved, the source states the same: accepted", () => {
+  const v = classifyField(state("eligibility", FULL, [claim("a", FULL, "r1")]), null);
+  assert.equal(v.cls, "RESEARCH_ONLY", JSON.stringify(v));
+});
+
+test("C16 (case 2) qualification saved, the source states qualification and both experience pathways: flagged OMITTED", () => {
+  const v = classifyField(state("eligibility", QUAL_ONLY, [claim("a", FULL, "r1")]), null);
+  assert.ok(v.cls === "CONFLICTING" && v.conflictKind === "OMITTED" && /leaves out part of what the source says/.test(v.reason), JSON.stringify(v));
+  const both = classifyField(state("eligibility", QUAL_ONLY, [claim("a", FULL, "r1"), claim("b", QUAL_ONLY, "r1")]), null);
+  assert.ok(both.cls === "CONFLICTING" && both.conflictKind === "OMITTED", "a shorter reading beside it does not hide the omission");
+});
+
+test("C17 (case 3) one of two experience pathways saved: flagged OMITTED", () => {
+  const v = classifyField(state("eligibility", ONE_PATHWAY, [claim("a", FULL, "r1")]), null);
+  assert.ok(v.cls === "CONFLICTING" && v.conflictKind === "OMITTED", JSON.stringify(v));
+});
+
+test("C18 (case 4) the complete requirement saved, a shorter reading of the same source beside it: no warning", () => {
+  const v = classifyField(state("eligibility", FULL, [claim("a", FULL, "r1"), claim("b", QUAL_ONLY, "r1")]), null);
+  assert.equal(v.cls, "RESEARCH_ONLY", JSON.stringify(v));
+  const shorterOnly = classifyField(state("eligibility", FULL, [claim("b", QUAL_ONLY, "r1")]), null);
+  assert.notEqual(shorterOnly.conflictKind, "OMITTED", "a source that says less is never an omission");
+});
+
+test("C19 forms of the same value are not an omission; a different value is not called one", () => {
+  for (const f of ["age", "examPattern", "selection", "howToApply"]) {
+    for (const [saved, src] of [[PAIRS[f][1], PAIRS[f][0]], [PAIRS[f][0], PAIRS[f][1]]] as const) {
+      const v = classifyField(state(f, saved, [claim("a", src, "r1")]), null);
+      // The selection read without the merit formula, saved, while the source gives the formula: that one is an omission.
+      if (f === "selection" && saved === PAIRS.selection[0]) assert.equal(v.conflictKind, "OMITTED", f);
+      else assert.notEqual(v.cls, "CONFLICTING", `${f}: ${JSON.stringify(v)}`);
+    }
+  }
+  const differs = classifyField(state("financial.feeGeneral", 800, [claim("a", 850, "r1")]), null);
+  assert.equal(differs.cls, "UNSUPPORTED", "another figure: differs from the source, as before");
+});

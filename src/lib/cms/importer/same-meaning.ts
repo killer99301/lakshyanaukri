@@ -87,11 +87,37 @@ export function compatible(fieldPath: string, a: unknown, b: unknown): boolean {
   return covers(ca, cb) || covers(cb, ca);
 }
 
+/** Within `whole`, `part`'s text may be only a piece of it ("2 years …" within "2 years …; OR 3 years …"). */
+function within(part: unknown, whole: unknown): boolean {
+  if (part === undefined) return true;
+  if (typeof part === "string") return typeof whole === "string" && whole.includes(part);
+  if (Array.isArray(part)) return Array.isArray(whole) && part.length === whole.length && part.every((x, i) => within(x, whole[i]));
+  if (part && typeof part === "object") {
+    if (!whole || typeof whole !== "object" || Array.isArray(whole)) return false;
+    return Object.entries(part as Record<string, unknown>).every(([k, x]) => within(x, (whole as Record<string, unknown>)[k]));
+  }
+  return part === whole;
+}
+
+/**
+ * The saved value leaves out part of what a source states: everything saved is in the source's value, and the
+ * source says more (a part the saved value lacks, such as an experience requirement, or text of which the saved
+ * text is only a piece, such as one of two alternative pathways). Directional: a source that says less than the
+ * saved value is never an omission. Forms of the same value (see canonicalForm) are not an omission.
+ */
+export function leavesOut(fieldPath: string, saved: unknown, sourceValue: unknown): boolean {
+  const s = canonicalForm(fieldPath, saved), c = canonicalForm(fieldPath, sourceValue);
+  if (s === undefined || c === undefined) return false;
+  return within(s, c) && !covers(c, s);
+}
+
 export type DisagreementKind =
   /** The sources disagree: no value is given (in some reading) by every source. */
   | "SOURCES"
   /** The sources can agree, but one source was read two different ways, or itself gives two different values. */
-  | "READINGS";
+  | "READINGS"
+  /** The saved value leaves out part of what a source states (an omission, not a difference of form). */
+  | "OMITTED";
 
 /**
  * Whether the read values of one field disagree, and how. `retrievalId` identifies the source each value came from.
