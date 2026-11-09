@@ -22,6 +22,11 @@ const nextConfig: NextConfig = {
       "./node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
     ],
   },
+  // The sitemap is for crawlers to read, not a page for search results;
+  // Google had indexed it as one. Crawlers still read it as a sitemap.
+  async headers() {
+    return [{ source: "/sitemap.xml", headers: [{ key: "X-Robots-Tag", value: "noindex" }] }];
+  },
 };
 
 export default nextConfig;

@@ -713,8 +713,11 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
         <div className="flex items-center gap-2 text-orange-400 font-extrabold text-xs uppercase tracking-wider">
           <Building2 className="h-4 w-4" /> About Recruiting Body
         </div>
-        {/* Only the name: no description is written for a body the record does not describe. */}
+        {/* Who conducts it and the approved advice (D5); no description is written for a body the record does not describe. */}
         <h3 className="text-xl font-black text-white">{job.organizationName}</h3>
+        <p className="text-xs text-slate-300 leading-relaxed font-medium">
+          This recruitment is conducted by {job.organizationName}. Check the recruiting body&apos;s official notice before applying.
+        </p>
       </section>
     </div>
   );

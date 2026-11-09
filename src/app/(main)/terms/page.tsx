@@ -5,7 +5,7 @@ import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 
 export const metadata = {
-  title: "Terms of Service | LakshyaNaukri",
+  title: "Terms of Service",
   description:
     "Terms of Service for LakshyaNaukri. Guidelines and disclaimer regarding recruitment notices, examination guidance, and portal usage.",
 };

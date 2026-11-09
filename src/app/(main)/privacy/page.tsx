@@ -5,7 +5,7 @@ import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 
 export const metadata = {
-  title: "Privacy Policy | LakshyaNaukri",
+  title: "Privacy Policy",
   description:
     "Privacy Policy for LakshyaNaukri. Learn how we handle candidate information, cookies, notifications, and data protection.",
 };

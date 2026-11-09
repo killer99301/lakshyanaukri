@@ -3,9 +3,12 @@ import { getAllVerifiedOpportunitiesWithCMS } from "@/lib/repository";
 import JobsPageClient from "./JobsPageClient";
 
 export const metadata: Metadata = {
-  title: "Government Jobs & Exams 2026 | LakshyaNaukri",
+  title: "Government Jobs & Exams 2026",
   description:
     "Government recruitment information: dates, eligibility, vacancies and application links.",
+  // Filter links (/jobs?category=banking, ?state=…) are views of this one page,
+  // not separate pages for search engines.
+  alternates: { canonical: "/jobs" },
 };
 
 export default async function JobsPage() {

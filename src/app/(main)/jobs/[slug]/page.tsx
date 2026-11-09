@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: JobDetailPageProps) {
 
   if (!job) {
     return {
-      title: "Opportunity Not Found | LakshyaNaukri",
+      title: "Opportunity Not Found",
     };
   }
 

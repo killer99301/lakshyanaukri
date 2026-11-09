@@ -9,7 +9,7 @@ import { getLifecycleLinks } from "@/lib/cms/lifecycle-links";
 import { LifecycleLinkGrid } from "@/components/lifecycle/LifecycleLinkList";
 
 export const metadata = {
-  title: "Admit Cards & Hall Tickets 2026 | LakshyaNaukri",
+  title: "Admit Cards & Hall Tickets 2026",
   description:
     "Admit cards, hall tickets and call letters for UPSC, SSC, Banking, Railway and State PSC examinations, with download links.",
 };

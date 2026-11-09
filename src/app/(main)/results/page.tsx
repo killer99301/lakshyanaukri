@@ -9,7 +9,7 @@ import { getLifecycleLinks } from "@/lib/cms/lifecycle-links";
 import { LifecycleLinkGrid } from "@/components/lifecycle/LifecycleLinkList";
 
 export const metadata = {
-  title: "Exam Results & Cutoff Marks 2026 | LakshyaNaukri",
+  title: "Exam Results & Cutoff Marks 2026",
   description:
     "Official exam results, merit lists, scorecards, and cutoff marks for UPSC, SSC, Banking, Railway, and State PSC competitive exams. Results are published as they are officially released.",
 };
