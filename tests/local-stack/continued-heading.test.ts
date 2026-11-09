@@ -13,6 +13,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, expectChecks, note, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 import { makePdf } from "./pdf-fixture";
 import type { VacancyTable } from "@/lib/vacancy-table";
 
@@ -94,7 +95,7 @@ for (const c of CASES) expectChecks(c.name, [
         justification: "a test notice: not applicable", seen: { revisionId: row.latestRevisionId, decisionId: row.decisionId ?? null } });
       if (out.status !== 201) note(`not applicable on ${b}: ${out.status} ${String(out.data.error ?? "")}`);
     }
-    const pub = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", { announce: false, approveFirst: true }), ctx(id));
+    const pub = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id, { announce: false, approveFirst: true })), ctx(id));
     const pubData = (await pub.json()) as J;
     let banks: string[] = [];
     if (pub.status === 200) {

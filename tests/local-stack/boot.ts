@@ -43,6 +43,9 @@ export async function boot(opts: { discovery?: boolean } = {}) {
     "INSERT INTO admins (username, email, password_hash) VALUES ('test-admin', 'test-admin@example.test', 'not-a-real-hash') RETURNING id",
   );
   const adminId = admin.rows[0].id;
+  // Owner-controlled publication: the test admin is the publisher (CMS_PUBLISHERS holds admin IDs). A test that
+  // checks a non-publisher sets it to something else.
+  process.env.CMS_PUBLISHERS = adminId;
 
   const { createSession } = await import("@/lib/auth/session");
   const token = await createSession(adminId, "127.0.0.1", "local-stack");

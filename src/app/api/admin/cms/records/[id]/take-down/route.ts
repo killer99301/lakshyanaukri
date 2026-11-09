@@ -19,6 +19,7 @@ import type { NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { getRecruitmentById, persistTakeDown, SiteVisibilityError } from "@/lib/cms/repository";
+import { isPublisher, logPublicationRefusal, notAPublisherMessage } from "@/lib/cms/publication-policy";
 
 const MAX_REASON_LENGTH = 500;
 
@@ -34,6 +35,12 @@ export async function POST(
   }
 
   const { id } = await params;
+
+  // Owner-controlled publication (Stage 1): only the owner or an authorised publisher changes what the public sees.
+  if (!isPublisher(auth.adminId)) {
+    await logPublicationRefusal({ recruitmentId: id, adminId: auth.adminId, action: "TAKE_DOWN", reason: "NOT_A_PUBLISHER" });
+    return NextResponse.json({ error: notAPublisherMessage(auth.adminId), code: "NOT_A_PUBLISHER", adminId: auth.adminId }, { status: 403 });
+  }
 
   let reason = "";
   try {
@@ -68,6 +75,7 @@ export async function POST(
     return NextResponse.json({ record: saved, revalidated });
   } catch (err) {
     if (err instanceof SiteVisibilityError) {
+      await logPublicationRefusal({ recruitmentId: id, adminId: auth.adminId, action: "TAKE_DOWN", reason: "STATE" });
       return NextResponse.json({ error: err.message }, { status: 409 });
     }
     console.error("[CMS] take-down error", err);

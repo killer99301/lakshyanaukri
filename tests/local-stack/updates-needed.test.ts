@@ -18,6 +18,7 @@ import { NextRequest } from "next/server";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { boot, check, expectChecks, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 
 const FIX = (n: string) => readFileSync(join(process.cwd(), "tests/fixtures/discovery", n));
 const PAGES: Record<string, { type: string; body: Buffer }> = {
@@ -130,7 +131,7 @@ expectChecks(S.H, [
     revision = (await res.json()).record.recordRevision;
   }
   await approve.POST(req(`/api/admin/cms/records/${live.id}/approve`, "POST"), ctx(live.id));
-  try { await publish.POST(req(`/api/admin/cms/records/${live.id}/publish`, "POST"), ctx(live.id)); } catch { /* page refresh outside Next: the record is published */ }
+  try { await publish.POST(req(`/api/admin/cms/records/${live.id}/publish`, "POST", await approved(live.id)), ctx(live.id)); } catch { /* page refresh outside Next: the record is published */ }
 
   const sources = [...getEnabledSources(), { id: "updates-portal", name: "Updates portal (test)", type: "HTML_LINKS" as const, url: "https://updates.example/latest", tier: 5 as const, enabled: true }];
   const stand = async (u: string) => PAGES[u] ? { ok: true as const, finalUrl: u, contentType: PAGES[u].type, bytes: PAGES[u].body } : { ok: false as const, error: "The site answered HTTP 404" };

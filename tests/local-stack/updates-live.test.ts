@@ -11,6 +11,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 
 (async () => {
   const { pg, token } = await boot();
@@ -61,7 +62,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
 
   section("A published job");
   await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
-  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
+  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id)), ctx(id));
   check("published", r.status === 200, r.status);
   check("the earlier note went live with the publish", JSON.stringify(await titles(slug)) === JSON.stringify(["Draft note"]), await titles(slug));
   const before = await snapshots(id);
@@ -95,7 +96,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   const live = (await publicRepo.getBySlug(slug)) as PublicJob;
   check("and the unpublished edit has not leaked out", JSON.stringify(live).includes("2026-12-31") === false);
   await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
-  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
+  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id)), ctx(id));
   check("after publishing, all four entries are public", r.status === 200 && (await titles(slug))?.join("|") === "Draft note|Exam postponed|Second notice|Held back", await titles(slug));
 
   section("Stage changes on a job that has been public");

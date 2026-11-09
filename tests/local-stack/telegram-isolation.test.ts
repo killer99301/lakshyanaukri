@@ -10,6 +10,7 @@
 import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { boot, check, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 
 (async () => {
   section("Settings");
@@ -35,7 +36,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
     fieldPath: "links", field: { value: [{ type: "OFFICIAL_WEBSITE", label: "Canara Bank", url: "https://www.canarabank.bank.in/", official: true }], status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true }, clientRevision: created.recordRevision, reason: "test",
   }), ctx(created.id));
   await approve.POST(req(`/api/admin/cms/records/${created.id}/approve`, "POST"), ctx(created.id));
-  const r = await publish.POST(req(`/api/admin/cms/records/${created.id}/publish`, "POST", { announce: true }), ctx(created.id));
+  const r = await publish.POST(req(`/api/admin/cms/records/${created.id}/publish`, "POST", await approved(created.id, { announce: true })), ctx(created.id));
   const d = await r.json();
   check("published, and with no settings nothing was sent", r.status === 200 && d.announced === "skipped", d.announced);
 

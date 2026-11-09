@@ -567,17 +567,37 @@ export async function persistApprovalWithdrawn(
  * Store a published snapshot and transition record to PUBLISHED.
  * The snapshot (PublishedRecruitment) must be built by the caller via projectToPublished().
  */
+/** The job changed after the owner's review: nothing was published (owner-controlled publication, §3.3). */
+export class StaleReviewError extends Error {
+  constructor() { super("The job changed after it was reviewed: review it again before publishing."); this.name = "StaleReviewError"; }
+}
+
 export async function persistPublication(
   record: RecruitmentRecord,
   snapshot: unknown,
   projectionVersion: string,
   adminId: string,
+  /**
+   * Owner-controlled publication: the freshness the owner reviewed, rechecked inside this statement, and the
+   * approval, written by this statement. Without it, the statement is as before (and writes no approval).
+   */
+  owner?: { freshness: { recordRevision: string; claimSeq: number; retrievals: number }; approval: Record<string, unknown>; eventType: string },
 ): Promise<RecruitmentRecord> {
   const sourceRevision = record.recordRevision;
   const result = markPublished(record, adminId, sourceRevision);
 
-  // One statement: state change, snapshot and audit row succeed or fail together.
-  // A failed snapshot insert must never leave the record marked PUBLISHED.
+  // Owner approval: the job must still be exactly as reviewed. The record's revision covers every edit; the
+  // latest claim covers confirmations, decisions and imports (they add claims without a new revision); the
+  // number of documents covers a new source brought in without claims.
+  const fresh = owner
+    ? sql`AND record_revision = ${owner.freshness.recordRevision}
+          AND (SELECT coalesce(max(seq), 0) FROM recruitment_field_claims WHERE recruitment_id = ${record.id}) = ${owner.freshness.claimSeq}
+          AND (SELECT count(*) FROM recruitment_source_retrievals sr JOIN recruitment_imports si ON si.import_id = sr.import_id
+               WHERE si.recruitment_id = ${record.id}) = ${owner.freshness.retrievals}`
+    : sql``;
+
+  // One statement: state change, snapshot, audit row and (owner-controlled) the approval succeed or fail
+  // together. A failed snapshot insert must never leave the record marked PUBLISHED, nor an approval written.
   const rows = await sql`
     WITH updated AS (
       UPDATE recruitments SET
@@ -590,7 +610,14 @@ export async function persistPublication(
         updated_by              = ${adminId}
       WHERE id = ${record.id}
         AND draft_state = 'APPROVED'
+        ${fresh}
       RETURNING id
+    ),
+    approval AS (
+      INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+      SELECT id, ${adminId}, ${owner?.eventType ?? "NONE"}, ${JSON.stringify(owner?.approval ?? {})}
+      FROM updated WHERE ${owner ? true : false}
+      RETURNING recruitment_id
     ),
     snap AS (
       INSERT INTO published_recruitments
@@ -615,6 +642,11 @@ export async function persistPublication(
   `;
 
   if (rows.length === 0) {
+    // Nothing was written. Still APPROVED means the owner's freshness check is what failed.
+    if (owner) {
+      const now = (await sql`SELECT draft_state FROM recruitments WHERE id = ${record.id}`)[0]?.draft_state;
+      if (now === "APPROVED") throw new StaleReviewError();
+    }
     throw new StateConflictError("APPROVED");
   }
 

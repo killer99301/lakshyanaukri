@@ -24,7 +24,7 @@ export function cleanUrl(raw: string): string | null {
 }
 
 /** Recruitment portals and coaching sites: never an official source. */
-const PORTALS = /(^|\.)(bankersadda\.com|adda247\.com|govtjobguru\.in|careerpower\.in|freejobalert\.com|sarkariresult\.com|sarkariexam\.com|testbook\.com|jagranjosh\.com|naukri\.com|shiksha\.com|indiatoday\.in|ndtv\.com|timesofindia\.indiatimes\.com|chatgpt\.com|openai\.com)$/i;
+export const PORTALS = /(^|\.)(bankersadda\.com|adda247\.com|govtjobguru\.in|careerpower\.in|freejobalert\.com|sarkariresult\.com|sarkariexam\.com|testbook\.com|jagranjosh\.com|naukri\.com|shiksha\.com|indiatoday\.in|ndtv\.com|timesofindia\.indiatimes\.com|chatgpt\.com|openai\.com)$/i;
 
 function hadTracking(raw: string): boolean {
   try { return [...new URL(raw.trim()).searchParams.keys()].some((k) => TRACKING.test(k)); } catch { return false; }

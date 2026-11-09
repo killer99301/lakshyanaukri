@@ -13,6 +13,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 
 (async () => {
   const { pg, token } = await boot();
@@ -78,7 +79,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   const linked = await patch("links", [{ type: "OFFICIAL_WEBSITE", label: "Canara Bank", url: "https://www.canarabank.bank.in/", official: true }]);
   check("setup: date, stage and official link saved", linked.status === 200, linked.body);
   r = await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
-  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
+  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id)), ctx(id));
   d = await r.json();
   check("setup: published", r.status === 200 && d.record.draftState === "PUBLISHED", d);
   check("stages entered before the first publish wrote no update entries", (d.record.updates ?? []).length === 0, d.record.updates);
@@ -226,7 +227,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
 
   r = await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
   check("approve → 200", r.status === 200, r.status);
-  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
+  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id)), ctx(id));
   d = await r.json();
   check("publish → 200, published", r.status === 200 && d.record.draftState === "PUBLISHED", d);
   const after = await publicRepo.getBySlug(slug) as { examStages?: Array<{ status: string }>; links?: { result?: string } } | undefined;

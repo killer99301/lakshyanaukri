@@ -1,23 +1,34 @@
 // ═══════════════════════════════════════════════════════════
 // POST /api/admin/cms/records/[id]/publish
 //
-// Publishes an APPROVED CMS record.
+// Publishes an APPROVED CMS record, on the owner's explicit approval
+// (owner-controlled publication: docs/owner-controlled-publication-design.md,
+// revision 3, Stage 1).
 //
-// Pipeline (Phase E — locked):
-//   1. Load record — must be APPROVED
-//   2. Official evidence gate (hard): at least one CmsEvidence
-//      with sourceType OFFICIAL_NOTIFICATION or OFFICIAL_CORRIGENDUM
-//      OR at least one link with official=true
-//      (Fail if neither is present)
-//   3. Call projectToPublished() — deterministic, fail-closed
-//   4. Call persistPublication() — atomic DB write
-//   5. Return updated record
+// Body: { ownerApproval: { acknowledged, reviewHash, recordRevision, claimSeq,
+//         retrievals, conflictsAcknowledged[] }, announce?, approveFirst? }
 //
-// Approve & Publish ({ approveFirst: true } on a DRAFT): the approval checks
-// and every publish check above run on the draft first; only when all pass
-// is it approved, then published. If the publish still fails after the
-// approval, the approval is withdrawn (back to DRAFT, audited), so a failed
-// publish never leaves a job Approved but not live.
+//   1. Only an authorised publisher (CMS_PUBLISHERS, admin IDs) may publish.
+//   2. The review is rebuilt on the server, from the database alone
+//      (GET …/publication-review shows the same). Its hard rules block
+//      whatever the owner decides: an invalid record, unresolved conflicts,
+//      a non-http link, a job-news site as the Apply link.
+//   3. The approval must match this review exactly: acknowledged, same
+//      fingerprint and freshness, and one acknowledgement per material
+//      disagreement (never a blanket override).
+//   4. The official-source gate and the ten-field import check no longer
+//      block: they are warnings in the review. Official checks remain
+//      available as quality checks and still decide keyDetailsChecked.
+//   5. persistPublication() publishes in one statement: state, snapshot, the
+//      PUBLISHED row and the OWNER_PUBLICATION_APPROVAL row, only if the job
+//      is still exactly as reviewed (revision, latest claim, documents).
+//
+// Every refusal is recorded on its own (PUBLICATION_REFUSED), after the
+// refused step, never with it. Telegram: posted only when asked, as before.
+//
+// Approve & Publish ({ approveFirst: true } on a DRAFT): every check above
+// runs first; only then is the draft approved, then published. If the
+// publish still fails after the approval, the approval is withdrawn.
 //
 // CSRF: validateOrigin required.
 // ═══════════════════════════════════════════════════════════
@@ -29,7 +40,7 @@ import type { NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import {
-  getRecruitmentById, persistApproval, persistApprovalWithdrawn, persistPublication, PUT_BACK_EVENT, StateConflictError,
+  getRecruitmentById, persistApproval, persistApprovalWithdrawn, persistPublication, PUT_BACK_EVENT, StaleReviewError, StateConflictError,
 } from "@/lib/cms/repository";
 import { approveRecord } from "@/lib/cms/record-ops";
 import { projectToPublished, PROJECTION_VERSION } from "@/lib/cms/projector";
@@ -39,6 +50,8 @@ import { buildJobAnnouncement, sendToChannel, type AnnouncementResult } from "@/
 import { CHANNEL_POST_EVENT, REPEAT_WINDOW_HOURS, decideChannelPost, messageHash, newsLine } from "@/lib/cms/channel-post";
 import { todayInIndia } from "@/lib/cms/attention";
 import { publishGateFor } from "@/lib/cms/importer/service";
+import { isPublisher, logPublicationRefusal, notAPublisherMessage, OWNER_APPROVAL_EVENT, type RefusalReason } from "@/lib/cms/publication-policy";
+import { approvalMetadata, approvalProblem, buildPublicationReview, readOwnerApproval } from "@/lib/cms/publication-review";
 
 export async function POST(
   request: NextRequest,
@@ -58,10 +71,12 @@ export async function POST(
   // { approveFirst: true } is Approve & Publish (see the header).
   let requested: boolean | undefined;
   let approveFirst = false;
+  let rawApproval: unknown = null;
   try {
-    const body = (await request.json()) as { announce?: unknown; approveFirst?: unknown };
+    const body = (await request.json()) as { announce?: unknown; approveFirst?: unknown; ownerApproval?: unknown };
     if (typeof body?.announce === "boolean") requested = body.announce;
     approveFirst = body?.approveFirst === true;
+    rawApproval = body?.ownerApproval ?? null;
   } catch { /* no body: the defaults apply */ }
 
   let record = await getRecruitmentById(id);
@@ -69,32 +84,55 @@ export async function POST(
     return NextResponse.json({ error: "Record not found" }, { status: 404 });
   }
 
-  const approving = approveFirst && record.draftState === "DRAFT";
-  if (!approving && record.draftState !== "APPROVED") {
-    return NextResponse.json(
-      { error: `Cannot publish: record is in state ${record.draftState} (must be APPROVED)` },
-      { status: 409 },
-    );
+  const earlier = await sql`SELECT 1 FROM published_recruitments WHERE recruitment_id = ${id} LIMIT 1`;
+  const isNew = earlier.length === 0;
+  const action = isNew ? "PUBLISH" as const : "REPUBLISH" as const;
+  const refuse = async (status: number, reason: RefusalReason, body: Record<string, unknown>, extra: { fieldPaths?: string[]; ruleCodes?: string[] } = {}) => {
+    await logPublicationRefusal({ recruitmentId: id, adminId: auth.adminId, action, reason, recordRevision: record?.recordRevision ?? null, ...extra });
+    return NextResponse.json(body, { status });
+  };
+
+  // ── 1. Who may publish ──
+  if (!isPublisher(auth.adminId)) {
+    return refuse(403, "NOT_A_PUBLISHER", { error: notAPublisherMessage(auth.adminId), code: "NOT_A_PUBLISHER", adminId: auth.adminId });
   }
 
-  // ── Approve & Publish: everything is checked before the approval ──
+  const approving = approveFirst && record.draftState === "DRAFT";
+  if (!approving && record.draftState !== "APPROVED") {
+    return refuse(409, "STATE", { error: `Cannot publish: record is in state ${record.draftState} (must be APPROVED)` });
+  }
+
+  // ── 2–3. The review, rebuilt here, and the owner's approval of it ──
+  const review = await buildPublicationReview(record, todayInIndia());
+  if (review.hardRules.length > 0) {
+    return refuse(422, "HARD_RULE", {
+      error: `Cannot publish: ${review.hardRules.map((r) => r.message).join(" ")}`, code: "HARD_RULE", hardRules: review.hardRules, review,
+    }, { ruleCodes: review.hardRules.map((r) => r.code), fieldPaths: review.hardRules.flatMap((r) => r.fieldPaths ?? []) });
+  }
+  const approval = readOwnerApproval(rawApproval);
+  const problem = approvalProblem(review, approval);
+  if (problem) {
+    const words = {
+      OWNER_REVIEW_REQUIRED: "Review the job and confirm that you accept editorial responsibility before publishing.",
+      REVIEW_CHANGED: "The job changed after it was reviewed: review it again before publishing.",
+      CONFLICT_NOT_ACKNOWLEDGED: "Each disagreement between sources must be edited or acknowledged on its own before publishing.",
+    }[problem.reason];
+    return refuse(problem.reason === "REVIEW_CHANGED" ? 409 : 422, problem.reason,
+      { error: words, code: problem.reason, review, ...(problem.fieldPaths ? { fieldPaths: problem.fieldPaths } : {}) },
+      { fieldPaths: problem.fieldPaths });
+  }
+
+  // ── Approve & Publish: everything above passed before the approval ──
   if (approving) {
     try {
       approveRecord(record, auth.adminId);
     } catch (err) {
-      return NextResponse.json(
-        { error: err instanceof Error ? err.message : String(err), code: "APPROVAL_CHECKS" },
-        { status: 422 },
-      );
+      return refuse(422, "HARD_RULE", { error: err instanceof Error ? err.message : String(err), code: "APPROVAL_CHECKS" }, { ruleCodes: ["APPROVAL_CHECKS"] });
     }
-    const preflight = await checkPublishable({ ...record, draftState: "APPROVED" });
-    if (!preflight.ok) return preflight.response;
     try {
       record = await persistApproval(record, auth.adminId);
     } catch (err) {
-      if (err instanceof StateConflictError) {
-        return NextResponse.json({ error: err.message }, { status: 409 });
-      }
+      if (err instanceof StateConflictError) return refuse(409, "STATE", { error: err.message });
       console.error("[CMS] approve before publish failed", err);
       return NextResponse.json({ error: "Failed to approve record" }, { status: 500 });
     }
@@ -111,18 +149,20 @@ export async function POST(
     return {};
   };
 
-  const ready = await checkPublishable(record);
+  const ready = await projectForPublication(record);
   if (!ready.ok) {
     const body = { ...(await ready.response.json()), ...(await withdraw("publish checks failed")) };
     return NextResponse.json(body, { status: ready.response.status });
   }
   const { snapshot } = ready;
 
-  // ── Persist ───────────────────────────────────────────────
+  // ── 5. Persist: published only if the job is still exactly as reviewed ──
   try {
-    // Asked before the write, so the channel post can say "New" or "Updated".
-    const earlier = await sql`SELECT 1 FROM published_recruitments WHERE recruitment_id = ${id} LIMIT 1`;
-    const published = await persistPublication(record, snapshot, PROJECTION_VERSION, auth.adminId);
+    const published = await persistPublication(record, snapshot, PROJECTION_VERSION, auth.adminId, {
+      freshness: review.freshness,
+      approval: approvalMetadata(review, auth.adminId, isNew ? "FIRST_PUBLISH" : "REPUBLISH", requested === true),
+      eventType: OWNER_APPROVAL_EVENT,
+    });
     // A job taken off the site goes back on it with this new version; say so in its history.
     if (record.takenDown) {
       try {
@@ -150,7 +190,6 @@ export async function POST(
     }
 
     // The job is live at this point; a failed channel post never undoes that.
-    const isNew = earlier.length === 0;
     const message = buildJobAnnouncement(snapshot, isNew ? "NEW" : "UPDATED", newsLine(snapshot.updates, todayInIndia()));
     const hash = messageHash(message);
     let announced: AnnouncementResult | "not-asked" | "duplicate";
@@ -181,9 +220,13 @@ export async function POST(
 
     return NextResponse.json({ record: published, revalidated, announced });
   } catch (err) {
+    if (err instanceof StaleReviewError) {
+      const w = await withdraw("the job changed after it was reviewed");
+      return refuse(409, "REVIEW_CHANGED", { error: err.message, code: "REVIEW_CHANGED", ...w });
+    }
     const msg = String(err);
     if (msg.includes("state") && msg.includes("APPROVED")) {
-      return NextResponse.json({ error: "Record is no longer in APPROVED state" }, { status: 409 });
+      return refuse(409, "STATE", { error: "Record is no longer in APPROVED state" });
     }
     console.error("[CMS] persistPublication failed", err);
     return NextResponse.json({ error: "Failed to publish record", ...(await withdraw("publish failed")) }, { status: 500 });
@@ -191,71 +234,23 @@ export async function POST(
 }
 
 /**
- * Every check a publish needs, and the snapshot it would store: an official
- * source, the import gate for imported jobs, and the projection. Nothing is
- * written. The record must be APPROVED (or, for the Approve & Publish
- * preflight, a DRAFT presented as APPROVED).
+ * The snapshot a publish stores. The official checks no longer block here (they are warnings in the owner's
+ * review); for imported jobs they still decide what the snapshot records: decisions made, and whether every
+ * key detail was checked (keyDetailsChecked: true only when they all were). Nothing is written.
  */
-async function checkPublishable(
+async function projectForPublication(
   record: RecruitmentRecord,
 ): Promise<{ ok: true; snapshot: ReturnType<typeof projectToPublished> } | { ok: false; response: NextResponse }> {
-  // ── Official evidence hard gate ──────────────────────────
-  // At least one official evidence source OR one official link required.
-  const hasOfficialLink = record.links.some((l) => l.official);
-
-  let hasOfficialEvidence = false;
-  if (!hasOfficialLink) {
-    const evidenceRows = await sql`
-      SELECT 1 FROM recruitment_evidence
-      WHERE recruitment_id = ${record.id}
-        AND source_type IN ('OFFICIAL_NOTIFICATION', 'OFFICIAL_CORRIGENDUM', 'OFFICIAL_EXAM_NOTICE')
-      LIMIT 1
-    `;
-    hasOfficialEvidence = evidenceRows.length > 0;
-  }
-
-  if (!hasOfficialLink && !hasOfficialEvidence) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        {
-          error:
-            "Cannot publish yet: add at least one link marked Official (for example the official notification) in the Links section.",
-          code: "MISSING_OFFICIAL_EVIDENCE",
-        },
-        { status: 422 },
-      ),
-    };
-  }
-
-  // ── Imported jobs: every critical field checked by a person ──
-  // Jobs that were never imported skip this and publish exactly as before.
-  const gate = await publishGateFor(record);
-  if (!gate.ok) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        {
-          error: `Check these before publishing: ${gate.blockers.map((b) => b.label).join(", ")}.`,
-          code: "IMPORT_CHECKS_PENDING",
-          blockers: gate.blockers.map((b) => ({ fieldPath: b.fieldPath, label: b.label, class: b.cls, reason: b.reason })),
-        },
-        { status: 422 },
-      ),
-    };
-  }
-
-  // ── Project ───────────────────────────────────────────────
   try {
+    const gate = await publishGateFor(record);
     let snapshot = projectToPublished(record);
     if (gate.gated) {
       const words = (cls: string) => Object.fromEntries(gate.verdicts
         .filter((v) => v.cls === cls)
         .map((v) => [v.fieldPath, v.publicNote ?? ""]));
-      // The gate passed (it refused above otherwise): say so on the public page.
-      // The day the latest check in force was recorded: what "checked on" means on the public page, never the publish time.
+      // The day the latest check in force was recorded: what "checked on" means, never the publish time.
       const decisionIds = gate.verdicts.map((v) => v.decisionId).filter((id): id is string => !!id);
-      const checkedOn = decisionIds.length > 0
+      const checkedOn = gate.ok && decisionIds.length > 0
         ? ((await sql`SELECT max(claimed_at) AS at FROM recruitment_field_claims WHERE id = ANY(${decisionIds}::uuid[])`)[0]?.at as string | Date | null) ?? null
         : null;
       // The application link to be released later (revision 3): what the notice announced, never a link.

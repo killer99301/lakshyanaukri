@@ -20,6 +20,7 @@ import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { boot, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 import { handle, errorBody } from "./emulator";
 
 const TMP = join(process.cwd(), "tests", "local-stack", ".tmp");
@@ -49,7 +50,8 @@ function ensureCertificate(): void {
   // Throwaway admin for signing in through the real login form.
   const password = randomBytes(18).toString("base64url");
   await pg.query("UPDATE admins SET password_hash = $1 WHERE id = $2", [await hashPassword(password), adminId]);
-  writeFileSync(join(TMP, "creds.json"), JSON.stringify({ username: "test-admin", password }, null, 2));
+  // The admin ID too: a local app may be started with CMS_PUBLISHERS set to it (owner-controlled publication).
+  writeFileSync(join(TMP, "creds.json"), JSON.stringify({ username: "test-admin", password, adminId }, null, 2));
 
   // Seed one published record so static pages have CMS content at build time.
   const records = await import("@/app/api/admin/cms/records/route");
@@ -85,7 +87,7 @@ function ensureCertificate(): void {
     revision = (await res.json()).record.recordRevision;
   }
   await approve.POST(req("POST"), ctx(seed.id));
-  await publish.POST(req("POST"), ctx(seed.id));
+  await publish.POST(req("POST", await approved(seed.id)), ctx(seed.id));
 
   const server = https.createServer({ key: readFileSync(KEY), cert: readFileSync(CERT) }, (request, response) => {
     if (request.method !== "POST" || request.url !== "/sql") {

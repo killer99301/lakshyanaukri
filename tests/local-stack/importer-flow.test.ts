@@ -9,6 +9,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 import { makePdf } from "./pdf-fixture";
 
 type J = Record<string, unknown>;
@@ -146,16 +147,19 @@ function fakeGemini(prompt: string): J {
   check("applying again → same job, replayed, nothing duplicated", r.status === 200 && d.recruitmentId === jobId && d.replayed === true
     && await count("SELECT count(*)::int AS n FROM recruitments WHERE organization_id = 'lic-hfl'") === 1);
 
-  section("The gate: an imported job needs a person's check on every critical field");
+  section("Owner-controlled publication: unchecked key details are warnings; nothing is published without the owner's approval");
   r = await checksRoute.GET(req(`/api/admin/cms/records/${jobId}/checks`, "GET"), ctx("id", jobId));
   let checks = await r.json() as { imported: boolean; ok: boolean; rows: Array<J>; retrievals: Array<J> };
   const row = (f: string) => checks.rows.find((x) => x.fieldPath === f)!;
   check("imported, not ok; last date SUPPORTED, vacancies MISSING", checks.imported && !checks.ok && row("dates.applicationCloseDate").cls === "SUPPORTED" && row("vacancies.total").cls === "MISSING", checks.rows.map((x) => `${x.fieldPath}:${x.cls}`));
   const approvals = () => count("SELECT count(*)::int AS n FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type = 'RECORD_APPROVED'", [jobId]);
   const approvalsBefore = await approvals();
+  const reviewOf = (x: J) => (x.review ?? {}) as { missing?: Array<{ fieldPath: string }>; warnings?: Array<{ code: string }> };
   r = await publish.POST(req(`/api/admin/cms/records/${jobId}/publish`, "POST", { announce: false, approveFirst: true }), ctx("id", jobId));
   d = await r.json() as J;
-  check("Approve & Publish on the unchecked job → refused with the same list", r.status === 422 && d.code === "IMPORT_CHECKS_PENDING" && (d.blockers as Array<J>).some((b) => b.fieldPath === "dates.applicationCloseDate"), d);
+  check("Approve & Publish without the owner's approval → refused; the review lists what is missing and not confirmed",
+    r.status === 422 && d.code === "OWNER_REVIEW_REQUIRED" && !!reviewOf(d).missing?.some((m) => m.fieldPath === "vacancies.total")
+    && !!reviewOf(d).warnings?.some((w) => w.code === "NOT_CONFIRMED"), d);
   check("…and the job is still a DRAFT, never approved, nothing published",
     (await pg.query("SELECT draft_state FROM recruitments WHERE id = $1", [jobId])).rows[0].draft_state === "DRAFT"
     && await approvals() === approvalsBefore
@@ -163,7 +167,7 @@ function fakeGemini(prompt: string): J {
   await approve.POST(req(`/api/admin/cms/records/${jobId}/approve`, "POST"), ctx("id", jobId));
   r = await publish.POST(req(`/api/admin/cms/records/${jobId}/publish`, "POST", { announce: false }), ctx("id", jobId));
   d = await r.json() as J;
-  check("publish refused, listing what to check", r.status === 422 && d.code === "IMPORT_CHECKS_PENDING" && (d.blockers as Array<J>).some((b) => b.fieldPath === "dates.applicationCloseDate"), d);
+  check("publish without the owner's approval refused, with the review", r.status === 422 && d.code === "OWNER_REVIEW_REQUIRED" && !!reviewOf(d).warnings, d);
   check("…and nothing was published", await count("SELECT count(*)::int AS n FROM published_recruitments WHERE recruitment_id = $1", [jobId]) === 0);
 
   section("Decisions");
@@ -226,7 +230,7 @@ function fakeGemini(prompt: string): J {
 
   section("Publish: allowed once every critical field is decided; the snapshot says what is not stated");
   await approve.POST(req(`/api/admin/cms/records/${jobId}/approve`, "POST"), ctx("id", jobId));
-  r = await publish.POST(req(`/api/admin/cms/records/${jobId}/publish`, "POST", { announce: false }), ctx("id", jobId));
+  r = await publish.POST(req(`/api/admin/cms/records/${jobId}/publish`, "POST", await approved(jobId, { announce: false })), ctx("id", jobId));
   d = await r.json() as J;
   check("published", r.status === 200, d);
   const snap = (await pg.query("SELECT snapshot FROM published_recruitments WHERE recruitment_id = $1 ORDER BY published_at DESC LIMIT 1", [jobId])).rows[0]?.snapshot as J;
@@ -243,7 +247,7 @@ function fakeGemini(prompt: string): J {
   const plainId = ((await r.json()) as { record: { id: string; recordRevision: string } }).record.id;
   await fields.PATCH(req(`/api/admin/cms/records/${plainId}/fields`, "PATCH", { fieldPath: "links", field: pend([{ type: "OFFICIAL_WEBSITE", label: "SSC", url: "https://ssc.gov.in/", official: true }]), clientRevision: (await pg.query("SELECT record_revision FROM recruitments WHERE id = $1", [plainId])).rows[0].record_revision }), ctx("id", plainId));
   await approve.POST(req(`/api/admin/cms/records/${plainId}/approve`, "POST"), ctx("id", plainId));
-  r = await publish.POST(req(`/api/admin/cms/records/${plainId}/publish`, "POST", { announce: false }), ctx("id", plainId));
+  r = await publish.POST(req(`/api/admin/cms/records/${plainId}/publish`, "POST", await approved(plainId, { announce: false })), ctx("id", plainId));
   check("published with Pending values and no decisions", r.status === 200);
   const plainSnap = (await pg.query("SELECT snapshot FROM published_recruitments WHERE recruitment_id = $1 ORDER BY published_at DESC LIMIT 1", [plainId])).rows[0]?.snapshot as J;
   check("…and keeps its usual public badge", plainSnap?.keyDetailsChecked === undefined && getProvenanceSummary(snapshotToGovernmentRecruitment(plainSnap as never) as never).statusLabel !== "Key details checked against official sources");
@@ -257,7 +261,7 @@ function fakeGemini(prompt: string): J {
   };
   const stateOf = async (pid: string) => (await pg.query("SELECT draft_state FROM recruitments WHERE id = $1", [pid])).rows[0].draft_state as string;
   const plain2 = await plainNew("TEST RECORD IBPS Clerk 2026", [{ type: "OFFICIAL_WEBSITE", label: "IBPS", url: "https://www.ibps.in/", official: true }]);
-  r = await publish.POST(req(`/api/admin/cms/records/${plain2}/publish`, "POST", { announce: false, approveFirst: true }), ctx("id", plain2));
+  r = await publish.POST(req(`/api/admin/cms/records/${plain2}/publish`, "POST", await approved(plain2, { announce: false, approveFirst: true })), ctx("id", plain2));
   d = await r.json() as J;
   check("a DRAFT with an official link → approved and published in one request", r.status === 200 && (d.record as J).draftState === "PUBLISHED" && await stateOf(plain2) === "PUBLISHED", d);
   check("…with its approval and publication both in the history",
@@ -265,9 +269,10 @@ function fakeGemini(prompt: string): J {
   const plain3 = await plainNew("TEST RECORD IBPS SO 2026", []);
   r = await publish.POST(req(`/api/admin/cms/records/${plain3}/publish`, "POST", { announce: false, approveFirst: true }), ctx("id", plain3));
   d = await r.json() as J;
-  check("a DRAFT with no official source → refused before approving, still a DRAFT", r.status === 422 && d.code === "MISSING_OFFICIAL_EVIDENCE" && await stateOf(plain3) === "DRAFT"
+  check("a DRAFT with no official source, without the owner's approval → refused before approving, still a DRAFT; the review warns there is no official source",
+    r.status === 422 && d.code === "OWNER_REVIEW_REQUIRED" && !!reviewOf(d).warnings?.some((w) => w.code === "NO_OFFICIAL_SOURCE") && await stateOf(plain3) === "DRAFT"
     && await count("SELECT count(*)::int AS n FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type = 'RECORD_APPROVED'", [plain3]) === 0, d);
-  r = await publish.POST(req(`/api/admin/cms/records/${plain3}/publish`, "POST", { announce: false }), ctx("id", plain3));
+  r = await publish.POST(req(`/api/admin/cms/records/${plain3}/publish`, "POST", await approved(plain3, { announce: false })), ctx("id", plain3));
   check("without approveFirst a DRAFT is refused as before (409)", r.status === 409);
   const { persistApprovalWithdrawn } = await import("@/lib/cms/repository");
   const adminRow = (await pg.query("SELECT id FROM admins LIMIT 1")).rows[0].id as string;
@@ -319,7 +324,7 @@ function fakeGemini(prompt: string): J {
   check("the check list still works (an imported job stays checkable)", r.status === 200);
   await approve.POST(req(`/api/admin/cms/records/${jobId}/approve`, "POST"), ctx("id", jobId));
   r = await publish.POST(req(`/api/admin/cms/records/${jobId}/publish`, "POST", { announce: false }), ctx("id", jobId));
-  check("…and the gate still applies with the importer off", r.status === 422);
+  check("…and publishing still needs the owner's approval with the importer off", r.status === 422 && ((await r.json()) as J).code === "OWNER_REVIEW_REQUIRED");
 
   summary();
 })().catch((e) => { console.error("HARNESS ERROR:", e); process.exit(1); });

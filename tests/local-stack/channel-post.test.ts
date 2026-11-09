@@ -8,6 +8,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 
 (async () => {
   const { pg, token } = await boot();
@@ -45,7 +46,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
     const state = (await pg.query("SELECT draft_state FROM recruitments WHERE id = $1", [id])).rows[0] as { draft_state: string };
     if (state.draft_state === "PUBLISHED") await revert.POST(req(`/api/admin/cms/records/${id}/revert`, "POST"), ctx(id));
     await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
-    const r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", body), ctx(id));
+    const r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id, body)), ctx(id));
     return { status: r.status, announced: (await r.json()).announced as string };
   };
   const logged = async () => ((await pg.query("SELECT count(*)::int AS n FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type = 'TELEGRAM_CHANNEL_POST'", [id])).rows[0] as { n: number }).n;

@@ -14,6 +14,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 import { buildRows, readPasted, type ColumnRole } from "@/lib/vacancy-paste";
 import type { VacancyTable } from "@/lib/vacancy-table";
 import { IBPS_OFFICER_I_ROWS, LIC_TABLE_E_ROWS } from "../fixtures/vacancy-tables";
@@ -152,7 +153,7 @@ type J = Record<string, unknown>;
 
   section("Publishing a job with a table");
   await patch(btscJob, "links", [{ type: "OFFICIAL_WEBSITE", label: "BTSC", url: "https://btsc.bihar.gov.in/", official: true }]);
-  const pub = await publish.POST(req(`/api/admin/cms/records/${btscJob}/publish`, "POST", { announce: false, approveFirst: true }), ctx(btscJob));
+  const pub = await publish.POST(req(`/api/admin/cms/records/${btscJob}/publish`, "POST", await approved(btscJob, { announce: false, approveFirst: true })), ctx(btscJob));
   const pubData = (await pub.json()) as J;
   check("approved and published", pub.status === 200, pubData);
   const snap = (await pg.query("SELECT snapshot FROM published_recruitments WHERE recruitment_id = $1 ORDER BY published_at DESC LIMIT 1", [btscJob])).rows[0].snapshot as { vacancies: { total: number; breakdown: unknown[] } };
@@ -168,7 +169,7 @@ type J = Record<string, unknown>;
   section("Publishing an incomplete total, and a legacy job");
   await patch(job, "vacancies.table", ibps, "back to the notice as printed");
   await patch(job, "links", [{ type: "OFFICIAL_WEBSITE", label: "IBPS", url: "https://www.ibps.in/", official: true }]);
-  const pubI = await publish.POST(req(`/api/admin/cms/records/${job}/publish`, "POST", { announce: false, approveFirst: true }), ctx(job));
+  const pubI = await publish.POST(req(`/api/admin/cms/records/${job}/publish`, "POST", await approved(job, { announce: false, approveFirst: true })), ctx(job));
   check("the IBPS job publishes", pubI.status === 200, await pubI.clone().json());
   const snapI = (await pg.query("SELECT snapshot FROM published_recruitments WHERE recruitment_id = $1 ORDER BY published_at DESC LIMIT 1", [job])).rows[0].snapshot as { vacancies: J };
   check("the snapshot carries the table and says the total is incomplete and calculated",
@@ -177,7 +178,7 @@ type J = Record<string, unknown>;
   check("cards and the header box say 'At least'", jobI.vacanciesDisplay === `At least ${ibpsReported.toLocaleString("en-IN")} Posts` && jobI.totalVacancies === ibpsReported, jobI.vacanciesDisplay);
   check("the page gets the table", jobI.vacancyTable?.rows.length === 28 && jobI.vacancyTotalComplete === false);
   await patch(legacy, "links", [{ type: "OFFICIAL_WEBSITE", label: "SSC", url: "https://ssc.gov.in/", official: true }]);
-  const pubL = await publish.POST(req(`/api/admin/cms/records/${legacy}/publish`, "POST", { announce: false, approveFirst: true }), ctx(legacy));
+  const pubL = await publish.POST(req(`/api/admin/cms/records/${legacy}/publish`, "POST", await approved(legacy, { announce: false, approveFirst: true })), ctx(legacy));
   const snapL = (await pg.query("SELECT snapshot FROM published_recruitments WHERE recruitment_id = $1 ORDER BY published_at DESC LIMIT 1", [legacy])).rows[0].snapshot as { vacancies: J };
   check("a legacy job's snapshot has exactly the old vacancy keys", pubL.status === 200 && JSON.stringify(Object.keys(snapL.vacancies).sort()) === '["breakdown","total"]', Object.keys(snapL.vacancies));
   const jobL = snapshotToGovernmentRecruitment(snapL as never);

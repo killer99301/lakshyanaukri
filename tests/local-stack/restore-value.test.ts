@@ -7,6 +7,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 
 (async () => {
   const { pg, token } = await boot();
@@ -55,7 +56,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   section("A stage on a live job, put back quietly");
   await save("examStages", pending([{ name: "Online Test", status: "SCHEDULED", dateDisplay: "Nov 2026", certainty: "TENTATIVE" }]));
   await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
-  await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", { announce: false }), ctx(id));
+  await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id, { announce: false })), ctx(id));
   await revert.POST(req(`/api/admin/cms/records/${id}/revert`, "POST"), ctx(id));
   rev = (await pg.query("SELECT record_revision FROM recruitments WHERE id = $1", [id])).rows[0].record_revision as string;
   out = await save("examStages", pending([{ name: "Online Test", status: "POSTPONED" }]));

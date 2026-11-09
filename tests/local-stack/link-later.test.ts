@@ -22,6 +22,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 import { makePdf } from "./pdf-fixture";
 
 type J = Record<string, unknown>;
@@ -79,11 +80,20 @@ const APPLY_URL = "https://ibpsonline.ibps.in/crplx99/";
     decide(id, "links#APPLY_ONLINE", "ADMIN_NOT_YET_OPEN", { page: 2, quote: `${LINK_LINE}\n${SCHEDULE}`, justification: "The notice says the registration link will be activated later", ...o, linkLater: o.linkLater ?? LATER });
   const decisions = async () => (await pg.query("SELECT count(*)::int AS n FROM recruitment_field_claims WHERE kind = 'ADMIN_NOT_YET_OPEN'")).rows[0].n as number;
   const reminder = async (id: string, today: string) => (await linkLaterReminders(today, id))[0]?.item ?? null;
-  const cycle = async (id: string) => {
+  // Owner-controlled publication (Stage 1): the same, but without the owner's approval (refused, with the review).
+  const cycleUnapproved = async (id: string) => {
     const state = (await pg.query("SELECT draft_state FROM recruitments WHERE id = $1", [id])).rows[0].draft_state as string;
     if (state === "PUBLISHED") await revert.POST(req(`/api/admin/cms/records/${id}/revert`, "POST"), ctx(id));
     await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
     const r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
+    return { status: r.status, data: (await r.json()) as J };
+  };
+  const warns = (x: { data: J }) => (((x.data.review as J | undefined)?.warnings ?? []) as Array<{ code: string }>).map((w) => w.code);
+  const cycle = async (id: string) => {
+    const state = (await pg.query("SELECT draft_state FROM recruitments WHERE id = $1", [id])).rows[0].draft_state as string;
+    if (state === "PUBLISHED") await revert.POST(req(`/api/admin/cms/records/${id}/revert`, "POST"), ctx(id));
+    await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
+    const r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id)), ctx(id));
     return { status: r.status, data: (await r.json()) as J };
   };
   const published = async (id: string) => (await pg.query("SELECT snapshot FROM published_recruitments WHERE recruitment_id = $1 ORDER BY published_at DESC LIMIT 1", [id])).rows[0]?.snapshot as J | undefined;
@@ -119,8 +129,9 @@ const APPLY_URL = "https://ibpsonline.ibps.in/crplx99/";
   const gate1 = await service.publishGateFor((await getRecruitmentById(id))!);
   check("B2 the Apply Online link no longer blocks; every other missing check still does", !gate1.blockers.some((b) => b.fieldPath === "links#APPLY_ONLINE") && !gate1.ok && gate1.blockers.length > 0,
     gate1.blockers.map((b) => b.fieldPath));
-  const early = await cycle(id);
-  check("B3 publishing is still refused while other checks are open", early.status === 422 && !(await published(id)), early.status);
+  const early = await cycleUnapproved(id);
+  check("B3 without the owner's approval nothing is published; the review warns the other key details are missing",
+    early.status === 422 && early.data.code === "OWNER_REVIEW_REQUIRED" && warns(early).includes("MISSING_KEY_DETAILS") && !(await published(id)), early);
 
   // The other checks, done properly: dates verified, the rest recorded with the notice's own words.
   const page1 = "Age Limit: as per the detailed rules of the participating banks";
@@ -169,8 +180,9 @@ const APPLY_URL = "https://ibpsonline.ibps.in/crplx99/";
   const ra = await reminder(id, "2099-11-30");
   check("D4 the decision lapses and the reminder stays: added but not verified", added.cls !== "NOT_YET_OPEN" && added.cls !== "VERIFIED" && /added but is not verified/.test(ra?.message ?? ""), { cls: added.cls, ra });
   check("D5 no new 'link not released' decision while a link is on the job", /has an Apply Online link/.test(await linkLater(id)));
-  const blocked = await cycle(id);
-  check("D6 republishing is blocked until the link is verified", blocked.status === 422, blocked.status);
+  const blocked = await cycleUnapproved(id);
+  check("D6 republishing needs the owner's approval; the review warns the Apply link is not checked",
+    blocked.status === 422 && blocked.data.code === "OWNER_REVIEW_REQUIRED" && warns(blocked).includes("APPLY_NOT_CHECKED"), blocked);
   check("D7 the live page keeps the earlier copy (no link shown)", !((await published(id))?.links as Array<{ type: string }>).some((l) => l.type === "APPLY_ONLINE"));
   await importInto("EXISTING", id, [{ declaredKind: "OFFICIAL_PAGE", method: "paste", url: "https://www.ibps.in/crp-link-later-2099/", attestation: "Copied from the official page (link-later test)",
     text: `Institute of Banking Personnel Selection\nCRP TEST LINK LATER 2099: online registration is now open.\nApply online: ${APPLY_URL}` }]);

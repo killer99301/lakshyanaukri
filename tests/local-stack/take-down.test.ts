@@ -8,6 +8,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 
 (async () => {
   const { pg, token, adminId } = await boot();
@@ -40,7 +41,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   const slug: string = created.slug;
   await save(id, "links", pending([{ type: "OFFICIAL_WEBSITE", label: "RRB", url: "https://www.rrbcdg.gov.in/", official: true }]));
   await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
-  const p = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", { announce: false }), ctx(id));
+  const p = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id, { announce: false })), ctx(id));
   check("set-up: the job is published", p.status === 200, await p.clone().json());
   check("set-up: visible on its page, the listing and the sitemap", Object.values(await visible(slug)).slice(0, 4).every(Boolean), await visible(slug));
 
@@ -91,7 +92,7 @@ import { boot, check, section, summary, ORIGIN } from "./boot";
   await takeDown.POST(req(`/api/admin/cms/records/${id}/take-down`, "POST", { reason: "Fixing the title" }), ctx(id));
   check("off again", !(await visible(slug)).page);
   await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
-  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", { announce: false }), ctx(id));
+  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id, { announce: false })), ctx(id));
   d = await r.json();
   check("published → no longer taken off", r.status === 200 && !d.record?.takenDown, d.error ?? d.record?.takenDown);
   const after = await visible(slug);

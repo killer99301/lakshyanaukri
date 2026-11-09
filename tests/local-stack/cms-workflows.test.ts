@@ -11,6 +11,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, note, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 
 (async () => {
   const { pg, token, adminId } = await boot();
@@ -184,10 +185,13 @@ import { boot, check, note, section, summary, ORIGIN } from "./boot";
   section("F. Approve and publish");
   r = await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
   check("approve → APPROVED", r.status === 200 && (await r.json()).record.draftState === "APPROVED");
+  // Owner-controlled publication (Stage 1): a third-party link alone no longer blocks by itself; it is a warning
+  // in the owner's review, and nothing is published without the owner's explicit approval.
   r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
   d = await r.json();
-  check("publish blocked while only a third-party link exists (422, actionable message)", r.status === 422 && /Links section/.test(d.error), d);
-  check("blocked publish leaves nothing public", (await publicJob(slug)) === undefined);
+  check("publish without the owner's approval refused (422); the review warns there is no official source",
+    r.status === 422 && d.code === "OWNER_REVIEW_REQUIRED" && d.review?.warnings?.some((w: { code: string }) => w.code === "NO_OFFICIAL_SOURCE"), d);
+  check("refused publish leaves nothing public", (await publicJob(slug)) === undefined);
   rev = (await pg.query("SELECT record_revision FROM recruitments WHERE id=$1", [id])).rows[0].record_revision as string;
   out = await patch(id, "links", manual([
     { type: "OFFICIAL_WEBSITE", label: "Third-party page", url: "https://www.govtjobguru.in/x", official: false },
@@ -195,11 +199,11 @@ import { boot, check, note, section, summary, ORIGIN } from "./boot";
     { type: "APPLY_ONLINE", label: "Apply Online", url: "https://www.canarabank.bank.in/pages/Recruitment", official: true },
   ]), "Added official links");
   check("official links added while APPROVED", out.status === 200, out.data);
-  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
+  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id)), ctx(id));
   d = await r.json();
   check("publish → PUBLISHED", r.status === 200 && d.record.draftState === "PUBLISHED", d);
   note(`revalidated flag outside the Next runtime: ${d.revalidated} (expected false here; verified in the browser test instead)`);
-  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
+  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id)), ctx(id));
   check("publishing twice → 409, no second snapshot", r.status === 409 && ((await pg.query("SELECT count(*)::int AS n FROM published_recruitments WHERE recruitment_id=$1", [id])).rows[0] as { n: number }).n === 1);
 
   section("G. Public listing and detail page data");
@@ -229,7 +233,7 @@ import { boot, check, note, section, summary, ORIGIN } from "./boot";
 
   section("H. Republish shows the edits");
   r = await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
-  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST"), ctx(id));
+  r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id)), ctx(id));
   check("republish → PUBLISHED", r.status === 200, r.status);
   job = await publicJob(slug);
   check("public now shows updated vacancies and closing date", job?.totalVacancies === 3600 && job?.application.closeDate === "2026-10-28", { v: job?.totalVacancies, c: job?.application.closeDate });
@@ -244,7 +248,9 @@ import { boot, check, note, section, summary, ORIGIN } from "./boot";
   check("AI revisions carry the exact source URL", revs.filter((x) => x.reason?.includes(SRC)).length === 2);
   const audit = (await pg.query("SELECT event_type FROM recruitment_audit_events WHERE recruitment_id=$1 ORDER BY created_at", [id])).rows.map((x) => (x as { event_type: string }).event_type);
   note(`audit events: ${audit.join(", ")}`);
-  check("audit trail has 2 approvals, 2 publications, 1 revert", audit.filter((e) => /APPROV/.test(e)).length === 2 && audit.filter((e) => /PUBLISH/.test(e)).length === 2 && audit.filter((e) => /REVERT/.test(e)).length === 1, audit);
+  const n = (e: string) => audit.filter((x) => x === e).length;
+  check("audit trail has 2 approvals, 2 publications each with the owner's approval, 1 revert, and the refused attempts",
+    n("RECORD_APPROVED") === 2 && n("RECORD_PUBLISHED") === 2 && n("OWNER_PUBLICATION_APPROVAL") === 2 && n("RECORD_REVERTED") === 1 && n("PUBLICATION_REFUSED") >= 1, audit);
   const snaps = (await pg.query("SELECT count(*)::int AS n FROM published_recruitments WHERE recruitment_id=$1", [id])).rows[0] as { n: number };
   check("both snapshots retained (history not overwritten)", snaps.n === 2, snaps);
 

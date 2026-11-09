@@ -16,6 +16,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, expectChecks, note, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 import { makePdf } from "./pdf-fixture";
 import type { VacancyTable, VacancyTableRow } from "@/lib/vacancy-table";
 
@@ -227,7 +228,7 @@ expectChecks(S.N, ["N: an incomplete table on a job never imported publishes as 
   }
   const leftOver = (await state(en)).c.blockers;
   note(`blockers before publishing: ${leftOver.join(", ") || "none"}`);
-  const pub = await publish.POST(req(`/api/admin/cms/records/${en}/publish`, "POST", { announce: false, approveFirst: true }), ctx(en));
+  const pub = await publish.POST(req(`/api/admin/cms/records/${en}/publish`, "POST", await approved(en, { announce: false, approveFirst: true })), ctx(en));
   const pubData = (await pub.json()) as J;
   let display = "";
   if (pub.status === 200) {
@@ -243,7 +244,7 @@ expectChecks(S.N, ["N: an incomplete table on a job never imported publishes as 
   const nid = ((await rc.json()) as { record: { id: string } }).record.id;
   await patch(nid, "vacancies.table", editorTable([row("a", "A Bank", LINES.a, 10), row("b", "B Bank", LINES.b, 12), row("d", "D Bank", LINES.d, null)], false));
   await patch(nid, "links", [{ type: "OFFICIAL_WEBSITE", label: "IBPS", url: "https://www.ibps.in/", official: true }]);
-  const pubN = await publish.POST(req(`/api/admin/cms/records/${nid}/publish`, "POST", { announce: false, approveFirst: true }), ctx(nid));
+  const pubN = await publish.POST(req(`/api/admin/cms/records/${nid}/publish`, "POST", await approved(nid, { announce: false, approveFirst: true })), ctx(nid));
   check("N: an incomplete table on a job never imported publishes as before", pubN.status === 200 && !(await service.publishGateFor((await getRecruitmentById(nid))!)).gated, await pubN.clone().json());
 
   summary();

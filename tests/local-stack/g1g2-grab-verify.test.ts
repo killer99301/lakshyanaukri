@@ -12,6 +12,7 @@
 
 import { NextRequest } from "next/server";
 import { boot, check, expectChecks, section, summary, ORIGIN } from "./boot";
+import { approved } from "./owner-approval";
 import { makePdf } from "./pdf-fixture";
 
 type J = Record<string, unknown>;
@@ -39,7 +40,7 @@ expectChecks(S.C, [
   "C7 the field changed afterwards: its check no longer stands, the passage now states another value and is not prefilled",
 ]);
 expectChecks(S.D, [
-  "D1 publishing is refused while key details are unchecked (gate unchanged)",
+  "D1 without the owner's approval publishing is refused, and the review warns the key details are not confirmed",
   "D2 with every key detail decided: published; the snapshot carries the day of the checks, not a build time",
   "D3 the public page data: key details checked on that day, the official notice link as its standing, no Apply Online from a website",
 ]);
@@ -168,9 +169,14 @@ expectChecks(S.D, [
 
   // ── D ──
   section(S.D);
-  const tryPublish = async () => { const r = await publish.POST(req(`/api/admin/cms/records/${job}/publish`, "POST", { approveFirst: true, announce: false }), ctx(job)); return { status: r.status, data: (await r.json()) as J }; };
-  const refused = await tryPublish();
-  check("D1 publishing is refused while key details are unchecked (gate unchanged)", refused.status === 422 && refused.data.code === "IMPORT_CHECKS_PENDING", refused);
+  const tryPublish = async () => { const r = await publish.POST(req(`/api/admin/cms/records/${job}/publish`, "POST", await approved(job, { approveFirst: true, announce: false })), ctx(job)); return { status: r.status, data: (await r.json()) as J }; };
+  // Owner-controlled publication (Stage 1): unchecked key details no longer block by themselves; they are warnings
+  // in the owner's review, and nothing is published without the owner's explicit approval.
+  const noApproval = await publish.POST(req(`/api/admin/cms/records/${job}/publish`, "POST", { approveFirst: true, announce: false }), ctx(job));
+  const refused = { status: noApproval.status, data: (await noApproval.json()) as J };
+  const warned = ((refused.data.review as { warnings?: Array<{ code: string }> } | undefined)?.warnings ?? []).map((w) => w.code);
+  check("D1 without the owner's approval publishing is refused, and the review warns the key details are not confirmed",
+    refused.status === 422 && refused.data.code === "OWNER_REVIEW_REQUIRED" && warned.includes("NOT_CONFIRMED"), refused);
   // Every remaining key detail decided against the official PDF, the way a person would.
   for (const r of (await checks(job)).rows) {
     if (r.cls === "VERIFIED" || r.cls === "NOT_APPLICABLE" || (r.cls === "NOT_STATED" && r.tier === "B")) continue;
