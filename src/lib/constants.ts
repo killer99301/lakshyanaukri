@@ -41,14 +41,11 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     href: "/companies",
   },
   {
-    title: "Tools",
-    href: siteConfigEcosystemCalcInfinityUrl(),
+    // LakshyaNaukri's own tools for application forms; CalcInfinity stays linked in the footer and on job pages.
+    title: "Application Tools",
+    href: "/tools",
   },
 ];
-
-function siteConfigEcosystemCalcInfinityUrl(): string {
-  return "https://calcinfinity.com";
-}
 
 export const JOB_CATEGORIES = [
   { id: "government", label: "Government Jobs", shortLabel: "Govt Jobs" },

@@ -24,6 +24,7 @@ import { vacancyCategoryTable } from "@/lib/vacancy-categories";
 import { VacancyTableSection } from "@/components/jobs/VacancyTableSection";
 import { durableWords } from "@/lib/cms/importer/link-later";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
+import { PrepareToApply } from "@/components/tools/PrepareToApply";
 import { RecruitmentTimeline } from "@/components/jobs/RecruitmentTimeline";
 import { ExamPatternSection, SyllabusSection } from "@/components/jobs/ExamPatternSyllabus";
 import { EligibilityChecker } from "@/components/jobs/EligibilityChecker";
@@ -709,6 +710,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
         )}
 
         <MuhuratPrompt job={job} />
+        <PrepareToApply job={job} />
       </section>
 
       {/* 9. About Organization Section */}
