@@ -16,6 +16,8 @@ export interface FoundJob {
   /** A standalone eligibility exam (UGC NET, CTET, a TET or SET, GATE): shown as found, never as a recruitment. */
   eligibilityExam?: boolean;
   organizationId?: string; organizationName?: string; notificationNumber?: string;
+  /** CMS bodies the title fits equally well: none chosen. */
+  organizationUnclear?: string[];
   /** How it compares with the CMS's jobs, as the portal collector matches its leads. */
   match?: string; matchReason?: string | null;
   maybe: Array<{ id: string; title: string; kind?: string; reason?: string }>;
@@ -104,7 +106,7 @@ export function FoundRow({ f, onPick }: { f: FoundJob; onPick: (job: FoundJob) =
         <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: C.text, textDecoration: "none" }}>{f.title}</a>
         <div style={{ color: C.muted, fontSize: 11 }}>
           {new URL(f.url).host}{f.official ? " · the body's own site" : " · portal or news site: research only"}
-          {f.organizationName ? ` · ${f.organizationName}` : " · organisation not recognised"}{f.notificationNumber ? ` · notice ${f.notificationNumber}` : ""}
+          {f.organizationName ? ` · ${f.organizationName}` : f.organizationUnclear?.length ? ` · organisation unclear: ${f.organizationUnclear.join(" or ")}` : " · organisation not recognised"}{f.notificationNumber ? ` · notice ${f.notificationNumber}` : ""}
         </div>
         {(() => { const a = applicationsLine(f); return (
           <div data-found-applications={f.applications ?? "UNKNOWN"} style={{ color: a.tone === "warn" ? C.amber : C.muted, fontSize: 11 }}>{a.text}</div>

@@ -19,7 +19,7 @@ import { detectOrgFromText } from "@/intelligence/multi-source/org-classifier";
 import { ORG_NAMES } from "@/intelligence/org-registry";
 import { classifyLink } from "@/lib/cms/discovery/link-rules";
 import { isEligibilityExam } from "@/lib/cms/discovery/eligibility-exam";
-import { matchLead, bodyWords, type CmsJob, type MatchKind } from "@/lib/cms/discovery/match";
+import { matchLead, bodyWords, bodyAcronyms, titleAcronyms, VERIFIED_ALIASES, type CmsJob, type MatchKind } from "@/lib/cms/discovery/match";
 import { fetchSource, type FetchedSource } from "@/lib/cms/importer/fetch-source";
 import { hostOf } from "@/lib/cms/importer/trusted-domains";
 import { TRUSTED_DOMAINS } from "@/lib/cms/importer/trusted-domains";
@@ -47,6 +47,8 @@ export interface FoundJob {
   organizationId?: string;
   /** Also set, without an ID, for a common body the CMS has no job of yet: a name to read, never used to match. */
   organizationName?: string;
+  /** CMS bodies the title fits equally well (the same acronym): none chosen, for the admin to decide. */
+  organizationUnclear?: string[];
   /** The notice number printed in the title, when one was. */
   notificationNumber?: string;
   /** How it compares with the CMS's jobs, as the collector would match it. */
@@ -189,16 +191,19 @@ export const commonBodyIn = (title: string) => COMMON_BODIES.find(([re]) => re.t
 
 const titleWords = (t: string) => new Set(t.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length > 1).map((w) => w.replace(/s$/, "")));
 /**
- * The CMS organisation a title names, so a lead carries the CMS's own ID ("LIC HFL …" is lic-hfl, not LIC):
- * every word of the organisation's ID ("lic-hfl"), its ID run together ("MPESB" for mp-esb), or every distinctive
- * word of its name when that is at least two words. The most specific wins; a tie between two bodies recognises neither.
+ * The CMS organisation a title names, so a lead carries the CMS's own ID ("LIC HFL …" is lic-hfl-apprentice, not
+ * LIC): every word of the organisation's ID, its ID run together, every distinctive word of its name when that is at
+ * least two words, one of its own acronyms written in capitals ("MPESB" for Madhya Pradesh Employees Selection
+ * Board), or a verified alias ("NWR RRC"). The most specific wins. When two bodies fit equally, neither is chosen:
+ * the lead is left unrecognised and the bodies are named as possibilities.
  */
-export function cmsOrganisationIn(title: string, jobs: Array<{ organizationId: string; organizationName?: string | null }>): { id: string; name: string | null } | null {
-  const words = titleWords(title.slice(0, 150));
+export function cmsOrganisationIn(title: string, jobs: Array<{ organizationId: string; organizationName?: string | null }>): { id: string; name: string | null } | { ambiguous: string[] } | null {
+  const lead = title.slice(0, 150);
+  const words = titleWords(lead);
+  const acronyms = titleAcronyms(lead);
   const orgs = new Map<string, string | null>();
   for (const j of jobs) if (j.organizationId && !orgs.has(j.organizationId)) orgs.set(j.organizationId, j.organizationName ?? null);
-  let best: { id: string; name: string | null; score: number } | null = null;
-  let tie = false;
+  const scored: Array<{ id: string; name: string | null; score: number }> = [];
   for (const [id, name] of orgs) {
     const idTokens = id.toLowerCase().split("-").filter((w) => w.length > 1).map((w) => w.replace(/s$/, ""));
     const ofId = bodyWords(id);
@@ -207,11 +212,14 @@ export function cmsOrganisationIn(title: string, jobs: Array<{ organizationId: s
     if (ofId.joined && words.has(ofId.joined)) score = Math.max(score, 2);
     const nameWords = [...bodyWords(null, name).words];
     if (nameWords.length >= 2 && nameWords.every((w) => words.has(w))) score = Math.max(score, nameWords.length);
-    if (!score) continue;
-    if (!best || score > best.score) { best = { id, name, score }; tie = false; }
-    else if (score === best.score) tie = true;
+    if ([...bodyAcronyms(name)].some((a) => acronyms.has(a))) score = Math.max(score, 2);
+    if (name && VERIFIED_ALIASES.some((a) => a.title.test(lead) && a.body.test(name.trim()))) score = Math.max(score, 3);
+    if (score) scored.push({ id, name, score });
   }
-  return best && !tie ? { id: best.id, name: best.name } : null;
+  if (!scored.length) return null;
+  const top = Math.max(...scored.map((c) => c.score));
+  const best = scored.filter((c) => c.score === top);
+  return best.length === 1 ? { id: best[0].id, name: best[0].name } : { ambiguous: best.map((c) => c.name ?? c.id) };
 }
 
 export async function discoverFromPage(opts: {
@@ -256,12 +264,15 @@ export async function discoverFromPage(opts: {
     // The organisation from the title only (the leading part, not a table row's cells): the CMS's own
     // organisations first, so a lead carries the ID its jobs use; then the registry, as the collector reads it.
     const lead = title.slice(0, 150);
-    const cmsOrg = cmsOrganisationIn(lead, jobs);
-    const common = cmsOrg ? undefined : commonBodyIn(lead);
-    const orgId = cmsOrg?.id ?? (common ? null : detectOrgFromText(lead) ?? null);
+    const found0 = cmsOrganisationIn(lead, jobs);
+    const cmsOrg = found0 && "id" in found0 ? found0 : null;
+    const unclear = found0 && "ambiguous" in found0 ? found0.ambiguous : null;
+    const common = cmsOrg || unclear ? undefined : commonBodyIn(lead);
+    // Two CMS bodies fit equally: none is chosen, and nothing else is guessed in its place.
+    const orgId = cmsOrg?.id ?? (common || unclear ? null : detectOrgFromText(lead) ?? null);
     const orgName = cmsOrg ? (cmsOrg.name ?? ORG_NAMES[cmsOrg.id] ?? cmsOrg.id.toUpperCase()) : orgId ? ORG_NAMES[orgId] ?? orgId.toUpperCase() : common ?? null;
     const notice = extractNotificationNumber(title) ?? null;
-    const match = matchLead({ organizationId: orgId, organizationName: orgId ? orgName : null, title, notificationNumber: notice, namedBody: common ?? null }, jobs);
+    const match = matchLead({ organizationId: orgId, organizationName: orgId ? orgName : null, title, notificationNumber: notice, namedBody: common ?? unclear?.join(" / ") ?? null }, jobs);
     // Dates from this row only: the link's text, then what follows it before the next link.
     const row = `${link.text} ${link.after ?? ""}`;
     const lastDate = labelledLastDate(row);
@@ -275,6 +286,7 @@ export async function discoverFromPage(opts: {
       ...(isEligibilityExam(title) ? { eligibilityExam: true as const } : {}),
       ...(orgId ? { organizationId: orgId } : {}),
       ...(orgName ? { organizationName: orgName } : {}),
+      ...(unclear ? { organizationUnclear: unclear.slice(0, 3) } : {}),
       ...(notice ? { notificationNumber: notice } : {}),
       match: match.kind,
       matchReason: match.kind === "UNRESOLVED" && common ? `${common} has no job in the CMS yet; no CMS job like it` : match.reason,

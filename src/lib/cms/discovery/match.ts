@@ -85,7 +85,12 @@ function examWords(title: string, orgWords: Set<string>): ExamWords {
 /** Whether two titles of the same organisation name the same exam; when not, why. */
 export function sameExam(leadTitle: string, jobTitle: string, orgWords: Set<string>): { same: boolean; why?: string; shared?: number } {
   const a = examWords(leadTitle, orgWords), b = examWords(jobTitle, orgWords);
-  if (a.identity.size === 0) return { same: false, why: "the lead's title names no exam, only the organisation and the kind of notice" };
+  if (a.identity.size === 0) {
+    // An organisation whose name holds the post ("LIC HFL Apprentice", real CMS record) leaves neither title an exam
+    // word: the same post count in both is then the evidence ("… for 232 Post" / "… for 232 Posts").
+    if (b.identity.size === 0 && [...a.cycles].some((c) => /^\d{2,3}$/.test(c) && b.cycles.has(c))) return { same: true, shared: 0 };
+    return { same: false, why: "the lead's title names no exam, only the organisation and the kind of notice" };
+  }
   const covered = (x: ExamWords, y: ExamWords) => {
     const out = new Set<string>();
     for (const w of x.identity) if (y.identity.has(w) || y.runs.some((r) => r.initials === w)) out.add(w);
@@ -133,12 +138,48 @@ export function bodyWords(organizationId: string | null | undefined, organizatio
 }
 /** Exam codes a title gives (CRP-SPL-XVI, PO/MT): letters joined to letters or numbers by a hyphen or slash. */
 export const examCodes = (title: string) => new Set((title.match(/\b[A-Z]{2,}(?:[-/][A-Z0-9]+)+\b/g) ?? []).map((c) => c.toUpperCase()));
-/** Whether a title names this body: one of its distinctive words (all of them when it has only generic ones), or its ID run together ("MPESB"). */
+// ── Acronyms (real CMS records, 10 Nov) ──
+// A body's own acronyms, from its name only: the initials of all its words ("Madhya Pradesh Employees Selection
+// Board" → MPESB, "National Insurance Company Limited" → NICL) and an acronym its name gives in brackets
+// ("Bihar Technical Service Commission (BTSC)"). Never part of the initials: "NWR" is not enough for "Railway
+// Recruitment Cell, North Western Railway"; such a short form counts only as a verified alias below.
+const INITIAL_SKIP = new Set(["of", "and", "the", "for", "&"]);
+export function bodyAcronyms(organizationName: string | null | undefined): Set<string> {
+  const out = new Set<string>();
+  if (!organizationName) return out;
+  for (const m of organizationName.matchAll(/\(([A-Za-z][A-Za-z.]{1,9})\)/g)) {
+    const a = m[1].replace(/\./g, "").toLowerCase();
+    if (a.length >= 3) out.add(a);
+  }
+  const words = organizationName.replace(/\([^)]*\)/g, " ").split(/[\s,–-]+/).filter((w) => /^[A-Za-z]/.test(w) && !INITIAL_SKIP.has(w.toLowerCase()));
+  const initials = words.map((w) => w[0]).join("").toLowerCase();
+  if (words.length >= 3 && initials.length >= 3) out.add(initials);
+  return out;
+}
+/** The acronyms a title writes in capitals ("MPESB MP Police …" → mpesb), lower case. */
+export const titleAcronyms = (title: string) => new Set((title.match(/\b[A-Z][A-Z0-9]{2,7}\b/g) ?? []).map((a) => a.toLowerCase()));
+/**
+ * Verified short forms that are not a body's initials, each checked against the CMS's own record (10 Nov):
+ * the title wording, and the body name it stands for.
+ */
+export const VERIFIED_ALIASES: Array<{ title: RegExp; body: RegExp }> = [
+  { title: /\b(?:rrc\s+nwr|nwr\s+rrc)\b/i, body: /^railway recruitment cell,?\s+north western railway$/i },
+];
+const aliasNames = (title: string, organizationName: string | null | undefined) =>
+  !!organizationName && VERIFIED_ALIASES.some((a) => a.title.test(title) && a.body.test(organizationName.trim()));
+
+/**
+ * Whether a title names this body: one of its distinctive words (all of them when it has only generic ones), its ID
+ * run together ("MPESB"), one of its own acronyms written in capitals, or a verified alias.
+ */
 export function titleNamesBody(title: string, organizationId: string | null | undefined, organizationName?: string | null): boolean {
   const t = orgWordsOf(title);
+  const acr = titleAcronyms(title);
   // The ID's words and the name's words each name the body ("indian-bank" or "Indian Bank").
   return [bodyWords(organizationId), bodyWords(null, organizationName)].some((b) =>
-    (b.words.size > 0 && (b.allNeeded ? [...b.words].every((w) => t.has(w)) : [...b.words].some((w) => t.has(w)))) || (!!b.joined && t.has(b.joined)));
+    (b.words.size > 0 && (b.allNeeded ? [...b.words].every((w) => t.has(w)) : [...b.words].some((w) => t.has(w)))) || (!!b.joined && t.has(b.joined)))
+    || [...bodyAcronyms(organizationName)].some((a) => acr.has(a))
+    || aliasNames(title, organizationName);
 }
 
 /**
@@ -183,9 +224,10 @@ export function matchLead(lead: LeadForMatch, jobs: CmsJob[]): LeadMatch {
     const jobTitle = job.year && year && !job.title.includes(year) && String(job.year) === year ? `${job.title} ${job.year}` : job.title;
     if (similarJobs(normaliseExamWording(lead.title), [{ id: job.id, title: normaliseExamWording(jobTitle) }]).length === 0) continue;
     // Like titles are not enough when the lead names another body (listing finder, 10 Nov: "National Insurance NICL
-    // Graduate Apprentice" is not a Canara Bank job): a body the finder recognised by name only must be named in this
-    // job's organisation too, or the titles must share an exam code ("… for CRP-SPL-XVI" is IBPS's SO job).
-    if (!sameOrg && lead.namedBody && (job.organizationId || job.organizationName) && !titleNamesBody(lead.title, job.organizationId, job.organizationName)
+    // Graduate Apprentice" is not a Canara Bank job): when the lead's body is known (recognised, or named only), a job
+    // of another body is suggested only if the title names that body too, or the titles share an exam code ("… for
+    // CRP-SPL-XVI" is IBPS's SO job). A lead whose body is unknown is left to the checks below.
+    if (!sameOrg && (lead.organizationId || lead.namedBody) && (job.organizationId || job.organizationName) && !titleNamesBody(lead.title, job.organizationId, job.organizationName)
       && ![...examCodes(lead.title)].some((c) => examCodes(job.title).has(c))) continue;
     // Two different notice numbers are two notices: never a strong match (CEN 06/2026 is not CEN 06/2025).
     if (key && jobKey && jobKey !== key) {

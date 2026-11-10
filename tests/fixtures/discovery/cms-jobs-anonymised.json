@@ -1,0 +1,23 @@
+{
+  "_about": "Anonymised CMS jobs for the listing finder tests. Invented record IDs, titles and notice numbers; only the shapes found in the real CMS on 10 Nov 2026 are kept (organisation names whose initials are the acronym, an ID cut short at 40 characters, a body held under two IDs, a body whose name holds the post). No real record, ID or unpublished recruitment.",
+  "jobs": [
+    { "id": "test-job-01", "organizationId": "canara-bank", "organizationName": "Canara Bank", "title": "Canara Bank Graduate Apprentice Programme 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-02", "organizationId": "bank-of-baroda", "organizationName": "Bank of Baroda", "title": "Bank of Baroda Apprentice Programme 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-03", "organizationId": "sail-bhilai-steel-plant", "organizationName": "SAIL Bhilai Steel Plant", "title": "SAIL Bhilai Steel Plant Apprentice Programme 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-04", "organizationId": "national-insurance-company-limited", "organizationName": "National Insurance Company Limited", "title": "NICL Administrative Officer Recruitment 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-05", "organizationId": "madhya-pradesh-employees-selection-board", "organizationName": "Madhya Pradesh Employees Selection Board", "title": "MPESB MP Police Constable Driver Recruitment 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-06", "organizationId": "railway-recruitment-cell-north-western-r", "organizationName": "Railway Recruitment Cell, North Western Railway", "title": "RRC NWR Jaipur Apprentice Recruitment 2026", "notificationNumber": "Notice No. 91/2026", "year": 2026 },
+    { "id": "test-job-07", "organizationId": "lic-hfl-apprentice", "organizationName": "LIC HFL Apprentice", "title": "LIC HFL Apprentice Recruitment 2026 for 232 Posts", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-08", "organizationId": "rrb", "organizationName": "Railway Recruitment Boards", "title": "RRB NTPC Graduate Level Recruitment 2026 (CEN 06/2026)", "notificationNumber": "CEN 06/2026", "year": 2026 },
+    { "id": "test-job-09", "organizationId": "rrb", "organizationName": "Railway Recruitment Boards", "title": "RRB NTPC Graduate Level Recruitment (CEN 06/2025)", "notificationNumber": "CEN 06/2025", "year": 2026 },
+    { "id": "test-job-10", "organizationId": "rrb", "organizationName": "Railway Recruitment Boards", "title": "RRB NTPC Undergraduate Level Recruitment 2026 (CEN 07/2026)", "notificationNumber": "CEN 07/2026", "year": 2026 },
+    { "id": "test-job-11", "organizationId": "rrb", "organizationName": "Railway Recruitment Boards", "title": "RRB Station Master Recruitment 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-12", "organizationId": "university-of-delhi", "organizationName": "University of Delhi", "title": "Delhi University Non-Teaching Recruitment 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-13", "organizationId": "delhi-subordinate-services-selection-boa", "organizationName": "Delhi Subordinate Services Selection Board", "title": "DSSSB District Courts Combined Examination 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-14", "organizationId": "bpsc", "organizationName": "Bihar Public Service Commission", "title": "BPSC TRE 4.0 School Teacher Recruitment 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-15", "organizationId": "bihar-technical-service-commission-btsc", "organizationName": "Bihar Technical Service Commission (BTSC)", "title": "BTSC Food Safety Officer Recruitment 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-16", "organizationId": "bihar-technical-service-commission", "organizationName": "Bihar Technical Service Commission", "title": "BTSC Veterinary Officer Recruitment 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-17", "organizationId": "isro", "organizationName": "Indian Space Research Organisation", "title": "ISRO Various Posts Recruitment 2026", "notificationNumber": null, "year": 2026 },
+    { "id": "test-job-18", "organizationId": "sbi", "organizationName": "State Bank of India", "title": "SBI Assistant Manager Recruitment 2026", "notificationNumber": null, "year": 2026 }
+  ]
+}

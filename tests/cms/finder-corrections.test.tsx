@@ -175,7 +175,7 @@ test("FC12 common bodies get a readable name; ambiguous ones and ties are not gu
   // Was 7 of 60 on the live page. Left unrecognised here: bodies with no unmistakable name in the list.
   assert.deepEqual(found.filter((f) => !f.organizationName).map((f) => f.title.split(" Online")[0].split(" |")[0]),
     ["Bihar Vidhan Sabha JSA and Office Attendant Post", "NTA CSIR UGC NET December 2026", "UP Anganwadi Helper", "UP ECCE Educator Kanpur Nagar", "Dr. RMLIMS Non Teaching Various Post", "ICSIL Data Entry Operator DEO Post"]);
-  assert.equal(cmsOrganisationIn("Alpha Beta Recruitment 2026", [{ organizationId: "alpha", organizationName: null }, { organizationId: "beta", organizationName: null }]), null, "a tie recognises neither");
+  assert.deepEqual(cmsOrganisationIn("Alpha Beta Recruitment 2026", [{ organizationId: "alpha", organizationName: null }, { organizationId: "beta", organizationName: null }]), { ambiguous: ["alpha", "beta"] }, "a tie recognises neither");
 });
 test("FC13 an Indian Bank job in the CMS is recognised by its own ID and matched", async () => {
   const jobs = [...JOBS, { id: "ib", organizationId: "indian-bank", organizationName: "Indian Bank", title: "Indian Bank Apprentice Recruitment 2026", notificationNumber: null, year: 2026 }];
@@ -189,4 +189,113 @@ test("FC14 eligibility exams and updates are still told apart", async () => {
   await READY;
   assert.equal(byUrl("ugc-net").eligibilityExam, true);
   assert.equal(byUrl("uiic-ao-admit-card").kind, "UPDATE");
+});
+
+// ── Shapes of the CMS's real jobs ──
+// An anonymised fixture keeps what the real CMS records showed on 10 Nov 2026 (organisation names whose initials
+// are the acronym, an ID cut short, BTSC under two IDs, "LIC HFL Apprentice" as a body) with invented records.
+// CMS_JOBS_FIXTURE can name a private copy of the real records (kept outside Git) to run the same checks on it.
+const CMS_FILE = process.env.CMS_JOBS_FIXTURE ?? path.join(__dirname, "../fixtures/discovery/cms-jobs-anonymised.json");
+const loaded = JSON.parse(fs.readFileSync(CMS_FILE, "utf8"));
+const REAL: typeof JOBS = (Array.isArray(loaded) ? loaded : loaded.jobs).filter((j: { organizationId: string }) => j.organizationId !== "smoke-org");
+let real: FoundJob[] = [];
+const REAL_READY = run(REAL).then((r) => { real = r.found; return r; });
+const inReal = (part: string) => {
+  const f = real.find((x) => x.url.includes(part));
+  if (!f) throw new Error(`no listing for ${part}`);
+  return f;
+};
+/** The job of this organisation whose title matches, in whichever fixture is loaded. */
+const jid = (org: string, title: RegExp) => {
+  const j = REAL.filter((x) => x.organizationId === org && title.test(x.title));
+  if (j.length !== 1) throw new Error(`${j.length} jobs of ${org} match ${title}`);
+  return j[0].id;
+};
+const ids = (f: FoundJob) => f.maybe.map((m) => m.id);
+
+suite("Shapes of the CMS's real jobs");
+test("FR01 NICL Graduate Apprentice: recognised as the CMS's NICL by its initials; Canara Bank is never suggested", async () => {
+  await REAL_READY;
+  const f = inReal("nicl-apprentice");
+  assert.equal(f.organizationId, "national-insurance-company-limited");
+  assert.ok(!ids(f).includes(jid("canara-bank", /Graduate Apprentice/)), "not Canara Bank Graduate Apprentice");
+  assert.ok(f.match !== "STRONG" && f.match !== "DUPLICATE");
+});
+test("FR02 MPESB Police Constable Driver: its CMS job, as a strong match", async () => {
+  await REAL_READY;
+  const f = inReal("mpesb-police");
+  assert.equal(f.organizationId, "madhya-pradesh-employees-selection-board", "MPESB: the initials of its CMS name");
+  assert.equal(f.match, "STRONG");
+  assert.deepEqual(splitMaybe(f).headline.map((m) => m.id), [jid("madhya-pradesh-employees-selection-board", /Police Constable Driver/)]);
+});
+test("FR03 NWR RRC Jaipur: the CMS's own Railway Recruitment Cell, North Western Railway (a verified alias), not 'another organisation's'", async () => {
+  await REAL_READY;
+  const f = inReal("nwr-rrc-jaipur");
+  assert.equal(f.organizationId, "railway-recruitment-cell-north-western-r");
+  assert.equal(f.match, "STRONG");
+  assert.deepEqual(splitMaybe(f).headline.map((m) => m.id), [jid("railway-recruitment-cell-north-western-r", /Jaipur Apprentice/)]);
+  assert.ok(!/another organisation/.test(f.matchReason ?? ""));
+});
+test("FR04 LIC HFL Apprentice: the existing LIC HFL job (same body, same 232 posts)", async () => {
+  await REAL_READY;
+  const f = inReal("lic-hfl-apprentice");
+  assert.equal(f.organizationId, "lic-hfl-apprentice");
+  assert.equal(f.match, "STRONG");
+  assert.deepEqual(splitMaybe(f).headline.map((m) => m.id), [jid("lic-hfl-apprentice", /232 Posts/)]);
+});
+test("FR05 RRB NTPC: Graduate CEN 06/2026 is its duplicate; 10+2 Under Graduate is the Undergraduate CEN 07/2026 job", async () => {
+  await REAL_READY;
+  const g = inReal("rrb-ntpc-graduate-cen-06");
+  assert.equal(g.match, "DUPLICATE");
+  assert.deepEqual(splitMaybe(g).headline.map((m) => m.id), [jid("rrb", /Graduate Level Recruitment 2026 \(CEN 06\/2026\)/)]);
+  assert.ok((g.differentNotice ?? []).some((m) => m.id === jid("rrb", /\(CEN 06\/2025\)/)), "CEN 06/2025 apart");
+  const u = inReal("rrb-ntpc-ug-cen-07");
+  assert.equal(u.match, "STRONG");
+  assert.deepEqual(splitMaybe(u).headline.map((m) => m.id), [jid("rrb", /Undergraduate Level Recruitment 2026 \(CEN 07\/2026\)/)]);
+});
+test("FR06 Dr RMLIMS is not suggested as Delhi University's", async () => {
+  await REAL_READY;
+  assert.ok(!ids(inReal("drrmlims")).includes(jid("university-of-delhi", /Non-Teaching/)));
+});
+test("FR07 like titles of different bodies stay non-matches", async () => {
+  await REAL_READY;
+  const ib = inReal("indian-bank-apprentice");
+  assert.ok(ib.maybe.every((m) => !/canara|baroda|sail/i.test(m.title)), "Indian Bank Apprentice is not another bank's or SAIL's");
+  const canara = jid("canara-bank", /Graduate Apprentice/);
+  const sbi = matchLead({ organizationId: "sbi", organizationName: "State Bank of India", title: "SBI Graduate Apprentice Online Form 2026", notificationNumber: null }, REAL);
+  assert.ok(!sbi.candidates.some((c) => c.id === canara), "a recognised SBI listing is not Canara Bank's");
+  const rec = matchLead({ organizationId: "isro", organizationName: null, title: "ISRO Apprentice Recruitment 2026", notificationNumber: null }, REAL);
+  assert.ok(rec.candidates.every((c) => REAL.find((j) => j.id === c.id)?.organizationId === "isro"));
+});
+test("FR08 initials two CMS bodies share are unclear: neither is chosen, nothing confident", async () => {
+  await REAL_READY;
+  // The CMS holds BTSC under two IDs ("bihar-technical-service-commission" and "…-btsc").
+  const out = cmsOrganisationIn("BTSC Food Safety Officer Online Form 2026", REAL);
+  assert.ok(out && "ambiguous" in out && out.ambiguous.length === 2, JSON.stringify(out));
+  const r = await discoverFromPage({
+    url: "https://p.example/list", jobs: REAL, today: "2026-11-10",
+    fetchSourceFn: async (u) => (u.endsWith("robots.txt") ? page(u, "", "text/plain") : page(u, `<ul><li><a href="/btsc-fso/">BTSC Food Safety Officer FSO Online Form 2026 | Last Date : 24/11/2026</a></li></ul>`)),
+  });
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const f = r.found[0];
+  assert.equal(f.organizationId, undefined);
+  assert.equal(f.organizationUnclear?.length, 2);
+  assert.ok(f.match !== "STRONG" && f.match !== "DUPLICATE", f.match);
+  assert.match(renderToStaticMarkup(<FoundRow f={f} onPick={() => {}} />), /organisation unclear: /);
+  // Short forms that are only part of a name are no evidence: "NWR" alone is not the North Western Railway cell.
+  assert.equal(cmsOrganisationIn("NWR Apprentice Online Form 2026", REAL), null);
+});
+test("FR09 the dates, deadlines and kinds corrected before are unchanged", async () => {
+  await REAL_READY;
+  assert.equal(inReal("hcl-apprentice").lastDate, "2026-11-24");
+  assert.equal(inReal("bhu-non-teaching").lastDate, "2026-11-25");
+  assert.equal(inReal("icsil-deo").applications, "LAST_DATE_PASSED");
+  assert.equal(inReal("ugc-net").eligibilityExam, true);
+  assert.equal(inReal("uiic-ao-admit-card").kind, "UPDATE");
+});
+test("FR10 the strong matches found before stay strong (BPSC TRE 4.0, RRB Station Master)", async () => {
+  await REAL_READY;
+  assert.equal(inReal("bpsc-tre-4").match, "STRONG");
+  assert.equal(inReal("rrb-station-master").match, "STRONG");
 });
