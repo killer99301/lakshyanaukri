@@ -11,7 +11,8 @@ import { isoFromParts, checkAge, ageOn, describeAge } from "@/lib/eligibility";
 import { dobProblem } from "@/lib/eligibility-finder";
 import { publicLinkWords, VERIFIED_APPLICATION_PAGES } from "@/lib/public-link-labels";
 import { originFor } from "@/lib/cms/importer/trusted-domains";
-import { EligibilityChecker } from "@/components/jobs/EligibilityChecker";
+import { EligibilityChecker, atUpperLimitText } from "@/components/jobs/EligibilityChecker";
+import { readFileSync } from "node:fs";
 import EligibilityFinderClient from "@/app/(main)/eligibility/EligibilityFinderClient";
 import type { AgeLimit } from "@/types";
 
@@ -108,4 +109,26 @@ test("EU09 everything else stays as it was: other IBPS pages, other bodies, look
 test("EU10 the trusted-domains registry is unchanged: IBPS's registration host is not SBI's", () => {
   assert.equal(originFor("sbi", "ibpsreg.ibps.in").role, "UNLISTED");
   assert.deepEqual(VERIFIED_APPLICATION_PAGES.map((p) => [p.organizationId, p.url]), [["sbi", "https://ibpsreg.ibps.in/sbiameoct26/"]]);
+});
+
+suite("At the upper age limit: neutral, from the job's own figures");
+test("EU11 the at-limit result names the uncertainty, not a verdict, with this job's date, age and limit", () => {
+  const sbi = atUpperLimitText({ asOf: "2026-10-31", completedYears: 40, max: 40 });
+  assert.match(sbi, /^Your completed age on 31 Oct 2026 is 40 years\. The recruitment states a maximum age of 40, but the exact eligible date-of-birth range is not in the saved details\./);
+  assert.match(sbi, /check the official notification’s date-of-birth conditions and any applicable category relaxation/);
+  assert.ok(!/over the limit|probably|Most notices|SSC|IBPS/.test(sbi), "no lean either way, no other body's convention");
+  const other = atUpperLimitText({ asOf: "2027-01-01", completedYears: 27, max: 27 });
+  assert.match(other, /on 1 Jan 2027 is 27 years\. The recruitment states a maximum age of 27,/, "nothing about SBI is fixed in the text");
+  assert.match(atUpperLimitText({ asOf: "2026-10-31", completedYears: 43, max: 40, relaxation: { category: "OBC", effectiveMax: 43 } }),
+    /is 43 years\. The recruitment states a maximum age of 40, or 43 with the OBC relaxation,/);
+  assert.match(atUpperLimitText({ asOf: "2026-10-31", completedYears: 45, max: 45, categoryMax: { category: "SC" } }), /a maximum age of 45 for SC,/);
+});
+test("EU12 the old wording is gone; the result stays amber; the engine still flags the case", () => {
+  const src = readFileSync("src/components/jobs/EligibilityChecker.tsx", "utf8");
+  assert.ok(!/probably over|Most notices \(SSC/.test(src));
+  assert.match(src, /title: "At the upper age limit — check the notification"/);
+  assert.match(src, /CHECK_NOTICE: \{\s*box: "bg-amber-50/);
+  for (const dob of ["1986-10-31", "1986-10-30", "1985-11-01"]) assert.equal(checkAge(SBI, dob, "GEN", false).verdict, "CHECK_NOTICE", dob);
+  assert.equal(checkAge(SBI, "1985-10-31", "GEN", false).verdict, "TOO_OLD", "41 completed: above the limit");
+  assert.equal(checkAge({ ...SBI, bornFrom: "1985-11-01", bornTo: "2005-10-31" }, "1985-11-01", "GEN", false).verdict, "WITHIN", "a printed date-of-birth range still decides exactly");
 });

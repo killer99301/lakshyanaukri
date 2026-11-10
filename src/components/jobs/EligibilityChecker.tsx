@@ -28,7 +28,7 @@ const TONE: Record<AgeVerdict, { box: string; icon: React.ReactNode; title: stri
   CHECK_NOTICE: {
     box: "bg-amber-50 border-amber-200 text-amber-900",
     icon: <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />,
-    title: "You are probably over the upper age limit",
+    title: "At the upper age limit — check the notification",
   },
   TOO_YOUNG: {
     box: "bg-red-50 border-red-200 text-red-900",
@@ -46,6 +46,28 @@ const TONE: Record<AgeVerdict, { box: string; icon: React.ReactNode; title: stri
     title: "This cannot be worked out yet",
   },
 };
+
+/**
+ * The explanation for an age that has completed the upper limit but not the next year. Notices count this case
+ * differently (some accept candidates until the day before their next birthday, others only those who have not yet
+ * reached the limit), and without the notice's date-of-birth range on record neither reading is assumed.
+ */
+export function atUpperLimitText(o: {
+  asOf: string; completedYears: number; max: number;
+  /** A relaxation used for this category, and the upper age it gives. */
+  relaxation?: { category: string; effectiveMax: number };
+  /** An upper age the notice prints for this category itself. */
+  categoryMax?: { category: string };
+}): string {
+  const limit = o.categoryMax
+    ? `a maximum age of ${o.max} for ${o.categoryMax.category}`
+    : o.relaxation
+      ? `a maximum age of ${o.max}, or ${o.relaxation.effectiveMax} with the ${o.relaxation.category} relaxation`
+      : `a maximum age of ${o.max}`;
+  return `Your completed age on ${formatDate(o.asOf)} is ${o.completedYears} years. The recruitment states ${limit}, but the exact eligible `
+    + "date-of-birth range is not in the saved details. Please check the official notification’s date-of-birth conditions and any "
+    + "applicable category relaxation before deciding whether you are eligible.";
+}
 
 const field = "h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/40";
 const label = "block text-[11px] font-bold uppercase tracking-wider text-[#475569] mb-1";
@@ -163,11 +185,15 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
                 Relaxation used: {result.relaxation.category}, {result.relaxation.years} years — upper limit {result.effectiveMax} for you.
               </p>
             )}
-            {result.verdict === "CHECK_NOTICE" && (
-              <p className="text-xs font-semibold">
-                You will already have turned {result.effectiveMax ?? limit?.max} on that date. Most notices (SSC, RRB, UPSC, IBPS and others) mean you
-                must not have reached that age, which puts you over the limit. A few count the whole year; the date-of-birth range in the official
-                notification settles it.
+            {result.verdict === "CHECK_NOTICE" && result.age && limit?.asOf && (
+              <p className="text-xs font-semibold" data-at-upper-limit>
+                {atUpperLimitText({
+                  asOf: limit.asOf,
+                  completedYears: result.age.years,
+                  max: result.categoryMax ? result.categoryMax.max : limit.max ?? result.age.years,
+                  ...(result.relaxation && result.effectiveMax != null ? { relaxation: { category: result.relaxation.category, effectiveMax: result.effectiveMax } } : {}),
+                  ...(result.categoryMax ? { categoryMax: { category: result.categoryMax.category } } : {}),
+                })}
               </p>
             )}
             {result.verdict === "TOO_OLD" && !result.relaxation && !result.categoryMax && (
