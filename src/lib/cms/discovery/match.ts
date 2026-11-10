@@ -17,9 +17,17 @@ import { similarJobs } from "@/lib/cms/importer/discover";
 export type MatchKind = "DUPLICATE" | "STRONG" | "POSSIBLE" | "NONE" | "UNRESOLVED";
 
 export interface CmsJob { id: string; organizationId: string; organizationName?: string | null; title: string; notificationNumber: string | null; year: number | null }
-export interface LeadForMatch { organizationId: string | null; organizationName?: string | null; title: string; notificationNumber: string | null }
+export interface LeadForMatch {
+  organizationId: string | null; organizationName?: string | null; title: string; notificationNumber: string | null;
+  /** A body the title names that has no ID here (the listing finder's common bodies): its like-titled jobs of other bodies are not suggested. */
+  namedBody?: string | null;
+}
 export interface MatchCandidate { id: string; title: string; kind: Exclude<MatchKind, "NONE" | "UNRESOLVED">; reason: string }
-export interface LeadMatch { kind: MatchKind; recruitmentId: string | null; reason: string | null; confidence: number | null; candidates: MatchCandidate[] }
+export interface LeadMatch {
+  kind: MatchKind; recruitmentId: string | null; reason: string | null; confidence: number | null; candidates: MatchCandidate[];
+  /** Jobs with a like title but another notice number: shown apart, never a candidate (listing finder, 10 Nov). */
+  differentNotice?: Array<{ id: string; title: string; reason: string }>;
+}
 
 const RANK: Record<MatchCandidate["kind"], number> = { DUPLICATE: 3, STRONG: 2, POSSIBLE: 1 };
 const CONFIDENCE: Record<MatchCandidate["kind"], number> = { DUPLICATE: 0.95, STRONG: 0.75, POSSIBLE: 0.4 };
@@ -44,9 +52,23 @@ const NOTICE_WORDS = new Set(("recruitment notification notice result declared a
 const ROMAN = /^(?:x{1,3}(?:ix|iv|v?i{0,3})|ix|iv|v|v?i{1,3})$/;
 const CYCLE = (t: string) => ROMAN.test(t) || /^\d+(?:st|nd|rd|th)$/.test(t) || /^\d{1,3}$/.test(t);
 
+/**
+ * A title as its exam is compared (listing finder, SarkariResult 10 Nov): a portal's trailing "| Last Date : 13/11/2026"
+ * is not part of the exam (its numbers read as cycles), "10+2" is a qualification level, and "Under Graduate" is
+ * "Undergraduate".
+ */
+export function normaliseExamWording(title: string): string {
+  return title
+    .replace(/\s*\|?\s*last\s+date\b.*$/i, "")
+    .replace(/\b10\s*\+\s*2\b/g, " ")
+    .replace(/\bunder[\s-]+graduate\b/gi, "Undergraduate")
+    .replace(/\bpost[\s-]+graduate\b/gi, "Postgraduate")
+    .replace(/\s+/g, " ").trim();
+}
+
 interface ExamWords { identity: Set<string>; cycles: Set<string>; runs: Array<{ initials: string; words: string[] }> }
 function examWords(title: string, orgWords: Set<string>): ExamWords {
-  const raw = title.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean).map((w) => w.replace(/s$/, ""));
+  const raw = normaliseExamWording(title).toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean).map((w) => w.replace(/s$/, ""));
   const identity = new Set<string>(), cycles = new Set<string>();
   const kept: string[] = []; // words an abbreviation can stand for: everything but years, cycles and the organisation
   for (const w of raw) {
@@ -95,6 +117,30 @@ export function postCount(title: string): number | null {
 }
 const yearsOf = (t: string) => new Set(t.match(/\b20\d{2}\b/g) ?? []);
 
+// Words many bodies' names share: they never show on their own that a title names one body.
+const BODY_GENERIC = new Set(("bank india indian limited ltd company co corporation university board commission department government govt " +
+  "state public service services selection staff recruitment of the and for organisation organization council institute authority").split(" "));
+/**
+ * A body's distinctive words, from its ID and name ("canara-bank", "Canara Bank" → canara); its ID run together
+ * ("mp-esb" → mpesb). A body named only in generic words ("Indian Bank") has them all, all of them needed.
+ */
+export function bodyWords(organizationId: string | null | undefined, organizationName?: string | null): { words: Set<string>; allNeeded: boolean; joined: string | null } {
+  const every = [...orgWordsOf(organizationId?.replace(/-/g, " "), organizationName)].filter((w) => w.length > 1);
+  const distinctive = every.filter((w) => !BODY_GENERIC.has(w));
+  const joined = organizationId && organizationId.includes("-") ? organizationId.replace(/-/g, "").toLowerCase() : null;
+  const allNeeded = distinctive.length === 0 && every.length >= 2;
+  return { words: new Set(allNeeded ? every : distinctive), allNeeded, joined: joined && joined.length >= 3 ? joined : null };
+}
+/** Exam codes a title gives (CRP-SPL-XVI, PO/MT): letters joined to letters or numbers by a hyphen or slash. */
+export const examCodes = (title: string) => new Set((title.match(/\b[A-Z]{2,}(?:[-/][A-Z0-9]+)+\b/g) ?? []).map((c) => c.toUpperCase()));
+/** Whether a title names this body: one of its distinctive words (all of them when it has only generic ones), or its ID run together ("MPESB"). */
+export function titleNamesBody(title: string, organizationId: string | null | undefined, organizationName?: string | null): boolean {
+  const t = orgWordsOf(title);
+  // The ID's words and the name's words each name the body ("indian-bank" or "Indian Bank").
+  return [bodyWords(organizationId), bodyWords(null, organizationName)].some((b) =>
+    (b.words.size > 0 && (b.allNeeded ? [...b.words].every((w) => t.has(w)) : [...b.words].some((w) => t.has(w)))) || (!!b.joined && t.has(b.joined)));
+}
+
 /**
  * Whether two leads seen on different portals may be the same recruitment, and why (Stage 1: "OPSC Assistant
  * Section Officer Recruitment 2026 – … 340 Posts" and "OPSC ASO Recruitment 2026 – … 340 Assistant Section
@@ -121,6 +167,7 @@ export function matchLead(lead: LeadForMatch, jobs: CmsJob[]): LeadMatch {
   const key = noticeKey(lead.notificationNumber);
   const year = /\b20\d{2}\b/.exec(lead.title)?.[0];
   const candidates: MatchCandidate[] = [];
+  const differentNotice: NonNullable<LeadMatch["differentNotice"]> = [];
   for (const job of jobs) {
     const sameOrg = !!lead.organizationId && job.organizationId === lead.organizationId;
     const jobKey = noticeKey(job.notificationNumber);
@@ -134,12 +181,23 @@ export function matchLead(lead: LeadForMatch, jobs: CmsJob[]): LeadMatch {
     }
     // The job's year counts when its title leaves it out.
     const jobTitle = job.year && year && !job.title.includes(year) && String(job.year) === year ? `${job.title} ${job.year}` : job.title;
-    if (similarJobs(lead.title, [{ id: job.id, title: jobTitle }]).length === 0) continue;
+    if (similarJobs(normaliseExamWording(lead.title), [{ id: job.id, title: normaliseExamWording(jobTitle) }]).length === 0) continue;
+    // Like titles are not enough when the lead names another body (listing finder, 10 Nov: "National Insurance NICL
+    // Graduate Apprentice" is not a Canara Bank job): a body the finder recognised by name only must be named in this
+    // job's organisation too, or the titles must share an exam code ("… for CRP-SPL-XVI" is IBPS's SO job).
+    if (!sameOrg && lead.namedBody && (job.organizationId || job.organizationName) && !titleNamesBody(lead.title, job.organizationId, job.organizationName)
+      && ![...examCodes(lead.title)].some((c) => examCodes(job.title).has(c))) continue;
+    // Two different notice numbers are two notices: never a strong match (CEN 06/2026 is not CEN 06/2025).
+    if (key && jobKey && jobKey !== key) {
+      differentNotice.push({ id: job.id, title: job.title, reason: `a like title, but another notice number (${job.notificationNumber}): probably another recruitment` });
+      continue;
+    }
     // Organisation not recognised: no suggestion when the title starts with another body's acronym ("AIIMS Patna
     // …" is not an IBPS job), nor when the titles do not name the same exam (Stage 1, real pages).
     if (!lead.organizationId) {
       const jobWords = orgWordsOf(job.organizationId, job.organizationName);
-      const acr = leadingAcronym(lead.title);
+      // The acronym may follow an honorific ("Dr. RMLIMS …" is not a Delhi University job).
+      const acr = leadingAcronym(lead.title.replace(/^\s*(?:dr|shri|smt|sri)\.?\s+/i, ""));
       if (acr && !jobWords.has(acr) && !orgWordsOf(job.title).has(acr)) continue;
       if (!sameExam(lead.title, job.title, jobWords).same) continue;
     }
@@ -152,18 +210,19 @@ export function matchLead(lead: LeadForMatch, jobs: CmsJob[]): LeadMatch {
         : "the titles agree; the lead's organisation was not recognised" });
   }
   candidates.sort((a, b) => RANK[b.kind] - RANK[a.kind]);
+  const apart = differentNotice.length ? { differentNotice: differentNotice.slice(0, 3) } : {};
   const top = candidates.slice(0, 5);
   const best = top[0];
-  if (!best) return { kind: lead.organizationId ? "NONE" : "UNRESOLVED", recruitmentId: null, reason: lead.organizationId ? null : "organisation not recognised; no CMS job like it", confidence: null, candidates: [] };
+  if (!best) return { kind: lead.organizationId ? "NONE" : "UNRESOLVED", recruitmentId: null, reason: lead.organizationId ? null : "organisation not recognised; no CMS job like it", confidence: null, candidates: [], ...apart };
   // Two different jobs both "strong" or both "duplicate": none is chosen, the admin decides.
   const tied = top.filter((c) => c.kind === best.kind && c.id !== best.id);
   if (tied.length > 0 && best.kind !== "POSSIBLE") {
-    return { kind: "POSSIBLE", recruitmentId: null, reason: `${tied.length + 1} CMS jobs match as well as each other — choose the right one`, confidence: CONFIDENCE.POSSIBLE, candidates: top };
+    return { kind: "POSSIBLE", recruitmentId: null, reason: `${tied.length + 1} CMS jobs match as well as each other — choose the right one`, confidence: CONFIDENCE.POSSIBLE, candidates: top, ...apart };
   }
   // A possible match names its job too, for the admin to confirm or reject; it is never treated as the job.
   const possibles = top.filter((c) => c.kind === "POSSIBLE");
   if (best.kind === "POSSIBLE" && possibles.length > 1) {
-    return { kind: "POSSIBLE", recruitmentId: null, reason: `${possibles.length} CMS jobs may be this one — choose the right one`, confidence: CONFIDENCE.POSSIBLE, candidates: top };
+    return { kind: "POSSIBLE", recruitmentId: null, reason: `${possibles.length} CMS jobs may be this one — choose the right one`, confidence: CONFIDENCE.POSSIBLE, candidates: top, ...apart };
   }
-  return { kind: best.kind, recruitmentId: best.id, reason: best.reason, confidence: CONFIDENCE[best.kind], candidates: top };
+  return { kind: best.kind, recruitmentId: best.id, reason: best.reason, confidence: CONFIDENCE[best.kind], candidates: top, ...apart };
 }

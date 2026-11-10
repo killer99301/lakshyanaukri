@@ -11,17 +11,37 @@ import { C, PANEL, badge, inputStyle, labelStyle, quietBtn } from "./ui";
 
 export interface FoundJob {
   title: string; url: string; kind: "NEW" | "UPDATE"; date?: string; official: boolean;
+  /** The "Last Date" the row gives, and whether it has passed: separate from whether the job is in the CMS. */
+  lastDate?: string; applications?: "OPEN" | "LAST_DATE_PASSED" | "UNKNOWN";
   /** A standalone eligibility exam (UGC NET, CTET, a TET or SET, GATE): shown as found, never as a recruitment. */
   eligibilityExam?: boolean;
-  organizationName?: string; notificationNumber?: string;
+  organizationId?: string; organizationName?: string; notificationNumber?: string;
   /** How it compares with the CMS's jobs, as the portal collector matches its leads. */
   match?: string; matchReason?: string | null;
   maybe: Array<{ id: string; title: string; kind?: string; reason?: string }>;
+  /** Like titles with another notice number: probably other recruitments. */
+  differentNotice?: Array<{ id: string; title: string; reason: string }>;
 }
 
 const MATCH_WORDS: Record<string, string> = {
   DUPLICATE: "Already in the CMS", STRONG: "Strong match to a CMS job", POSSIBLE: "May already be in the CMS",
 };
+
+const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const day = (iso: string) => { const [y, m, d] = iso.split("-"); return `${Number(d)} ${MONTH[Number(m) - 1]} ${y}`; };
+
+/** Applications, by the last date the portal's row gives: never "closed" for certain, since dates get extended. */
+export function applicationsLine(f: Pick<FoundJob, "lastDate" | "applications" | "date">): { text: string; tone: "ok" | "warn" | "muted" } {
+  if (f.lastDate && f.applications === "LAST_DATE_PASSED") return { text: `Last date ${day(f.lastDate)} has passed — closed unless it was extended; check the official site`, tone: "warn" };
+  if (f.lastDate) return { text: `Last date ${day(f.lastDate)} (as the portal gives it)`, tone: "ok" };
+  return { text: f.date ? `No last date given (date shown: ${day(f.date)})` : "No last date given", tone: "muted" };
+}
+
+/** The CMS jobs to name with the match itself, and the rest as only alike: a duplicate's headline names only its job. */
+export function splitMaybe(f: Pick<FoundJob, "match" | "maybe">): { headline: FoundJob["maybe"]; alike: FoundJob["maybe"] } {
+  if (f.match === "DUPLICATE" || f.match === "STRONG") return { headline: f.maybe.filter((m) => m.kind === f.match), alike: f.maybe.filter((m) => m.kind !== f.match) };
+  return { headline: f.maybe, alike: [] };
+}
 
 export function DiscoverPanel({ onPick }: { onPick: (job: FoundJob) => void }) {
   const [open, setOpen] = useState(false);
@@ -65,34 +85,62 @@ export function DiscoverPanel({ onPick }: { onPick: (job: FoundJob) => void }) {
       {found && found.length === 0 && <div style={{ color: C.muted }}>No recruitment links found on that page.</div>}
       {found && found.length > 0 && (
         <div style={{ display: "grid", gap: 6 }}>
-          {found.map((f) => (
-            <div key={f.url} data-found-job style={{ display: "flex", gap: 10, alignItems: "flex-start", borderTop: `1px solid ${C.border}`, paddingTop: 6, flexWrap: "wrap" }}>
-              {f.eligibilityExam
-                ? <span data-eligibility-exam style={badge(C.muted)}>{f.kind === "UPDATE" ? "Eligibility exam update — not a recruitment" : "Eligibility exam — not a recruitment"}</span>
-                : <span style={badge(f.kind === "NEW" ? C.green : C.amber)}>{f.kind === "NEW" ? "New" : "Update"}</span>}
-              <div style={{ flex: "1 1 360px", minWidth: 0 }}>
-                <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: C.text, textDecoration: "none" }}>{f.title}</a>
-                <div style={{ color: C.muted, fontSize: 11 }}>
-                  {new URL(f.url).host}{f.official ? " · the body's own site" : " · portal or news site: research only"}{f.date ? ` · ${f.date}` : ""}
-                  {f.organizationName ? ` · ${f.organizationName}` : " · organisation not recognised"}{f.notificationNumber ? ` · notice ${f.notificationNumber}` : ""}
-                </div>
-                {f.maybe.length > 0 && (
-                  <div data-found-match={f.match ?? ""} style={{ color: f.match === "DUPLICATE" ? C.muted : C.amber, fontSize: 11 }}>
-                    {MATCH_WORDS[f.match ?? ""] ?? "May already be in the CMS"}{f.matchReason ? ` (${f.matchReason})` : ""}:{" "}
-                    {f.maybe.map((m) => (
-                      <span key={m.id} style={{ marginRight: 8 }} title={m.reason}>
-                        <Link href={`/admin/cms/${m.id}`} style={{ color: C.accent }}>{m.title}</Link>
-                        {" "}(<Link href={`/admin/cms/import?record=${m.id}&url=${encodeURIComponent(f.url)}`} style={{ color: C.accent }}>bring this into it</Link>)
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button onClick={() => onPick(f)} style={{ ...quietBtn, padding: "2px 8px" }}>Smart intake →</button>
-            </div>
-          ))}
+          {found.map((f) => <FoundRow key={f.url} f={f} onPick={onPick} />)}
         </div>
       )}
+    </div>
+  );
+}
+
+
+/** One listing as found: what it is, its last date, and how it compares with the CMS's jobs. */
+export function FoundRow({ f, onPick }: { f: FoundJob; onPick: (job: FoundJob) => void }) {
+  return (
+    <div data-found-job style={{ display: "flex", gap: 10, alignItems: "flex-start", borderTop: `1px solid ${C.border}`, paddingTop: 6, flexWrap: "wrap" }}>
+      {f.eligibilityExam
+        ? <span data-eligibility-exam style={badge(C.muted)}>{f.kind === "UPDATE" ? "Eligibility exam update — not a recruitment" : "Eligibility exam — not a recruitment"}</span>
+        : <span style={badge(f.kind === "NEW" ? C.green : C.amber)}>{f.kind === "NEW" ? "Recruitment" : "Update"}</span>}
+      <div style={{ flex: "1 1 360px", minWidth: 0 }}>
+        <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: C.text, textDecoration: "none" }}>{f.title}</a>
+        <div style={{ color: C.muted, fontSize: 11 }}>
+          {new URL(f.url).host}{f.official ? " · the body's own site" : " · portal or news site: research only"}
+          {f.organizationName ? ` · ${f.organizationName}` : " · organisation not recognised"}{f.notificationNumber ? ` · notice ${f.notificationNumber}` : ""}
+        </div>
+        {(() => { const a = applicationsLine(f); return (
+          <div data-found-applications={f.applications ?? "UNKNOWN"} style={{ color: a.tone === "warn" ? C.amber : C.muted, fontSize: 11 }}>{a.text}</div>
+        ); })()}
+        {(() => {
+          const { headline, alike } = splitMaybe(f);
+          const jobLink = (m: { id: string; title: string; reason?: string }) => (
+            <span key={m.id} style={{ marginRight: 8 }} title={m.reason}>
+              <Link href={`/admin/cms/${m.id}`} style={{ color: C.accent }}>{m.title}</Link>
+              {" "}(<Link href={`/admin/cms/import?record=${m.id}&url=${encodeURIComponent(f.url)}`} style={{ color: C.accent }}>bring this into it</Link>)
+            </span>
+          );
+          return (
+            <>
+              {headline.length > 0
+                ? (
+                  <div data-found-match={f.match ?? ""} style={{ color: f.match === "DUPLICATE" ? C.muted : C.amber, fontSize: 11 }}>
+                    {MATCH_WORDS[f.match ?? ""] ?? "May already be in the CMS"}{f.matchReason ? ` (${f.matchReason})` : ""}:{" "}
+                    {headline.map(jobLink)}
+                  </div>
+                )
+                : <div data-found-match="none" style={{ color: C.muted, fontSize: 11 }}>Not in the CMS: no job like it{f.matchReason && f.matchReason.includes("no job in the CMS yet") ? ` (${f.matchReason.split(";")[0]})` : ""}</div>}
+              {alike.length > 0 && (
+                <div data-found-alike style={{ color: C.muted, fontSize: 11 }}>Also alike, not the same job: {alike.map(jobLink)}</div>
+              )}
+              {(f.differentNotice?.length ?? 0) > 0 && (
+                <div data-found-other-notice style={{ color: C.muted, fontSize: 11 }}>
+                  Like title, another notice number (probably another recruitment):{" "}
+                  {f.differentNotice!.map((m) => <span key={m.id} style={{ marginRight: 8 }} title={m.reason}><Link href={`/admin/cms/${m.id}`} style={{ color: C.accent }}>{m.title}</Link></span>)}
+                </div>
+              )}
+            </>
+          );
+        })()}
+      </div>
+      <button onClick={() => onPick(f)} style={{ ...quietBtn, padding: "2px 8px" }}>Smart intake →</button>
     </div>
   );
 }

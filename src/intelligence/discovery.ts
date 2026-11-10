@@ -42,7 +42,9 @@ export { deriveOrgName };
 export interface ExtractedLink {
   text: string;          // visible link text
   href: string;          // resolved absolute URL
-  nearbyDate?: string;   // ISO date found near this link
+  nearbyDate?: string;   // ISO date found near this link (may be a neighbouring row's)
+  /** The text right after the link in its own row: up to the next link or the row's end. */
+  after?: string;
   pdfUrl?: string;       // PDF URL (href itself or adjacent href ending in .pdf)
 }
 
@@ -121,8 +123,12 @@ export function extractLinks(html: string, baseUrl: string): ExtractedLink[] {
     const ctxStart = Math.max(0, m.index - 100);
     const ctxEnd = Math.min(html.length, m.index + m[0].length + 100);
     const nearbyDate = extractDateFromContext(html.slice(ctxStart, ctxEnd));
+    // Only what follows in the same row: never the previous or next link's text.
+    const rest = html.slice(m.index + m[0].length, m.index + m[0].length + 400);
+    const end = rest.search(/<a\b|<\/(?:li|tr|p|div|td|h\d)>|<br\s*\/?>|<(?:li|tr|p|div)\b/i);
+    const after = stripTags(end >= 0 ? rest.slice(0, end) : rest).replace(/\s+/g, " ").trim().slice(0, 200);
 
-    results.push({ text, href, nearbyDate, pdfUrl });
+    results.push({ text, href, nearbyDate, pdfUrl, ...(after ? { after } : {}) });
   }
 
   return results;
