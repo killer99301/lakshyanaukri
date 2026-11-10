@@ -28,8 +28,8 @@ test("IP01 a job never imported, and a snapshot published before this change, lo
 });
 test("IP02 a fee recorded not applicable shows the notice's words, never a blank", () => {
   const job = snapshotToGovernmentRecruitment({ ...plain, notApplicable: { "financial.feeGeneral": "No application fee" }, notStated: {} });
-  assert.deepEqual(job.fee?.rows, [{ category: "General / OBC", amount: null, note: "No application fee" }]);
-  assert.deepEqual(job.noticeNotes, [{ label: "Fee (General / OBC)", text: "No application fee" }]);
+  assert.deepEqual(job.fee?.rows, [{ category: "General (UR)", amount: null, note: "No application fee" }]);
+  assert.deepEqual(job.noticeNotes, [{ label: "Fee (General (UR))", text: "No application fee" }]);
 });
 test("IP03 not applicable without wording still says so", () => {
   const job = snapshotToGovernmentRecruitment({ ...plain, notApplicable: { "financial.feeSCST": "" }, notStated: {} });
@@ -42,7 +42,7 @@ test("IP04 vacancies not stated: the header box and the notes say so, with the p
 });
 test("IP05 not applicable and not stated are told apart", () => {
   const job = snapshotToGovernmentRecruitment({ ...plain, notApplicable: { "financial.feeGeneral": "No application fee" }, notStated: { "financial.feeSCST": "" } });
-  assert.deepEqual(job.fee!.rows.map((r) => `${r.category}: ${r.note}`), ["General / OBC: No application fee", "SC / ST / PwBD: Not stated in the official notification"]);
+  assert.deepEqual(job.fee!.rows.map((r) => `${r.category}: ${r.note}`), ["General (UR): No application fee", "SC / ST / PwBD: Not stated in the official notification"]);
 });
 test("IP06 the public page data carries only the field name and its public words", () => {
   const job = snapshotToGovernmentRecruitment({ ...plain, notApplicable: { "links#APPLY_ONLINE": "Apply through the NATS portal" }, notStated: { "vacancies.total": "" } });

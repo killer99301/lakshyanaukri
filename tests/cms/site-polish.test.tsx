@@ -12,6 +12,11 @@ import { homeOpportunities, indiaToday } from "@/lib/home-priorities";
 import { jobsUrlState, searchOpportunities, getDefaultFilterState } from "@/lib/filters";
 import ToolsPage from "@/app/(main)/tools/page";
 import type { Opportunity } from "@/types";
+import type { RecruitmentRecord, ProvenanceField, FinancialInformation } from "@/types/recruitment-record";
+import { projectForPreview } from "@/lib/cms/projector";
+import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
+import { JobDetailSections } from "@/components/jobs/JobDetailSections";
+import { feeCategoriesNote, GENERAL_FEE_LABEL } from "@/lib/fee-labels";
 
 const NOW = new Date("2026-11-11T12:00:00");
 let n = 0;
@@ -87,4 +92,43 @@ test("SP08 Coming soon cards are plainly unavailable and come after the working 
   assert.equal((html.match(/data-tool-coming-soon/g) ?? []).length, 2);
   assert.equal((html.match(/Not available yet\. It will open here when it is ready\./g) ?? []).length, 2);
   assert.ok(!/href="\/tools\/pdf|href="\/tools\/document/.test(html), "never linked");
+});
+
+suite("Fees: General (UR) only, the rest pointed to the notice");
+const pending = <T,>(value: T): ProvenanceField<T> => ({ value, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true });
+const feeJob = (financial: FinancialInformation) => snapshotToGovernmentRecruitment(projectForPreview({
+  id: "rec-fee", slug: "test-fee-2099", draftState: "DRAFT", recordRevision: "r1",
+  identity: { organizationId: "test-board", organizationName: "Test Board", recruitmentYear: 2099, title: pending("TEST FEE 2099") },
+  dates: {}, vacancies: {}, financial, links: [], documents: [], updates: [],
+  lifecycle: { status: "UPCOMING", conflicts: [], events: [] } as unknown as RecruitmentRecord["lifecycle"],
+  provenance: { status: "NOT_VERIFIED", lastVerifiedAt: "2099-01-01", primarySourceType: "NOT_VERIFIED" } as RecruitmentRecord["provenance"],
+  createdAt: "2099-01-01T00:00:00Z", updatedAt: "2099-01-01T00:00:00Z",
+} as RecruitmentRecord)) as unknown as Opportunity & { fee?: { rows: Array<{ category: string; amount: number | null; note?: string }> } };
+const text = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/₹/g, "₹").replace(/\s+/g, " ");
+
+test("SP09 SBI Fire's saved ₹750 is shown as General (UR) only; EWS and OBC are pointed to the notice", () => {
+  const job = feeJob({ feeGeneral: pending(750) });
+  assert.deepEqual(job.fee?.rows, [{ category: "General (UR)", amount: 750 }], "the saved amount, unchanged");
+  assert.equal(GENERAL_FEE_LABEL, "General (UR)");
+  const html = text(renderToStaticMarkup(<JobDetailSections job={job} />));
+  assert.match(html, /General \(UR\) ₹750/);
+  assert.ok(!/General \/ OBC|General \/ EWS/.test(html), "no category claimed that the record does not hold");
+  assert.match(html, /Fees for EWS, OBC, SC, ST and PwBD candidates are not listed separately here\. Check the official notification for them\./);
+});
+test("SP10 a notice where EWS and OBC pay less than General: nothing implies they pay the General amount", () => {
+  // e.g. General ₹1,000; EWS / OBC ₹800; SC / ST / PwBD nil. The CMS holds the General and SC / ST / PwBD amounts.
+  const job = feeJob({ feeGeneral: pending(1000), feeSCST: pending(0) });
+  assert.deepEqual(job.fee?.rows.map((r) => [r.category, r.amount]), [["General (UR)", 1000], ["SC / ST / PwBD", 0]]);
+  const html = text(renderToStaticMarkup(<JobDetailSections job={job} />));
+  assert.match(html, /General \(UR\) ₹1,000/);
+  assert.ok(!/EWS[^.]*₹1,000|OBC[^.]*₹1,000/.test(html), "the General amount is never given to EWS or OBC");
+  assert.match(html, /Fees for EWS and OBC candidates are not listed separately here\. Check the official notification for them\./);
+  assert.ok(!/₹800/.test(html), "no amount is inferred for them");
+});
+test("SP11 the note names only the categories without a row; no table, no note", () => {
+  assert.equal(feeCategoriesNote([]), null);
+  assert.match(feeCategoriesNote([{ category: "General (UR)" }])!, /EWS, OBC, SC, ST and PwBD/);
+  assert.match(feeCategoriesNote([{ category: "General (UR)" }, { category: "SC / ST / PwBD" }])!, /^Fees for EWS and OBC candidates/);
+  const notSaid = feeJob({ feeGeneral: { value: null, status: "NOT_SPECIFIED", evidenceIds: [], conflict: false, manuallyEdited: true } });
+  assert.deepEqual(notSaid.fee?.rows, [{ category: "General (UR)", amount: null, note: "Not specified in the notice" }], "a blank General fee stays blank, as before");
 });

@@ -66,7 +66,7 @@ test("FP01 pay scale reaches the public job, whether or not any fee is entered",
 test("FP02 a fee marked \"not specified\" is shown as such, not dropped", () => {
   // The case from the RRB NTPC entry: fee not specified, pay scale pending.
   const job = publicJob({ feeGeneral: notSpecified<number>(), payScale: pending("Pay Matrix Level 2 and Pay Matrix Level 3") });
-  assert.deepEqual(job.fee?.rows, [{ category: "General / OBC", amount: null, note: "Not specified in the notice" }]);
+  assert.deepEqual(job.fee?.rows, [{ category: "General (UR)", amount: null, note: "Not specified in the notice" }]);
   assert.equal(job.payScale, "Pay Matrix Level 2 and Pay Matrix Level 3");
   const bothGroups = publicJob({ feeGeneral: notSpecified<number>(), feeSCST: notSpecified<number>() });
   assert.deepEqual(bothGroups.fee?.rows.map((r) => r.note), ["Not specified in the notice", "Not specified in the notice"]);
@@ -74,10 +74,10 @@ test("FP02 a fee marked \"not specified\" is shown as such, not dropped", () => 
 
 test("FP03 each fee row stands by itself: one filled, one never touched", () => {
   const job = publicJob({ feeGeneral: pending(550) });
-  assert.deepEqual(job.fee?.rows, [{ category: "General / OBC", amount: 550 }]);
+  assert.deepEqual(job.fee?.rows, [{ category: "General (UR)", amount: 550 }]);
   const mixed = publicJob({ feeGeneral: notSpecified<number>(), feeSCST: pending(0) });
   assert.deepEqual(mixed.fee?.rows, [
-    { category: "General / OBC", amount: null, note: "Not specified in the notice" },
+    { category: "General (UR)", amount: null, note: "Not specified in the notice" },
     { category: "SC / ST / PwBD", amount: 0 },
   ]);
 });
@@ -98,7 +98,7 @@ test("FP06 a snapshot published before this change still reads correctly", () =>
   delete old.financial.feeGeneralNotSpecified;
   delete old.financial.feeSCSTNotSpecified;
   const job = snapshotToGovernmentRecruitment(old);
-  assert.deepEqual(job.fee?.rows, [{ category: "General / OBC", amount: 100 }]);
+  assert.deepEqual(job.fee?.rows, [{ category: "General (UR)", amount: 100 }]);
   assert.equal(job.payScale, "Level 4");
 });
 

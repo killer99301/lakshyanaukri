@@ -27,6 +27,7 @@ import type {
   ExamStage, AgeLimit, AgeRelaxation, VacancyRow, UpdateRecord,
 } from "@/types";
 import type { FeeRow } from "@/types";
+import { GENERAL_FEE_LABEL, RESERVED_FEE_LABEL } from "@/lib/fee-labels";
 import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, ExamPatternPaper, SyllabusSubject } from "@/types/recruitment-record";
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
@@ -111,21 +112,22 @@ export function snapshotToGovernmentRecruitment(
     return undefined;
   };
   const noticeNotes = [...Object.keys(snapshot.notApplicable ?? {}), ...Object.keys(snapshot.notStated ?? {})]
-    .map((path) => ({ label: fieldDef(path).label, text: noticeNote(path)! }));
+    // The General fee's public name follows the fee table's ("General (UR)"), not the CMS field's.
+    .map((path) => ({ label: path === "financial.feeGeneral" ? `Fee (${GENERAL_FEE_LABEL})` : fieldDef(path).label, text: noticeNote(path)! }));
 
   // Each fee row stands by itself: an amount, or "not specified" when the
   // notice gives none. A group nobody has filled in is simply left out.
   const NOT_SPECIFIED_FEE = "Not specified in the notice";
   const feeRows: FeeRow[] = [];
   if (snapshot.financial.feeGeneral !== null) {
-    feeRows.push({ category: "General / OBC", amount: snapshot.financial.feeGeneral });
+    feeRows.push({ category: GENERAL_FEE_LABEL, amount: snapshot.financial.feeGeneral });
   } else if (noticeNote("financial.feeGeneral") || snapshot.financial.feeGeneralNotSpecified) {
-    feeRows.push({ category: "General / OBC", amount: null, note: noticeNote("financial.feeGeneral") ?? NOT_SPECIFIED_FEE });
+    feeRows.push({ category: GENERAL_FEE_LABEL, amount: null, note: noticeNote("financial.feeGeneral") ?? NOT_SPECIFIED_FEE });
   }
   if (snapshot.financial.feeSCST !== null) {
-    feeRows.push({ category: "SC / ST / PwBD", amount: snapshot.financial.feeSCST });
+    feeRows.push({ category: RESERVED_FEE_LABEL, amount: snapshot.financial.feeSCST });
   } else if (noticeNote("financial.feeSCST") || snapshot.financial.feeSCSTNotSpecified) {
-    feeRows.push({ category: "SC / ST / PwBD", amount: null, note: noticeNote("financial.feeSCST") ?? NOT_SPECIFIED_FEE });
+    feeRows.push({ category: RESERVED_FEE_LABEL, amount: null, note: noticeNote("financial.feeSCST") ?? NOT_SPECIFIED_FEE });
   }
   const payScale = snapshot.financial.payScale?.trim() || undefined;
 
