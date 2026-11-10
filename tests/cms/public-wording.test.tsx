@@ -60,7 +60,9 @@ test("W03 unlisted hosts, an unlisted gov.in and an unregistered organisation: b
   assert.equal(publicLinkWords("ssc", "https://someboard.gov.in/", "website").label, "Website link");
   assert.equal(publicLinkWords("canara-bank", "https://canarabank.bank.in/careers", "website").label, "Website link", "an organisation not in the registry");
   assert.equal(publicLinkWords("sbi", "https://sbi.bank.in/web/careers", "website").label, "Official Website", "sbi.bank.in is SBI's own site (registry, 9 Nov)");
-  assert.equal(publicLinkWords("sbi", "https://ibpsreg.ibps.in/sbiameoct26/", "apply").label, "Application link", "the IBPS registration site stays neutral for SBI");
+  // The IBPS-run registration site is not SBI's: only the one page SBI's own careers page links to is listed (10 Nov).
+  assert.equal(publicLinkWords("sbi", "https://ibpsreg.ibps.in/sbiameoct26/", "apply").label, "Apply Online", "SBI Fire's verified registration page");
+  assert.equal(publicLinkWords("sbi", "https://ibpsreg.ibps.in/sbipojan27/", "apply").label, "Application link", "any other IBPS registration page stays neutral for SBI");
   assert.equal(publicLinkWords("ibps", "https://apply.example.org/", "apply").label, "Application link");
 });
 

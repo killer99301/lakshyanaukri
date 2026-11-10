@@ -4,7 +4,15 @@ import React, { useState } from "react";
 import { AlertTriangle, CheckCircle2, HelpCircle, XCircle } from "lucide-react";
 import type { AgeLimit } from "@/types";
 import { CATEGORY_LABELS, checkAge, describeAge, limitForPost, type AgeVerdict, type CasteCategory } from "@/lib/eligibility";
+import { dobProblem } from "@/lib/eligibility-finder";
+import { DobFields } from "@/components/common/DobFields";
 import { cn, formatDate } from "@/lib/utils";
+
+// Today in the visitor's own calendar, for the date-of-birth check.
+const todayIso = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
 
 const TONE: Record<AgeVerdict, { box: string; icon: React.ReactNode; title: string }> = {
   WITHIN: {
@@ -70,7 +78,9 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
   if (!(posts.length > 0 ? posts.some((p) => answerable(limitForPost(ageLimit, p))) : answerable(ageLimit))) return null;
 
   const byBirthDate = Boolean(limit && (limit.bornFrom || limit.bornTo));
-  const result = dob && limit && answerable(limit) ? checkAge(limit, dob, category, pwbd) : null;
+  // An impossible date (31 February), a future one or an unlikely year is named instead of an answer.
+  const problem = dob ? dobProblem(dob, todayIso()) : null;
+  const result = dob && !problem && limit && answerable(limit) ? checkAge(limit, dob, category, pwbd) : null;
   const tone = result ? TONE[result.verdict] : null;
 
   return (
@@ -87,7 +97,7 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
         </p>
       </div>
 
-      <div className={cn("grid gap-3", posts.length > 0 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
+      <div className={cn("grid gap-3", posts.length > 0 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3")}>
         {posts.length > 0 && (
           <div>
             <label className={label} htmlFor="age-check-post">Post</label>
@@ -99,10 +109,7 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
             </select>
           </div>
         )}
-        <div>
-          <label className={label} htmlFor="age-check-dob">Date of birth</label>
-          <input id="age-check-dob" type="date" value={dob} onChange={(e) => setDob(e.target.value)} className={field} />
-        </div>
+        <DobFields id="age-check-dob" legendClassName={label} fieldClassName={field} onChange={setDob} />
         <div>
           <label className={label} htmlFor="age-check-category">Category</label>
           <select id="age-check-category" value={category} onChange={(e) => setCategory(e.target.value as CasteCategory)} className={field}>
@@ -117,7 +124,9 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
         </label>
       </div>
 
-      {dob && posts.length > 0 && !chosen && (
+      {problem && <p role="alert" className="text-xs font-bold text-red-600">{problem}</p>}
+
+      {dob && !problem && posts.length > 0 && !chosen && (
         <p role="status" className="text-xs font-semibold text-[#475569]">Choose the post you are applying for; the age limit is different for each.</p>
       )}
 

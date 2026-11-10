@@ -40,6 +40,16 @@ function parseIsoDate(iso: string): { y: number; m: number; d: number } | null {
 
 const daysInMonth = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate();
 
+/**
+ * A date of birth from separate day, month and year fields, as "YYYY-MM-DD", or "" until all three are given
+ * (the year as four digits). An impossible day (31 February) is returned as typed, for the date check to name.
+ */
+export function isoFromParts(day: string, month: string, year: string): string {
+  const d = Number(day), m = Number(month);
+  if (!/^\d{4}$/.test(year.trim()) || !(d >= 1 && d <= 31) || !(m >= 1 && m <= 12)) return "";
+  return `${year.trim()}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
 /** Completed years, months and days between a date of birth and a cut-off date. */
 export function ageOn(dobIso: string, asOfIso: string): ExactAge | null {
   const dob = parseIsoDate(dobIso);

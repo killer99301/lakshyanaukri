@@ -10,6 +10,7 @@ import {
   type FinderJob, type FinderPart, type FinderResult, type FinderVerdict,
 } from "@/lib/eligibility-finder";
 import { OrganizationLogo } from "@/components/common/OrganizationLogo";
+import { DobFields } from "@/components/common/DobFields";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 import { cn, formatDate } from "@/lib/utils";
@@ -126,11 +127,8 @@ export default function EligibilityFinderClient({ jobs }: { jobs: FinderJob[] })
           onSubmit={(e) => { e.preventDefault(); setAsked(true); }}
           className="bg-white border border-[#E2E8F0] rounded-3xl p-5 sm:p-6 shadow-xs space-y-4"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className={label} htmlFor="finder-dob">Date of birth</label>
-              <input id="finder-dob" type="date" className={field} value={dob} max={today} onChange={(e) => setDob(e.target.value)} />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <DobFields id="finder-dob" legendClassName={label} fieldClassName={field} onChange={setDob} />
             <div>
               <label className={label} htmlFor="finder-category">Category</label>
               <select id="finder-category" className={field} value={category} onChange={(e) => setCategory(e.target.value as CasteCategory)}>
