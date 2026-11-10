@@ -72,7 +72,8 @@ test("EU06 the job's age check: Day and Month lists and a typed Year, no calenda
   assert.match(html, /<label[^>]*for="age-check-dob-year"[^>]*>Year \(four digits\)<\/label>/);
   assert.match(html, /id="age-check-dob-year"[^>]*inputMode="numeric"|inputMode="numeric"[^>]*id="age-check-dob-year"/);
   assert.equal((html.match(/<option value="\d\d">\d\d<\/option>/g) ?? []).length, 31, "days 01 to 31");
-  assert.match(html, /<option value="02">February<\/option>/);
+  assert.match(html, /<option value="02" aria-label="February">Feb<\/option>/, "short label, full accessible name");
+  assert.match(html, /<option value="09" aria-label="September">Sep<\/option>/);
   assert.match(html, /Nothing you enter is saved or sent/);
 });
 test("EU07 /eligibility uses the same fields", () => {

@@ -491,6 +491,9 @@ export function jobsUrlState(params: { get(name: string): string | null }): Jobs
   const qualification = wanted === "be btech" ? "Graduate" : URL_QUALIFICATIONS.find((q) => q.toLowerCase() === wanted);
   if (qualification) filters.qualifications = [qualification as FilterState["qualifications"][number]];
 
+  // /jobs?status=open: only notices still taking applications (open or closing soon), as the homepage links them.
+  if ((params.get("status") ?? "").toLowerCase() === "open") filters.applicationStatuses = ["OPEN", "CLOSING_SOON"];
+
   const scope = (params.get("govType") ?? "").toLowerCase();
   const govScope = scope === "central" || scope === "state" || scope === "psu" ? scope : null;
 

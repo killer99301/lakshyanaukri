@@ -1,7 +1,7 @@
 "use client";
 // HomePageClient — interactive shell. Metadata is exported from page.tsx (server).
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,8 @@ import {
   Sun,
   Send,
   BellRing,
+  UserCheck,
+  BriefcaseBusiness,
 } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -41,20 +43,33 @@ import {
 } from "@/data/homepage";
 
 import { sortOpportunities, textSearch } from "@/lib/filters";
+import { homeOpportunities } from "@/lib/home-priorities";
+
+// The visitor's own date once the page runs; the server's (India) date while it is drawn, so both agree.
+const noSubscription = () => () => {};
+const localDay = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 interface HomePageClientProps {
   opportunities: Opportunity[];
   /** Official result, admit card and answer key links from published jobs. */
   lifecycleLinks: LifecycleLinks;
+  /** The date the page was drawn on the server (India), YYYY-MM-DD. */
+  renderedOn: string;
 }
 
-export default function HomePageClient({ opportunities, lifecycleLinks }: HomePageClientProps) {
+export default function HomePageClient({ opportunities, lifecycleLinks, renderedOn }: HomePageClientProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All India");
 
   // Newest additions lead the page; search chips are offered only if they find something.
   const latestFirst = useMemo(() => sortOpportunities(opportunities, "latest", new Date()), [opportunities]);
+  // Notices taking applications lead; closed ones are listed apart. Worked out on the visitor's own date.
+  const today = useSyncExternalStore(noSubscription, localDay, () => renderedOn);
+  const priorities = useMemo(() => homeOpportunities(opportunities, new Date(`${today}T12:00:00`)), [opportunities, today]);
   const popularSearches = useMemo(
     () => [...POPULAR_SEARCHES, "SSC CHSL", "Graduate"].filter((term) => textSearch(opportunities, term).length > 0).slice(0, 7),
     [opportunities],
@@ -192,6 +207,24 @@ export default function HomePageClient({ opportunities, lifecycleLinks }: HomePa
                 </button>
               ))}
             </div>
+
+            {/* The two main ways in: jobs taking applications, and the jobs this visitor can apply for */}
+            <div className="flex flex-wrap gap-2.5 pt-1" data-home-quick-actions data-keep-clear>
+              <Link
+                href="/jobs?status=open"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0F172A] text-white text-sm font-bold hover:bg-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/50 shadow-sm"
+              >
+                <BriefcaseBusiness className="h-4 w-4" aria-hidden />
+                <span>Open jobs{priorities.open.length > 0 ? ` (${priorities.open.length})` : ""}</span>
+              </Link>
+              <Link
+                href="/eligibility"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/95 border border-[#FED7AA] text-[#C2410C] text-sm font-bold hover:bg-[#FFF7ED] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/50 shadow-2xs"
+              >
+                <UserCheck className="h-4 w-4" aria-hidden />
+                <span>Check my eligibility</span>
+              </Link>
+            </div>
           </div>
         </Container>
       </section>
@@ -241,14 +274,19 @@ export default function HomePageClient({ opportunities, lifecycleLinks }: HomePa
       <RevealSection>
         <Container>
           <SectionHeading
-            title="Latest Opportunities"
-            subtitle="Government recruitment information and exam schedules."
-            actionText="View All Jobs"
-            actionHref="/jobs"
+            title="Open for Applications"
+            subtitle="Notices taking applications now, newest first. Closing-soon notices are marked."
+            actionText="All open jobs"
+            actionHref="/jobs?status=open"
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-3.5">
-            {latestFirst.slice(0, 3).map((job, idx) => (
+          {priorities.featured.length === 0 && (
+            <p className="mt-3.5 text-sm font-semibold text-[#475569]" data-home-none-open>
+              No applications are open on the site right now. Recently closed notices are listed below.
+            </p>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-3.5" data-home-featured>
+            {priorities.featured.map((job, idx) => (
               <React.Fragment key={job.id}>
                 {idx === 0 ? (
                   <CursorTiltCard maxTiltDegrees={3}>
@@ -260,6 +298,19 @@ export default function HomePageClient({ opportunities, lifecycleLinks }: HomePa
               </React.Fragment>
             ))}
           </div>
+
+          {/* Closed notices stay findable, apart and labelled, never among the open ones. */}
+          {priorities.closed.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1.5 text-xs" data-home-recently-closed>
+              <span className="font-extrabold uppercase tracking-wider text-[#64748B]">Recently closed</span>
+              {priorities.closed.slice(0, 4).map((job) => (
+                <Link key={job.id} href={`/jobs/${job.slug}`} className="font-semibold text-[#475569] hover:text-[#EA580C] underline-offset-2 hover:underline">
+                  {job.title}
+                </Link>
+              ))}
+              <Link href="/jobs" className="font-bold text-[#EA580C] hover:underline">All jobs →</Link>
+            </div>
+          )}
         </Container>
       </RevealSection>
 

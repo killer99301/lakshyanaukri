@@ -31,8 +31,10 @@ interface JobsPageClientProps {
   opportunities: Opportunity[];
 }
 
-function JobsPageContent({ opportunities }: JobsPageClientProps) {
-  const searchParams = useSearchParams();
+/** The address's search parameters, or none (the page as drawn in advance, before the browser runs). */
+type UrlParams = { get(name: string): string | null; toString(): string };
+
+function JobsPageContent({ opportunities, searchParams }: JobsPageClientProps & { searchParams: UrlParams }) {
   const initialQuery = searchParams.get("q") || "";
   const initialLocation = searchParams.get("location") || "All India";
 
@@ -383,12 +385,17 @@ function JobsPageForUrl({ opportunities }: JobsPageClientProps) {
   const searchParams = useSearchParams();
   const withoutPage = new URLSearchParams(searchParams.toString());
   withoutPage.delete("page");
-  return <JobsPageContent key={withoutPage.toString()} opportunities={opportunities} />;
+  return <JobsPageContent key={withoutPage.toString()} opportunities={opportunities} searchParams={searchParams} />;
 }
+
+// The page is drawn in advance without its address's search parameters, so the part that reads them is filled in
+// by the browser. Until then the visitor (and a search engine) gets the full, unfiltered list, not a loading line;
+// a link with ?q=… or ?category=… applies as soon as the page runs.
+const NO_PARAMS: UrlParams = new URLSearchParams();
 
 export default function JobsPageClient({ opportunities }: JobsPageClientProps) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-400">Loading Jobs Marketplace...</div>}>
+    <Suspense fallback={<JobsPageContent opportunities={opportunities} searchParams={NO_PARAMS} />}>
       <JobsPageForUrl opportunities={opportunities} />
     </Suspense>
   );

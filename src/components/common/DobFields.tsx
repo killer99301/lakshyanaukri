@@ -38,7 +38,8 @@ export function DobFields({ id, legendClassName, fieldClassName, onChange }: {
           <label htmlFor={`${id}-month`} className="sr-only">Month</label>
           <select id={`${id}-month`} value={month} autoComplete="bday-month" onChange={(e) => update(day, e.target.value, year)} className={cn(fieldClassName, "px-2")}>
             <option value="">Month</option>
-            {MONTHS.map((name, i) => <option key={name} value={String(i + 1).padStart(2, "0")}>{name}</option>)}
+            {/* Short names fit a narrow card without being cut ("Sept…"); each option keeps its full name for screen readers. */}
+            {MONTHS.map((name, i) => <option key={name} value={String(i + 1).padStart(2, "0")} aria-label={name}>{name.slice(0, 3)}</option>)}
           </select>
         </div>
         <div>
