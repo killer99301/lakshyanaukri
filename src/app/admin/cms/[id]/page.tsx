@@ -11,7 +11,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { useState, useEffect, useCallback, useRef, useContext } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type {
   RecruitmentRecord,
   ProvenanceField,
@@ -54,7 +54,7 @@ const EVIDENCE_LABELS: Record<string, string> = {
 const evidenceLabel = (fieldPath: string) => EVIDENCE_LABELS[fieldPath] ?? fieldPath;
 import { prepublishChecks } from "@/lib/cms/prepublish-checks";
 import { guessLinkType, onGovernmentDomain } from "@/lib/cms/link-guess";
-import { UpdateCheckPanel } from "./UpdateCheckPanel";
+import { UpdateCheckPanel, sourceFromSearch } from "./UpdateCheckPanel";
 import { UpdatesNeededPanel } from "./UpdatesNeededPanel";
 import { EligibilityEditor, SelectionEditor } from "./EligibilitySelectionEditors";
 import { InfoTip, HELP } from "../InfoTip";
@@ -1345,6 +1345,8 @@ function PublishChecklist({ record, onJump, importChecks }: { record: Recruitmen
 
 export default function CmsRecordEditorPage() {
   const params = useParams<{ id: string }>();
+  // An address brought from an Updates needed lead (?source=…), for Check for updates to show; never run on its own.
+  const leadSource = sourceFromSearch(`?${useSearchParams().toString()}`);
   const router = useRouter();
   const id = params.id;
 
@@ -1923,7 +1925,7 @@ export default function CmsRecordEditorPage() {
         {record.draftState !== "ARCHIVED" && <UpdatesNeededPanel recordId={record.id} />}
 
         <div id="check-updates">
-          <UpdateCheckPanel record={record} onRecordChange={onFieldSaved} />
+          <UpdateCheckPanel record={record} onRecordChange={onFieldSaved} initialSource={leadSource} />
         </div>
 
         {/* ── AI Assist panel (DRAFT / APPROVED only) ── */}
@@ -3066,6 +3068,17 @@ function AddUpdateModal({
 
     try {
       let res: Response;
+      // A live job is never changed directly (owner-controlled publication): it is opened for editing first, exactly
+      // as "Open for editing" does, so the public keeps the current version and this update goes live only with the
+      // owner's reviewed publish.
+      let revision = recordRevision;
+      if (draftState === "PUBLISHED") {
+        const opened = await fetch(`/api/admin/cms/records/${recordId}/revert`, { method: "POST" });
+        const o = await opened.json() as { record?: RecruitmentRecord; error?: string };
+        if (!opened.ok || !o.record) { setErr(o.error ?? `Could not open the job for editing (HTTP ${opened.status})`); return; }
+        onSaved(o.record);
+        revision = o.record.recordRevision;
+      }
 
       if (isStructural && fieldPath.trim()) {
         // Structural path: PATCH /fields with the updateEntry appended atomically.
@@ -3083,7 +3096,7 @@ function AddUpdateModal({
               conflict: false,
               manuallyEdited: true,
             },
-            clientRevision: recordRevision,
+            clientRevision: revision,
             reason: `Structural update: ${type}`,
             updateEntry: updatePayload,
           }),
@@ -3104,6 +3117,8 @@ function AddUpdateModal({
       }
       onSaved(data.record);
       onClose();
+      // Saved in the job, not public: the owner's publication review is where it goes live.
+      document.querySelector("[data-publication-review]")?.scrollIntoView({ block: "start" });
     } catch (e) {
       setErr(String(e));
     } finally {
@@ -3154,6 +3169,11 @@ function AddUpdateModal({
           <button type="button" onClick={onClose}
             style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>✕</button>
         </div>
+        <p data-update-goes-live-note style={{ margin: "-10px 0 16px", fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
+          {draftState === "PUBLISHED"
+            ? "This job is live. Adding the update opens it for editing; the public keeps the current version until you publish from the publication review."
+            : "Saved in the job. It goes live when you publish from the publication review."}
+        </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>

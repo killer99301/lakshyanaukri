@@ -214,6 +214,17 @@ export function PublicationReviewPanel({ record, onJump, onPublished, onRefused 
         </div>
       )}
 
+      {(v.announcements ?? []).length > 0 && (
+        <div data-review-announcements>
+          {heading(`Announcements this publish makes public (${v.announcements.length})`)}
+          {v.announcements.map((a) => (
+            <div key={a.id} data-announcement={a.id} style={{ color: C.text, lineHeight: 1.5 }}>
+              • {a.title} <span style={{ color: C.muted }}>({a.type.replace(/_/g, " ").toLowerCase()}, {a.date})</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div data-review-links>
         {heading("Links")}
         {linkLine("Apply Online", v.links.applyOnline)}

@@ -70,8 +70,15 @@ export interface PublicationReview {
   links: { applyOnline: ReviewLink; notification: ReviewLink; officialSourceLink: boolean; markedOfficial: boolean };
   warnings: ReviewWarning[];
   hardRules: ReviewRule[];
+  /**
+   * Announcements (history entries) that this publish makes public for the first time. Listed for the owner and
+   * covered by the fingerprint, so one added after the review was opened makes that approval stale.
+   */
+  announcements: ReviewAnnouncement[];
   reviewHash: string;
 }
+
+export interface ReviewAnnouncement { id: string; type: string; date: string; title: string }
 
 export interface ReviewInput {
   record: RecruitmentRecord;
@@ -90,6 +97,8 @@ export interface ReviewInput {
   officialDocuments: number;
   duplicates: Array<{ id: string; title: string }>;
   filled: string[];
+  /** The ids of the history entries already public (in the latest published version); none for a first publish. */
+  publishedUpdateIds?: string[];
 }
 
 // ─── Hosts ────────────────────────────────────────────────────
@@ -171,10 +180,15 @@ export function assembleReview(input: ReviewInput): PublicationReview {
   }
 
   const ready = READY_SECTIONS.filter(([p]) => input.filled.includes(p)).map(([, l]) => l);
+  // Announcements not yet public: each goes live with this publish, once.
+  const alreadyPublic = new Set(input.publishedUpdateIds ?? []);
+  const announcements: ReviewAnnouncement[] = (record.updates ?? [])
+    .filter((u) => !alreadyPublic.has(u.id))
+    .map((u) => ({ id: u.id, type: u.type, date: u.date, title: u.title }));
   const body = {
     recordId: record.id, title: record.identity.title.value ?? record.slug, today: input.today, imported: input.imported,
     freshness: input.freshness, ready, missing, conflicts, standing,
-    links: { applyOnline, notification, officialSourceLink, markedOfficial }, warnings, hardRules,
+    links: { applyOnline, notification, officialSourceLink, markedOfficial }, warnings, hardRules, announcements,
   };
   const reviewHash = createHash("sha256").update(canonicalJson(body)).digest("hex");
   return { ...body, reviewHash };
@@ -279,9 +293,16 @@ export async function buildPublicationReview(record: RecruitmentRecord, today: s
         OR (organization_id = ${record.identity.organizationId} AND (identity->>'recruitmentYear')::int = ${record.identity.recruitmentYear}))
     ORDER BY created_at LIMIT 5`;
 
+  // The history entries already on the public page, so the review lists only what this publish adds.
+  const live = await sql`
+    SELECT snapshot->'updates' AS updates FROM published_recruitments
+    WHERE recruitment_id = ${record.id}::uuid ORDER BY published_at DESC LIMIT 1`;
+  const publishedUpdates = (live[0]?.updates ?? []) as Array<{ id?: unknown }>;
+  const publishedUpdateIds = Array.isArray(publishedUpdates) ? publishedUpdates.map((u) => String(u?.id ?? "")).filter(Boolean) : [];
+
   return assembleReview({
     record, today, imported, freshness: fresh, standings, conflictValues, conflictKinds, eligibilityPart, applyDecision, officialDocuments,
-    duplicates: dups.map((d) => ({ id: String(d.id), title: String(d.title ?? "") })), filled,
+    duplicates: dups.map((d) => ({ id: String(d.id), title: String(d.title ?? "") })), filled, publishedUpdateIds,
   });
 }
 

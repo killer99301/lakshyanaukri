@@ -815,16 +815,17 @@ export async function persistPutBack(
 }
 
 /**
- * Append an announcement-only UpdateRecord to the record's updates array.
- * Does NOT touch structural fields or record_revision.
- * Concurrent appends from different sessions both succeed (no OCC conflict).
- * Guard: record must not be ARCHIVED.
+ * Append an announcement-only UpdateRecord to the record's updates array, on a job open for editing (DRAFT or
+ * APPROVED). It goes live only with the job's next publish, through the owner's publication review, which lists it
+ * and covers it in its fingerprint (owner-controlled publication; update-workflow safety fix, 11 Nov 2026). A
+ * published job is never changed here: put it back to draft first, and the public keeps the last published version
+ * until the reviewed publish. Does NOT touch structural fields or record_revision; concurrent appends both succeed.
  */
 export async function persistUpdateAppend(
   recordId: string,
   entry: UpdateRecord,
   adminId: string,
-): Promise<{ record: RecruitmentRecord; revision: FieldRevision; wentLive: boolean }> {
+): Promise<{ record: RecruitmentRecord; revision: FieldRevision; wentLive: false }> {
   const revision = buildFieldRevision(
     recordId,
     "updates",
@@ -841,29 +842,11 @@ export async function persistUpdateAppend(
         updated_at = now(),
         updated_by = ${adminId}
       WHERE id          = ${recordId}
-        AND draft_state != 'ARCHIVED'
+        AND draft_state IN ('DRAFT', 'APPROVED')
       RETURNING id, draft_state
-    ),
-    -- A published job has nothing waiting to be published, so the entry goes
-    -- straight onto what the public sees: a new snapshot that is the current
-    -- one plus this entry. A job that is open for editing is left alone; the
-    -- entry goes live with its next publish, along with everything else.
-    snap AS (
-      INSERT INTO published_recruitments
-        (recruitment_id, source_record_revision, projection_version, snapshot, published_by)
-      SELECT
-        pr.recruitment_id,
-        pr.source_record_revision,
-        pr.projection_version,
-        jsonb_set(pr.snapshot, '{updates}', COALESCE(pr.snapshot->'updates', '[]'::jsonb) || ${JSON.stringify(entry)}::jsonb),
-        ${adminId}
-      FROM published_recruitments pr
-      JOIN updated u ON u.id = pr.recruitment_id
-      WHERE u.draft_state = 'PUBLISHED'
-      ORDER BY pr.published_at DESC
-      LIMIT 1
-      RETURNING recruitment_id
     )
+    -- Nothing here writes to what the public sees: the entry waits in the job
+    -- and goes live with the next publish the owner approves.
     INSERT INTO field_revisions
       (id, recruitment_id, field_path, revised_by, revised_at, old_value, new_value, reason)
     SELECT
@@ -876,16 +859,16 @@ export async function persistUpdateAppend(
       ${JSON.stringify(entry)},
       ${revision.reason ?? null}
     FROM updated
-    RETURNING recruitment_id, (SELECT count(*)::int FROM snap) AS snapshots_written
+    RETURNING recruitment_id
   `;
 
   if (rows.length === 0) {
-    return Promise.reject(new Error(`Record ${recordId} not found or is ARCHIVED`));
+    return Promise.reject(new Error(`Record ${recordId} not found, or not open for editing (published or ARCHIVED)`));
   }
 
   const saved = await getRecruitmentById(recordId);
   if (!saved) throw new Error(`Record ${recordId} not found after update append`);
-  return { record: saved, revision, wentLive: Number(rows[0].snapshots_written) > 0 };
+  return { record: saved, revision, wentLive: false };
 }
 
 // Re-export buildFieldRevision so callers can build revisions without

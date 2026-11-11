@@ -73,7 +73,14 @@ export function updateType(title: string): string {
 }
 
 /** The job editor's Check for updates panel (it runs only when the admin presses Check there). */
-export const checkUpdatesHref = (recordId: string) => `/admin/cms/${recordId}#check-updates`;
+/**
+ * The job's Check for updates, with the lead's address filled in for the admin to inspect (?source=…): only an
+ * http(s) address, never marked official, and nothing is checked until the admin presses Check.
+ */
+export function checkUpdatesHref(recordId: string, sourceUrl?: string | null): string {
+  const source = safeHref(sourceUrl);
+  return `/admin/cms/${recordId}${source ? `?${new URLSearchParams({ source }).toString()}` : ""}#check-updates`;
+}
 
 /** A notice number without its label, for Smart intake's notice-number field: "Advt No. 05/2026" → "05/2026". */
 export function bareNotice(n: string | null | undefined): string {

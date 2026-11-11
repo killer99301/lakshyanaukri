@@ -2,7 +2,9 @@
 // POST /api/admin/cms/records/[id]/check-updates
 //
 // Body: { url?: string, text?: string }, or a form with a `file` (+ `url`)
-//   nothing          → the AI searches the web
+//   nothing          → refused (400) before any AI request: the AI is never
+//                      asked to search the web (no grounded or paid requests;
+//                      update-workflow safety fix, 11 Nov 2026)
 //   a url            → the server fetches that page or PDF and the AI reads only it
 //   text or a PDF    → the AI reads only what the admin supplied; `url` then
 //                      just records where it came from
@@ -52,10 +54,10 @@ export async function POST(
 
   const { id } = await params;
 
-  // Three ways in: nothing (search the web), an address to fetch, or the
-  // content itself (pasted text, or an uploaded PDF) with an optional address
-  // saying where it came from. The last exists because many official sites
-  // refuse requests from the server.
+  // Two ways in: an address to fetch, or the content itself (pasted text, or an
+  // uploaded PDF or photo) with an optional address saying where it came from.
+  // The second exists because many official sites refuse requests from the
+  // server. With neither, nothing is checked.
   let url = "";
   let pasted = "";
   let upload: Buffer | null = null;
@@ -94,6 +96,9 @@ export async function POST(
     if (pasted.length > MAX_PASTED_CHARS) {
       return NextResponse.json({ error: "That is too much text. Paste only the notice or the section about this recruitment." }, { status: 400 });
     }
+  }
+  if (!url && !pasted && !upload) {
+    return NextResponse.json({ error: "Give a source: the official page or PDF address, the notice text, or an uploaded PDF or photo.", code: "NO_SOURCE" }, { status: 400 });
   }
   if (url) {
     let parsed: URL;
@@ -157,7 +162,8 @@ export async function POST(
   const answer = await askForUpdates({
     prompt: buildUpdatePrompt(record, todayInIndia(), source),
     apiKey: process.env.GEMINI_API_KEY,
-    search: !source,
+    // Always false: a source is required above, and the AI never searches the web.
+    search: false,
     attachment,
   });
   if (!answer.ok) return NextResponse.json({ error: answer.reason }, { status: 502 });

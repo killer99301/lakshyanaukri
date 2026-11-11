@@ -5,10 +5,12 @@
 //
 //   npx tsx --tsconfig tsconfig.json tests/local-stack/update-check.test.ts
 //
-// Covers: session and origin checks, input checks, that a check changes
-// nothing, a search-mode answer becoming proposals, AI failures, and the
-// whole "apply and publish" chain the panel runs: reopen → save each accepted
-// change → approve → publish → visible on the public read path.
+// Covers: session and origin checks, input checks, that a request with no
+// source is refused before any AI request (the AI never searches the web),
+// that a check changes nothing, a supplied source becoming proposals, AI
+// failures, and the apply chain the panel runs: reopen → save each accepted
+// change. Applying never approves or publishes: the public page changes only
+// after the owner's reviewed publish (update-workflow safety fix, 11 Nov 2026).
 // ═══════════════════════════════════════════════════════════
 
 import { NextRequest } from "next/server";
@@ -98,11 +100,24 @@ import { approved } from "./owner-approval";
   check("a non-http address → 400", r.status === 400, r.status);
   r = await checkUpdates.POST(req(PATH, "POST", { url: 42 }), ctx(id));
   check("a url that is not text → 400", r.status === 400, r.status);
-  r = await checkUpdates.POST(req("/api/admin/cms/records/00000000-0000-4000-8000-000000000000/check-updates", "POST", {}), ctx("00000000-0000-4000-8000-000000000000"));
+  const NOTICE = "CANARA BANK - RECRUITMENT OF OFFICERS 2026. The online test was held on 04.10.2026. Result of the online test will be declared on 12.11.2026. Call letters: https://www.canarabank.bank.in/call-letter-2026";
+  r = await checkUpdates.POST(req("/api/admin/cms/records/00000000-0000-4000-8000-000000000000/check-updates", "POST", { text: NOTICE }), ctx("00000000-0000-4000-8000-000000000000"));
   check("unknown record → 404", r.status === 404, r.status);
   check("none of those reached the AI", aiCalls === 0, aiCalls);
 
-  section("Search mode: the answer becomes proposals");
+  section("No source: refused before the AI (test 8)");
+  for (const [what, body] of [["an empty body", {}], ["blank fields", { url: "  ", text: "   " }]] as const) {
+    r = await checkUpdates.POST(req(PATH, "POST", body), ctx(id));
+    d = await r.json();
+    check(`${what} → 400 NO_SOURCE`, r.status === 400 && d.code === "NO_SOURCE", { status: r.status, d });
+  }
+  const emptyForm = new FormData();
+  r = await checkUpdates.POST(new NextRequest(`${ORIGIN}${PATH}`, { method: "POST", headers: { origin: ORIGIN, cookie: `admin_sid=${token}` }, body: emptyForm }), ctx(id));
+  d = await r.json();
+  check("a form with no file, address or text → 400 before the AI", r.status === 400, { status: r.status, d });
+  check("no AI request was made for any of them", aiCalls === 0, aiCalls);
+
+  section("A supplied source: the answer becomes proposals (test 9, AI stubbed)");
   aiAnswer = { status: 200, body: gemini({
     summary: "The online test was held and the result date is announced.",
     changes: [
@@ -114,40 +129,39 @@ import { approved } from "./owner-approval";
       { type: "date", field: "resultDate", value: "soon" },
     ],
   }, ["canarabank.bank.in", "coaching.example"]) };
-  r = await checkUpdates.POST(req(PATH, "POST", {}), ctx(id));
+  const SOURCE_TEXT = `${NOTICE} Online test held on 04.10.2026. Result on 12.11.2026. Call letters from 25 Sept. Result: https://www.canarabank.bank.in/result-2026`;
+  r = await checkUpdates.POST(req(PATH, "POST", { text: SOURCE_TEXT, url: "https://www.canarabank.bank.in/pages/recruitment" }), ctx(id));
   d = await r.json();
-  check("→ 200 in search mode, one AI request, with the search tool", r.status === 200 && d.mode === "search" && aiCalls === 1 && Array.isArray(lastAiRequest.tools), { status: r.status, mode: d.mode, aiCalls });
+  check("→ 200 in text mode, one AI request, never the search tool", r.status === 200 && d.mode === "text" && aiCalls === 1 && lastAiRequest.tools === undefined, { status: r.status, mode: d.mode, aiCalls });
   check("the question names the job and what is on record", /TEST RECORD Canara Bank Officer 2026/.test(lastAiRequest.contents?.[0]?.parts?.[0]?.text ?? "") && /Online Test: status SCHEDULED/.test(lastAiRequest.contents?.[0]?.parts?.[0]?.text ?? ""));
   const proposals: Proposal[] = d.proposals;
   check("four usable proposals; the unchanged date and the malformed one are dropped", proposals.length === 4 && d.dropped === 2, { n: proposals.length, dropped: d.dropped });
-  check("pages the search opened are reported", d.searchedSites.join(",") === "canarabank.bank.in,coaching.example", d.searchedSites);
   const by = (idPart: string) => proposals.find((p) => p.id.startsWith(idPart))!;
-  check("stage: official and confirmed", by("stage:").official && by("stage:").confirmed && by("stage:").newText === "held, 4 Oct 2026", by("stage:"));
-  check("date from the bank's site: official and confirmed", by("date:resultDate").official && by("date:resultDate").confirmed, by("date:resultDate"));
-  check("date from a coaching site: confirmed but not official", !by("date:admitCardDate").official && by("date:admitCardDate").confirmed, by("date:admitCardDate"));
-  check("link: official site, but never confirmed in search mode", by("link:").official && !by("link:").confirmed, by("link:"));
+  check("stage: from the given address, confirmed", by("stage:").official && by("stage:").confirmed && by("stage:").newText === "held, 4 Oct 2026", by("stage:"));
+  check("date: the given address is the source whatever the AI says", by("date:admitCardDate").sourceHost === "canarabank.bank.in" && by("date:resultDate").confirmed, by("date:admitCardDate"));
+  check("link that is in the supplied text: confirmed", by("link:").confirmed, by("link:"));
   const rowAfterCheck = JSON.stringify((await pg.query("SELECT record_revision, draft_state, dates, exam_stages, links FROM recruitments WHERE id = $1", [id])).rows[0]);
   check("checking changed nothing on the record", rowAfterCheck === rowBefore);
 
   section("When the AI cannot answer");
+  const SRC = { text: NOTICE };
   aiAnswer = { status: 429, body: { error: { message: "quota exceeded for key=test-key-not-real" } } };
-  r = await checkUpdates.POST(req(PATH, "POST", {}), ctx(id));
+  r = await checkUpdates.POST(req(PATH, "POST", SRC), ctx(id));
   d = await r.json();
   check("rate limited → 502 with a plain reason and no key or provider text", r.status === 502 && /rate limit/i.test(d.error) && !/test-key|quota exceeded/.test(JSON.stringify(d)), d);
   aiAnswer = { status: 400, body: {} };
-  r = await checkUpdates.POST(req(PATH, "POST", {}), ctx(id));
+  r = await checkUpdates.POST(req(PATH, "POST", SRC), ctx(id));
   d = await r.json();
-  check("search refused by the provider → says to paste the text or upload the PDF", r.status === 502 && /Paste the notice text or upload the PDF/.test(d.error), d);
+  check("request refused by the provider → 502 with a plain reason", r.status === 502 && typeof d.error === "string" && !/test-key/.test(JSON.stringify(d)), d);
   aiAnswer = { status: 200, body: { candidates: [{ content: { parts: [{ text: "I could not find anything." }] } }] } };
-  r = await checkUpdates.POST(req(PATH, "POST", {}), ctx(id));
+  r = await checkUpdates.POST(req(PATH, "POST", SRC), ctx(id));
   check("an answer with no JSON → 502, not an empty success", r.status === 502, r.status);
   aiAnswer = { status: 200, body: gemini({ summary: "Nothing new.", changes: [] }, ["canarabank.bank.in"]) };
-  r = await checkUpdates.POST(req(PATH, "POST", {}), ctx(id));
+  r = await checkUpdates.POST(req(PATH, "POST", SRC), ctx(id));
   d = await r.json();
   check("nothing new → 200 with no proposals", r.status === 200 && d.proposals.length === 0, d);
 
   section("Pasted text: the AI reads only what was supplied");
-  const NOTICE = "CANARA BANK - RECRUITMENT OF OFFICERS 2026. The online test was held on 04.10.2026. Result of the online test will be declared on 12.11.2026. Call letters: https://www.canarabank.bank.in/call-letter-2026";
   const before = aiCalls;
   aiAnswer = { status: 200, body: { candidates: [{ content: { parts: [{ text: JSON.stringify({ summary: "Result date announced.", changes: [
     { type: "date", field: "resultDate", value: "2026-11-12", evidence: "Result of the online test will be declared on 12.11.2026", source: "made-up.example" },
@@ -198,16 +212,16 @@ import { approved } from "./owner-approval";
   const rowAfterPhoto = JSON.stringify((await pg.query("SELECT record_revision, draft_state, dates, exam_stages, links FROM recruitments WHERE id = $1", [id])).rows[0]);
   check("still nothing changed on the record", rowAfterPhoto === rowBefore);
 
-  section("Apply and publish: the chain the panel runs");
+  section("Apply: the chain the panel runs saves to the draft only (test 7)");
   const accepted = proposals.filter((p) => p.official);
-  check("accepting the three official proposals", accepted.length === 3, accepted.map((p) => p.id));
+  check("accepting the four proposals from the given source", accepted.length === 4, accepted.map((p) => p.id));
   r = await revert.POST(req(`/api/admin/cms/records/${id}/revert`, "POST"), ctx(id));
   d = await r.json();
   check("reopen → draft", r.status === 200 && d.record.draftState === "DRAFT", d);
   let current = d.record;
   check("still public while it is being edited", (await publicRepo.getBySlug(slug)) !== undefined);
   const saves = savesFor(current, accepted);
-  check("three saves: the date, the stages, the links", saves.map((s) => s.fieldPath).join(",") === "dates.resultDate,examStages,links", saves.map((s) => s.fieldPath));
+  check("four saves: two dates, the stages, the links", saves.map((s) => s.fieldPath).join(",") === "dates.resultDate,dates.admitCardDate,examStages,links", saves.map((s) => s.fieldPath));
   for (const save of saves) {
     r = await fields.PATCH(req(`/api/admin/cms/records/${id}/fields`, "PATCH", {
       fieldPath: save.fieldPath,
@@ -224,12 +238,22 @@ import { approved } from "./owner-approval";
   check("the result link is added beside the existing one", current.links.length === 2 && current.links[1].type === "RESULT" && current.links[1].official === true, current.links);
   const live = await publicRepo.getBySlug(slug);
   check("nothing new is public before publishing", (live as { examStages?: Array<{ status: string }> } | undefined)?.examStages?.[0]?.status === "SCHEDULED", (live as { examStages?: unknown } | undefined)?.examStages);
+  const stateAfterApply = (await pg.query("SELECT draft_state FROM recruitments WHERE id = $1", [id])).rows[0] as { draft_state: string };
+  check("after applying, the job is an open DRAFT: not approved, not published", stateAfterApply.draft_state === "DRAFT", stateAfterApply);
+  check("the public page keeps the last published version meanwhile", (await publicRepo.getBySlug(slug)) !== undefined);
 
+  // The panel's own code: it reopens and saves, and never calls approve or publish or announces.
+  const { readFileSync } = await import("node:fs");
+  const panel = readFileSync("src/app/admin/cms/[id]/UpdateCheckPanel.tsx", "utf8");
+  check("the panel's code calls no approve or publish endpoint and never sends announce", !/\/approve`|\/publish`|announce\s*:/.test(panel) && /\/revert`/.test(panel) && /\/fields`/.test(panel));
+  check("the panel no longer offers a web search", !/Search the web/.test(panel) && /Give a source to check/.test(panel));
+
+  // The owner's reviewed publish is what puts it live.
   r = await approve.POST(req(`/api/admin/cms/records/${id}/approve`, "POST"), ctx(id));
-  check("approve → 200", r.status === 200, r.status);
+  check("owner: approve → 200", r.status === 200, r.status);
   r = await publish.POST(req(`/api/admin/cms/records/${id}/publish`, "POST", await approved(id)), ctx(id));
   d = await r.json();
-  check("publish → 200, published", r.status === 200 && d.record.draftState === "PUBLISHED", d);
+  check("owner: reviewed publish → 200, published", r.status === 200 && d.record.draftState === "PUBLISHED", d);
   const after = await publicRepo.getBySlug(slug) as { examStages?: Array<{ status: string }>; links?: { result?: string } } | undefined;
   check("the public page now shows the stage as held", after?.examStages?.[0]?.status === "CONDUCTED", after?.examStages);
   const updates = d.record.updates as Array<{ title: string; description: string; type: string; sourceUrl?: string; previousValue?: string; newValue?: string }>;
@@ -238,7 +262,7 @@ import { approved } from "./owner-approval";
   const shown = (await publicRepo.getBySlug(slug)) as { updates?: Array<{ title: string }> } | undefined;
   check("the entry is on the public page, so the banner follows the stage", shown?.updates?.some((u) => u.title === "Online Test held") === true, shown?.updates);
   const history = (await pg.query("SELECT reason FROM field_revisions WHERE recruitment_id = $1 AND reason LIKE 'Check for updates:%'", [id])).rows as Array<{ reason: string }>;
-  check("each change is in the history with where it came from", history.length === 3 && history.some((h) => /source: canarabank\.bank\.in/.test(h.reason)), history);
+  check("each change is in the history with where it came from", history.length === 4 && history.some((h) => /source: canarabank\.bank\.in/.test(h.reason)), history);
 
   globalThis.fetch = realFetch;
   summary();

@@ -4,15 +4,17 @@
 // Admin: check a job for updates
 // ═══════════════════════════════════════════════════════════
 //
-// Asks the AI what is new for this recruitment, from a page the admin gives
-// or from a web search, and lists what it proposes: old value, new value,
-// where it came from. Nothing is changed until the admin ticks proposals and
-// presses the button.
+// Asks the AI what is new for this recruitment, from a source the admin gives
+// (an address, pasted text, a PDF or a photo; never a web search: update-
+// workflow safety fix, 11 Nov 2026), and lists what it proposes: old value,
+// new value, where it came from. Nothing is changed until the admin ticks
+// proposals and presses the button.
 //
-// On a published job, "Apply and publish" reopens the record, saves the
-// ticked changes as Pending through the normal field route, and publishes
-// again. On a draft it only saves, because publishing would also put live
-// whatever else is waiting in that draft.
+// Applying saves the ticked changes as Pending through the normal field route.
+// On a published job it first opens the job for editing, exactly as "Open for
+// editing" does; it never approves or publishes. The public keeps the last
+// published version until the owner publishes from the publication review,
+// which this panel then points to.
 
 import { useState } from "react";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
@@ -51,9 +53,25 @@ const badge = (color: string): React.CSSProperties => ({
   border: `1px solid ${color}55`, background: `${color}14`, borderRadius: 999, padding: "1px 7px", whiteSpace: "nowrap",
 });
 
-export function UpdateCheckPanel({ record, onRecordChange }: { record: RecruitmentRecord; onRecordChange: (record: RecruitmentRecord) => void }) {
-  const [open, setOpen] = useState(false);
-  const [url, setUrl] = useState("");
+/** A lead's address carried into the check ("?source=…" from Updates needed): an http(s) address, or nothing. */
+export function sourceFromSearch(search: string): string {
+  const raw = new URLSearchParams(search).get("source") ?? "";
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+export function UpdateCheckPanel({ record, onRecordChange, initialSource = "" }: {
+  record: RecruitmentRecord;
+  onRecordChange: (record: RecruitmentRecord) => void;
+  /** An address brought from an Updates needed lead: shown in the box for the admin to inspect. Never checked automatically. */
+  initialSource?: string;
+}) {
+  const [open, setOpen] = useState(Boolean(initialSource));
+  const [url, setUrl] = useState(initialSource);
   const [pasted, setPasted] = useState("");
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<CheckResult | null>(null);
@@ -68,6 +86,11 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
   // With a file, the PDF itself is sent; with pasted text, that text. Either
   // way the address, if given, only records where it came from.
   async function check(file?: File) {
+    // A source is required: the AI is never asked to search the web (no grounded or paid requests).
+    if (!file && !url.trim() && !pasted.trim()) {
+      setErr("Give a source first: the official page or PDF address, the notice text, or an uploaded PDF or photo.");
+      return;
+    }
     setChecking(true);
     setErr(null);
     setDone(null);
@@ -143,26 +166,14 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
       saved++;
     }
 
-    if (live) {
-      const approved = await call(`/api/admin/cms/records/${record.id}/approve`, { method: "POST" });
-      if ("error" in approved) return stop("Could not approve the record", approved.error);
-      current = approved.record;
-      // Found by "Check for updates" and accepted: real news, so it is posted to the channel.
-      const published = await call(`/api/admin/cms/records/${record.id}/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ announce: true }),
-      });
-      if ("error" in published) return stop("Could not publish", published.error);
-      current = published.record;
-    }
-
     onRecordChange(current);
     setDone(live
-      ? `${accepted.length} change${accepted.length === 1 ? "" : "s"} applied and published. They are marked Pending until you verify them.`
-      : `${accepted.length} change${accepted.length === 1 ? "" : "s"} saved to the draft as Pending. Publish when you are ready.`);
+      ? `${accepted.length} change${accepted.length === 1 ? "" : "s"} saved to the draft as Pending. The live page is unchanged until you publish from the publication review.`
+      : `${accepted.length} change${accepted.length === 1 ? "" : "s"} saved to the draft as Pending. Publish from the publication review when you are ready.`);
     setResult(null);
     setApplying(false);
+    // Nothing is approved or published here: the owner's publication review is where it goes live.
+    document.querySelector("[data-publication-review]")?.scrollIntoView({ block: "start" });
   }
 
   if (!open) {
@@ -189,23 +200,25 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
         <button onClick={() => { setOpen(false); setResult(null); setErr(null); }} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>Close</button>
       </div>
       <div style={{ fontSize: 12, color: C.muted, margin: "6px 0 10px", lineHeight: 1.5 }}>
-        Four ways to check: leave everything empty to let the AI search the web; give the address of an official page or PDF for the site to fetch; when the official site blocks that, paste the notice text or upload the PDF yourself; or upload a photo of a newspaper cutting. It only proposes; nothing changes until you accept. Each check uses one AI request.
+        Give a source: the address of an official page or PDF for the site to fetch; when the official site blocks that, paste the notice text or upload the PDF yourself; or upload a photo of a newspaper cutting. It only proposes; nothing changes until you accept, and nothing goes live until you publish from the publication review. Each check uses one AI request.
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <input
-          aria-label="Official page or PDF address (optional)"
+          aria-label="Official page or PDF address"
+          data-check-source
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://… official page or PDF (optional)"
+          placeholder="https://… official page or PDF"
           style={{ flex: "1 1 280px", minWidth: 0, padding: "7px 10px", background: C.bg, border: "1px solid #2b3a5c", borderRadius: 6, color: C.text, fontSize: 13 }}
         />
         <button
           onClick={() => { void check(); }}
-          disabled={checking || applying}
-          style={{ padding: "7px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: checking || applying ? "wait" : "pointer", opacity: checking || applying ? 0.6 : 1 }}
+          disabled={checking || applying || (!url.trim() && !pasted.trim())}
+          data-check-button
+          style={{ padding: "7px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: checking || applying ? "wait" : "pointer", opacity: checking || applying || (!url.trim() && !pasted.trim()) ? 0.5 : 1 }}
         >
-          {checking ? "Checking…" : pasted.trim() ? "Read the pasted text" : url.trim() ? "Read this page" : "Search the web"}
+          {checking ? "Checking…" : pasted.trim() ? "Read the pasted text" : url.trim() ? "Read this page" : "Give a source to check"}
         </button>
       </div>
       <textarea
@@ -287,10 +300,10 @@ export function UpdateCheckPanel({ record, onRecordChange }: { record: Recruitme
                   disabled={applying || tickedCount === 0}
                   style={{ padding: "7px 18px", background: "linear-gradient(135deg, #f97316, #fb7185)", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: applying || tickedCount === 0 ? "not-allowed" : "pointer", opacity: applying || tickedCount === 0 ? 0.6 : 1 }}
                 >
-                  {applying ? "Applying…" : live ? `Apply ${tickedCount} and publish` : `Apply ${tickedCount} to the draft`}
+                  {applying ? "Applying…" : `Apply ${tickedCount} to the draft`}
                 </button>
                 <span style={{ fontSize: 12, color: C.muted }}>
-                  {live ? "Reopens the record, saves the ticked changes as Pending, and publishes again." : "Saves the ticked changes as Pending. This record is a draft, so nothing is published."}
+                  {live ? "Opens the job for editing and saves the ticked changes as Pending. The live page stays as it is until you publish from the publication review." : "Saves the ticked changes as Pending. Nothing is published until you publish from the publication review."}
                 </span>
               </div>
             </>

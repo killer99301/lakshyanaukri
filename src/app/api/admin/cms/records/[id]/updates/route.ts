@@ -3,11 +3,12 @@
 //
 // Appends an announcement-only UpdateRecord to the record's updates[].
 // Does NOT modify structural fields or record_revision.
-// On a PUBLISHED record the entry also goes onto the public snapshot at once;
-// on a record open for editing it goes live with the next publish.
+// Only on a job open for editing (DRAFT or APPROVED): the entry goes live with
+// the job's next publish, through the owner's publication review. A PUBLISHED
+// job is refused (409): it is put back to draft first, and the public keeps
+// the last published version meanwhile (update-workflow safety fix, 11 Nov
+// 2026: entries used to go onto a live job's public page at once).
 // Concurrent appends from different sessions both succeed.
-//
-// Guard: record must not be ARCHIVED.
 // ═══════════════════════════════════════════════════════════
 
 export const runtime = "nodejs";
@@ -17,7 +18,6 @@ import type { NextRequest } from "next/server";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { getRecruitmentById, persistUpdateAppend } from "@/lib/cms/repository";
 import { randomUUID } from "node:crypto";
-import { revalidatePath } from "next/cache";
 import type { UpdateRecord, UpdateType } from "@/types";
 
 const VALID_UPDATE_TYPES: UpdateType[] = [
@@ -95,6 +95,12 @@ export async function POST(
         { status: 409 },
       );
     }
+    if (record.draftState === "PUBLISHED") {
+      return NextResponse.json(
+        { error: "This job is live. Open it for editing first: the announcement then goes live with your reviewed publish, and the public keeps the current version until then.", code: "LIVE_JOB" },
+        { status: 409 },
+      );
+    }
 
     const entry: UpdateRecord = {
       id: randomUUID(),
@@ -108,24 +114,12 @@ export async function POST(
       ...(update.newValue !== undefined ? { newValue: update.newValue } : {}),
     };
 
-    const { record: saved, revision, wentLive } = await persistUpdateAppend(id, entry, auth.adminId);
-
-    // On a published job the entry is already on the public snapshot; the
-    // cached pages have to be told, exactly as after a publish.
-    let revalidated = true;
-    if (wentLive) {
-      try {
-        revalidatePath("/", "layout");
-        revalidatePath("/sitemap.xml");
-      } catch (err) {
-        revalidated = false;
-        console.error("[CMS] update is live, but public cache revalidation failed", err);
-      }
-    }
-    return NextResponse.json({ record: saved, revision, update: entry, live: wentLive, revalidated });
+    const { record: saved, revision } = await persistUpdateAppend(id, entry, auth.adminId);
+    // Nothing public changed: the entry waits for the job's reviewed publish.
+    return NextResponse.json({ record: saved, revision, update: entry, live: false });
   } catch (err) {
     const msg = String(err);
-    if (msg.includes("not found or is ARCHIVED")) {
+    if (msg.includes("not open for editing")) {
       return NextResponse.json({ error: msg }, { status: 409 });
     }
     console.error("[CMS] update append error", err);

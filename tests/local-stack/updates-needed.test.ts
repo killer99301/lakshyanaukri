@@ -51,6 +51,7 @@ expectChecks(S.D, [
   "D1 an update tied to a job opens Smart intake into that job, never as a new job",
   "D2 a possible update opens into the job only through the admin's explicit choice",
   "D3 Check for updates is a link to the job's own panel; nothing runs from here",
+  "D4 the lead's address is carried into Check for updates for the admin to see, never run, marked official or dismissed",
 ]);
 expectChecks(S.E, [
   "E1 the New Jobs Found review actions work on update leads and survive two more collector runs",
@@ -92,7 +93,8 @@ expectChecks(S.H, [
   const publish = await import("@/app/api/admin/cms/records/[id]/publish/route");
   const { LeadCard } = await import("@/app/admin/cms/discovery/LeadCard");
   const { LeadLine } = await import("@/app/admin/cms/[id]/UpdatesNeededPanel");
-  const { updateType, tieOf, intakeHref, checkUpdatesHref } = await import("@/app/admin/cms/discovery/lead-view");
+  const { updateType, tieOf, intakeHref, checkUpdatesHref, handoffUrls } = await import("@/app/admin/cms/discovery/lead-view");
+  const { sourceFromSearch } = await import("@/app/admin/cms/[id]/UpdateCheckPanel");
   const { todayInIndia } = await import("@/lib/cms/attention");
   type Lead = import("@/lib/cms/discovery/repository").Lead;
 
@@ -201,8 +203,24 @@ expectChecks(S.H, [
     possibleCard.includes(`data-review-against="${bpsc71}"`) && /This is the job — review the lead against it/.test(possibleCard) && !/Bring into “/.test(possibleCard) && !/data-open-intake/.test(possibleCard));
   const editor = readFileSync(join(process.cwd(), "src/app/admin/cms/[id]/page.tsx"), "utf8");
   check("D3 Check for updates is a link to the job's own panel; nothing runs from here",
-    extCard.includes(`href="${checkUpdatesHref(sscCgl)}"`) && /only when you press Check/.test(extCard) && /<div id="check-updates">\s*<UpdateCheckPanel/.test(editor)
+    extCard.includes(`href="${checkUpdatesHref(sscCgl, handoffUrls(ext)[0])}"`) && /only when you press Check/.test(extCard) && /<div id="check-updates">\s*<UpdateCheckPanel/.test(editor)
     && !/check-updates/.test(readFileSync(join(process.cwd(), "src/lib/cms/discovery/updates.ts"), "utf8").replace("Check for updates", "")));
+  // Test 10: the lead's address rides along as ?source=…, is shown in the panel's box, and nothing runs by itself.
+  const leadUrl = handoffUrls(ext)[0];
+  const href = checkUpdatesHref(sscCgl, leadUrl);
+  const panelSrc = readFileSync(join(process.cwd(), "src/app/admin/cms/[id]/UpdateCheckPanel.tsx"), "utf8");
+  const effects = panelSrc.split("useEffect(").slice(1).map((e) => e.slice(0, 600));
+  const leadAfter = (await pg.query("SELECT status FROM discovery_leads WHERE id = $1", [ext.id])).rows[0] as { status?: string } | undefined;
+  check("D4 the lead's address is carried into Check for updates for the admin to see, never run, marked official or dismissed",
+    Boolean(leadUrl) && href.startsWith(`/admin/cms/${sscCgl}?source=`) && href.endsWith("#check-updates")
+    && sourceFromSearch(href.slice(href.indexOf("?"), href.indexOf("#"))) === new URL(leadUrl!).toString()
+    && checkUpdatesHref(sscCgl, "javascript:alert(1)") === `/admin/cms/${sscCgl}#check-updates`
+    && checkUpdatesHref(sscCgl, null) === `/admin/cms/${sscCgl}#check-updates` && checkUpdatesHref(sscCgl, "not a url") === `/admin/cms/${sscCgl}#check-updates`
+    && sourceFromSearch("?source=javascript%3Aalert(1)") === "" && sourceFromSearch("?source=") === "" && sourceFromSearch("") === "" && sourceFromSearch("?source=ftp%3A%2F%2Fx.example") === ""
+    && /useState\(initialSource\)/.test(panelSrc) && !effects.some((e) => /check\(|apply\(/.test(e))
+    && /initialSource=\{leadSource\}/.test(editor) && !/official/.test(href)
+    && leadAfter?.status !== "DISMISSED",
+    { href, leadUrl, leadStatus: leadAfter?.status });
 
   // ── E ──
   section(S.E);

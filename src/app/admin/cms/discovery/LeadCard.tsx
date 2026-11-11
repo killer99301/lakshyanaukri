@@ -7,7 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Lead } from "@/lib/cms/discovery/repository";
 import { C, badge, inputStyle, quietBtn } from "../import/ui";
-import { STATUS_LABEL, attention, checkUpdatesHref, classify, intakeHref, safeHref, updateType, type Tone } from "./lead-view";
+import { STATUS_LABEL, attention, checkUpdatesHref, classify, handoffUrls, intakeHref, safeHref, updateType, type Tone } from "./lead-view";
 
 export type ReviewAction = "READY_FOR_REVIEW" | "NEEDS_SOURCE" | "NEEDS_CORRECTION" | "DUPLICATE" | "DISMISS" | "REOPEN";
 const TONE: Record<Tone, string> = { green: C.green, amber: C.amber, red: C.red, muted: C.muted, accent: C.accent };
@@ -84,7 +84,7 @@ export function LeadCard({ lead, busy, onAction }: {
         {lead.kind === "NEW" && <Link href={intakeHref(lead)} data-open-intake style={{ ...quietBtn, textDecoration: "none" }}>Open in Smart intake as a new job →</Link>}
         {linked && <Link href={intakeHref(lead, linked.id)} data-review-against={linked.id} style={{ ...quietBtn, textDecoration: "none" }}>{lead.kind === "UPDATE" ? `Bring into “${linked.title}” in Smart intake` : `Review against “${linked.title}”`} →</Link>}
         {linked && lead.kind === "UPDATE" && (
-          <Link href={checkUpdatesHref(linked.id)} data-check-updates-link style={{ ...quietBtn, textDecoration: "none" }} title="Opens the job; its Check for updates uses one AI request, and only when you press Check there">Check for updates on the job (AI, only when you press Check) →</Link>
+          <Link href={checkUpdatesHref(linked.id, handoffUrls(lead)[0])} data-check-updates-link style={{ ...quietBtn, textDecoration: "none" }} title="Opens the job; its Check for updates uses one AI request, and only when you press Check there">Check for updates on the job (AI, only when you press Check) →</Link>
         )}
         {!closed && (["READY_FOR_REVIEW", "NEEDS_SOURCE", "NEEDS_CORRECTION"] as const).filter((a) => a !== lead.status).map((a) => (
           <button key={a} disabled={busy} onClick={() => act(a)} style={quietBtn}>{STATUS_LABEL[a]}</button>
