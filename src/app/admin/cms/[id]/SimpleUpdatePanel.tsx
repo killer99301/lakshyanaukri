@@ -49,6 +49,8 @@ export function SimpleUpdatePanel({ record, onRecordChange, onAdvanced, onUseAi,
 }) {
   const [kind, setKind] = useState<SimpleKind | null>(null);
   const [source, setSource] = useState("");
+  // The previous update's source, offered for deliberate reuse only (never carried over by itself).
+  const [lastSource, setLastSource] = useState("");
   const [stageChoice, setStageChoice] = useState("");
   const [newStage, setNewStage] = useState("");
   const [examChange, setExamChange] = useState<ExamChange | "">("");
@@ -102,8 +104,10 @@ export function SimpleUpdatePanel({ record, onRecordChange, onAdvanced, onUseAi,
 
   function choose(k: SimpleKind) {
     setKind(k); setErr(null); setDone(null); setDupesSeen(false); setBadDates([]);
-    // Each kind starts empty (only the source address is kept): a date typed for one kind must
-    // never turn up, unnoticed, as another kind's date.
+    // Each kind starts empty, the source included: a date or a notice address given for one kind
+    // must never turn up, unnoticed, on another. The last source is offered for reuse by a button.
+    if (source.trim()) setLastSource(source.trim());
+    setSource("");
     setStageChoice(""); setNewStage(""); setExamChange(""); setDateIso(""); setCertainty(""); setFeeDateIso("");
     setLinkUrl(""); setLinkLabel(""); setLinkOfficialChoice(null); setFinalResult(false); setReplaceVerified(false);
     setNoteType("CORRIGENDUM"); setNoteDate(""); setNoteTitle(""); setNoteText("");
@@ -239,6 +243,12 @@ export function SimpleUpdatePanel({ record, onRecordChange, onAdvanced, onUseAi,
           <div style={row}>
             <label style={label} htmlFor="su-source">Official source: the page or PDF this comes from</label>
             <input id="su-source" style={input} type="url" value={source} placeholder="https://… official notice" onChange={(e) => { setSource(e.target.value); setDirty(true); }} />
+            {!source.trim() && lastSource && (
+              <button type="button" data-su-reuse-source onClick={() => { setSource(lastSource); setDirty(true); }}
+                style={{ marginTop: 6, background: "none", border: `1px dashed ${C.border}`, borderRadius: 6, padding: "4px 10px", color: C.accent, cursor: "pointer", fontSize: 11, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
+                Use the same source as the last update: {lastSource}
+              </button>
+            )}
             <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
               Recorded with the change.{" "}
               <button type="button" data-su-use-ai disabled={!/^https?:\/\//i.test(source.trim())} onClick={() => onUseAi(source.trim())}
@@ -253,13 +263,16 @@ export function SimpleUpdatePanel({ record, onRecordChange, onAdvanced, onUseAi,
               {stagePicker(false)}
               <div style={row} role="radiogroup" aria-label="How the date changed">
                 <span style={label}>What happened</span>
-                {([["ANNOUNCED", "Date announced"], ["RESCHEDULED", "Rescheduled to a new date"], ["POSTPONED", "Postponed, new date not announced"]] as const).map(([v, l]) => (
+                {([["ANNOUNCED", "Date announced"], ["RESCHEDULED", "Rescheduled to a new date"], ["CONFIRMED", "Same date, now confirmed"], ["POSTPONED", "Postponed, new date not announced"]] as const).map(([v, l]) => (
                   <label key={v} style={{ display: "inline-flex", gap: 6, alignItems: "center", marginRight: 14, fontSize: 12, color: C.text }}>
                     <input type="radio" name="su-change" checked={examChange === v} onChange={() => { setExamChange(v); setDirty(true); }} /> {l}
                   </label>
                 ))}
               </div>
-              {examChange && examChange !== "POSTPONED" && (
+              {examChange === "CONFIRMED" && (
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>The stage keeps its date and status; only &quot;tentative&quot; becomes &quot;confirmed&quot;. No announcement is written for this.</div>
+              )}
+              {examChange && examChange !== "POSTPONED" && examChange !== "CONFIRMED" && (
                 <>
                   <div style={row}>
                     <label style={label}>Exam date</label>
@@ -343,7 +356,7 @@ export function SimpleUpdatePanel({ record, onRecordChange, onAdvanced, onUseAi,
           <div data-su-review style={{ marginTop: 6, padding: 12, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 8 }}>Review before saving</div>
             {plan && plan.changes.length > 0 && (
-              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 8 }}>
+              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 8, overflowWrap: "anywhere" }}>
                 <thead><tr style={{ color: C.muted, textAlign: "left" }}><th style={{ padding: "3px 6px" }}>What</th><th style={{ padding: "3px 6px" }}>Now</th><th style={{ padding: "3px 6px" }}>After saving</th></tr></thead>
                 <tbody>
                   {plan.changes.map((c, i) => (

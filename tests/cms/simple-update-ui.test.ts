@@ -47,10 +47,25 @@ test("SU-07 the saves are Check for updates' own: no second field-saving path", 
   assert.ok(!/fetch\(/.test(helper), "the plan is pure");
 });
 
-test("SU-08 choosing an update type clears the previous type's dates, stage and link (only the source is kept)", () => {
+test("SU-08 choosing an update type clears the previous type's dates, stage, link and source; the source comes back only on request", () => {
   const choose = panel.slice(panel.indexOf("function choose("), panel.indexOf("async function save("));
   for (const reset of ['setDateIso("")', 'setFeeDateIso("")', 'setStageChoice("")', 'setNewStage("")', 'setLinkUrl("")', "setLinkOfficialChoice(null)", 'setNoteDate("")', "setReplaceVerified(false)", 'setCertainty("")', 'setExamChange("")']) {
     assert.ok(choose.includes(reset), reset);
   }
-  assert.ok(!choose.includes('setSource('), "the source address is kept");
+  assert.ok(choose.includes('setSource("")'), "the source is cleared");
+  assert.ok(choose.includes("setLastSource(source.trim())"), "…and offered again");
+  assert.match(panel, /data-su-reuse-source onClick=\{\(\) => \{ setSource\(lastSource\);/);
+});
+
+test("SU-09 phones: the editor takes the full width and the sections and actions fold behind one button", () => {
+  assert.match(page, /@media \(max-width: 760px\)/);
+  assert.match(page, /\[data-editor-sidebar\]\[data-open="false"\] \{ display: none !important; \}/);
+  assert.match(page, /data-editor-nav-toggle\s+aria-expanded=\{navOpen\}/);
+  assert.equal((page.match(/setSimpleOpen\(false\);\s+setNavOpen\(false\);/g) ?? []).length, 2, "a section or field link closes the menu");
+});
+
+test("SU-10 date boxes show an example, not something that looks like a value", () => {
+  const box = readFileSync("src/app/admin/SmartDateInput.tsx", "utf8");
+  assert.match(box, /placeholder="e\.g\. 28 Oct 2026"/);
+  assert.match(box, /const \[text, setText\] = useState\(\(\) => \(value \? showDate\(value\) : ""\)\);/);
 });

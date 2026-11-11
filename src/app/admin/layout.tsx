@@ -20,6 +20,11 @@ const NAV = [
 // this adds what inline styles cannot: focus rings, hover lift, scrollbars.
 const ADMIN_CSS = `
 .adm-root { color-scheme: dark; }
+/* The smallest phones: room for "View site" and "Sign out" in the top bar. */
+@media (max-width: 360px) {
+  .adm-root [data-admin-topbar] { padding: 0 12px !important; gap: 10px !important; }
+  .adm-root [data-admin-topbar-right] { gap: 8px !important; }
+}
 .adm-root ::selection { background: rgba(249,115,22,0.35); }
 .adm-root input, .adm-root select, .adm-root textarea {
   transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
@@ -81,7 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         borderBottom: "1px solid rgba(148,163,184,0.14)",
         boxShadow: "0 1px 0 rgba(249,115,22,0.10), 0 12px 32px rgba(0,0,0,0.25)",
       }}>
-        <div style={{
+        <div data-admin-topbar style={{
           maxWidth: 1320,
           margin: "0 auto",
           padding: "0 24px",
@@ -110,7 +115,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <NavLink key={item.href} {...item} />
             ))}
           </nav>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+          <div data-admin-topbar-right style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
             <a href="/" target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#8c9bb8", textDecoration: "none", whiteSpace: "nowrap" }}>
               View site ↗
             </a>

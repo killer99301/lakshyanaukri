@@ -47,8 +47,8 @@ export const SIMPLE_KINDS: Array<{ kind: SimpleKind; label: string; hint: string
   { kind: "NOTICE", label: "Corrigendum or other notice", hint: "Any other official notice" },
 ];
 
-/** How an exam date changed. */
-export type ExamChange = "ANNOUNCED" | "RESCHEDULED" | "POSTPONED";
+/** How an exam date changed. CONFIRMED: the date on the job stays, and the notice now gives it as final. */
+export type ExamChange = "ANNOUNCED" | "RESCHEDULED" | "POSTPONED" | "CONFIRMED";
 
 export interface SimpleInput {
   kind: SimpleKind;
@@ -145,7 +145,7 @@ export function planSimpleUpdate(record: RecruitmentRecord, input: SimpleInput, 
   const addStage = (status: ExamStage["status"], extra: { dateIso?: string; certainty?: "CONFIRMED" | "TENTATIVE"; clearDate?: boolean } = {}) => {
     if (!stageName) { problems.push("Name the exam stage (as on the job, or a new one)."); return; }
     const was = existingStage
-      ? `${existingStage.status.toLowerCase().replace(/_/g, " ")}${existingStage.dateIso ? `, ${formatDate(existingStage.dateIso)}` : existingStage.dateDisplay ? `, ${existingStage.dateDisplay}` : ""}`
+      ? `${existingStage.status.toLowerCase().replace(/_/g, " ")}${existingStage.dateIso ? `, ${formatDate(existingStage.dateIso)}${existingStage.certainty === "CONFIRMED" ? " (confirmed)" : " (tentative)"}` : existingStage.dateDisplay ? `, ${existingStage.dateDisplay}` : ""}`
       : "not on the job";
     const now = `${status.toLowerCase().replace(/_/g, " ")}${extra.dateIso ? `, ${formatDate(extra.dateIso)}${extra.certainty === "CONFIRMED" ? " (confirmed)" : " (tentative)"}` : extra.clearDate ? ", new date awaited" : ""}`;
     proposals.push({
@@ -173,11 +173,18 @@ export function planSimpleUpdate(record: RecruitmentRecord, input: SimpleInput, 
       if (!change) { problems.push("Say how the date changed: announced, rescheduled or postponed."); break; }
       if (change === "POSTPONED") {
         addStage("POSTPONED", { clearDate: true });
+      } else if (change === "CONFIRMED") {
+        // Same date, now final: the stage keeps its date and its status; only the certainty changes.
+        if (!existingStage) problems.push("Choose the stage whose date the notice confirms.");
+        else if (!existingStage.dateIso) problems.push("That stage has no exact date to confirm. Use \"Date announced\" and enter it.");
+        else if (existingStage.certainty === "CONFIRMED") problems.push("That stage's date is already confirmed.");
+        else addStage(existingStage.status, { dateIso: existingStage.dateIso, certainty: "CONFIRMED" });
       } else {
         if (!input.dateIso) problems.push("Enter the exam date.");
         else if (!isIso(input.dateIso)) problems.push("The exam date cannot be read.");
         else if (!input.certainty) problems.push("Say whether the notice gives the date as final (confirmed) or tentative.");
-        else if (existingStage?.dateIso === input.dateIso && existingStage.status === "SCHEDULED") problems.push("That stage already has this date.");
+        // Only a change of date or of confirmation is an update; the same date with the same certainty is not.
+        else if (existingStage?.dateIso === input.dateIso && existingStage.status === "SCHEDULED" && (existingStage.certainty === "CONFIRMED" ? "CONFIRMED" : "TENTATIVE") === input.certainty) problems.push("That stage already has this date, marked the same way.");
         else addStage("SCHEDULED", { dateIso: input.dateIso, certainty: input.certainty });
       }
       break;

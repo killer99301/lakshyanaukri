@@ -81,7 +81,7 @@ export function SmartDateInput({
           onChange={(e) => type(e.target.value)}
           onFocus={(e) => { e.currentTarget.select(); keepSelection.current = true; }}
           onMouseUp={(e) => { if (keepSelection.current) { e.preventDefault(); keepSelection.current = false; } }}
-          placeholder="28 Oct 2026"
+          placeholder="e.g. 28 Oct 2026"
           style={{ ...style, flex: 1, minWidth: 0 }}
         />
         <button

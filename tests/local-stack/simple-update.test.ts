@@ -63,10 +63,10 @@ import { approved } from "./owner-approval";
   }) as typeof fetch;
 
   // ── A published job, like RRB Paramedical ──
-  let r = await records.POST(req("/api/admin/cms/records", "POST", {
+  const r = await records.POST(req("/api/admin/cms/records", "POST", {
     organizationId: "rrb", organizationName: "Railway Recruitment Boards", govType: "Central Govt", title: "TEST RECORD RRB Paramedical 2026", recruitmentYear: 2026,
   }));
-  let d = await r.json();
+  const d = await r.json();
   const id: string = d.record.id;
   const slug: string = d.record.slug;
   let rev: string = d.record.recordRevision;
@@ -166,6 +166,25 @@ import { approved } from "./owner-approval";
     touches: [], fieldCheck: (a) => a.links.some((l: { type: string }) => l.type === "CORRIGENDUM"),
     publicHas: ["Corrigendum 1: exam city intimation date"], ownAnnouncement: "Corrigendum 1: exam city intimation date",
   });
+
+  await runOne("A new stage with a tentative date", { kind: "EXAM_DATE", source: SOURCE, stageName: "Skill Test", examChange: "ANNOUNCED", dateIso: "2026-12-14", certainty: "TENTATIVE" }, {
+    touches: [], fieldCheck: (a) => a.exam_stages.some((s: { name: string; dateIso?: string; certainty?: string }) => s.name === "Skill Test" && s.dateIso === "2026-12-14" && s.certainty === "TENTATIVE"),
+    publicHas: ["Skill Test"], autoAnnouncement: /Skill Test/,
+  });
+  {
+    const titlesBefore = (await publicTitles()).length;
+    await runOne("Same date, now confirmed (no new announcement)", { kind: "EXAM_DATE", source: SOURCE, stageName: "Skill Test", examChange: "CONFIRMED" }, {
+      touches: [], fieldCheck: (a) => a.exam_stages.some((s: { name: string; dateIso?: string; certainty?: string; status: string }) => s.name === "Skill Test" && s.dateIso === "2026-12-14" && s.certainty === "CONFIRMED" && s.status === "SCHEDULED"),
+      publicHas: ["Skill Test"],
+    });
+    check("confirming wrote no announcement", (await publicTitles()).length === titlesBefore, await publicTitles());
+    const again = planSimpleUpdate((await getRecruitmentById(id))!, { kind: "EXAM_DATE", source: SOURCE, stageName: "Skill Test", examChange: "CONFIRMED" }, todayInIndia());
+    check("confirming it again is refused", again.problems.some((p) => /already confirmed/.test(p)) && again.saves.length === 0, again.problems);
+    const same = planSimpleUpdate((await getRecruitmentById(id))!, { kind: "EXAM_DATE", source: SOURCE, stageName: "Skill Test", examChange: "ANNOUNCED", dateIso: "2026-12-14", certainty: "CONFIRMED" }, todayInIndia());
+    check("the same date marked the same way is refused", same.problems.some((p) => /already has this date, marked the same way/.test(p)), same.problems);
+    const viaDate = planSimpleUpdate({ ...(await getRecruitmentById(id))!, examStages: [{ name: "Interview", order: 9, status: "SCHEDULED", dateIso: "2027-02-01", certainty: "TENTATIVE" }] }, { kind: "EXAM_DATE", source: SOURCE, stageName: "Interview", examChange: "ANNOUNCED", dateIso: "2027-02-01", certainty: "CONFIRMED" }, todayInIndia());
+    check("the same date entered again as confirmed is accepted too", viaDate.problems.length === 0 && viaDate.saves.length === 1, viaDate.problems);
+  }
 
   section("Postponement without a new date");
   {

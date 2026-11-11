@@ -1378,11 +1378,14 @@ export default function CmsRecordEditorPage() {
   // Simple Update (CMS usability batch 2): one routine update without the full editor. Any section opens the full editor.
   const [simpleOpen, setSimpleOpen] = useState(false);
   const simpleDirty = useRef(false);
+  // Phones: the sections and actions sit behind one button (EDITOR_LAYOUT_CSS), closed after a choice.
+  const [navOpen, setNavOpen] = useState(false);
   const leaveSimple = () => !simpleOpen || !simpleDirty.current || window.confirm("Leave this update? What you typed in Update existing recruitment is not saved.");
   const openSection = (key: string) => {
     if (!leaveSimple() || !confirmLeave()) return;
     unsaved.current = false;
     setSimpleOpen(false);
+    setNavOpen(false);
     setActiveSection(key);
     // A long section left the page scrolled deep; the next one opens at its top.
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1394,6 +1397,7 @@ export default function CmsRecordEditorPage() {
     if (!leaveSimple() || !confirmLeave()) return;
     unsaved.current = false;
     setSimpleOpen(false);
+    setNavOpen(false);
     setActiveSection(key);
     setTimeout(() => {
       const field = fieldPath ? document.querySelector<HTMLElement>(`[data-field-path="${CSS.escape(fieldPath)}"]`) : null;
@@ -1716,9 +1720,21 @@ export default function CmsRecordEditorPage() {
   return (
     <EvidenceProvider recordId={record.id} revision={record.recordRevision}>
     <ImportVerdicts.Provider value={importChecks.fields}>
-    <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+    <style>{EDITOR_LAYOUT_CSS}</style>
+    <div data-editor-layout style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+      {/* Phones only (EDITOR_LAYOUT_CSS): the sections and actions open from here instead of squeezing the editor. */}
+      <button
+        type="button"
+        data-editor-nav-toggle
+        aria-expanded={navOpen}
+        aria-controls="editor-sidebar"
+        onClick={() => setNavOpen((o) => !o)}
+        style={{ width: "100%", textAlign: "left", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: "rgba(14,21,38,0.72)", color: C.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+      >
+        Editor sections and actions: {SECTION_GROUPS.flatMap((g) => g.items).find((i) => i.key === activeSection)?.label ?? activeSection} {navOpen ? "▴" : "▾"}
+      </button>
       {/* ── Left: section nav ── */}
-      <div style={{
+      <div id="editor-sidebar" data-editor-sidebar data-open={navOpen ? "true" : "false"} style={{
         width: 208, flexShrink: 0, position: "sticky", top: 68,
         display: "flex", flexDirection: "column",
         maxHeight: "calc(100vh - 84px)", overflowY: "auto",
@@ -1902,7 +1918,7 @@ export default function CmsRecordEditorPage() {
       )}
 
       {/* ── Right: section content ── */}
-      <div style={{ flex: 1, minWidth: 0 }} onInput={() => { unsaved.current = true; }}>
+      <div data-editor-content style={{ flex: 1, minWidth: 0 }} onInput={() => { unsaved.current = true; }}>
 
         {/* ── Record header ── */}
         <div style={{ marginBottom: 16 }}>
@@ -3140,6 +3156,20 @@ const UPDATE_TYPES: UpdateRecord["type"][] = [
   "CORRIGENDUM", "VACANCY_REVISION", "DEADLINE_EXTENSION", "POSTPONEMENT",
   "RESCHEDULE", "EXAM_NOTICE", "CANCELLATION", "GENERAL_NOTICE",
 ];
+
+// Narrow phones (CMS usability batch 1+2 corrections): the 208 px sidebar left about 99 px for the editor at
+// 375 px. Below 760 px the editor takes the full width and the sidebar (sections and actions) folds behind one
+// button above it. Wider screens keep the two columns exactly as before.
+const EDITOR_LAYOUT_CSS = `
+[data-editor-nav-toggle] { display: none; }
+@media (max-width: 760px) {
+  [data-editor-layout] { flex-direction: column; align-items: stretch !important; gap: 10px !important; }
+  [data-editor-nav-toggle] { display: block; }
+  [data-editor-sidebar] { width: 100% !important; position: static !important; max-height: none !important; overflow: visible !important; }
+  [data-editor-sidebar][data-open="false"] { display: none !important; }
+  [data-editor-content] { width: 100%; }
+}
+`;
 
 function AddUpdateModal({
   recordId,
