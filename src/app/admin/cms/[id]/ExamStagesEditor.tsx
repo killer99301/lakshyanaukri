@@ -13,7 +13,7 @@
 // with no date.
 
 import { useState } from "react";
-import { SmartDateInput } from "../../SmartDateInput";
+import { SmartDateInput, UNREADABLE_DATE } from "../../SmartDateInput";
 import type { ExamStage, ExamStageStatus, DateCertainty, ExamStageKind } from "@/types";
 import { EXAM_STAGE_KINDS, STAGE_KIND_LABEL, classifyStageName } from "@/lib/exam-stage-kind";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
@@ -105,6 +105,8 @@ export function ExamStagesEditor({
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // The date box cannot read its text: saving would store the date from before.
+  const [dateBad, setDateBad] = useState(false);
   // A job that has been public announces every stage change as an update.
   // Ticked, the save is a correction of a mistake and announces nothing.
   const [quiet, setQuiet] = useState(false);
@@ -133,6 +135,7 @@ export function ExamStagesEditor({
   const existing = () => stages.map((s) => toPayload(toDraft(s)));
 
   async function submit() {
+    if (dateBad) { setErr(UNREADABLE_DATE); return; }
     const list = existing();
     const item = toPayload(draft);
     const adding = editing === -1;
@@ -194,7 +197,7 @@ export function ExamStagesEditor({
                 )}
                 {editable && (
                   <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                    <button style={ghost} disabled={saving} onClick={() => { setEditing(i); setDraft(toDraft(s)); setErr(null); }}>Edit</button>
+                    <button style={ghost} disabled={saving} onClick={() => { setEditing(i); setDraft(toDraft(s)); setErr(null); setDateBad(false); }}>Edit</button>
                     <button style={{ ...ghost, opacity: i === 0 ? 0.3 : 1 }} disabled={saving || i === 0} onClick={() => { void move(i, -1); }} aria-label={`Move ${s.name} up`}>↑ Up</button>
                     <button style={{ ...ghost, opacity: i === stages.length - 1 ? 0.3 : 1 }} disabled={saving || i === stages.length - 1} onClick={() => { void move(i, 1); }} aria-label={`Move ${s.name} down`}>↓ Down</button>
                     <button
@@ -227,7 +230,7 @@ export function ExamStagesEditor({
       ) : editing === null ? (
         <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
           <button
-            onClick={() => { setEditing(-1); setDraft(EMPTY); setErr(null); }}
+            onClick={() => { setEditing(-1); setDraft(EMPTY); setErr(null); setDateBad(false); }}
             style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
           >
             + Add stage
@@ -271,7 +274,7 @@ export function ExamStagesEditor({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
             <div style={{ flex: 1, minWidth: 160 }}>
               <label style={label} htmlFor="stage-date">Exact date (if announced)</label>
-              <SmartDateInput id="stage-date" style={input} value={draft.dateIso} onChange={(v) => set("dateIso", v)} />
+              <SmartDateInput id="stage-date" style={input} value={draft.dateIso} onChange={(v) => set("dateIso", v)} onValidity={(ok) => setDateBad(!ok)} />
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
               <label style={label} htmlFor="stage-date-text">Or as written (range or month)<InfoTip id="Or as written" /></label>
@@ -309,8 +312,8 @@ export function ExamStagesEditor({
           <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center" }}>
             <button
               onClick={() => { void submit(); }}
-              disabled={saving || !draft.name.trim()}
-              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !draft.name.trim() ? "not-allowed" : "pointer", opacity: saving || !draft.name.trim() ? 0.6 : 1 }}
+              disabled={saving || !draft.name.trim() || dateBad}
+              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !draft.name.trim() || dateBad ? "not-allowed" : "pointer", opacity: saving || !draft.name.trim() || dateBad ? 0.6 : 1 }}
             >
               {saving ? "Saving…" : editing === -1 ? "Add stage" : "Save stage"}
             </button>

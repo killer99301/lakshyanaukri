@@ -39,7 +39,7 @@ import { ImportVerdictBadge, ImportVerdicts, useHasImportVerdict } from "./Impor
 import { ImporterLink } from "../import/ImporterLink";
 import { TakeDownControl, TakenDownBanner } from "./SiteVisibility";
 import { currentValue, restorable, sameAsNow } from "@/lib/cms/restore-value";
-import { SmartDateInput } from "../../SmartDateInput";
+import { SmartDateInput, UNREADABLE_DATE } from "../../SmartDateInput";
 import { EvidenceList, EvidenceProvider, FieldQuotes } from "./EvidenceQuotes";
 
 // Readable names for the fields evidence is kept for.
@@ -55,6 +55,8 @@ const evidenceLabel = (fieldPath: string) => EVIDENCE_LABELS[fieldPath] ?? field
 import { prepublishChecks } from "@/lib/cms/prepublish-checks";
 import { guessLinkType, onGovernmentDomain } from "@/lib/cms/link-guess";
 import { UpdateCheckPanel, sourceFromSearch } from "./UpdateCheckPanel";
+import { likelyDuplicates, type DuplicateHit } from "@/lib/cms/announcement-duplicates";
+import { LATE_RESULT_WINDOW_MS, describeAssistFailure, lateResultNote, mayStillBeRunning, runAssistRequest, type AssistOutcome } from "./assist-run";
 import { UpdatesNeededPanel } from "./UpdatesNeededPanel";
 import { EligibilityEditor, SelectionEditor } from "./EligibilitySelectionEditors";
 import { InfoTip, HELP } from "../InfoTip";
@@ -166,8 +168,11 @@ function EditableField<T>({
   const [reason, setReason] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // A date box whose text cannot be read: saving would store the date from before.
+  const [dateBad, setDateBad] = useState(false);
 
   function startEdit() {
+    setDateBad(false);
     const current = field?.value;
     setVal(current !== null && current !== undefined ? String(current) : "");
     setEvidenceIds(field?.evidenceIds?.join(", ") ?? "");
@@ -177,6 +182,7 @@ function EditableField<T>({
   }
 
   async function save() {
+    if (dateBad) { setErr(UNREADABLE_DATE); return; }
     setSaving(true);
     setErr(null);
     try {
@@ -266,7 +272,7 @@ function EditableField<T>({
               placeholder={placeholder}
             />
           ) : inputType === "date" ? (
-            <SmartDateInput value={val} onChange={setVal} style={inputStyle} ariaLabel={label} />
+            <SmartDateInput value={val} onChange={setVal} style={inputStyle} ariaLabel={label} onValidity={(ok) => setDateBad(!ok)} />
           ) : (
             <input
               type={inputType}
@@ -307,8 +313,8 @@ function EditableField<T>({
           <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
             <button
               onClick={() => { void save(); }}
-              disabled={saving}
-              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              disabled={saving || dateBad}
+              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: dateBad ? "not-allowed" : "pointer", opacity: dateBad ? 0.5 : 1 }}
             >
               {saving ? "Saving…" : "Save"}
             </button>
@@ -1432,6 +1438,14 @@ export default function CmsRecordEditorPage() {
   // What is happening during a long AI Assist run (a scanned PDF takes two steps).
   const [aiStage, setAiStage] = useState<string | null>(null);
   const [aiApplying, setAiApplying] = useState<string | null>(null);
+  // Stop, elapsed time, Retry, and the wait after a Stop (assist-run.ts).
+  const aiStop = useRef<AbortController | null>(null);
+  const [aiStartedAt, setAiStartedAt] = useState(0);
+  const [aiNow, setAiNow] = useState(0);
+  const [aiLastRun, setAiLastRun] = useState<{ file?: File; pastedText?: string } | null>(null);
+  // After a Stop: until when the server may still save, and the newest change known before the run.
+  const [aiLate, setAiLate] = useState<{ until: number; knownUntil: string } | null>(null);
+  const [aiNote, setAiNote] = useState<string | null>(null);
 
   const loadRecord = useCallback(async () => {
     try {
@@ -1514,81 +1528,118 @@ export default function CmsRecordEditorPage() {
     }
   }
 
+  // The job as saved now, and one line on what a stopped run saved after all.
+  const reconcileAssist = useCallback(async (knownUntil: string) => {
+    await loadRecord();
+    try {
+      const res = await fetch(`/api/admin/cms/records/${id}/revisions`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setRevisions(data.revisions ?? []);
+      setAiNote(lateResultNote(data.revisions ?? [], knownUntil));
+    } catch { /* the note is a courtesy; the record above is already reloaded */ }
+  }, [id, loadRecord]);
+
+  // A ticking clock while AI Assist runs, or while a stopped run may still save.
+  useEffect(() => {
+    if (!aiLoading && !aiLate) return;
+    const t = setInterval(() => setAiNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [aiLoading, aiLate]);
+
+  // When a stopped run can no longer save, look at what the job holds and unlock Retry.
+  useEffect(() => {
+    if (!aiLate) return;
+    const t = setTimeout(() => {
+      void reconcileAssist(aiLate.knownUntil).finally(() => setAiLate(null));
+    }, Math.max(0, aiLate.until - Date.now()));
+    return () => clearTimeout(t);
+  }, [aiLate, reconcileAssist]);
+
   // With a file, the PDF itself is sent along with the address it came from.
+  // Never retried by itself: each run is AI requests against the free daily allowance.
   async function handleAiAssist(file?: File, pastedText?: string) {
-    if (!aiUrl.trim() || !record) return;
+    if (!aiUrl.trim() || !record || aiLoading || aiLate) return;
+    const controller = new AbortController();
+    aiStop.current = controller;
+    const started = Date.now();
+    // The newest change the editor already has (server time), to tell a late result from earlier ones.
+    const knownUntil = revisions.reduce((m, r) => (r.revisedAt > m ? r.revisedAt : m), "");
+    const revision = record.recordRevision;
+    setAiStartedAt(started);
+    setAiNow(started);
+    setAiLastRun({ file, pastedText });
     setAiLoading(true);
     setAiError(null);
     setAiResult(null);
-    setAiStage(null);
+    setAiNote(null);
+    setAiStage(file ? "Reading the uploaded PDF" : pastedText ? "Reading the pasted text" : "Reading the source page");
+    const endpoint = `/api/admin/cms/records/${id}/ai-assist`;
+    const send = (body: BodyInit, json = false) =>
+      runAssistRequest(fetch, endpoint, { method: "POST", body, ...(json ? { headers: { "Content-Type": "application/json" } } : {}) }, controller.signal);
+    const form = (fields: Record<string, string | File>) => {
+      const f = new FormData();
+      for (const [k, v] of Object.entries(fields)) f.set(k, v);
+      return f;
+    };
+    let out: AssistOutcome;
     try {
-      let res: Response;
-      if (pastedText) {
-        const form = new FormData();
-        form.set("url", aiUrl.trim());
-        form.set("pastedText", pastedText);
-        res = await fetch(`/api/admin/cms/records/${id}/ai-assist`, { method: "POST", body: form });
-      } else if (file) {
-        const form = new FormData();
-        form.set("url", aiUrl.trim());
-        form.set("file", file);
-        res = await fetch(`/api/admin/cms/records/${id}/ai-assist`, { method: "POST", body: form });
-      } else {
-        res = await fetch(`/api/admin/cms/records/${id}/ai-assist`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: aiUrl.trim() }),
-        });
-      }
-      if (res.status === 413) {
-        setAiError("This PDF is larger than 4 MB, which is the most that can be uploaded here.");
-        return;
-      }
-      let data = await res.json();
+      if (pastedText) out = await send(form({ url: aiUrl.trim(), pastedText, revision }));
+      else if (file) out = await send(form({ url: aiUrl.trim(), file, revision }));
+      else out = await send(JSON.stringify({ url: aiUrl.trim(), revision }), true);
       // A scanned PDF has no text in it. The AI reads the scan first (one more
       // request), and what it wrote out goes through AI Assist as usual.
-      if (!res.ok && data.scanned && file) {
-        setAiStage("This PDF is a scan. The AI is reading it, which can take a minute…");
-        const scanForm = new FormData();
-        scanForm.set("file", file);
-        const scan = await fetch(`/api/admin/cms/records/${id}/read-scan`, { method: "POST", body: scanForm });
-        const read = await scan.json().catch(() => ({}));
-        if (!scan.ok || !read.text) {
-          setAiError(read.error ?? "The scanned PDF could not be read.");
-          return;
+      if (!out.ok && out.data?.scanned && file) {
+        setAiStage("This PDF is a scan. The AI is reading it, which can take a minute");
+        const scan = await runAssistRequest(fetch, `/api/admin/cms/records/${id}/read-scan`, { method: "POST", body: form({ file }) }, controller.signal);
+        const text = scan.ok && typeof scan.data.text === "string" ? scan.data.text : "";
+        if (!text) {
+          out = scan.ok ? { ok: false, kind: "SOURCE", status: 422, message: describeAssistFailure("SOURCE", "The scanned PDF could not be read.") } : scan;
+        } else {
+          setAiStage("Scan read. Filling the record");
+          out = await send(form({ url: aiUrl.trim(), scanText: text, revision }));
         }
-        setAiStage("Scan read. Filling the record…");
-        const textForm = new FormData();
-        textForm.set("url", aiUrl.trim());
-        textForm.set("scanText", read.text);
-        res = await fetch(`/api/admin/cms/records/${id}/ai-assist`, { method: "POST", body: textForm });
-        data = await res.json();
       }
-      if (!res.ok) {
-        setAiError(data.error ?? `HTTP ${res.status}`);
-        return;
-      }
-      setRecord(data.record);
-      void loadRevisions();
-      setAiResult({
-        filled: data.filled,
-        suggested: data.suggested,
-        notFound: data.notFound,
-        confirmed: data.confirmed ?? [],
-        flagged: data.flagged ?? [],
-        suggestedLinks: data.suggestedLinks ?? [],
-        identityCheck: data.identityCheck,
-        sourceUrl: data.sourceUrl,
-        sourceKind: data.sourceKind,
-        fromScan: Boolean(data.fromScan),
-        fromPaste: Boolean(data.fromPaste),
-      });
-      setLibraryNote(data.library ? libraryNoteText(data.library) : null);
-    } catch (e) {
-      setAiError(String(e));
     } finally {
+      aiStop.current = null;
       setAiLoading(false);
+      setAiStage(null);
     }
+
+    if (!out.ok) {
+      setAiError(out.status === 413 && !out.data
+        ? "This PDF is larger than 4 MB, which is the most that can be uploaded here."
+        : out.message);
+      if (mayStillBeRunning(out)) {
+        // The server may still be at work: reload now, and again once it can no longer save.
+        void loadRecord();
+        setAiLate({ until: started + LATE_RESULT_WINDOW_MS, knownUntil });
+      } else if (out.kind === "TIMEOUT" || out.kind === "CHANGED") {
+        // Past the server's own limit, or the job moved on: show what is saved now.
+        await reconcileAssist(knownUntil);
+      }
+      return;
+    }
+    const data = out.data as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    setRecord(data.record);
+    void loadRevisions();
+    setAiResult({
+      filled: data.filled,
+      suggested: data.suggested,
+      notFound: data.notFound,
+      confirmed: data.confirmed ?? [],
+      flagged: data.flagged ?? [],
+      suggestedLinks: data.suggestedLinks ?? [],
+      identityCheck: data.identityCheck,
+      sourceUrl: data.sourceUrl,
+      sourceKind: data.sourceKind,
+      fromScan: Boolean(data.fromScan),
+      fromPaste: Boolean(data.fromPaste),
+    });
+    setAiNote(typeof data.aiProblem === "string"
+      ? `Completed in ${Math.round((Date.now() - started) / 1000)} s, but the AI did not answer: ${data.aiProblem}. What could be read without it was applied; retry later for the rest.`
+      : `Completed in ${Math.round((Date.now() - started) / 1000)} s.`);
+    setLibraryNote(data.library ? libraryNoteText(data.library) : null);
   }
 
   async function handleAiApplySuggestion(fieldPath: string, label: string, aiValue: unknown, existingEvidenceIds: string[] = []) {
@@ -1837,6 +1888,7 @@ export default function CmsRecordEditorPage() {
           recordId={id}
           recordRevision={record.recordRevision}
           draftState={record.draftState}
+          existingUpdates={record.updates}
           onSaved={(updated) => { setRecord(updated); void loadRevisions(); }}
           onClose={() => setShowAddUpdate(false)}
         />
@@ -1976,9 +2028,19 @@ export default function CmsRecordEditorPage() {
                   }}
                   onKeyDown={(e) => { if (e.key === "Enter") void handleAiAssist(); }}
                 />
+                {aiLoading && (
+                  <button
+                    type="button"
+                    data-ai-stop
+                    onClick={() => aiStop.current?.abort()}
+                    style={{ padding: "8px 16px", background: C.red + "22", color: C.red, border: `1px solid ${C.red}66`, borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}
+                  >
+                    Stop
+                  </button>
+                )}
                 <button
                   onClick={() => { void handleAiAssist(); }}
-                  disabled={aiLoading || !aiUrl.trim()}
+                  disabled={aiLoading || Boolean(aiLate) || !aiUrl.trim()}
                   style={{
                     padding: "8px 18px",
                     background: aiLoading ? "#1c2740" : "#1a3a6b",
@@ -1992,7 +2054,7 @@ export default function CmsRecordEditorPage() {
                     fontFamily: "inherit",
                   }}
                 >
-                  {aiLoading ? "Extracting…" : "Assist with AI"}
+                  {aiLoading ? `Working… ${Math.max(0, Math.round((aiNow - aiStartedAt) / 1000))} s` : "Assist with AI"}
                 </button>
               </div>
               <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
@@ -2002,7 +2064,7 @@ export default function CmsRecordEditorPage() {
                   <input
                     type="file"
                     accept="application/pdf,.pdf"
-                    disabled={aiLoading || !aiUrl.trim()}
+                    disabled={aiLoading || Boolean(aiLate) || !aiUrl.trim()}
                     style={{ display: "none" }}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -2027,22 +2089,49 @@ export default function CmsRecordEditorPage() {
                 />
                 <button
                   onClick={() => { void handleAiAssist(undefined, aiText.trim()); }}
-                  disabled={aiLoading || !aiUrl.trim() || aiText.trim().length < 300}
+                  disabled={aiLoading || Boolean(aiLate) || !aiUrl.trim() || aiText.trim().length < 300}
                   title={!aiUrl.trim() ? "Put the address the text came from in the box above first." : aiText.trim().length < 300 ? "Paste more of the notice first." : undefined}
                   style={{ marginTop: 8, padding: "6px 16px", background: "#1a3a6b", color: C.accent, border: `1px solid ${C.accent}44`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: aiLoading || !aiUrl.trim() || aiText.trim().length < 300 ? "not-allowed" : "pointer", opacity: aiLoading || !aiUrl.trim() || aiText.trim().length < 300 ? 0.6 : 1, fontFamily: "inherit" }}
                 >
-                  {aiLoading ? "Extracting…" : "Fill from the pasted text"}
+                  {aiLoading ? "Working…" : "Fill from the pasted text"}
                 </button>
               </details>
 
               {aiLoading && aiStage && (
-                <div role="status" style={{ color: C.amber, fontSize: 12, marginBottom: 12 }}>{aiStage}</div>
+                <div role="status" data-ai-progress style={{ color: C.amber, fontSize: 12, marginBottom: 12, lineHeight: 1.5 }}>
+                  {aiStage}{Math.round((aiNow - aiStartedAt) / 1000) >= 8 && !/scan/i.test(aiStage) ? ", then the AI extracts and the empty fields are saved" : ""}… {Math.max(0, Math.round((aiNow - aiStartedAt) / 1000))} s.
+                  {" "}It stops by itself after about a minute and a half.
+                  {" "}<button type="button" data-ai-stop-inline onClick={() => aiStop.current?.abort()} style={{ marginLeft: 6, padding: "2px 10px", background: C.red + "22", color: C.red, border: `1px solid ${C.red}66`, borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Stop</button>
+                </div>
               )}
 
               {aiError && (
-                <div style={{ color: C.red, fontSize: 12, padding: "8px 12px", background: C.red + "11", borderRadius: 5, border: `1px solid ${C.red}33`, marginBottom: 12 }}>
+                <div role="alert" data-ai-error style={{ color: C.red, fontSize: 12, padding: "8px 12px", background: C.red + "11", borderRadius: 5, border: `1px solid ${C.red}33`, marginBottom: 12, lineHeight: 1.5 }}>
                   {aiError}
+                  {aiLate && (
+                    <div style={{ color: C.amber, marginTop: 6 }}>
+                      The server may still finish this request in the next {Math.max(0, Math.ceil((aiLate.until - aiNow) / 1000))} s. If it does, it only fills empty fields as Pending and never overwrites anything; an edit you save meanwhile is kept, and the late result is then refused. Retry unlocks once that time has passed and the job is reloaded.
+                    </div>
+                  )}
+                  {aiLastRun && !aiLoading && (
+                    <div style={{ marginTop: 8 }}>
+                      <button
+                        type="button"
+                        data-ai-retry
+                        disabled={Boolean(aiLate)}
+                        onClick={() => { void handleAiAssist(aiLastRun.file, aiLastRun.pastedText); }}
+                        style={{ padding: "5px 14px", background: "#1a3a6b", color: C.accent, border: `1px solid ${C.accent}44`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: aiLate ? "not-allowed" : "pointer", opacity: aiLate ? 0.5 : 1, fontFamily: "inherit" }}
+                      >
+                        {aiLate ? "Retry (waiting for the server)" : "Retry"}
+                      </button>
+                      <span style={{ color: C.muted, marginLeft: 8 }}>One retry is one more AI request from today&apos;s allowance.</span>
+                    </div>
+                  )}
                 </div>
+              )}
+
+              {aiNote && !aiLoading && (
+                <div role="status" data-ai-note style={{ color: C.muted, fontSize: 12, marginBottom: 12, lineHeight: 1.5 }}>{aiNote}</div>
               )}
 
               {aiResult && (
@@ -3019,17 +3108,24 @@ function AddUpdateModal({
   recordId,
   recordRevision,
   draftState,
+  existingUpdates,
   onSaved,
   onClose,
 }: {
   recordId: string;
   recordRevision: string;
   draftState: string;
+  /** The job's announcements, published and waiting, for the duplicate check. */
+  existingUpdates: UpdateRecord[];
   onSaved: (record: RecruitmentRecord) => void;
   onClose: () => void;
 }) {
   const [type, setType] = useState<UpdateRecord["type"]>("GENERAL_NOTICE");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  // Starts empty: a date filled in for the admin was easy to leave unchanged, or to type onto.
+  const [date, setDate] = useState("");
+  const [dateBad, setDateBad] = useState(false);
+  // Entries that look like the same news, and the exact form they were shown for.
+  const [dupes, setDupes] = useState<{ hits: DuplicateHit[]; shownFor: string } | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -3048,9 +3144,17 @@ function AddUpdateModal({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (dateBad) { setErr(UNREADABLE_DATE); return; }
+    if (!date) { setErr("Enter the date printed on the notice."); return; }
     if (!title.trim() || !description.trim()) {
       setErr("Title and description are required.");
       return;
+    }
+    // Probably the same news as an entry already there (often one a stage change wrote): ask once.
+    const form = `${date}|${title.trim()}|${description.trim()}`;
+    if (dupes?.shownFor !== form) {
+      const hits = likelyDuplicates({ date, title, description }, existingUpdates);
+      if (hits.length > 0) { setDupes({ hits, shownFor: form }); setErr(null); return; }
     }
     setSubmitting(true);
     setErr(null);
@@ -3186,7 +3290,7 @@ function AddUpdateModal({
           </div>
           <div>
             <label style={labelStyle}>Notice Date</label>
-            <SmartDateInput value={date} onChange={setDate} style={inputStyle} ariaLabel="Date of the update" />
+            <SmartDateInput value={date} onChange={setDate} style={inputStyle} ariaLabel="Date of the update" onValidity={(ok) => setDateBad(!ok)} />
           </div>
         </div>
 
@@ -3270,8 +3374,20 @@ function AddUpdateModal({
         )}
 
         {err && (
-          <div style={{ color: C.red, fontSize: 12, marginBottom: 12, padding: "8px 10px", background: C.red + "11", borderRadius: 5 }}>
+          <div role="alert" style={{ color: C.red, fontSize: 12, marginBottom: 12, padding: "8px 10px", background: C.red + "11", borderRadius: 5 }}>
             {err}
+          </div>
+        )}
+
+        {dupes && dupes.shownFor === `${date}|${title.trim()}|${description.trim()}` && (
+          <div role="alert" data-duplicate-warning style={{ color: C.text, fontSize: 12, marginBottom: 12, padding: "10px 12px", background: C.amber + "14", border: `1px solid ${C.amber}55`, borderRadius: 6, lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 700, color: C.amber, marginBottom: 4 }}>This may already be announced</div>
+            {dupes.hits.map((h) => (
+              <div key={h.entry.id}>• {h.entry.date}: {h.entry.title} <span style={{ color: C.muted }}>({h.why})</span></div>
+            ))}
+            <div style={{ marginTop: 6, color: C.muted }}>
+              Changing an exam stage writes its own announcement. Nothing has been added. If this is different news, press Add Update again to add it anyway; otherwise cancel.
+            </div>
           </div>
         )}
 
@@ -3282,7 +3398,7 @@ function AddUpdateModal({
           </button>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || dateBad}
             style={{
               padding: "7px 16px",
               background: submitting ? "#1c2740" : C.accent,
@@ -3299,7 +3415,7 @@ function AddUpdateModal({
         </div>
         <div style={{ fontSize: 11, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>
           {draftState === "PUBLISHED"
-            ? "This job is published, so the update shows on the public page as soon as you add it."
+            ? "This job is live. Adding the update opens it for editing; it shows on the public page only after you publish from the publication review."
             : "This job is open for editing, so the update shows on the public page the next time you publish."}
         </div>
       </form>

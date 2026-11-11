@@ -32,7 +32,20 @@ export async function saveAssistEvidence(opts: {
 }): Promise<number> {
   try {
     const at = new Date().toISOString();
-    const excerpts = assistExcerpts(opts.quotes, opts.fields, at);
+    // A retry against the same source finds the same quotes: keep only those not
+    // already kept from it (same field, same words, same outcome).
+    const before = await sql`
+      SELECT excerpts FROM recruitment_evidence
+      WHERE recruitment_id = ${opts.recruitmentId} AND url = ${opts.url} AND source_type = ${ASSIST_EVIDENCE_SOURCE}
+    `;
+    const kept = new Set<string>();
+    for (const row of before as Array<{ excerpts: unknown }>) {
+      for (const e of Array.isArray(row.excerpts) ? row.excerpts : []) {
+        const x = e as { fieldPath?: string; quote?: string; outcome?: string };
+        if (x.fieldPath && x.quote) kept.add(`${x.fieldPath}|${x.quote}|${x.outcome ?? ""}`);
+      }
+    }
+    const excerpts = assistExcerpts(opts.quotes, opts.fields, at).filter((e) => !kept.has(`${e.fieldPath}|${e.quote}|${e.outcome}`));
     if (excerpts.length === 0) return 0;
     await sql`
       INSERT INTO recruitment_evidence (recruitment_id, url, title, source_type, authority_rank, fetched_at, excerpts)

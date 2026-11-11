@@ -15,7 +15,7 @@
 // here, and kept on save only for values that were not changed by hand.
 
 import { useState } from "react";
-import { SmartDateInput } from "../../SmartDateInput";
+import { SmartDateInput, UNREADABLE_DATE } from "../../SmartDateInput";
 import type { AgeCriteria, RecruitmentRecord } from "@/types/recruitment-record";
 import type { AgeEvidence, PostAgeRange } from "@/types";
 
@@ -226,8 +226,12 @@ export function AgeEditor({ record, onSave }: { record: RecruitmentRecord; onSav
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const set = <K extends keyof Draft>(key: K, value: string) => setDraft((d) => ({ ...d, [key]: value }));
+  // Date boxes whose text cannot be read: saving would store the dates from before.
+  const [badDates, setBadDates] = useState<string[]>([]);
+  const validity = (box: string) => (ok: boolean) => setBadDates((b) => (ok ? b.filter((x) => x !== box) : b.includes(box) ? b : [...b, box]));
 
   async function save() {
+    if (badDates.length > 0) { setErr(UNREADABLE_DATE); return; }
     const out = fromDraft(draft);
     if (out.error || !out.value) { setErr(out.error ?? "Nothing to save"); return; }
     setSaving(true);
@@ -250,7 +254,7 @@ export function AgeEditor({ record, onSave }: { record: RecruitmentRecord; onSav
     return (
       <div>
         <button
-          onClick={() => { setDraft(toDraft(age)); setErr(null); setEditing(true); }}
+          onClick={() => { setDraft(toDraft(age)); setErr(null); setBadDates([]); setEditing(true); }}
           style={{ background: "none", border: "none", color: C.accent, cursor: "pointer", fontSize: 12, padding: 0, marginTop: 12 }}
         >
           {age ? "Edit age limit" : "Add age limit"}
@@ -273,7 +277,7 @@ export function AgeEditor({ record, onSave }: { record: RecruitmentRecord; onSav
         </div>
         <div>
           <label style={label} htmlFor="age-as-of">Age is counted on</label>
-          <SmartDateInput id="age-as-of" style={input} value={draft.asOf} onChange={(v) => set("asOf", v)} />
+          <SmartDateInput id="age-as-of" style={input} value={draft.asOf} onChange={(v) => set("asOf", v)} onValidity={validity("asOf")} />
         </div>
       </div>
       <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>
@@ -283,11 +287,11 @@ export function AgeEditor({ record, onSave }: { record: RecruitmentRecord; onSav
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
         <div>
           <label style={label} htmlFor="age-born-from">Born on or after (if the notice gives dates of birth)</label>
-          <SmartDateInput id="age-born-from" style={input} value={draft.bornFrom} onChange={(v) => set("bornFrom", v)} />
+          <SmartDateInput id="age-born-from" style={input} value={draft.bornFrom} onChange={(v) => set("bornFrom", v)} onValidity={validity("bornFrom")} />
         </div>
         <div>
           <label style={label} htmlFor="age-born-to">Born on or before</label>
-          <SmartDateInput id="age-born-to" style={input} value={draft.bornTo} onChange={(v) => set("bornTo", v)} />
+          <SmartDateInput id="age-born-to" style={input} value={draft.bornTo} onChange={(v) => set("bornTo", v)} onValidity={validity("bornTo")} />
         </div>
       </div>
       <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>
@@ -337,8 +341,8 @@ export function AgeEditor({ record, onSave }: { record: RecruitmentRecord; onSav
       <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
         <button
           onClick={() => { void save(); }}
-          disabled={saving}
-          style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}
+          disabled={saving || badDates.length > 0}
+          style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || badDates.length > 0 ? "not-allowed" : "pointer", opacity: saving || badDates.length > 0 ? 0.6 : 1 }}
         >
           {saving ? "Saving…" : "Save age limit"}
         </button>

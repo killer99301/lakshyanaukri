@@ -1,4 +1,7 @@
 export const runtime = "nodejs";
+// The whole run, AI included, is bounded (CMS usability batch 1, 11 Nov 2026).
+// The editor's own time limit is set just above this (assist-run.ts).
+export const maxDuration = 90;
 
 // ═══════════════════════════════════════════════════════════
 // POST /api/admin/cms/records/[id]/ai-assist
@@ -14,6 +17,9 @@ export const runtime = "nodejs";
 //   - Gemini runs only inside this user-triggered request, only on fee text,
 //     and every fee it returns must pass evidence verification
 //   - Gemini failures are non-fatal: deterministic results still apply
+//   - Bounded and stoppable: nothing is saved once the editor has gone (Stop)
+//     or the run is past SAVE_CUTOFF_MS; a run asked of a version of the job
+//     the editor has not seen, or that changed while it ran, saves nothing (409)
 // ═══════════════════════════════════════════════════════════
 
 import { NextResponse } from "next/server";
@@ -38,6 +44,8 @@ import {
   compareIdentity,
   type IdentityCheck,
   type SourceKind,
+  AI_NOT_USED,
+  NO_PASSAGE,
 } from "@/lib/cms/ai-assist";
 import { aiAssistReason } from "@/lib/cms/ai-assist-apply";
 import { MIN_SCAN_TEXT_CHARS } from "@/lib/cms/scan-reader";
@@ -56,7 +64,12 @@ import {
 
 interface AiAssistRequest {
   url: string;
+  /** The job's revision the editor was showing when the admin pressed the button. */
+  revision?: string;
 }
+
+/** After this long, the run gives up rather than start saving (maxDuration is the hard stop). */
+const SAVE_CUTOFF_MS = 75_000;
 
 // Vercel refuses request bodies over 4.5 MB before they reach this route.
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
@@ -97,6 +110,8 @@ export interface AiAssistResponse {
   fromPaste?: boolean;
   // Set when the syllabus filled here was also kept in the syllabus library.
   library?: LibraryAutosave;
+  // The AI could not be asked or did not answer (busy, limit reached, too slow); what code found still applied.
+  aiProblem?: string;
 }
 
 export async function POST(
@@ -111,6 +126,8 @@ export async function POST(
   }
 
   const { id } = await params;
+  const startedAt = Date.now();
+  let expectedRevision: string | null = null;
 
   // Two ways in: JSON { url } to fetch the source, or a form with the PDF
   // itself plus the address it was downloaded from. The second exists because
@@ -129,6 +146,8 @@ export async function POST(
       return NextResponse.json({ error: "Could not read the uploaded file" }, { status: 400 });
     }
     url = form.get("url");
+    const rev = form.get("revision");
+    if (typeof rev === "string" && rev) expectedRevision = rev;
     const file = form.get("file");
     const scanned = form.get("scanText");
     const typed = form.get("pastedText");
@@ -161,6 +180,7 @@ export async function POST(
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
     url = body.url;
+    if (typeof body.revision === "string" && body.revision) expectedRevision = body.revision;
   }
 
   if (!url || typeof url !== "string") {
@@ -190,6 +210,13 @@ export async function POST(
   if (record.draftState === "PUBLISHED" || record.draftState === "ARCHIVED") {
     return NextResponse.json(
       { error: `Cannot edit a ${record.draftState} record` },
+      { status: 409 },
+    );
+  }
+  // The editor is showing an older version (a stopped run may have saved since): it must reload before asking again.
+  if (expectedRevision && expectedRevision !== record.recordRevision) {
+    return NextResponse.json(
+      { error: "This job was saved since your page loaded (perhaps by an earlier AI Assist run). Reload it before asking again." },
       { status: 409 },
     );
   }
@@ -246,6 +273,11 @@ export async function POST(
     extractPatternAndSyllabus({ sections: buildSyllabusSections(source.content, source.kind, url, subject), url, apiKey, subject }),
   ]);
   const fees = ai.fees;
+  // A request the AI could not answer, in the words callAiJson gave (never provider text).
+  const aiOutcome = ai.notificationNumber as { status: string; reason?: string };
+  const aiProblem = aiOutcome.status === "skipped" && aiOutcome.reason && aiOutcome.reason !== AI_NOT_USED && aiOutcome.reason !== NO_PASSAGE
+    ? aiOutcome.reason
+    : undefined;
   const merged = mergeAiDates(mergeAiNotificationNumber(base, ai.notificationNumber), ai.dates);
   const flagged = merged.flagged;
 
@@ -329,7 +361,24 @@ export async function POST(
   const suggested: AiAssistSuggestedEntry[] = [];
   const confirmed: string[] = [];
 
+  // Nothing is saved for an editor that has gone (Stop), or this late in the run.
+  const stopReason = () =>
+    request.signal.aborted ? "stopped" : Date.now() - startedAt > SAVE_CUTOFF_MS ? "late" : null;
+  const notSaved = (why: "stopped" | "late") =>
+    NextResponse.json(
+      why === "stopped"
+        ? { error: "Stopped before anything was saved.", stopped: true }
+        : { error: "AI Assist took too long, so nothing was saved. Retry, or upload the PDF or paste the notice text instead." },
+      { status: why === "stopped" ? 499 : 504 },
+    );
+  {
+    const why = stopReason();
+    if (why) return notSaved(why);
+  }
+
   for (const { fieldPath, label, value } of candidates) {
+    // A Stop that arrives mid-way keeps what is saved so far and saves nothing more.
+    if (request.signal.aborted) break;
     if (value === null || value === undefined) {
       notFound.push(label);
       continue;
@@ -406,7 +455,7 @@ export async function POST(
   }
 
   // Quotes for what was filled, and for suggestions the admin may still apply.
-  await saveAssistEvidence({
+  if (!request.signal.aborted || filled.length > 0) await saveAssistEvidence({
     recruitmentId: id,
     url,
     label: sourceLabel,
@@ -432,5 +481,6 @@ export async function POST(
     ...(scanText && !pasted ? { fromScan: true } : {}),
     ...(pasted ? { fromPaste: true } : {}),
     ...(library ? { library } : {}),
+    ...(aiProblem ? { aiProblem } : {}),
   } satisfies AiAssistResponse);
 }
