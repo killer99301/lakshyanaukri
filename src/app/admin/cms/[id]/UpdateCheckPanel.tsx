@@ -19,6 +19,7 @@
 import { useState } from "react";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
 import { savesFor, tickedByDefault, type UpdateProposal } from "@/lib/cms/update-check";
+import { applySaves } from "./apply-saves";
 
 const C = {
   bg: "#070b16", card: "rgba(14,21,38,0.72)", border: "rgba(148,163,184,0.14)", text: "#e2e8f0", muted: "#8c9bb8",
@@ -33,19 +34,6 @@ interface CheckResult {
   proposals: UpdateProposal[];
   dropped: number;
   droppedNotes: string[];
-}
-
-type Outcome = { record: RecruitmentRecord } | { error: string };
-
-async function call(url: string, init: RequestInit): Promise<Outcome> {
-  try {
-    const res = await fetch(url, init);
-    const data = await res.json();
-    if (!res.ok || !data.record) return { error: data.error === "CONFLICT" ? "The record was changed somewhere else. Reload the page." : data.error ?? `HTTP ${res.status}` };
-    return { record: data.record as RecruitmentRecord };
-  } catch {
-    return { error: "Could not reach the server." };
-  }
 }
 
 const badge = (color: string): React.CSSProperties => ({
@@ -131,39 +119,19 @@ export function UpdateCheckPanel({ record, onRecordChange, initialSource = "" }:
     setErr(null);
     setDone(null);
 
-    let current = record;
-    let saved = 0;
-    const stop = (where: string, why: string) => {
+    // The shared save path (apply-saves.ts): opens a live job for editing, then saves each change as Pending.
+    const out = await applySaves(record, (opened) => savesFor(opened, accepted));
+    const current = out.record;
+    if (out.error) {
       onRecordChange(current);
       setErr(
-        `${where}: ${why} ` +
+        `${out.error.where}: ${out.error.why} ` +
         (current.draftState === "PUBLISHED"
           ? "Nothing was changed."
-          : `${saved} change${saved === 1 ? " is" : "s are"} saved in the draft and nothing new is public yet. Finish from the record itself.`),
+          : `${out.saved} change${out.saved === 1 ? " is" : "s are"} saved in the draft and nothing new is public yet. Finish from the record itself.`),
       );
       setApplying(false);
-    };
-
-    if (live) {
-      const out = await call(`/api/admin/cms/records/${record.id}/revert`, { method: "POST" });
-      if ("error" in out) return stop("Could not open the record for editing", out.error);
-      current = out.record;
-    }
-
-    for (const save of savesFor(current, accepted)) {
-      const out = await call(`/api/admin/cms/records/${record.id}/fields`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fieldPath: save.fieldPath,
-          field: { value: save.value, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: false },
-          clientRevision: current.recordRevision,
-          reason: save.reason,
-        }),
-      });
-      if ("error" in out) return stop("A change could not be saved", out.error.replace(/^.*invariant:\s*/, ""));
-      current = out.record;
-      saved++;
+      return;
     }
 
     onRecordChange(current);

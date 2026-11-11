@@ -55,6 +55,7 @@ const evidenceLabel = (fieldPath: string) => EVIDENCE_LABELS[fieldPath] ?? field
 import { prepublishChecks } from "@/lib/cms/prepublish-checks";
 import { guessLinkType, onGovernmentDomain } from "@/lib/cms/link-guess";
 import { UpdateCheckPanel, sourceFromSearch } from "./UpdateCheckPanel";
+import { SimpleUpdatePanel } from "./SimpleUpdatePanel";
 import { likelyDuplicates, type DuplicateHit } from "@/lib/cms/announcement-duplicates";
 import { LATE_RESULT_WINDOW_MS, describeAssistFailure, lateResultNote, mayStillBeRunning, runAssistRequest, type AssistOutcome } from "./assist-run";
 import { UpdatesNeededPanel } from "./UpdatesNeededPanel";
@@ -1374,9 +1375,14 @@ export default function CmsRecordEditorPage() {
   // open editors, and what was typed in them was lost without a word.
   const unsaved = useRef(false);
   const confirmLeave = () => !unsaved.current || window.confirm("Something you typed has not been saved and will be lost. Leave anyway?");
+  // Simple Update (CMS usability batch 2): one routine update without the full editor. Any section opens the full editor.
+  const [simpleOpen, setSimpleOpen] = useState(false);
+  const simpleDirty = useRef(false);
+  const leaveSimple = () => !simpleOpen || !simpleDirty.current || window.confirm("Leave this update? What you typed in Update existing recruitment is not saved.");
   const openSection = (key: string) => {
-    if (!confirmLeave()) return;
+    if (!leaveSimple() || !confirmLeave()) return;
     unsaved.current = false;
+    setSimpleOpen(false);
     setActiveSection(key);
     // A long section left the page scrolled deep; the next one opens at its top.
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1385,8 +1391,9 @@ export default function CmsRecordEditorPage() {
   // bring its editor into view (the field itself when it has one), instead of
   // leaving the reader at the top, above the panels.
   const jumpTo = (key: string, fieldPath?: string) => {
-    if (!confirmLeave()) return;
+    if (!leaveSimple() || !confirmLeave()) return;
     unsaved.current = false;
+    setSimpleOpen(false);
     setActiveSection(key);
     setTimeout(() => {
       const field = fieldPath ? document.querySelector<HTMLElement>(`[data-field-path="${CSS.escape(fieldPath)}"]`) : null;
@@ -1934,8 +1941,36 @@ export default function CmsRecordEditorPage() {
 
         <TakenDownBanner record={record} onChange={setRecord} />
 
+        {/* Routine updates to a job that has been published: the short way, without the full editor. */}
+        {Boolean(record.publishedAt) && record.draftState !== "ARCHIVED" && !simpleOpen && (
+          <button
+            type="button"
+            data-open-simple-update
+            onClick={() => { if (confirmLeave()) { unsaved.current = false; setSimpleOpen(true); window.scrollTo({ top: 0 }); } }}
+            style={{ display: "block", width: "100%", textAlign: "left", marginBottom: 14, padding: "12px 16px", borderRadius: 10, border: `1px solid ${C.accent}66`, background: `${C.accent}14`, color: C.text, cursor: "pointer", fontSize: 14, fontWeight: 700 }}
+          >
+            Update existing recruitment →
+            <span style={{ display: "block", fontSize: 12, fontWeight: 400, color: C.muted, marginTop: 3 }}>
+              Exam date, admit card, result, answer key, cut-off, deadline or another notice: enter just that, review, then publish.
+            </span>
+          </button>
+        )}
+        {simpleOpen && (
+          <SimpleUpdatePanel
+            record={record}
+            onRecordChange={onFieldSaved}
+            onAdvanced={() => setSimpleOpen(false)}
+            dirtyRef={simpleDirty}
+            onUseAi={(src) => {
+              setSimpleOpen(false);
+              router.replace(`/admin/cms/${id}?source=${encodeURIComponent(src)}#check-updates`, { scroll: false });
+              setTimeout(() => document.getElementById("check-updates")?.scrollIntoView({ block: "start" }), 300);
+            }}
+          />
+        )}
+
         {/* A live job is locked. Said here, where the editing happens, not only on the side button. */}
-        {record.draftState === "PUBLISHED" && (
+        {record.draftState === "PUBLISHED" && !simpleOpen && (
           <div role="note" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 14, padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.amber}55`, background: `${C.amber}12`, fontSize: 12, color: C.text, lineHeight: 1.5 }}>
             <span style={{ flex: "1 1 320px" }}>
               {record.takenDown
@@ -1961,6 +1996,7 @@ export default function CmsRecordEditorPage() {
           onPublished={(o) => { setRecord(o.record); setPublishNote(o.note); setPublishSeqErr(o.error); void loadRevisions(); }}
           onRefused={() => { void loadRecord(); }}
         />
+        <div data-advanced-editor style={simpleOpen ? { display: "none" } : undefined}>
         {/* Imported jobs only: a person's check on every critical field. */}
         <ImportChecksPanel record={record} onRecordChange={onFieldSaved} onChecks={setImportChecks} onJump={jumpTo} />
         {(record.draftState === "DRAFT" || record.draftState === "APPROVED") && (
@@ -1977,7 +2013,7 @@ export default function CmsRecordEditorPage() {
         {record.draftState !== "ARCHIVED" && <UpdatesNeededPanel recordId={record.id} />}
 
         <div id="check-updates">
-          <UpdateCheckPanel record={record} onRecordChange={onFieldSaved} initialSource={leadSource} />
+          <UpdateCheckPanel key={leadSource} record={record} onRecordChange={onFieldSaved} initialSource={leadSource} />
         </div>
 
         {/* ── AI Assist panel (DRAFT / APPROVED only) ── */}
@@ -2786,6 +2822,7 @@ export default function CmsRecordEditorPage() {
             )}
           </Section>
         )}
+        </div>
       </div>
     </div>
     </ImportVerdicts.Provider>

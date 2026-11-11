@@ -244,8 +244,12 @@ import { approved } from "./owner-approval";
 
   // The panel's own code: it reopens and saves, and never calls approve or publish or announces.
   const { readFileSync } = await import("node:fs");
+  // The panel saves through the shared helper (apply-saves.ts, also used by Simple Update): both are checked.
   const panel = readFileSync("src/app/admin/cms/[id]/UpdateCheckPanel.tsx", "utf8");
-  check("the panel's code calls no approve or publish endpoint and never sends announce", !/\/approve`|\/publish`|announce\s*:/.test(panel) && /\/revert`/.test(panel) && /\/fields`/.test(panel));
+  const shared = readFileSync("src/app/admin/cms/[id]/apply-saves.ts", "utf8");
+  const simple = readFileSync("src/app/admin/cms/[id]/SimpleUpdatePanel.tsx", "utf8");
+  check("the panels' code calls no approve or publish endpoint and never sends announce",
+    [panel, shared, simple].every((src) => !/\/approve`|\/publish`|announce\s*:/.test(src)) && /applySaves\(/.test(panel) && /\/revert`/.test(shared) && /\/fields`/.test(shared));
   check("the panel no longer offers a web search", !/Search the web/.test(panel) && /Give a source to check/.test(panel));
 
   // The owner's reviewed publish is what puts it live.
