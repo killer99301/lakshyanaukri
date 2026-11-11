@@ -12,7 +12,7 @@ import { MarketplaceJobCard } from "@/components/jobs/MarketplaceJobCard";
 import { JobsRightSidebar, SIDEBAR_ORGANIZATIONS, type QuickLinkKind } from "@/components/jobs/JobsRightSidebar";
 import { JobsPagination } from "@/components/jobs/JobsPagination";
 import { EligibilityPromo } from "@/components/jobs/EligibilityPromo";
-import { searchOpportunities, closestMatches, textSearch, getDefaultFilterState, jobsUrlState, inGovScope, GOV_SCOPE_LABELS, SortOption, type GovScope } from "@/lib/filters";
+import { searchOpportunities, closestMatches, spellingSuggestion, textSearch, getDefaultFilterState, jobsUrlState, inGovScope, GOV_SCOPE_LABELS, SortOption, type GovScope } from "@/lib/filters";
 import type { Opportunity, FilterState } from "@/types";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
@@ -175,6 +175,20 @@ function JobsPageContent({ opportunities, searchParams }: JobsPageClientProps & 
     return searchOpportunities(closestMatches(scopedJobs, searchQuery), "", selectedLocation, filters, sortBy, new Date());
   }, [scopedJobs, filteredJobs, searchQuery, selectedLocation, filters, sortBy]);
   const showingClosest = closestJobs.length > 0;
+  // No full match: the query as the site's own jobs spell it, when that finds something ("Did you mean …").
+  const suggestion = useMemo(
+    () => (filteredJobs.length === 0 && searchQuery.trim() ? spellingSuggestion(scopedJobs, searchQuery) : null),
+    [filteredJobs, searchQuery, scopedJobs],
+  );
+  const didYouMean = suggestion ? (
+    <span data-search-suggestion>
+      {" "}Did you mean{" "}
+      <button type="button" onClick={() => handlePopularChipClick(suggestion)} className="font-extrabold text-[#EA580C] hover:underline cursor-pointer">
+        {suggestion}
+      </button>
+      ?
+    </span>
+  ) : null;
   const shownJobs = showingClosest ? closestJobs : filteredJobs;
 
   // Dynamic Pagination Calculation
@@ -265,6 +279,7 @@ function JobsPageContent({ opportunities, searchParams }: JobsPageClientProps & 
                 <div className="bg-[#FFF7ED] border border-[#FED7AA] rounded-2xl px-4 py-3 text-xs text-[#475569]">
                   <span className="font-extrabold text-[#0F172A]">No exact match for “{searchQuery.trim()}”.</span>{" "}
                   Showing the closest {closestJobs.length === 1 ? "result" : "results"} instead.
+                  {didYouMean}
                 </div>
               )}
 
@@ -298,6 +313,7 @@ function JobsPageContent({ opportunities, searchParams }: JobsPageClientProps & 
                     </h3>
                     <p className="text-xs text-[#475569]">
                       Try adjusting your filters, searching for alternate keywords, or clearing your active filters.
+                      {didYouMean}
                     </p>
                   </div>
                   <Button

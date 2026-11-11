@@ -99,16 +99,35 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   graduation: ["graduate"], degree: ["graduate"], bachelor: ["graduate"],
   pg: ["post graduate"], postgraduate: ["post graduate"], masters: ["post graduate"],
   teacher: ["teaching"], teachers: ["teaching"],
-  police: ["defence"], army: ["defence"], navy: ["defence"], airforce: ["defence"], defense: ["defence"],
+  police: ["defence", "constable", "sub inspector"], army: ["defence"], navy: ["defence"], airforce: ["defence"], defense: ["defence"],
   bank: ["banking"], rail: ["railway"], railways: ["railway"],
   psc: ["state psc"], central: ["central govt"],
+  // Short forms of post names (search quality, 11 Nov 2026). Each only adds the full words; it never removes a match.
+  si: ["sub inspector"], asi: ["assistant sub inspector"], asst: ["assistant"], engg: ["engineer", "engineering"],
+  mgr: ["manager"], jr: ["junior"], sr: ["senior"], apprenticeship: ["apprentice"], deo: ["data entry operator"],
 };
+
+// Words left out when a body's initials are made from its name ("State Bank of India" → sbi).
+const INITIAL_SKIP = new Set(["of", "and", "the", "for"]);
+/** A body's initials from its name, when the name has three or more words: "Railway Recruitment Boards" → rrb. */
+export function nameInitials(name: string | undefined): string | null {
+  const words = (name ?? "").replace(/\([^)]*\)/g, " ").toLowerCase().split(/[^a-z]+/).filter((w) => w && !INITIAL_SKIP.has(w));
+  return words.length >= 3 ? words.map((w) => w[0]).join("") : null;
+}
 
 /** The words a query is matched on. Filler is dropped unless nothing else is left. */
 export function searchWords(query: string): string[] {
   const all = searchText(query).trim().split(" ").filter(Boolean);
   const meaningful = all.filter((w) => !SEARCH_FILLER.has(w));
   return meaningful.length > 0 ? meaningful : all;
+}
+
+/** True when two four-letter words differ only by two neighbouring letters swapped ("ntcp" / "ntpc"). */
+function swappedPair(a: string, b: string): boolean {
+  if (a.length !== b.length || a === b) return false;
+  let i = 0;
+  while (a[i] === b[i]) i++;
+  return a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2);
 }
 
 /** True when the two words differ by one typed, missing, extra or swapped letter. */
@@ -134,6 +153,12 @@ const STAGE_SEARCH_WORDS: Record<string, string> = {
   RESULT_DECLARED: "result declared",
 };
 
+/** The fields a searcher most often means: the title, the body (and its initials) and the notice number. */
+function jobKeyText(opp: Opportunity): string {
+  const gov = opp.type === "government" ? (opp as GovernmentRecruitment) : null;
+  return searchText([opp.title, opp.organizationName, opp.organizationId, nameInitials(opp.organizationName), gov?.notificationNumber].filter(Boolean).join(" "));
+}
+
 function jobSearchText(opp: Opportunity): string {
   const gov = opp.type === "government" ? (opp as GovernmentRecruitment) : null;
   return searchText(
@@ -141,6 +166,7 @@ function jobSearchText(opp: Opportunity): string {
       opp.title,
       opp.organizationName,
       opp.organizationId,
+      nameInitials(opp.organizationName),
       opp.slug,
       opp.shortDescription,
       opp.category,
@@ -155,16 +181,53 @@ function jobSearchText(opp: Opportunity): string {
   );
 }
 
-/** Whether one typed word is found in a job's text: as typed, singular, a known synonym, or one typo off. */
-function wordFound(word: string, text: string): boolean {
-  if (text.includes(` ${word}`)) return true;
-  if (word.length > 3 && word.endsWith("s") && text.includes(` ${word.slice(0, -1)}`)) return true;
-  if ((SEARCH_SYNONYMS[word] ?? []).some((alt) => text.includes(` ${alt}`))) return true;
-  // Typos are forgiven only on longer words, and never on numbers ("2025" is not "2026").
-  if (word.length >= 5 && !/\d/.test(word)) {
-    return text.split(" ").some((token) => token.length >= 4 && oneTypoApart(word, token));
+// How strongly one typed word is found, best first. 0: not found.
+const EXACT_KEY = 6, EXACT = 5, PREFIX_KEY = 4, PREFIX = 3, SYNONYM = 2, TYPO = 1;
+
+/**
+ * How one typed word is found in a job: as a whole word in its title, body or notice number; as a whole word
+ * elsewhere; as the start of a word; singular; a known synonym; or one typo off. Words of one or two letters
+ * ("si", "po") count only as whole words or synonyms, so "si" never finds "Sikkim". Typos are forgiven only on
+ * words of five letters or more, plus two swapped neighbours in a four-letter word ("ntcp"), and never on numbers.
+ */
+function wordStrength(word: string, key: string, text: string): number {
+  if (key.includes(` ${word} `)) return EXACT_KEY;
+  if (text.includes(` ${word} `)) return EXACT;
+  if (word.length >= 3) {
+    if (key.includes(` ${word}`)) return PREFIX_KEY;
+    if (text.includes(` ${word}`)) return PREFIX;
+    if (word.length > 3 && word.endsWith("s") && text.includes(` ${word.slice(0, -1)}`)) return PREFIX;
   }
-  return false;
+  if ((SEARCH_SYNONYMS[word] ?? []).some((alt) => text.includes(` ${alt}`))) return SYNONYM;
+  if (/\d/.test(word)) return 0;
+  if (word.length >= 5) return text.split(" ").some((token) => token.length >= 4 && oneTypoApart(word, token)) ? TYPO : 0;
+  if (word.length === 4) return text.split(" ").some((token) => token.length === 4 && swappedPair(word, token)) ? TYPO : 0;
+  return 0;
+}
+
+/** Whether one typed word is found in a job's text at all. */
+function wordFound(word: string, text: string, key = text): boolean {
+  return wordStrength(word, key, text) > 0;
+}
+
+/**
+ * How well a job matches a query, for putting the best match first: every word's strength, plus a bonus when the
+ * query's words appear together, in order, in the title, body or notice number. 0 when a word is missing.
+ */
+export function searchScore(opp: Opportunity, query: string): number {
+  const words = searchWords(query);
+  if (words.length === 0) return 0;
+  const key = jobKeyText(opp), text = jobSearchText(opp);
+  let score = 0;
+  for (const w of words) {
+    const strength = wordStrength(w, key, text);
+    if (strength === 0) return 0;
+    score += strength;
+  }
+  const phrase = ` ${words.join(" ")}`;
+  if (words.length > 1 && key.includes(phrase)) score += 10;
+  else if (words.length > 1 && text.includes(phrase)) score += 4;
+  return score;
 }
 
 /**
@@ -179,7 +242,8 @@ export function textSearch(
   if (words.length === 0) return opportunities;
   return opportunities.filter((opp) => {
     const text = jobSearchText(opp);
-    return words.every((w) => wordFound(w, text));
+    const key = jobKeyText(opp);
+    return words.every((w) => wordFound(w, text, key));
   });
 }
 
@@ -200,6 +264,52 @@ export function closestMatches(opportunities: Opportunity[], query: string): Opp
     return { opp, score };
   });
   return best === 0 ? [] : scored.filter((s) => s.score === best).map((s) => s.opp);
+}
+
+/** Edits between two short words (letters typed, missing, extra or replaced), stopping early past `max`. */
+function editDistance(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      const v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      cur.push(v);
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/**
+ * When a query finds nothing: the same query with its unfound words spelled as the site's own jobs spell them,
+ * if that finds something ("rrb ntpcc" → "rrb ntpc"). Only words of four letters or more are respelled, by one
+ * edit (two for words of seven or more); numbers never. Null when no such spelling finds a job.
+ */
+export function spellingSuggestion(opportunities: Opportunity[], query: string): string | null {
+  const words = searchWords(query);
+  if (words.length === 0 || textSearch(opportunities, query).length > 0) return null;
+  const vocabulary = new Set<string>();
+  for (const opp of opportunities) for (const t of jobKeyText(opp).trim().split(" ")) if (t.length >= 3 && !/\d/.test(t)) vocabulary.add(t);
+  let changed = false;
+  const fixed = words.map((w) => {
+    if (w.length < 4 || /\d/.test(w) || opportunities.some((opp) => wordFound(w, jobSearchText(opp), jobKeyText(opp)))) return w;
+    const max = w.length >= 7 ? 2 : 1;
+    let best: string | null = null;
+    let bestD = max + 1;
+    for (const t of vocabulary) {
+      const d = editDistance(w, t, max);
+      if (d < bestD || (d === bestD && best !== null && t < best)) { best = t; bestD = d; }
+    }
+    if (best && bestD <= max) { changed = true; return best; }
+    return w;
+  });
+  if (!changed) return null;
+  const suggestion = fixed.join(" ");
+  return textSearch(opportunities, suggestion).length > 0 ? suggestion : null;
 }
 
 // ─── Location Filter ────────────────────────────────────
@@ -431,6 +541,14 @@ export function searchOpportunities(
 
   // 4. Sort
   result = sortOpportunities(result, sortBy, now);
+
+  // 5. With a search and the usual "Latest" order, the best matches come first (an exact title, body or notice
+  // number before an all-words match, a synonym or a typo); jobs that match equally keep the latest-first order.
+  // A sort the visitor chose themselves (closing soon, vacancies) is kept as chosen.
+  if (query.trim() && sortBy === "latest") {
+    const scores = new Map(result.map((opp) => [opp, searchScore(opp, query)] as const));
+    result = [...result].sort((a, b) => scores.get(b)! - scores.get(a)!);
+  }
 
   return result;
 }
