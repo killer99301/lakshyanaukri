@@ -131,7 +131,9 @@ export function EligibilityChecker({ ageLimit }: { ageLimit?: AgeLimit }) {
             </select>
           </div>
         )}
-        <DobFields id="age-check-dob" legendClassName={label} fieldClassName={field} onChange={setDob} />
+        {/* Two columns wherever the form has two or three, so Day, Month and Year each have room (at laptop widths
+            one column left Month 18 px wide). */}
+        <DobFields id="age-check-dob" legendClassName={label} fieldClassName={field} className="sm:col-span-2" onChange={setDob} />
         <div>
           <label className={label} htmlFor="age-check-category">Category</label>
           <select id="age-check-category" value={category} onChange={(e) => setCategory(e.target.value as CasteCategory)} className={field}>

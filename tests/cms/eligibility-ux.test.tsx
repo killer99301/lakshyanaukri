@@ -133,3 +133,11 @@ test("EU12 the old wording is gone; the result stays amber; the engine still fla
   assert.equal(checkAge(SBI, "1985-10-31", "GEN", false).verdict, "TOO_OLD", "41 completed: above the limit");
   assert.equal(checkAge({ ...SBI, bornFrom: "1985-11-01", bornTo: "2005-10-31" }, "1985-11-01", "GEN", false).verdict, "WITHIN", "a printed date-of-birth range still decides exactly");
 });
+
+suite("The date group's width on a job page");
+test("EU13 the job checker's date group takes two columns; /eligibility's is unchanged", () => {
+  const job = renderToStaticMarkup(<EligibilityChecker ageLimit={SBI} />);
+  assert.match(job, /<fieldset class="min-w-0 sm:col-span-2">/, "room for Day, Month and Year at laptop widths");
+  const finder = renderToStaticMarkup(<EligibilityFinderClient jobs={[]} />);
+  assert.match(finder, /<fieldset class="min-w-0">/, "the finder's own grid already gives it room");
+});

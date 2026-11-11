@@ -10,11 +10,13 @@ import { isoFromParts } from "@/lib/eligibility";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-export function DobFields({ id, legendClassName, fieldClassName, onChange }: {
+export function DobFields({ id, legendClassName, fieldClassName, className, onChange }: {
   /** Prefix for the three fields' ids. */
   id: string;
   legendClassName: string;
   fieldClassName: string;
+  /** Extra classes for the group, e.g. the columns it takes in its form's grid. */
+  className?: string;
   /** "YYYY-MM-DD" once day, month and a four-digit year are given; "" before. */
   onChange: (iso: string) => void;
 }) {
@@ -24,7 +26,7 @@ export function DobFields({ id, legendClassName, fieldClassName, onChange }: {
   const update = (d: string, m: string, y: string) => { setDay(d); setMonth(m); setYear(y); onChange(isoFromParts(d, m, y)); };
 
   return (
-    <fieldset className="min-w-0">
+    <fieldset className={cn("min-w-0", className)}>
       <legend className={legendClassName}>Date of birth</legend>
       <div className="grid grid-cols-[4.75rem_minmax(0,1fr)_5.75rem] gap-2">
         <div>
