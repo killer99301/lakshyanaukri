@@ -170,9 +170,19 @@ export function liveChanges(live: PublishedRecruitmentSnapshot, next: PublishedR
   for (const [url, l] of beforeLinks) if (!afterLinks.has(url)) add("Links", `Link “${l.label}”`, url, "Removed");
 
   // ── Update entries: new ones appear in the banner and history ──
-  const seen = new Set((live.updates as UpdateRecord[] ?? []).map((u) => `${u.date}|${u.title}`));
+  const liveUpdates = (live.updates as UpdateRecord[] ?? []);
+  const seen = new Set(liveUpdates.map((u) => `${u.date}|${u.title}`));
+  const liveById = new Map(liveUpdates.filter((u) => u?.id).map((u) => [u.id, u]));
   for (const u of (next.updates as UpdateRecord[] ?? [])) {
-    if (!seen.has(`${u.date}|${u.title}`)) out.push({ section: "Updates", label: "New update", before: "", after: `${formatDate(u.date)}: ${u.title}` });
+    const was = u?.id ? liveById.get(u.id) : undefined;
+    if (was) {
+      // The same announcement, now superseded or current again (its own text never changes).
+      if (Boolean(was.superseded) !== Boolean(u.superseded)) {
+        out.push({ section: "Updates", label: `Update “${u.title}” (${formatDate(u.date)})`, before: was.superseded ? "Superseded" : "Current", after: u.superseded ? "Superseded: no longer shown as current" : "Current again" });
+      }
+      continue;
+    }
+    if (!seen.has(`${u.date}|${u.title}`)) out.push({ section: "Updates", label: "New update", before: "", after: `${formatDate(u.date)}: ${u.title}${u.superseded ? " (superseded)" : ""}` });
   }
 
   return out;

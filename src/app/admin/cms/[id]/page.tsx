@@ -64,6 +64,8 @@ import { InfoTip, HELP } from "../InfoTip";
 import { JobDetailHeader } from "@/components/jobs/JobDetailHeader";
 import { JobDetailSections } from "@/components/jobs/JobDetailSections";
 import { OfficialNotificationCard } from "@/components/jobs/OfficialNotificationCard";
+import { JobDownloads } from "@/components/lifecycle/LifecycleLinkList";
+import { UpdatesSupersede } from "./UpdatesSupersede";
 
 // ─── Design tokens ────────────────────────────────────────
 
@@ -2689,6 +2691,7 @@ export default function CmsRecordEditorPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <span style={{ fontSize: 12, color: C.muted }}>
                 {record.updates.length} update{record.updates.length !== 1 ? "s" : ""}
+                {record.updates.some((u) => u.superseded) ? ` (${record.updates.filter((u) => u.superseded).length} superseded)` : ""}
               </span>
               <button
                 onClick={() => setShowAddUpdate(true)}
@@ -2709,11 +2712,11 @@ export default function CmsRecordEditorPage() {
             {record.updates.length === 0 ? (
               <div style={{ color: C.muted, fontSize: 13 }}>No updates recorded yet.</div>
             ) : (
-              <div>
-                {[...record.updates].reverse().map((u) => (
-                  <UpdateRecordCard key={u.id} update={u} />
-                ))}
-              </div>
+              <UpdatesSupersede
+                record={record}
+                renderCard={(u) => <UpdateRecordCard update={u} />}
+                onSaved={(updated) => { setRecord(updated); void loadRevisions(); }}
+              />
             )}
           </Section>
         )}
@@ -3597,16 +3600,17 @@ function DraftPreviewOverlay({
             Preview error: {previewErr}
           </div>
         ) : previewJob ? (
+          // The same applicant-facing parts, in the same order, as the public job page
+          // (src/app/(main)/jobs/[slug]/page.tsx): header, official links, downloads, sections.
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px" }}>
-            <OfficialNotificationCard
-              notificationPdfUrl={previewJob.type === "government" ? previewJob.links.notification : undefined}
-              officialWebsiteUrl={previewJob.links.website}
-              organizationId={previewJob.organizationId}
-            />
-            <div style={{ marginTop: 24 }}>
-              <JobDetailHeader job={previewJob} />
-            </div>
-            <div style={{ marginTop: 24 }}>
+            <JobDetailHeader job={previewJob} />
+            <div data-preview-main style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 32 }}>
+              <OfficialNotificationCard
+                notificationPdfUrl={previewJob.type === "government" ? previewJob.links.notification : undefined}
+                officialWebsiteUrl={previewJob.links.website}
+                organizationId={previewJob.organizationId}
+              />
+              <JobDownloads items={previewJob.downloads} />
               <JobDetailSections job={previewJob} />
             </div>
           </div>

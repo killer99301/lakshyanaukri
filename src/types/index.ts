@@ -82,6 +82,18 @@ export interface UpdateRecord {
   field?: string;                 // which field changed: "totalVacancies"
   previousValue?: string;         // "1,230"
   newValue?: string;              // "1,186"
+  /**
+   * Set when newer verified information replaced this announcement (Nov 2026). The entry is kept word for
+   * word, but no longer shown as current: no banner, NEW badge, count or news line. Absent = current, as on
+   * every entry written before this existed. `reason` is internal and never shown publicly.
+   */
+  superseded?: {
+    on: string;          // YYYY-MM-DD it was marked
+    by: string;          // admin id
+    reason: string;
+    replacedBy?: string; // id of a newer announcement of the same job
+    sourceUrl?: string;  // or the official notice with the correct information
+  };
 }
 
 // ─── Application Window & Lifecycle ─────────────────────

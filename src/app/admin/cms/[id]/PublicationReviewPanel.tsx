@@ -225,6 +225,17 @@ export function PublicationReviewPanel({ record, onJump, onPublished, onRefused 
         </div>
       )}
 
+      {(v.supersessions ?? []).length > 0 && (
+        <div data-review-supersessions>
+          {heading(`Announcements this publish marks superseded or restores (${v.supersessions!.length})`)}
+          {v.supersessions!.map((a) => (
+            <div key={a.id} data-supersession={a.id} style={{ color: C.text, lineHeight: 1.5 }}>
+              • {a.change === "SUPERSEDED" ? "Superseded" : "Current again"}: {a.title} <span style={{ color: C.muted }}>({a.date})</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div data-review-links>
         {heading("Links")}
         {linkLine("Apply Online", v.links.applyOnline)}

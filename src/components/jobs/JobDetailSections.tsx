@@ -15,7 +15,8 @@ import {
   History,
 } from "lucide-react";
 import type { Opportunity } from "@/types";
-import { getVacancyDisplay, getStageCertainty, getCategoryLabel, isFreshUpdate, getUpdatesSortedByDate } from "@/lib/lifecycle";
+import { getVacancyDisplay, getStageCertainty, getCategoryLabel, isFreshUpdate, getUpdatesSortedByDate, getSupersededUpdates } from "@/lib/lifecycle";
+import { replacementOf } from "@/lib/cms/announcements";
 import { NewBadge } from "@/components/common/NewBadge";
 import { resolveDocumentAccess } from "@/lib/documents";
 import { formatDate } from "@/lib/utils";
@@ -40,6 +41,9 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
   const isPriv = job.type === "private";
   const isIntern = job.type === "internship";
   const vacancyText = getVacancyDisplay(job);
+  // Announcements: current ones are the history; superseded ones only appear in a collapsed correction list.
+  const currentList = getUpdatesSortedByDate(job);
+  const correctedList = getSupersededUpdates(job);
   const categoryTable = job.type === "government" ? vacancyCategoryTable(job.vacancyBreakdown) : null;
   const vacancyTable = job.type === "government" ? job.vacancyTable : undefined;
 
@@ -129,7 +133,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
       </section>
 
       {/* 2. Official Corrigenda & Update History Timeline */}
-      {job.updates && job.updates.length > 0 && (
+      {(currentList.length > 0 || correctedList.length > 0) && (
         <section id="updates-history" className="bg-white border border-[#FED7AA] rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-amber-100">
             <div className="flex items-center gap-2.5">
@@ -142,13 +146,13 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
               </div>
             </div>
             <span className="text-xs font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-              {job.updates.length} {job.updates.length === 1 ? "Update" : "Updates"}
+              {currentList.length} {currentList.length === 1 ? "Update" : "Updates"}
             </span>
           </div>
 
           <div className="space-y-3.5">
             {/* Newest first, so the latest change is the first one read. */}
-            {getUpdatesSortedByDate(job).map((item) => {
+            {currentList.map((item) => {
               const docAccess = resolveDocumentAccess({
                 officialPdfUrl: item.sourceUrl,
                 organization: job.organizationName,
@@ -207,6 +211,38 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
             );
           })}
           </div>
+
+          {/* Announcements replaced by newer verified information: kept visible as a record of the correction,
+              never as current guidance. Their old wording is not repeated (it holds the outdated details). */}
+          {correctedList.length > 0 && (
+            <details data-superseded-updates className="pt-2 border-t border-amber-100">
+              <summary className="cursor-pointer text-xs font-bold text-[#475569]">
+                Earlier notices, since corrected ({correctedList.length})
+              </summary>
+              <ul className="mt-2 space-y-2">
+                {correctedList.map((item) => {
+                  const by = replacementOf(item, job.updates ?? []);
+                  const official = item.superseded?.sourceUrl;
+                  return (
+                    <li key={item.id} className="text-xs text-[#64748B]">
+                      <span className="line-through">{formatDate(item.date)}: {item.title}</span>
+                      <span className="block text-[11px] font-medium text-[#475569]">
+                        {by ? (
+                          <>Corrected by the notice of {formatDate(by.date)}: {by.title}</>
+                        ) : official ? (
+                          <>Corrected —{" "}
+                            <a href={official} target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-800">see the official notice</a>
+                          </>
+                        ) : (
+                          <>Corrected by newer official information</>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
+          )}
         </section>
       )}
 

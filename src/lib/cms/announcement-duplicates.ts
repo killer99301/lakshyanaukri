@@ -62,6 +62,8 @@ export function likelyDuplicates(
   const myWords = words(candidate.title);
   const hits: DuplicateHit[] = [];
   for (const entry of existing) {
+    // A superseded announcement is no longer current news: a new one replacing it is not a repeat.
+    if (entry.superseded) continue;
     if (candidate.date && daysBetween(candidate.date, entry.date) > windowDays) continue;
     const theirs = eventsOf(`${entry.title} ${entry.description ?? ""}`);
     const shared = mine.filter((e) => theirs.includes(e));

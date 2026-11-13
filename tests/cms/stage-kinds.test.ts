@@ -112,7 +112,8 @@ test("SK08 a record stored without classes is one list, in its stored order, the
   assert.equal(g[0].title, null);
   assert.equal(g[0].stages, legacy, "not copied or re-sorted: rendered exactly as before");
   assert.ok(legacy.every(isSelectionStage));
-  assert.equal(getCurrentExamSummary(legacy, on("2026-10-28")), "Tier-I: 12 Dec 2026");
+  // A tentative date says so in the Exam Schedule box (maintenance batch, Nov 2026).
+  assert.equal(getCurrentExamSummary(legacy, on("2026-10-28")), "Tier-I: 12 Dec 2026 (tentative)");
 });
 test("SK09 the timeline keeps every announcement, marked as such; what's next can be a call letter, never a fallback stage", () => {
   const job = { type: "government", application: { openDate: "2026-09-01", closeDate: "2026-09-21" }, examStages: IBPS } as unknown as Opportunity;

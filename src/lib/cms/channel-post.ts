@@ -48,6 +48,7 @@ interface UpdateLike { date?: unknown; title?: unknown }
 export function newsLine(updates: unknown[], todayIso: string): string | undefined {
   const cutoff = new Date(`${todayIso}T00:00:00Z`).getTime() - 3 * 86_400_000;
   const recent = (updates as UpdateLike[])
+    .filter((u) => !(u as { superseded?: unknown })?.superseded)
     .filter((u) => typeof u?.date === "string" && typeof u?.title === "string" && /^\d{4}-\d{2}-\d{2}$/.test(u.date as string))
     .filter((u) => new Date(`${u.date}T00:00:00Z`).getTime() >= cutoff)
     .sort((a, b) => String(b.date).localeCompare(String(a.date)));

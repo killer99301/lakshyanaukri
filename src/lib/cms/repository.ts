@@ -871,6 +871,50 @@ export async function persistUpdateAppend(
   return { record: saved, revision, wentLive: false };
 }
 
+/**
+ * Save a job's announcement list after announcements were marked superseded or made current again
+ * (src/lib/cms/announcements.ts). Like an announcement append: only while the job is open for editing, never
+ * on the live version, and nothing public changes until the owner's reviewed publish. The write happens only
+ * if the list is still exactly the one the change was worked out from (another tab or person may have changed
+ * it), and the whole list before and after goes into the job's change history with the reason.
+ */
+export async function persistUpdatesNote(
+  recordId: string,
+  before: UpdateRecord[],
+  after: UpdateRecord[],
+  adminId: string,
+  reason: string,
+): Promise<{ record: RecruitmentRecord; revision: FieldRevision }> {
+  const revision = buildFieldRevision(recordId, "updates", before, after, adminId, reason);
+  const rows = await sql`
+    WITH updated AS (
+      UPDATE recruitments SET
+        updates    = ${JSON.stringify(after)}::jsonb,
+        updated_at = now(),
+        updated_by = ${adminId}
+      WHERE id          = ${recordId}
+        AND draft_state IN ('DRAFT', 'APPROVED')
+        AND COALESCE(updates, '[]'::jsonb) = ${JSON.stringify(before)}::jsonb
+      RETURNING id
+    )
+    INSERT INTO field_revisions
+      (id, recruitment_id, field_path, revised_by, revised_at, old_value, new_value, reason)
+    SELECT ${revision.id}, ${revision.recruitmentId}, ${revision.fieldPath}, ${revision.revisedBy}, ${revision.revisedAt},
+      ${JSON.stringify(before)}::jsonb, ${JSON.stringify(after)}::jsonb, ${revision.reason ?? null}
+    FROM updated
+    RETURNING recruitment_id
+  `;
+  if (rows.length === 0) throw new UpdatesChangedError();
+  const saved = await getRecruitmentById(recordId);
+  if (!saved) throw new Error(`Record ${recordId} not found after saving its announcements`);
+  return { record: saved, revision };
+}
+
+/** The job's announcements changed, or it is no longer open for editing, since the change was worked out. */
+export class UpdatesChangedError extends Error {
+  constructor() { super("The announcements changed, or the job is not open for editing. Reload the page and try again."); }
+}
+
 // Re-export buildFieldRevision so callers can build revisions without
 // importing record-ops directly. The repository is the single entry point.
 export { buildFieldRevision };

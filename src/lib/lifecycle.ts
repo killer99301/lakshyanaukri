@@ -6,6 +6,7 @@
 // No hardcoded dates. No Date.now() calls inside these fns.
 // ═══════════════════════════════════════════════════════════
 
+import { currentUpdates, supersededUpdates } from "@/lib/cms/announcements";
 import type {
   ApplicationWindow,
   ApplicationStatus,
@@ -134,7 +135,7 @@ export function getCurrentExamSummary(allStages: ExamStage[], now: Date): string
       );
       if (nextStage) {
         if (nextStage.status === "SCHEDULED" && nextStage.dateDisplay) {
-          return `${nextStage.name}: ${nextStage.dateDisplay}`;
+          return `${nextStage.name}: ${withTentative(nextStage, nextStage.dateDisplay)}`;
         }
         return `${nextStage.name}: ${nextStage.status.replace(/_/g, " ")}`;
       }
@@ -146,7 +147,7 @@ export function getCurrentExamSummary(allStages: ExamStage[], now: Date): string
 
     case "SCHEDULED": {
       const when = latest.dateDisplay || (latest.dateIso ? formatDate(latest.dateIso) : "");
-      return when ? `${latest.name}: ${when}` : `${latest.name} Scheduled`;
+      return when ? `${latest.name}: ${withTentative(latest, when)}` : `${latest.name} Scheduled`;
     }
 
     case "ADMIT_CARD_OUT":
@@ -155,6 +156,39 @@ export function getCurrentExamSummary(allStages: ExamStage[], now: Date): string
     default:
       return latest.status.replace(/_/g, " ");
   }
+}
+
+/**
+ * A stage's date as shown in the header's Exam Schedule box: "(tentative)" is added when the date is tentative
+ * and the written text does not already say so (RRB Paramedical, 12 Nov 2026: a tentative CBT read as confirmed).
+ */
+function withTentative(stage: ExamStage, when: string): string {
+  return getStageCertainty(stage) === "TENTATIVE" && !/tentative/i.test(when) ? `${when} (tentative)` : when;
+}
+
+const MONTH_WORD = "(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
+const TWO_DAYS = new RegExp(String.raw`^(\d{1,2}) ${MONTH_WORD} (\d{4}) (?:&|and|,) (\d{1,2}) ${MONTH_WORD} (\d{4})$`, "i");
+const SPAN = new RegExp(String.raw`^(\d{1,2}) ${MONTH_WORD} (\d{4}) ?(?:–|—|-|to) ?(\d{1,2}) ${MONTH_WORD} (\d{4})$`, "i");
+const short = (m: string) => m.slice(0, 3).replace(/^./, (c) => c.toUpperCase());
+
+/**
+ * A stage's written schedule, shortened for a badge without reading any date into it that the text does not
+ * give. Only two exact shapes are shortened, and their meaning is kept: two separate days of one month
+ * ("23 Nov 2026 & 25 Nov 2026" → "23 & 25 Nov 2026") and a continuous window within one year
+ * ("30 Nov 2026 – 31 Dec 2026" → "30 Nov – 31 Dec 2026"). Anything else is shown as written, without its
+ * bracketed remarks; text too long for a badge gives null (the Exam Schedule box shows it in full).
+ */
+export function badgeSchedule(written: string | undefined, maxLength = 28): string | null {
+  const text = (written ?? "").split("(")[0].replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  let out = text;
+  const two = TWO_DAYS.exec(text);
+  if (two && short(two[2]) === short(two[5]) && two[3] === two[6]) out = `${two[1]} & ${two[4]} ${short(two[2])} ${two[3]}`;
+  const span = SPAN.exec(text);
+  if (span && span[3] === span[6]) out = short(span[2]) === short(span[5])
+    ? `${span[1]}–${span[4]} ${short(span[2])} ${span[3]}`
+    : `${span[1]} ${short(span[2])} – ${span[4]} ${short(span[5])} ${span[3]}`;
+  return out.length <= maxLength ? out : null;
 }
 
 /**
@@ -278,15 +312,12 @@ export function deriveStatusBadge(opp: Opportunity, now: Date): StatusBadgeInfo 
           const isTentative = certainty === "TENTATIVE";
           let label = "Exam Scheduled";
           if (isTentative) {
-            const dateMatch = latestStage.dateDisplay?.match(/\d{1,2}\s+[A-Za-z]{3}(?:\s+\d{4})?/);
-            if (dateMatch) {
-              label = `Tentative Exam: ${dateMatch[0]}`;
-            } else if (latestStage.dateDisplay) {
-              const shortWindow = latestStage.dateDisplay.split("(")[0].trim();
-              label = `Tentative: ${shortWindow}`;
-            } else {
-              label = "Tentative Exam Date";
-            }
+            // The written schedule as it stands (two days stay two days, a window stays a window), never a
+            // single date picked out of it (RRB Paramedical, 12 Nov 2026: "23 & 25 Nov" showed as "25 Nov").
+            const written = latestStage.dateDisplay
+              ? badgeSchedule(latestStage.dateDisplay)
+              : latestStage.dateIso ? formatDate(latestStage.dateIso) : null;
+            label = written ? `Tentative Exam: ${written}` : "Tentative Exam Date";
           } else if (latestStage.dateDisplay) {
             label = `Exam: ${latestStage.dateDisplay}`;
           }
@@ -364,8 +395,10 @@ export function deriveStatusBadge(opp: Opportunity, now: Date): StatusBadgeInfo 
  * Returns null if no updates exist.
  */
 export function getLatestUpdate(opp: Opportunity): UpdateRecord | null {
-  if (!opp.updates || opp.updates.length === 0) return null;
-  return opp.updates.reduce((latest, current) =>
+  // Superseded announcements are kept for the record but never shown as the latest news.
+  const updates = currentUpdates(opp.updates);
+  if (updates.length === 0) return null;
+  return updates.reduce((latest, current) =>
     new Date(current.date) > new Date(latest.date) ? current : latest
   );
 }
@@ -394,10 +427,16 @@ export function getFreshUpdate(opp: Opportunity, now: Date): UpdateRecord | null
  * Get all updates sorted descending by date (newest first).
  */
 export function getUpdatesSortedByDate(opp: Opportunity): UpdateRecord[] {
-  if (!opp.updates || opp.updates.length === 0) return [];
-  return [...opp.updates].sort(
+  const updates = currentUpdates(opp.updates);
+  if (updates.length === 0) return [];
+  return [...updates].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
+}
+
+/** Announcements replaced by newer verified information, newest first: shown only in a collapsed correction list. */
+export function getSupersededUpdates(opp: Opportunity): UpdateRecord[] {
+  return [...supersededUpdates(opp.updates)].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 // ─── Provenance Helpers ──────────────────────────────────

@@ -75,10 +75,14 @@ export interface PublicationReview {
    * covered by the fingerprint, so one added after the review was opened makes that approval stale.
    */
   announcements: ReviewAnnouncement[];
+  /** Present only when this publish supersedes or restores announcements already public. */
+  supersessions?: ReviewSupersession[];
   reviewHash: string;
 }
 
 export interface ReviewAnnouncement { id: string; type: string; date: string; title: string }
+/** An announcement already public whose superseded note this publish adds or removes. */
+export interface ReviewSupersession { id: string; date: string; title: string; change: "SUPERSEDED" | "RESTORED" }
 
 export interface ReviewInput {
   record: RecruitmentRecord;
@@ -99,6 +103,8 @@ export interface ReviewInput {
   filled: string[];
   /** The ids of the history entries already public (in the latest published version); none for a first publish. */
   publishedUpdateIds?: string[];
+  /** Of those, the ones already superseded on the public page. */
+  publishedSupersededIds?: string[];
 }
 
 // ─── Hosts ────────────────────────────────────────────────────
@@ -185,10 +191,17 @@ export function assembleReview(input: ReviewInput): PublicationReview {
   const announcements: ReviewAnnouncement[] = (record.updates ?? [])
     .filter((u) => !alreadyPublic.has(u.id))
     .map((u) => ({ id: u.id, type: u.type, date: u.date, title: u.title }));
+  // Announcements already public that this publish marks superseded, or makes current again.
+  const publicSuperseded = new Set(input.publishedSupersededIds ?? []);
+  const supersessions: ReviewSupersession[] = (record.updates ?? [])
+    .filter((u) => alreadyPublic.has(u.id) && Boolean(u.superseded) !== publicSuperseded.has(u.id))
+    .map((u) => ({ id: u.id, date: u.date, title: u.title, change: u.superseded ? "SUPERSEDED" as const : "RESTORED" as const }));
   const body = {
     recordId: record.id, title: record.identity.title.value ?? record.slug, today: input.today, imported: input.imported,
     freshness: input.freshness, ready, missing, conflicts, standing,
     links: { applyOnline, notification, officialSourceLink, markedOfficial }, warnings, hardRules, announcements,
+    // Only present when there is something to say, so the review of every other job is exactly as before.
+    ...(supersessions.length > 0 ? { supersessions } : {}),
   };
   const reviewHash = createHash("sha256").update(canonicalJson(body)).digest("hex");
   return { ...body, reviewHash };
@@ -297,12 +310,13 @@ export async function buildPublicationReview(record: RecruitmentRecord, today: s
   const live = await sql`
     SELECT snapshot->'updates' AS updates FROM published_recruitments
     WHERE recruitment_id = ${record.id}::uuid ORDER BY published_at DESC LIMIT 1`;
-  const publishedUpdates = (live[0]?.updates ?? []) as Array<{ id?: unknown }>;
+  const publishedUpdates = (live[0]?.updates ?? []) as Array<{ id?: unknown; superseded?: unknown }>;
   const publishedUpdateIds = Array.isArray(publishedUpdates) ? publishedUpdates.map((u) => String(u?.id ?? "")).filter(Boolean) : [];
+  const publishedSupersededIds = Array.isArray(publishedUpdates) ? publishedUpdates.filter((u) => u?.superseded).map((u) => String(u?.id ?? "")).filter(Boolean) : [];
 
   return assembleReview({
     record, today, imported, freshness: fresh, standings, conflictValues, conflictKinds, eligibilityPart, applyDecision, officialDocuments,
-    duplicates: dups.map((d) => ({ id: String(d.id), title: String(d.title ?? "") })), filled, publishedUpdateIds,
+    duplicates: dups.map((d) => ({ id: String(d.id), title: String(d.title ?? "") })), filled, publishedUpdateIds, publishedSupersededIds,
   });
 }
 
