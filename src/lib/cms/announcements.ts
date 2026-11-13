@@ -102,3 +102,36 @@ export function replacementOf(u: UpdateRecord, list: readonly UpdateRecord[]): U
   const id = u.superseded?.replacedBy;
   return id ? list.find((x) => x.id === id) ?? null : null;
 }
+
+/**
+ * The announcements as sent to public pages (13 Nov 2026: the whole list, superseded notes included, was
+ * serialized into the job page's data, so the internal reason, the admin id and the old wording were in the
+ * page source although never displayed). An explicit allowlist: only the fields a public page shows are copied,
+ * so a field added to announcements later stays internal until it is added here on purpose.
+ *   - current: id, date, type, title, description, sourceUrl, field, previousValue, newValue
+ *   - superseded: id, date, type, title, and the note's on / replacedBy / sourceUrl (never its reason or author,
+ *     never the old description or values)
+ * The stored record, the editor and the change history keep everything.
+ */
+export function toPublicUpdates(list: readonly UpdateRecord[] | undefined | null): UpdateRecord[] {
+  const str = (v: unknown): v is string => typeof v === "string" && v !== "";
+  return (list ?? []).map((u) => {
+    const base = { id: u.id, date: u.date, type: u.type, title: u.title };
+    if (u.superseded) {
+      const s = u.superseded;
+      return {
+        ...base,
+        description: "",
+        superseded: { on: s.on, ...(str(s.replacedBy) ? { replacedBy: s.replacedBy } : {}), ...(str(s.sourceUrl) ? { sourceUrl: s.sourceUrl } : {}) },
+      } as UpdateRecord;
+    }
+    return {
+      ...base,
+      description: u.description,
+      ...(str(u.sourceUrl) ? { sourceUrl: u.sourceUrl } : {}),
+      ...(str(u.field) ? { field: u.field } : {}),
+      ...(u.previousValue !== undefined ? { previousValue: u.previousValue } : {}),
+      ...(u.newValue !== undefined ? { newValue: u.newValue } : {}),
+    };
+  });
+}

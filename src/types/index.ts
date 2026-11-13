@@ -89,8 +89,10 @@ export interface UpdateRecord {
    */
   superseded?: {
     on: string;          // YYYY-MM-DD it was marked
-    by: string;          // admin id
-    reason: string;
+    // Internal only: always present in the stored record, never in the copy public pages receive
+    // (src/lib/cms/announcements.ts, toPublicUpdates).
+    by?: string;         // admin id
+    reason?: string;
     replacedBy?: string; // id of a newer announcement of the same job
     sourceUrl?: string;  // or the official notice with the correct information
   };

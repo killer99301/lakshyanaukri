@@ -31,6 +31,7 @@ import { GENERAL_FEE_LABEL, RESERVED_FEE_LABEL } from "@/lib/fee-labels";
 import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, ExamPatternPaper, SyllabusSubject } from "@/types/recruitment-record";
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
+import { toPublicUpdates } from "@/lib/cms/announcements";
 import { EXPERIENCE_PREFIX } from "@/lib/eligibility-lines";
 import { fieldDef } from "@/lib/cms/importer/fields";
 
@@ -156,9 +157,9 @@ export function snapshotToGovernmentRecruitment(
   const examPattern = Array.isArray(snapshot.examPattern) ? (snapshot.examPattern as ExamPatternPaper[]) : [];
   const syllabus = Array.isArray(snapshot.syllabus) ? (snapshot.syllabus as SyllabusSubject[]) : [];
 
-  const updates = snapshot.updates
-    ? (snapshot.updates as UpdateRecord[])
-    : [];
+  // Public pages receive an allowlisted copy of the announcements: never a superseded note's reason or author,
+  // nor a superseded announcement's old wording (they stay in the record and its history).
+  const updates = toPublicUpdates(snapshot.updates ? (snapshot.updates as UpdateRecord[]) : []);
 
   // ─── Assemble ────────────────────────────────────────────
 
