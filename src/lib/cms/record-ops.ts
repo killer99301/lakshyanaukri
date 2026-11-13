@@ -14,6 +14,7 @@
 //   - MANUAL attestation = PENDING, not automatically VERIFIED
 // ═══════════════════════════════════════════════════════════
 
+import { exampleTextIn } from "@/lib/cms/stage-examples";
 import { randomUUID } from "node:crypto";
 
 import type { ExamStage, ExamStageKind } from "@/types";
@@ -1126,6 +1127,10 @@ export function updateExamStages(
     if (t.length > max) throw new Error(`examStages invariant: stage ${i + 1} ${what} is at most ${max} characters`);
     return t || undefined;
   };
+
+  // The editor's example text is never information from a notice (NICL AO, 12 Nov 2026).
+  const example = exampleTextIn(stages as Array<Record<string, unknown>>);
+  if (example) throw new Error(`examStages invariant: ${example}`);
 
   const cleaned: ExamStage[] = stages.map((raw, i) => {
     const s = (raw ?? {}) as Record<string, unknown>;

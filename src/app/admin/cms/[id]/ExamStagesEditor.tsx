@@ -12,6 +12,7 @@
 // Nothing is filled in for the admin: a stage with no announced date is saved
 // with no date.
 
+import { STAGE_PLACEHOLDERS, exampleTextIn } from "@/lib/cms/stage-examples";
 import { useState } from "react";
 import { SmartDateInput, UNREADABLE_DATE } from "../../SmartDateInput";
 import type { ExamStage, ExamStageStatus, DateCertainty, ExamStageKind } from "@/types";
@@ -138,6 +139,8 @@ export function ExamStagesEditor({
     if (dateBad) { setErr(UNREADABLE_DATE); return; }
     const list = existing();
     const item = toPayload(draft);
+    const example = exampleTextIn([item]);
+    if (example) { setErr(`Not saved: ${example.replace("stage 1", "this stage")}. Enter what the official notice says, or leave the box empty.`); return; }
     const adding = editing === -1;
     if (adding) list.push(item);
     else if (editing !== null) list[editing] = item;
@@ -254,7 +257,7 @@ export function ExamStagesEditor({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <div style={{ flex: 2, minWidth: 200 }}>
               <label style={label} htmlFor="stage-name">Stage name</label>
-              <input id="stage-name" style={input} value={draft.name} onChange={(e) => set("name", e.target.value)} placeholder="Tier-I Exam, Skill Test, Document Verification…" />
+              <input id="stage-name" style={input} value={draft.name} onChange={(e) => set("name", e.target.value)} placeholder={STAGE_PLACEHOLDERS.name} />
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
               <label style={label} htmlFor="stage-kind">What it is</label>
@@ -278,7 +281,7 @@ export function ExamStagesEditor({
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
               <label style={label} htmlFor="stage-date-text">Or as written (range or month)<InfoTip id="Or as written" /></label>
-              <input id="stage-date-text" style={input} value={draft.dateDisplay} onChange={(e) => set("dateDisplay", e.target.value)} placeholder="12–20 Dec 2026, or December 2026" />
+              <input id="stage-date-text" style={input} value={draft.dateDisplay} onChange={(e) => set("dateDisplay", e.target.value)} placeholder={STAGE_PLACEHOLDERS.dateDisplay} />
             </div>
             <div style={{ flex: 1, minWidth: 160 }}>
               <label style={label} htmlFor="stage-certainty">Is the date confirmed?<InfoTip id="Is the date confirmed?" /></label>
@@ -298,11 +301,11 @@ export function ExamStagesEditor({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
             <div style={{ flex: 1, minWidth: 220 }}>
               <label style={label} htmlFor="stage-note">Short note (optional)</label>
-              <input id="stage-note" style={input} value={draft.notes} onChange={(e) => set("notes", e.target.value)} placeholder="City slip from 5 Dec" />
+              <input id="stage-note" style={input} value={draft.notes} onChange={(e) => set("notes", e.target.value)} placeholder={STAGE_PLACEHOLDERS.notes} />
             </div>
             <div style={{ flex: 1, minWidth: 220 }}>
               <label style={label} htmlFor="stage-source">Where the date comes from (optional)</label>
-              <input id="stage-source" style={input} value={draft.dateProvenance} onChange={(e) => set("dateProvenance", e.target.value)} placeholder="SSC exam calendar, 1 Oct 2026" />
+              <input id="stage-source" style={input} value={draft.dateProvenance} onChange={(e) => set("dateProvenance", e.target.value)} placeholder={STAGE_PLACEHOLDERS.dateProvenance} />
             </div>
           </div>
           <div style={{ marginTop: 8 }}>
