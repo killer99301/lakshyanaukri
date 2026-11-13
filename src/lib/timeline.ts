@@ -18,6 +18,7 @@ export type TimelineState =
   | "done"       // happened
   | "next"       // the next dated event
   | "upcoming"   // dated, later than the next one
+  | "ongoing"    // a stage running over several days, under way today (between its first and last day)
   | "awaiting"   // its date has passed but nothing says it was held
   | "unknown";   // no date announced
 
@@ -33,6 +34,8 @@ export interface TimelineEvent {
   tentative: boolean;
   /** Extra line, e.g. "Admit card released" or the stage's note. */
   note?: string;
+  /** For a stage running over several days: its last day (YYYY-MM-DD). */
+  untilIso?: string;
   /** "milestone": a call letter, result or training date, not a selection stage. */
   kind: "application" | "stage" | "milestone";
 }
@@ -78,6 +81,8 @@ export function buildTimeline(job: Opportunity, now: Date): TimelineEvent[] {
   const stages = job.type === "government" ? [...(job.examStages ?? [])].sort((a, b) => a.order - b.order) : [];
   for (const stage of stages) {
     const iso = isIso(stage.dateIso) ? stage.dateIso.slice(0, 10) : undefined;
+    // A window (SAIL's trade-wise walk-in, 27 Oct to 21 Nov): past only once its last day has gone by.
+    const until = iso && isIso(stage.dateEndIso) && stage.dateEndIso.slice(0, 10) > iso ? stage.dateEndIso.slice(0, 10) : undefined;
     const held = stage.status === "CONDUCTED" || stage.status === "RESULT_DECLARED";
     const postponed = stage.status === "POSTPONED" || stage.certainty === "POSTPONED";
     const hasDate = Boolean(iso || stage.dateDisplay);
@@ -85,7 +90,8 @@ export function buildTimeline(job: Opportunity, now: Date): TimelineEvent[] {
     let state: TimelineState;
     if (held) state = "done";
     else if (postponed || !hasDate) state = "unknown";
-    else if (iso && iso < today) state = "awaiting";
+    else if (iso && until && iso <= today && today <= until) state = "ongoing";
+    else if (iso && (until ?? iso) < today) state = "awaiting";
     else state = "upcoming";
 
     events.push({
@@ -95,6 +101,7 @@ export function buildTimeline(job: Opportunity, now: Date): TimelineEvent[] {
       dateText: postponed ? "Postponed — new date awaited" : stage.dateDisplay || (iso ? formatDate(iso) : "To be announced"),
       state,
       tentative: !postponed && stage.certainty === "TENTATIVE",
+      ...(until && !postponed ? { untilIso: until } : {}),
       note: STAGE_NOTES[stage.status] ?? stage.notes,
       kind: isMilestone(stage) ? "milestone" : "stage",
     });
@@ -120,6 +127,12 @@ export interface WhatsNext {
 export function whatsNext(job: Opportunity, now: Date): WhatsNext | null {
   const events = buildTimeline(job, now);
   const stages = events.filter((e) => e.kind === "stage");
+
+  // A stage under way right now is the most useful thing to say (it can be attended today).
+  const ongoing = stages.find((e) => e.state === "ongoing");
+  if (ongoing && ongoing.untilIso) {
+    return { title: ongoing.label, detail: `Under way until ${formatDate(ongoing.untilIso)}${ongoing.tentative ? " (tentative)" : ""}. Schedule: ${ongoing.dateText}.` };
+  }
 
   const next = events.find((e) => e.state === "next");
   if (next) {

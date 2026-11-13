@@ -1143,6 +1143,13 @@ export function updateExamStages(
       throw new Error(`examStages invariant: stage ${i + 1} date must be a real date (YYYY-MM-DD)`);
     }
     const dateIso = isIsoDate(s.dateIso) ? s.dateIso : undefined;
+    // The last day of a continuous window: a real date, only with a first day, and after it.
+    if (s.dateEndIso !== undefined && s.dateEndIso !== null && s.dateEndIso !== "") {
+      if (!isIsoDate(s.dateEndIso)) throw new Error(`examStages invariant: stage ${i + 1} end date must be a real date (YYYY-MM-DD)`);
+      if (!dateIso) throw new Error(`examStages invariant: stage ${i + 1} has an end date but no first day`);
+      if (s.dateEndIso <= dateIso) throw new Error(`examStages invariant: stage ${i + 1} end date must be after its first day`);
+    }
+    const dateEndIso = isIsoDate(s.dateEndIso) && dateIso ? s.dateEndIso : undefined;
     const dateDisplay = text(s.dateDisplay, 60, "date text", i);
     const hasDate = Boolean(dateIso || dateDisplay);
 
@@ -1181,6 +1188,7 @@ export function updateExamStages(
       ...(certainty ? { certainty } : hasDate ? {} : { certainty: "TBA" as const }),
       ...(dateDisplay ? { dateDisplay } : {}),
       ...(dateIso ? { dateIso } : {}),
+      ...(dateEndIso ? { dateEndIso } : {}),
       ...(text(s.dateProvenance, 120, "date source", i) ? { dateProvenance: text(s.dateProvenance, 120, "date source", i) } : {}),
       ...(noticeUrl ? { noticeUrl } : {}),
       ...(text(s.notes, 200, "note", i) ? { notes: text(s.notes, 200, "note", i) } : {}),

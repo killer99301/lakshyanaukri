@@ -172,12 +172,13 @@ test("B1-16 every form with a date box refuses to save while it cannot read its 
   const age = src("src/app/admin/cms/[id]/AgeEditor.tsx");
   const stages = src("src/app/admin/cms/[id]/ExamStagesEditor.tsx");
   const uses = [page, age, stages].join("\n").match(/<SmartDateInput[\s\S]*?\/>/g) ?? [];
-  assert.equal(uses.length, 6, "six date boxes in the editor");
+  // Seven since the stage's "Until" box (stage end date, Nov 2026).
+  assert.equal(uses.length, 7, "seven date boxes in the editor");
   for (const u of uses) assert.match(u, /onValidity=/, u);
   // Field editor and Add Update (page.tsx), age editor, stages editor: each save refuses.
   assert.equal((page.match(/if \(dateBad\) \{ setErr\(UNREADABLE_DATE\); return; \}/g) ?? []).length, 2);
   assert.match(age, /if \(badDates\.length > 0\) \{ setErr\(UNREADABLE_DATE\); return; \}/);
-  assert.match(stages, /if \(dateBad\) \{ setErr\(UNREADABLE_DATE\); return; \}/);
+  assert.match(stages, /if \(dateBad \|\| endBad\) \{ setErr\(UNREADABLE_DATE\); return; \}/, "both the first day and the Until box");
 });
 
 test("B1-17 Add Update starts with no date, asks for one, and says a live job's update waits for the publish", () => {

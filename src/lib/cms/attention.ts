@@ -11,6 +11,7 @@
 // published at least once and is not archived. Never-published drafts are
 // left out (they include old test records that must stay unpublished).
 
+import { lastDayOf } from "@/lib/lifecycle";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
 import type { ExamStage } from "@/types";
 import { formatDate } from "@/lib/utils";
@@ -77,7 +78,7 @@ export function attentionFor(record: RecruitmentRecord, todayIso: string): Atten
   const closeIso = record.dates.applicationCloseDate?.value ?? null;
   const close = dayNumber(closeIso);
   const stageAhead = stages.some((s) => {
-    const d = dayNumber(s.dateIso);
+    const d = dayNumber(lastDayOf(s) || undefined);
     return (d != null && d >= today) || s.status === "ADMIT_CARD_OUT" || (s.status === "SCHEDULED" && d == null && Boolean(s.dateDisplay));
   });
   const legacyAhead = [record.dates.examDate, record.dates.prelimsDate, record.dates.mainsDate, record.dates.interviewDate]
@@ -106,10 +107,14 @@ export function attentionFor(record: RecruitmentRecord, todayIso: string): Atten
     }
     if (d == null) continue;
 
-    if (OPEN_STAGE.has(stage.status) && d < today) {
-      add(today - d <= 7 ? "NOW" : "SOON", "STAGE_DATE_PASSED", `${stage.name} was dated ${when} (${ago(today - d)}) and is not marked as held. Mark it conducted, or correct the date if it moved.`);
+    // A stage running over several days is overdue only after its last day (SAIL's walk-in, Nov 2026).
+    const last = dayNumber(lastDayOf(stage) || undefined) ?? d;
+    if (OPEN_STAGE.has(stage.status) && last < today) {
+      add(today - last <= 7 ? "NOW" : "SOON", "STAGE_DATE_PASSED", `${stage.name} was dated ${when} (${ago(today - last)}) and is not marked as held. Mark it conducted, or correct the date if it moved.`);
       continue;
     }
+    // Under way now (its window has started and not ended): nothing to chase until its last day has passed.
+    if (OPEN_STAGE.has(stage.status) && d < today && last >= today) continue;
     if (OPEN_STAGE.has(stage.status) && d - today <= 14) {
       if (stage.status !== "ADMIT_CARD_OUT" && !hasLink("ADMIT_CARD")) {
         add(d - today <= 7 ? "NOW" : "SOON", "EXAM_NEAR_NO_ADMIT_CARD", `${stage.name} is ${inDays(d - today)} (${when}) and there is no admit card link. Check whether the admit card or city slip is out.`);

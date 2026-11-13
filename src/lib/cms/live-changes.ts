@@ -57,7 +57,7 @@ const STATUS: Record<string, string> = {
   POSTPONED: "Postponed", CONDUCTED: "Held", RESULT_DECLARED: "Result declared",
 };
 const stageText = (s: ExamStage | undefined): string =>
-  s ? [STATUS[s.status] ?? s.status, s.dateDisplay || (s.dateIso ? formatDate(s.dateIso) : ""), s.certainty === "TENTATIVE" ? "tentative" : ""].filter(Boolean).join(", ") : "Not on the page";
+  s ? [STATUS[s.status] ?? s.status, s.dateDisplay || (s.dateIso ? formatDate(s.dateIso) : ""), s.dateEndIso ? `until ${formatDate(s.dateEndIso)}` : "", s.certainty === "TENTATIVE" ? "tentative" : ""].filter(Boolean).join(", ") : "Not on the page";
 
 function ageText(a: AgeCriteria | null | undefined): string {
   if (!a) return NONE;

@@ -39,6 +39,8 @@ interface Draft {
   name: string;
   status: ExamStageStatus;
   dateIso: string;
+  /** The last day of a continuous window (optional). */
+  dateEndIso: string;
   dateDisplay: string;
   certainty: "" | "CONFIRMED" | "TENTATIVE";
   notes: string;
@@ -50,12 +52,13 @@ interface Draft {
   kindChosen: boolean;
 }
 
-const EMPTY: Draft = { name: "", status: "NOT_DECLARED", dateIso: "", dateDisplay: "", certainty: "", notes: "", noticeUrl: "", dateProvenance: "", kind: "", kindChosen: false };
+const EMPTY: Draft = { name: "", status: "NOT_DECLARED", dateIso: "", dateEndIso: "", dateDisplay: "", certainty: "", notes: "", noticeUrl: "", dateProvenance: "", kind: "", kindChosen: false };
 
 const toDraft = (s: ExamStage): Draft => ({
   name: s.name,
   status: s.status,
   dateIso: s.dateIso ?? "",
+  dateEndIso: s.dateEndIso ?? "",
   dateDisplay: s.dateDisplay ?? "",
   certainty: s.certainty === "CONFIRMED" || s.certainty === "TENTATIVE" ? s.certainty : "",
   notes: s.notes ?? "",
@@ -75,6 +78,8 @@ function toPayload(d: Draft): Record<string, unknown> {
     name: d.name,
     status: d.status,
     dateIso: d.dateIso || undefined,
+    // Only with a first day; the server checks it is after it.
+    dateEndIso: d.dateIso && d.dateEndIso ? d.dateEndIso : undefined,
     dateDisplay: d.dateDisplay || undefined,
     certainty,
     notes: d.notes || undefined,
@@ -108,6 +113,7 @@ export function ExamStagesEditor({
   const [err, setErr] = useState<string | null>(null);
   // The date box cannot read its text: saving would store the date from before.
   const [dateBad, setDateBad] = useState(false);
+  const [endBad, setEndBad] = useState(false);
   // A job that has been public announces every stage change as an update.
   // Ticked, the save is a correction of a mistake and announces nothing.
   const [quiet, setQuiet] = useState(false);
@@ -136,7 +142,11 @@ export function ExamStagesEditor({
   const existing = () => stages.map((s) => toPayload(toDraft(s)));
 
   async function submit() {
-    if (dateBad) { setErr(UNREADABLE_DATE); return; }
+    if (dateBad || endBad) { setErr(UNREADABLE_DATE); return; }
+    if (draft.dateEndIso && (!draft.dateIso || draft.dateEndIso <= draft.dateIso)) {
+      setErr("Not saved: the “until” date must come after the exact (first) date. Leave it empty for a one-day stage.");
+      return;
+    }
     const list = existing();
     const item = toPayload(draft);
     const example = exampleTextIn([item]);
@@ -200,7 +210,7 @@ export function ExamStagesEditor({
                 )}
                 {editable && (
                   <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                    <button style={ghost} disabled={saving} onClick={() => { setEditing(i); setDraft(toDraft(s)); setErr(null); setDateBad(false); }}>Edit</button>
+                    <button style={ghost} disabled={saving} onClick={() => { setEditing(i); setDraft(toDraft(s)); setErr(null); setDateBad(false); setEndBad(false); }}>Edit</button>
                     <button style={{ ...ghost, opacity: i === 0 ? 0.3 : 1 }} disabled={saving || i === 0} onClick={() => { void move(i, -1); }} aria-label={`Move ${s.name} up`}>↑ Up</button>
                     <button style={{ ...ghost, opacity: i === stages.length - 1 ? 0.3 : 1 }} disabled={saving || i === stages.length - 1} onClick={() => { void move(i, 1); }} aria-label={`Move ${s.name} down`}>↓ Down</button>
                     <button
@@ -233,7 +243,7 @@ export function ExamStagesEditor({
       ) : editing === null ? (
         <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
           <button
-            onClick={() => { setEditing(-1); setDraft(EMPTY); setErr(null); setDateBad(false); }}
+            onClick={() => { setEditing(-1); setDraft(EMPTY); setErr(null); setDateBad(false); setEndBad(false); }}
             style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
           >
             + Add stage
@@ -279,6 +289,10 @@ export function ExamStagesEditor({
               <label style={label} htmlFor="stage-date">Exact date (if announced)</label>
               <SmartDateInput id="stage-date" style={input} value={draft.dateIso} onChange={(v) => set("dateIso", v)} onValidity={(ok) => setDateBad(!ok)} />
             </div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label style={label} htmlFor="stage-date-end">Until (last day, if it runs over several days)</label>
+              <SmartDateInput id="stage-date-end" style={input} value={draft.dateEndIso} onChange={(v) => set("dateEndIso", v)} onValidity={(ok) => setEndBad(!ok)} />
+            </div>
             <div style={{ flex: 1, minWidth: 180 }}>
               <label style={label} htmlFor="stage-date-text">Or as written (range or month)<InfoTip id="Or as written" /></label>
               <input id="stage-date-text" style={input} value={draft.dateDisplay} onChange={(e) => set("dateDisplay", e.target.value)} placeholder={STAGE_PLACEHOLDERS.dateDisplay} />
@@ -315,8 +329,8 @@ export function ExamStagesEditor({
           <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center" }}>
             <button
               onClick={() => { void submit(); }}
-              disabled={saving || !draft.name.trim() || dateBad}
-              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !draft.name.trim() || dateBad ? "not-allowed" : "pointer", opacity: saving || !draft.name.trim() || dateBad ? 0.6 : 1 }}
+              disabled={saving || !draft.name.trim() || dateBad || endBad}
+              style={{ padding: "6px 16px", background: "linear-gradient(135deg, #4f46e5, #7c3aed)", color: "#fff", border: "none", borderRadius: 5, fontSize: 13, fontWeight: 600, cursor: saving || !draft.name.trim() || dateBad || endBad ? "not-allowed" : "pointer", opacity: saving || !draft.name.trim() || dateBad || endBad ? 0.6 : 1 }}
             >
               {saving ? "Saving…" : editing === -1 ? "Add stage" : "Save stage"}
             </button>

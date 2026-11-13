@@ -150,7 +150,13 @@ export interface ExamStage {
   status: ExamStageStatus;
   certainty?: DateCertainty;      // "CONFIRMED" | "TENTATIVE" | "POSTPONED" | "TBA"
   dateDisplay?: string;           // "16–27 Mar 2026" or "Nov–Dec 2026" (human-readable)
-  dateIso?: string;               // exact ISO date if a single date is known
+  dateIso?: string;               // exact ISO date if a single date is known (the first day of a window)
+  /**
+   * The last day (inclusive) of a stage that runs continuously over several days, such as SAIL's trade-wise
+   * walk-in (27 Oct to 21 Nov 2026). Only with `dateIso`, and after it. While today falls between the two the
+   * stage is under way, not "date passed" (Nov 2026). Absent on every stage saved before it existed.
+   */
+  dateEndIso?: string;
   dateProvenance?: string;        // "BPSC Examination Calendar (14 Aug 2026)" or "Official Exam Notice"
   noticeUrl?: string;             // official notice for this specific stage
   notes?: string;                 // "City slip available from 5 Mar"

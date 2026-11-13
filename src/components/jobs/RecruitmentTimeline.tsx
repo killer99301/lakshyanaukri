@@ -10,12 +10,14 @@ const DOT: Record<TimelineState, string> = {
   done: "bg-emerald-500 border-emerald-500 text-white",
   next: "bg-[#EA580C] border-[#EA580C] text-white ring-4 ring-[#FFF7ED]",
   upcoming: "bg-white border-slate-300 text-slate-400",
+  ongoing: "bg-[#EA580C] border-[#EA580C] text-white",
   awaiting: "bg-amber-50 border-amber-300 text-amber-600",
   unknown: "bg-white border-dashed border-slate-300 text-slate-300",
 };
 
 const STATE_NOTE: Partial<Record<TimelineState, string>> = {
   next: "Next",
+  ongoing: "Under way now",
   awaiting: "Date passed — awaiting an official update",
 };
 

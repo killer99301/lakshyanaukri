@@ -102,10 +102,23 @@ export function currentExamStage(stages: ExamStage[], now: Date): ExamStage | un
   const activeStages = stages
     .filter((s) => isSelectionStage(s) && s.status !== "NOT_DECLARED")
     .sort((a, b) => a.order - b.order);
+  // A stage running over several days is still ahead until its last day (SAIL's walk-in, Nov 2026).
   const ahead = activeStages.find(
-    (s) => (s.status === "SCHEDULED" || s.status === "ADMIT_CARD_OUT") && s.dateIso && diffCalendarDays(now, new Date(s.dateIso)) >= 0,
+    (s) => (s.status === "SCHEDULED" || s.status === "ADMIT_CARD_OUT") && s.dateIso && diffCalendarDays(now, new Date(lastDayOf(s))) >= 0,
   );
   return ahead ?? activeStages[activeStages.length - 1];
+}
+
+/** The last day of a stage: its end date when it runs over several days, otherwise its exact date. */
+export function lastDayOf(s: Pick<ExamStage, "dateIso" | "dateEndIso">): string {
+  return s.dateIso && s.dateEndIso && s.dateEndIso > s.dateIso ? s.dateEndIso : (s.dateIso ?? "");
+}
+
+/** True while today falls inside a stage's several-day window (first to last day, both included). */
+export function isUnderWay(s: Pick<ExamStage, "dateIso" | "dateEndIso" | "status">, now: Date): boolean {
+  if (!s.dateIso || !s.dateEndIso || s.dateEndIso <= s.dateIso) return false;
+  if (s.status !== "SCHEDULED" && s.status !== "ADMIT_CARD_OUT") return false;
+  return diffCalendarDays(now, new Date(s.dateIso)) <= 0 && diffCalendarDays(now, new Date(s.dateEndIso)) >= 0;
 }
 
 /**
@@ -304,6 +317,14 @@ export function deriveStatusBadge(opp: Opportunity, now: Date): StatusBadgeInfo 
           return {
             label: "Admit Card Released",
             badgeClass: "bg-blue-100 text-blue-900 border-blue-300 font-extrabold",
+            isClosed: true,
+          };
+        }
+        if (latestStage.status === "SCHEDULED" && isUnderWay(latestStage, now)) {
+          // Running now, over several days: say so, rather than a date that may already have passed.
+          return {
+            label: `Under way until ${formatDate(latestStage.dateEndIso!)}`,
+            badgeClass: "bg-blue-50 text-blue-900 border-blue-300 font-extrabold",
             isClosed: true,
           };
         }
