@@ -172,6 +172,7 @@ export function routeFieldUpdate(
       "feeGeneral",
       "feeSCST",
       "payScale",
+      "feeTable",
     ];
     if (!allowed.includes(key)) {
       throw new Error(

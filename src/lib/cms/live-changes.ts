@@ -110,6 +110,10 @@ export function liveChanges(live: PublishedRecruitmentSnapshot, next: PublishedR
   // ── Fees and pay ──
   add("Financial", "Fee (General / OBC)", money(live.financial?.feeGeneral ?? null, live.financial?.feeGeneralNotSpecified), money(next.financial?.feeGeneral ?? null, next.financial?.feeGeneralNotSpecified), "financial.feeGeneral");
   add("Financial", "Fee (SC / ST / PwBD)", money(live.financial?.feeSCST ?? null, live.financial?.feeSCSTNotSpecified), money(next.financial?.feeSCST ?? null, next.financial?.feeSCSTNotSpecified), "financial.feeSCST");
+  // U5: the fee table, as one line in words (the page shows it in place of the two summary fees).
+  const feeWords = (t: NonNullable<PublishedRecruitmentSnapshot["financial"]>["feeTable"]) =>
+    t && t.length ? t.map((r) => `${r.category}${r.post ? ` (${r.post})` : ""}: ${r.exempt || r.amount === 0 ? "no fee" : `₹${r.amount}`}`).join("; ") : "Not on the page";
+  add("Financial", "Fees by category", feeWords(live.financial?.feeTable), feeWords(next.financial?.feeTable), "financial.feeTable");
   add("Financial", "Pay scale", text(live.financial?.payScale), text(next.financial?.payScale), "financial.payScale");
 
   // ── Age and eligibility ──
@@ -165,6 +169,8 @@ export function liveChanges(live: PublishedRecruitmentSnapshot, next: PublishedR
     if (!was) add("Links", `Link “${l.label}”`, "Not on the page", `${url}${l.official ? " (official)" : ""}`);
     else {
       add("Links", `Link “${l.label}”`, `${was.label}${was.official ? ", official" : ""}`, `${l.label}${l.official ? ", official" : ""}`);
+      // U5: who an Apply portal is for is now shown on the page.
+      add("Links", `Link “${l.label}”: for whom`, was.appliesTo ?? "Not on the page", l.appliesTo ?? "Not on the page");
     }
   }
   for (const [url, l] of beforeLinks) if (!afterLinks.has(url)) add("Links", `Link “${l.label}”`, url, "Removed");

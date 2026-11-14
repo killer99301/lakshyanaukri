@@ -49,6 +49,8 @@ export interface SourceReading {
   readingCoverage?: ReadingCoverage;
   /** The exam-pattern tables the notice prints, and which were read by code. */
   patternCoverage?: PatternCoverage;
+  /** Pasted "LN Update v1" text (CMS 2.0): read by its own reader against the job, never by the AI. */
+  lnUpdate?: boolean;
 }
 
 /** Plain text from an HTML page, for storage, page lookup and link finding. */

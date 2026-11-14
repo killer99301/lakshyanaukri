@@ -23,6 +23,8 @@ import { isAggregatorHost } from "@/lib/public-link-labels";
 import { CRITICAL_FIELDS, fieldDef } from "@/lib/cms/importer/fields";
 import type { FieldClass } from "@/lib/cms/importer/classify";
 import { groupByMeaning, leavesOut, type DisagreementKind } from "@/lib/cms/importer/same-meaning";
+import { notShownPublicly } from "@/lib/cms/public-parity";
+import { feeOverlaps } from "@/lib/cms/importer/fee-table";
 
 // ─── What counts as material (P3) ─────────────────────────────
 
@@ -181,6 +183,11 @@ export function assembleReview(input: ReviewInput): PublicationReview {
   if (typeof close === "string" && close.slice(0, 10) < input.today) warnings.push({ code: "PAST_DEADLINE", text: `The last date (${close.slice(0, 10)}) has passed` });
   for (const d of input.duplicates) warnings.push({ code: "POSSIBLE_DUPLICATE", text: `Possible duplicate: ${d.title}`, recordId: d.id });
   if (missing.length) warnings.push({ code: "MISSING_KEY_DETAILS", text: `${missing.length} key detail(s) missing` });
+  // R2: stored information the public page cannot show yet (fee table rows, extra Apply portals), said before publishing.
+  for (const text of notShownPublicly(record)) warnings.push({ code: "NOT_SHOWN_PUBLICLY", text });
+  // U5: fee rows giving the same candidates two fees. The page says "check the notice"; settle it before publishing if you can.
+  const overlaps = feeOverlaps(record.financial.feeTable?.value ?? []);
+  if (overlaps.length) warnings.push({ code: "FEE_ROWS_OVERLAP", text: `The fee table gives the same candidates more than one fee (${overlaps.join("; ")}). The page asks visitors to check the notice; correct the rows if the notice is clear.` });
   if (standing.research + standing.officialUnchecked + standing.entered > 0) {
     warnings.push({ code: "NOT_CONFIRMED", text: `${standing.research + standing.officialUnchecked + standing.entered} detail(s) not confirmed against an official document` });
   }

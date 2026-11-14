@@ -18,7 +18,7 @@ import { heldTablesOf, type HeldNote } from "@/lib/cms/importer/held-tables";
 import { readPasted, suggestColumns } from "@/lib/vacancy-paste";
 
 export interface ReviewItem {
-  id: string; kind: "FIELD" | "LINK"; fieldPath: string; label: string; value: unknown;
+  id: string; kind: "FIELD" | "LINK" | "ANNOUNCEMENT"; fieldPath: string; label: string; value: unknown;
   claims: Array<{ retrievalId: string; page?: number | null; quote?: string | null; fromImage?: boolean }>;
   action: "FILL" | "MATCHES" | "REPLACE" | "REPLACE_VERIFIED"; conflict: boolean; conflictKind?: "SOURCES" | "READINGS";
   defaultTicked: boolean; flags: string[]; current?: unknown;
@@ -74,7 +74,8 @@ const SECTIONS: Array<{ name: string; match: (p: string) => boolean }> = [
   { name: "Exam pattern", match: (p) => p === "examPattern" },
   { name: "Syllabus", match: (p) => p === "syllabus" },
   { name: "How to apply", match: (p) => p === "howToApply" },
-  { name: "Links", match: (p) => p.startsWith("links#") },
+  { name: "Links", match: (p) => p.startsWith("links#") || p === "links" },
+  { name: "Announcements", match: (p) => p.startsWith("updates#") },
   { name: "Notes (admin only, never published)", match: (p) => p === "conditions" },
 ];
 

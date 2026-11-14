@@ -17,6 +17,7 @@ import { DiscoverPanel, type FoundJob } from "./DiscoverPanel";
 import { LeadHandoff, type HandoffLead } from "./LeadHandoff";
 import { emptyNewJob, handoffJob, type NewJobDraft } from "./handoff";
 import { ReviewPanel } from "./ReviewPanel";
+import { UpdateReview, type UpdateSummary } from "./UpdateReview";
 import { OpenReadings, ReadingJobPanel, describePdf } from "./ReadingJob";
 import { AttestationField, attestationProblem } from "./AttestationField";
 import { C, PANEL, badge, inputStyle, labelStyle, primaryBtn, quietBtn } from "./ui";
@@ -45,7 +46,7 @@ interface SourceDraft {
 
 interface Claim { retrievalId: string; quote?: string; page?: number | null }
 interface Item {
-  id: string; kind: "FIELD" | "LINK"; fieldPath: string; label: string; value: unknown; claims: Claim[];
+  id: string; kind: "FIELD" | "LINK" | "ANNOUNCEMENT"; fieldPath: string; label: string; value: unknown; claims: Claim[];
   action: "FILL" | "MATCHES" | "REPLACE" | "REPLACE_VERIFIED"; conflict: boolean; supersedes: string[];
   defaultTicked: boolean; flags: string[]; current?: unknown;
 }
@@ -55,7 +56,7 @@ interface SourceMeta {
 }
 interface Preview {
   importId: string;
-  proposal: { items: Item[]; replacedInImport: Array<{ fieldPath: string; value: unknown; by: string }>; warnings?: string[]; meta: { sources: SourceMeta[]; duplicates: Array<{ id: string; title: string; reason: string }>; aiRequests?: { sent: number; retried: number; failed: number } } };
+  proposal: { items: Item[]; replacedInImport: Array<{ fieldPath: string; value: unknown; by: string }>; warnings?: string[]; lnUpdate?: UpdateSummary; meta: { sources: SourceMeta[]; duplicates: Array<{ id: string; title: string; reason: string }>; aiRequests?: { sent: number; retried: number; failed: number } } };
 }
 
 const KIND_LABELS: Record<Kind, string> = {
@@ -229,8 +230,10 @@ function Importer() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [confirmVerified, setConfirmVerified] = useState(false);
+  // An LN Update opens in the grouped Update review (CMS 2.0 R1); the classic review stays one click away.
+  const [classic, setClassic] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
-  const [applied, setApplied] = useState<{ recruitmentId: string; replayed: boolean } | null>(null);
+  const [applied, setApplied] = useState<{ recruitmentId: string; replayed: boolean; announcements?: { saved: boolean; done: string[]; error?: string } } | null>(null);
   // A long document's reading (stage B2.3): its id is in the address (?job=…), so a reload or a return carries on.
   const jobParam = params.get("job");
   const [reading, setReading] = useState<{ id: string; files: Map<number, File> } | null>(() => (jobParam ? { id: jobParam, files: new Map() } : null));
@@ -412,6 +415,9 @@ function Importer() {
       {on === null ? <div style={{ color: C.muted, fontSize: 13 }}>Checking the importer switch…</div> : on === false ? null : applied ? (
         <div data-import-applied style={{ ...PANEL, padding: 18, color: C.text, fontSize: 14, lineHeight: 1.6 }}>
           <div style={{ fontWeight: 700, color: C.green }}>{applied.replayed ? "This was already saved." : "Saved as a draft."} Nothing is published or verified.</div>
+          {applied.announcements && (applied.announcements.saved
+            ? applied.announcements.done.length > 0 && <div data-import-announcements style={{ color: C.text, fontSize: 13 }}>Announcements: {applied.announcements.done.join("; ")}. They go live only with your reviewed publish.</div>
+            : <div role="alert" data-import-announcements style={{ color: C.amber, fontSize: 13 }}>The job&apos;s fields were saved, but the announcements were not: {applied.announcements.error} Save again to retry them, or use the job&apos;s Announcements section.</div>)}
           <div style={{ color: C.muted, fontSize: 13 }}>Open the job: its sections hold these values as Pending. Review it in “Publication review” and publish when you are satisfied; “Quality checks (optional)” lets you check key details against an official notification.</div>
           <Link href={`/admin/cms/${applied.recruitmentId}`} style={{ ...primaryBtn, display: "inline-block", marginTop: 12, textDecoration: "none" }}>Open the job</Link>
         </div>
@@ -472,7 +478,29 @@ function Importer() {
           </>)}
 
           {/* Review */}
-          {preview && (
+          {preview && preview.proposal.lnUpdate && !classic && (
+            <UpdateReview
+              title={recordId ? job?.title ?? "" : newJob.title || readingTitle}
+              existing={!!recordId}
+              items={items}
+              sources={preview.proposal.meta.sources}
+              summary={preview.proposal.lnUpdate}
+              ticked={ticked}
+              onToggle={(i) => { const item = items.find((x) => x.id === i.id); if (item) toggle(item); }}
+              duplicates={duplicates}
+              overrideReason={overrideReason}
+              setOverrideReason={setOverrideReason}
+              needsVerifiedConfirm={needsVerifiedConfirm}
+              confirmVerified={confirmVerified}
+              setConfirmVerified={setConfirmVerified}
+              busy={busy}
+              err={err}
+              onSave={() => { void apply(); }}
+              onBack={() => { void discard(); }}
+              onClassic={() => setClassic(true)}
+            />
+          )}
+          {preview && (!preview.proposal.lnUpdate || classic) && (
             <ReviewPanel
               title={recordId ? job?.title ?? "" : newJob.title || readingTitle}
               organization={recordId ? "" : newJob.organizationName}

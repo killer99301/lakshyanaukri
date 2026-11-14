@@ -58,6 +58,24 @@ export function readableDates(text: string): string {
 }
 
 export function showValue(value: unknown, fieldPath?: string): string {
+  // CMS 2.0 U3: a new announcement, or one to mark superseded.
+  if (fieldPath?.startsWith("updates#") && value && typeof value === "object" && "op" in (value as object)) {
+    const v = value as { op: string; entry?: { date: string; title: string; description: string; sourceUrl?: string; action?: string; relevantUntil?: string; event?: { kind: string; stage?: string } };
+      target?: { date: string; title: string }; reason?: string; replacedByNew?: boolean; replacedBy?: string; sourceUrl?: string };
+    if (v.op === "ADD" && v.entry) {
+      const e = v.entry;
+      return readableDates([`${e.date} · ${e.title}`, e.description,
+        e.event ? `Kind: ${e.event.kind.toLowerCase().replace(/_/g, " ")}${e.event.stage ? `, ${e.event.stage}` : ""}` : "",
+        e.action ? `Button: the job's ${e.action.toLowerCase().replace(/_/g, " ")} link` : "",
+        e.relevantUntil ? `Relevant until ${e.relevantUntil}` : "",
+        e.sourceUrl ? `Official notice: ${e.sourceUrl}` : ""].filter(Boolean).join("\n"));
+    }
+    if (v.op === "SUPERSEDE" && v.target) {
+      return readableDates([`Superseded: ${v.target.date} · ${v.target.title}`, `Reason (never shown publicly): ${v.reason ?? ""}`,
+        v.replacedByNew ? "Replaced by: this update's new announcement" : v.replacedBy ? "Replaced by: a newer announcement of the job" : "",
+        v.sourceUrl ? `Official notice: ${v.sourceUrl}` : ""].filter(Boolean).join("\n"));
+    }
+  }
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return readableDates(value);
   if (value && typeof value === "object" && !Array.isArray(value) && "url" in (value as object)) {
     const l = value as { label?: string; url: string; official?: boolean };

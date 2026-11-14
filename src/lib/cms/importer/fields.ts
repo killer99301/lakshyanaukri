@@ -41,6 +41,7 @@ export const FIELD_DEFS: Record<string, FieldDef> = {
   "financial.feeGeneral":         { label: "Fee (General / OBC)", purpose: "fee_payment", tier: "B" },
   "financial.feeSCST":            { label: "Fee (SC / ST / PwBD)", purpose: "fee_payment", tier: "B" },
   "financial.payScale":           { label: "Pay scale / stipend", purpose: "recruitment_rules" },
+  "financial.feeTable":           { label: "Fees by category", purpose: "fee_payment" },
   "eligibility":                  { label: "Eligibility", purpose: "recruitment_rules", tier: "A" },
   "age":                          { label: "Age limit", purpose: "recruitment_rules", tier: "A" },
   "selection":                    { label: "Selection process", purpose: "recruitment_rules" },

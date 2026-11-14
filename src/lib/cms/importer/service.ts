@@ -19,6 +19,14 @@ import { fetchSource } from "@/lib/cms/importer/fetch-source";
 import { readSource, htmlToText, type SourceReading } from "@/lib/cms/importer/extract";
 import { sourceOwnLink } from "@/lib/cms/importer/links";
 import { buildProposal, comparable, type DeclaredKind, type RetrievalSummary } from "@/lib/cms/importer/proposal";
+import { readUpdateText, updateVersion, type JobIdentity } from "@/lib/cms/importer/update-format";
+import { annotateProposal, mergeUpdate, type UpdateMerge } from "@/lib/cms/importer/update-merge";
+import { announcementWrite, isAnnouncementItem, proposeAnnouncements, type AnnouncementValue } from "@/lib/cms/importer/update-announcements";
+import type { UpdateReading } from "@/lib/cms/importer/update-format";
+import type { ExamStage } from "@/types";
+import { notShownNote } from "@/lib/cms/public-parity";
+import { feeOverlaps } from "@/lib/cms/importer/fee-table";
+import type { FeeRow } from "@/types/recruitment-record";
 import { classifyField, effectiveDecision, publishGate, type FieldVerdict, type TableTotalContext } from "@/lib/cms/importer/classify";
 import { contentHash, quoteOnPage, valueHash } from "@/lib/cms/importer/evidence-text";
 import { checkLinkLater, LINK_LATER_FIELD, type LinkLaterValue } from "@/lib/cms/importer/link-later";
@@ -37,7 +45,7 @@ import { PAGELESS_KINDS } from "@/lib/vacancy-table";
 import { statesVacancyCount } from "@/lib/cms/importer/vacancy-count";
 import { fieldEvidence, type FieldEvidence } from "@/lib/cms/importer/field-evidence";
 import {
-  ImportApplyError, appliedImportsFor, applyImport, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
+  ImportApplyError, appliedImportsFor, applyImport, applyImportWithAnnouncements, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
   isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
 } from "@/lib/cms/importer/repository";
 
@@ -173,6 +181,10 @@ async function obtain(input: SourceInput, fetchSourceFn: typeof fetchSource, rea
 async function readOne(input: SourceInput, organizationId: string, subject: string, apiKey: string | undefined, fetchFn: typeof fetch | undefined, fetchSourceFn: typeof fetchSource,
   pace: { gate: <T>(task: () => Promise<T>) => Promise<T>; deadline?: number }): Promise<Omit<ReadSource, "retrieval" | "summary"> & { obtained: Awaited<ReturnType<typeof obtain>> }> {
   const obtained = await obtain(input, fetchSourceFn, { subject, apiKey, fetchFn });
+  // An LN Update (CMS 2.0) is read by code against the job, once the job is known (assemblePreview). No AI.
+  if (obtained.method === "PASTED" && updateVersion(obtained.text) !== null) {
+    return { input, reading: { values: [], links: [], notFound: [], refused: [], summary: null, lnUpdate: true }, obtained };
+  }
   const reading = await readSource({
     content: obtained.text, kind: obtained.kind === "PDF" ? "pdf" : "html", url: obtained.finalUrl ?? input.url ?? "",
     subject, organizationId, apiKey, fetchFn, gate: pace.gate, deadline: pace.deadline, labelledLines: obtained.method === "PASTED",
@@ -324,6 +336,31 @@ export async function assemblePreview(opts: {
     });
   }
 
+  // LN Update texts (CMS 2.0 U2): read against the job and merged item by item into its fields. The values are
+  // each field's whole value after the change, with every item the text does not mention kept; the ordinary
+  // proposal below compares them with the job, so saving goes through the same validators and ticks as any import.
+  const updateMerges = new Map<string, UpdateMerge>();
+  const updateReadings = new Map<string, UpdateReading>();
+  for (const s of sources) {
+    if (!s.reading.lnUpdate) continue;
+    const job: JobIdentity | undefined = record ? {
+      title: record.identity.title.value ?? "", organizationName: record.identity.organizationName, organizationId: record.identity.organizationId,
+      notificationNumber: record.identity.notificationNumber?.value ?? null, advertisementNumber: record.identity.advertisementNumber?.value ?? null,
+    } : undefined;
+    const lnReading = readUpdateText(s.retrieval.source.text, { job });
+    updateReadings.set(s.retrieval.id, lnReading);
+    const merge = mergeUpdate({ record, reading: lnReading, organizationId });
+    s.reading.values = merge.values.flatMap((v) => {
+      const stored = editorValue(v.fieldPath, v.value);
+      if (stored.ok) return [{ ...v, value: stored.value }];
+      s.reading.refused.push({ fieldPath: v.fieldPath, reason: `the editor would refuse it: ${stored.reason}` });
+      return [];
+    });
+    s.reading.links = merge.links;
+    s.reading.refused.push(...merge.refusedValues);
+    updateMerges.set(s.retrieval.id, merge);
+  }
+
   // Vacancy tables: read from each document's text by code (the AI only for a
   // heading code cannot match), or built from a quoted category split when the
   // document prints no table; then brought into the job's own table by row
@@ -337,15 +374,17 @@ export async function assemblePreview(opts: {
     const fallbackPost = (splitRows.length === 1 ? splitRows[0].post : null) ?? opts.newJob?.title ?? record?.identity.title.value ?? "All posts";
     // Scanned pages: their tables come from what the AI wrote out cell by cell, read by code, and join the
     // text tables they continue (or that continue them); those pages are not read again as text.
-    const { table: read, coverage } = s.retrieval.source.text.trim()
-      ? await readVacancyTables(s.retrieval.source.text, { retrievalId: s.retrieval.id, fallbackPost, apiKey: opts.apiKey, fetchFn: paced.fetch,
+    // An LN Update's tables are only those of its vacancy section, never its stage or link lines.
+    const tableText = updateMerges.get(s.retrieval.id)?.vacancyText ?? s.retrieval.source.text;
+    const { table: read, coverage } = tableText.trim()
+      ? await readVacancyTables(tableText, { retrievalId: s.retrieval.id, fallbackPost, apiKey: opts.apiKey, fetchFn: paced.fetch,
           ...(s.scan ? { scanPages: s.scan.pages } : {}) })
       : { table: null, coverage: { pages: null, tables: [], unreadLines: [] } as Awaited<ReturnType<typeof readVacancyTables>>["coverage"] };
     const readerProblems = coverage.problems ?? [];
     // Pasted text whose tables code did not read: tables with pipes, tabs or commas, read with the vacancy editor's
     // own paste reader (I2). Each is said in what was read, with its columns as suggested; one whose columns need
     // choosing, or whose lines are not all rows, is not offered, and its lines are listed as not read.
-    const pasted = !read && s.retrieval.method === "PASTED" ? readPastedTables(s.retrieval.source.text, { retrievalId: s.retrieval.id, prepared: s.summary.prepared === true }) : [];
+    const pasted = !read && s.retrieval.method === "PASTED" ? readPastedTables(tableText, { retrievalId: s.retrieval.id, prepared: s.summary.prepared === true }) : [];
     const fromPaste = joinPastedTables(pasted.flatMap((t) => (t.table ? [t.table] : [])));
     for (const t of pasted) {
       const offered = !!t.table && !!fromPaste;
@@ -356,7 +395,7 @@ export async function assemblePreview(opts: {
     }
     // The AI's split is no table where the text pastes one: the admin chooses its columns instead.
     const fromSplit = !read && pasted.length === 0 && breakdown
-      ? tableFromSplit(splitRows, typeof totalValue === "number" ? totalValue : null, { retrievalId: s.retrieval.id, page: breakdown.page ?? null, line: breakdown.quote ?? "" }, s.retrieval.source.text)
+      ? tableFromSplit(splitRows, typeof totalValue === "number" ? totalValue : null, { retrievalId: s.retrieval.id, page: breakdown.page ?? null, line: breakdown.quote ?? "" }, tableText)
       : null;
     const table = read ?? fromPaste ?? fromSplit;
     let note: Record<string, unknown> = { coverage, from: read ? "tables" : fromPaste ? "pasted" : fromSplit ? "split" : null, ...(readerProblems.length ? { problems: readerProblems } : {}) };
@@ -441,6 +480,60 @@ export async function assemblePreview(opts: {
     currentLinks: record?.links ?? [],
     today: new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10),
   });
+  for (const [retrievalId, merge] of updateMerges) annotateProposal(proposal, merge, retrievalId);
+  // CMS 2.0 U3: the LN Update's announcement and supersessions, in the same review. At most one new announcement
+  // per save, whatever the number of texts; they are saved through the announcement rules, never as fields.
+  const today = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+  for (const s of sources) {
+    const lnReading = updateReadings.get(s.retrieval.id);
+    if (!lnReading) continue;
+    const stages = s.reading.values.find((v) => v.fieldPath === "examStages")?.value as ExamStage[] | undefined;
+    const ann = proposeAnnouncements({ record, reading: lnReading, retrievalId: s.retrieval.id, stages, today, offeredLinks: s.reading.links });
+    for (const item of ann.items) {
+      const op = (item.value as AnnouncementValue).op;
+      if (op === "ADD" && proposal.items.some((i) => isAnnouncementItem(i) && (i.value as AnnouncementValue).op === "ADD")) {
+        proposal.warnings.push(`Announcements: “${(item.value as { entry: { title: string } }).entry.title}” is left out: one update saves at most one new announcement.`);
+        continue;
+      }
+      if (proposal.items.some((i) => i.id === item.id)) continue;
+      proposal.items.push(item);
+    }
+    proposal.warnings.push(...ann.warnings);
+    // R1: what the grouped Update review shows beside the items.
+    const merge = updateMerges.get(s.retrieval.id);
+    const SECTION_WORDS: Record<string, string> = {
+      examStages: "Exam stages", selection: "Selection process", examPattern: "Exam pattern", syllabus: "Syllabus", links: "Links",
+      announcement: "Announcements", fees: "Fees", age: "Age limit", eligibility: "Eligibility", vacancies: "Vacancies",
+      dates: "Important dates", howToApply: "How to apply", pay: "Pay",
+    };
+    const prior = proposal.lnUpdate;
+    const notRead = (merge?.warnings ?? []).filter((w) => /^Not read from the text/.test(w));
+    proposal.lnUpdate = {
+      notRead: [...(prior?.notRead ?? []), ...notRead],
+      attention: [...(prior?.attention ?? []), ...(merge?.warnings ?? []).filter((w) => !notRead.includes(w)), ...ann.warnings,
+        ...s.reading.refused.map((r) => `${fieldDef(r.fieldPath).label}: not offered — ${r.reason}`)],
+      kept: Object.entries(lnReading.sections).filter(([k, v]) => v.state === "OMITTED" && SECTION_WORDS[k]).map(([k]) => SECTION_WORDS[k]),
+      header: {
+        ...(lnReading.header.updateType ? { updateType: lnReading.header.updateType } : {}), ...(lnReading.header.source ? { source: lnReading.header.source } : {}),
+        ...(lnReading.header.sourceDate ? { sourceDate: lnReading.header.sourceDate } : {}), ...(lnReading.header.sourceLink ? { sourceLink: lnReading.header.sourceLink } : {}),
+        identity: lnReading.identity.result,
+      },
+    };
+  }
+  // R2: an item that saves information the public page cannot show yet says so (fee table rows, an extra Apply portal).
+  for (const item of proposal.items) {
+    const note = item.action === "MATCHES" ? null : notShownNote(item.fieldPath, item.value, record);
+    if (note && !item.flags.includes(note)) item.flags.push(note);
+    // U5: a fee table whose rows give the same candidates two fees is never ticked for you.
+    if (item.fieldPath === "financial.feeTable" && item.action !== "MATCHES" && Array.isArray(item.value)) {
+      const overlaps = feeOverlaps(item.value as FeeRow[]);
+      if (overlaps.length) {
+        item.flags.push(`needs attention: the rows give the same candidates more than one fee (${overlaps.join("; ")}). Not ticked: check the notice, and correct the rows if it is clear`);
+        item.attention = true;
+        item.defaultTicked = false;
+      }
+    }
+  }
 
   // A job with a vacancy table, or a vacancy table in this import, works its
   // total and breakdown out from the table: a figure read for them separately
@@ -595,17 +688,40 @@ export async function applyImportFlow(opts: {
 }) {
   const imp = await getImport(opts.importId);
   if (!imp) throw new ImportInputError("Import not found", 404);
-  if (imp.status === "APPLIED") return { recruitmentId: String(imp.result?.recruitmentId), replayed: true };
+  // CMS 2.0 U3/R1: ticked announcement items are not fields. They are worked out with the announcement rules
+  // (supersede) and saved in the SAME transaction as the fields (applyImportWithAnnouncements): all or nothing.
+  const annItems = imp.proposal.items.filter((i) => isAnnouncementItem(i) && opts.selected.includes(i.id));
+  const annIds = new Set(annItems.map((i) => i.id));
+  const fieldSelected = opts.selected.filter((id) => !annIds.has(id));
+  const stagesTicked = (ids: string[]) => imp.proposal.items.some((i) => i.fieldPath === "examStages" && ids.includes(i.id));
+  if (imp.status === "APPLIED") {
+    const recruitmentId = String(imp.result?.recruitmentId);
+    // Saved once already, fields and announcements together: a repeat only reports, and never writes again.
+    if (annItems.length && imp.mode === "EXISTING") {
+      const job = await getRecruitmentById(recruitmentId);
+      const w = job ? announcementWrite(job.updates ?? [], annItems.map((i) => i.value as AnnouncementValue), { adminId: opts.adminId, today: indiaToday(), stagesTicked: true }) : null;
+      const there = !!w && w.ok && w.write.nothingToDo;
+      return { recruitmentId, replayed: true, announcements: there ? { saved: true, done: [] } : { saved: false, done: [], error: "These announcements are not on the job: the job changed since. Make a new preview." } };
+    }
+    return { recruitmentId, replayed: true };
+  }
   if (imp.status !== "PREVIEWED") throw new ImportInputError("This import was discarded or has expired", 409);
   if (Date.now() - Date.parse(imp.createdAt) > 7 * 86_400_000) throw new ImportInputError("This preview is more than 7 days old. Make a new one.", 409);
 
   const meta = (imp.proposal as unknown as { meta: { newJob: NewJobInput | null; sources: Array<{ label: string }> } }).meta;
   let record: RecruitmentRecord;
   let slug: string | undefined;
+  let annWrite: { before: unknown[]; after: unknown[]; done: string[] } | null = null;
   if (imp.mode === "EXISTING") {
     const r = await getRecruitmentById(imp.recruitmentId!);
     if (!r) throw new ImportInputError("Job not found", 404);
     record = r;
+    // Worked out before anything is saved, so a foreseeable refusal saves nothing at all.
+    if (annItems.length) {
+      const check = announcementWrite(record.updates ?? [], annItems.map((i) => i.value as AnnouncementValue), { adminId: opts.adminId, today: indiaToday(), stagesTicked: stagesTicked(fieldSelected) });
+      if (!check.ok) throw new ImportInputError(check.error, 409);
+      if (!check.write.nothingToDo) annWrite = { before: record.updates ?? [], after: check.write.after, done: check.write.done };
+    }
   } else {
     const j = meta.newJob!;
     // What the admin typed for the new job: the title and, when given, the notice number. The preview counted the
@@ -617,9 +733,15 @@ export async function applyImportFlow(opts: {
       ...(typedNumber ? { notificationNumber: { value: typedNumber, status: "PENDING", evidenceIds: [], conflict: false, manuallyEdited: true } } : {}),
     } as RecruitmentRecord["identity"], opts.adminId);
     slug = buildSlug(j.organizationId, j.title, j.recruitmentYear);
+    // A new job: its announcement is part of the one insert.
+    if (annItems.length) {
+      const w = announcementWrite([], annItems.map((i) => i.value as AnnouncementValue), { adminId: opts.adminId, today: indiaToday(), stagesTicked: stagesTicked(fieldSelected) });
+      if (!w.ok) throw new ImportInputError(w.error, 409);
+      record = { ...record, updates: w.write.after };
+    }
   }
   const payload = buildApplyPayload({
-    record, proposal: imp.proposal, selected: opts.selected, confirmReplaceVerified: opts.confirmReplaceVerified,
+    record, proposal: imp.proposal, selected: fieldSelected, confirmReplaceVerified: opts.confirmReplaceVerified,
     adminId: opts.adminId, sourceLabel: meta.sources.map((s) => s.label).join("; ").slice(0, 300), slug,
   });
   // A notice number the admin ticks that the preview did not check (one code doubted, so it was no identity there):
@@ -634,8 +756,39 @@ export async function applyImportFlow(opts: {
       if (dups.length > 0) throw new ImportApplyError("DUPLICATE", "A job for this notification, or for this organisation and year, already exists.", dups);
     }
   }
-  return applyImport({ importId: opts.importId, adminId: opts.adminId, selected: opts.selected, override: opts.override, payload });
+  const heldTables = Number((imp.proposal as unknown as { meta?: { heldTables?: number } }).meta?.heldTables ?? 0);
+  if (imp.mode === "EXISTING" && annWrite) {
+    // Fields (if any) and announcements in one transaction; announcements alone mark the import applied themselves.
+    const fieldsToo = fieldSelected.length > 0 || heldTables > 0;
+    const done = annWrite.done;
+    const result = await applyImportWithAnnouncements({
+      importId: opts.importId, adminId: opts.adminId, recruitmentId: record.id, fieldSelected: fieldsToo ? fieldSelected : null,
+      override: opts.override, payload: fieldsToo ? payload : null,
+      announcements: { ...annWrite, itemIds: annItems.map((i) => i.id), reason: `LN Update (import ${opts.importId}): ${done.join("; ")}`.slice(0, 500) },
+    }).catch((err) => committedAnyway(opts.importId, err));
+    return { ...result, announcements: { saved: true, done } };
+  }
+  if (imp.mode === "EXISTING" && annItems.length && fieldSelected.length === 0 && heldTables === 0) {
+    // Every ticked announcement is already on the job (saved before): nothing to write.
+    return { recruitmentId: record.id, replayed: true, announcements: { saved: true, done: [] } };
+  }
+  const result = await applyImport({ importId: opts.importId, adminId: opts.adminId, selected: fieldSelected, override: opts.override, payload })
+    .catch((err) => committedAnyway(opts.importId, err));
+  return annItems.length ? { ...result, announcements: { saved: true, done: imp.mode === "NEW" ? annItems.map((i) => i.label) : [] } } : result;
 }
+
+/**
+ * R2: a save whose answer never arrived (the network dropped after the database committed), or a second click racing
+ * the first, can fail here although the save happened. The import's own state is the truth: if it is applied, the
+ * save stands and this answers as a repeat would, with nothing written again; otherwise the error is the answer.
+ */
+async function committedAnyway(importId: string, err: unknown): Promise<{ recruitmentId: string; replayed: boolean; recovered: true }> {
+  const now = await getImport(importId).catch(() => null);
+  if (now?.status === "APPLIED" && now.result?.recruitmentId) return { recruitmentId: String(now.result.recruitmentId), replayed: true, recovered: true };
+  throw err;
+}
+
+const indiaToday = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
 
 export { discardImport, getImport };
 

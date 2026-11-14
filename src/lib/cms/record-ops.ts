@@ -39,6 +39,8 @@ import type {
   ExamPatternPaper,
   ExamPatternSection,
   SyllabusSubject,
+  FeeGroup,
+  FeeRow,
 } from "@/types/recruitment-record";
 
 import type { AgeEvidence, AgeRelaxation, CategoryMaxAge, PostAgeRange, VacancyRow } from "@/types";
@@ -589,6 +591,36 @@ export function updateSelection(
 
 // ── Financial field updates ────────────────────────────────
 
+const FEE_GROUPS = new Set<FeeGroup>(["general", "obc", "ews", "sc", "st", "pwbd", "women", "esm", "transgender", "all", "other"]);
+
+/** A category-wise fee table, cleaned and bounded (CMS 2.0 U2). Two rows for the same categories and post are refused. */
+export function cleanFeeTable(value: unknown): FeeRow[] {
+  if (!Array.isArray(value)) throw new Error("financial.feeTable invariant: value must be a list of fees");
+  if (value.length > 40) throw new Error("financial.feeTable invariant: at most 40 fees");
+  const seen = new Set<string>();
+  return value.map((raw, i) => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const category = typeof r.category === "string" ? r.category.replace(/\s+/g, " ").trim() : "";
+    if (!category || category.length > 120) throw new Error(`financial.feeTable invariant: fee ${i + 1} needs its categories as written (1–120 characters)`);
+    const groups = Array.isArray(r.groups) ? [...new Set(r.groups.filter((g): g is FeeGroup => typeof g === "string" && FEE_GROUPS.has(g as FeeGroup)))] : [];
+    if (groups.length === 0) throw new Error(`financial.feeTable invariant: fee ${i + 1} names no category`);
+    if (typeof r.amount !== "number" || !Number.isInteger(r.amount) || r.amount < 0 || r.amount > 100_000) throw new Error(`financial.feeTable invariant: fee ${i + 1} needs an amount in whole rupees (0 for exempt)`);
+    const exempt = r.exempt === true;
+    if (exempt && r.amount !== 0) throw new Error(`financial.feeTable invariant: fee ${i + 1} is exempt, so its amount must be 0`);
+    const post = typeof r.post === "string" && r.post.trim() ? r.post.replace(/\s+/g, " ").trim().slice(0, 140) : undefined;
+    const note = typeof r.note === "string" && r.note.trim() ? r.note.replace(/\s+/g, " ").trim().slice(0, 240) : undefined;
+    const key = `${[...groups].sort().join("+")}|${(post ?? "").toLowerCase()}`;
+    if (seen.has(key)) throw new Error(`financial.feeTable invariant: two fees for “${category}”${post ? ` (${post})` : ""}`);
+    seen.add(key);
+    // U5 correction: a stated default for the remaining categories, and the exceptions the notice names (kept only as read).
+    const residual = r.residual === true && groups.includes("all");
+    const exceptGroups = residual && Array.isArray(r.exceptGroups)
+      ? [...new Set(r.exceptGroups.filter((g): g is FeeGroup => typeof g === "string" && g !== "all" && FEE_GROUPS.has(g as FeeGroup)))] : [];
+    return { category, groups, amount: r.amount, ...(exempt ? { exempt } : {}), ...(post ? { post } : {}), ...(note ? { note } : {}),
+      ...(residual ? { residual: true } : {}), ...(exceptGroups.length ? { exceptGroups } : {}) };
+  });
+}
+
 /**
  * Update a single financial field (feeGeneral, feeSCST, payScale).
  * fieldPath = "financial.<fieldName>"
@@ -601,6 +633,9 @@ export function updateFinancialField(
   reason?: string,
 ): FieldUpdateResult {
   const fieldPath = `financial.${fieldName}`;
+  if (fieldName === "feeTable" && newField.value !== null) {
+    newField = { ...newField, value: cleanFeeTable(newField.value) } as unknown as ProvenanceField<string>;
+  }
 
   const errors = validateProvenanceField(newField as ProvenanceField<unknown>, fieldPath);
   if (errors.length > 0) {
@@ -803,6 +838,7 @@ export function updateLinks(
       official: l.official,
       ...(typeof l.sourceId === "string" ? { sourceId: l.sourceId } : {}),
       ...saved,
+      ...(typeof l.appliesTo === "string" && l.appliesTo.trim() && l.appliesTo.trim().length <= 120 ? { appliesTo: l.appliesTo.replace(/\s+/g, " ").trim() } : {}),
     };
   });
 
@@ -1038,6 +1074,8 @@ export function cleanExamPattern(value: unknown): ExamPatternPaper[] {
       ...(totalQuestions ? { totalQuestions } : {}),
       ...(totalMarks ? { totalMarks } : {}),
       ...(note ? { note } : {}),
+      ...(tidy(p.stage, 140) ? { stage: tidy(p.stage, 140) } : {}),
+      ...(tidy(p.post, 140) ? { post: tidy(p.post, 140) } : {}),
     };
   });
 }
@@ -1054,7 +1092,9 @@ export function cleanSyllabus(value: unknown): SyllabusSubject[] {
     const topics = s.topics.map((t) => tidy(t, 160)).filter((t): t is string => t !== undefined);
     if (topics.length === 0) throw new Error(`syllabus invariant: subject ${i + 1} needs at least one topic`);
     const paper = tidy(s.paper, 80);
-    return { ...(paper ? { paper } : {}), subject, topics: Array.from(new Set(topics)) };
+    const stage = tidy(s.stage, 80);
+    const post = tidy(s.post, 140);
+    return { ...(paper ? { paper } : {}), subject, topics: Array.from(new Set(topics)), ...(stage ? { stage } : {}), ...(post ? { post } : {}) };
   });
 }
 

@@ -50,6 +50,8 @@ export interface FoundLink {
   flags: string[];
   /** The words around the address in the source, for the preview. */
   context: string;
+  /** Who uses this link ("ITI trade apprentices"), when the source says so (CMS 2.0 U2). */
+  appliesTo?: string;
 }
 
 const LABEL: Record<string, string> = {

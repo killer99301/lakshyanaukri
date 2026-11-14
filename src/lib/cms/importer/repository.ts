@@ -184,6 +184,91 @@ export async function applyImport(input: {
   }
 }
 
+// ─── Apply with announcements: one transaction (CMS 2.0 R1) ─────
+
+/** The job's announcement list as the save will leave it, and what the owner ticked. */
+export interface AnnouncementSave {
+  before: unknown[];
+  after: unknown[];
+  /** Ticked announcement item ids, recorded in the job's audit events. */
+  itemIds: string[];
+  done: string[];
+  reason: string;
+}
+
+/**
+ * An existing job's import, with its ticked announcements, saved in ONE transaction (the Neon driver's batch):
+ *   1. the fields, through cms_apply_import exactly as before (when a field is ticked or figures are held), or,
+ *      for announcements only, the import marked applied here under the same guard (PREVIEWED → APPLIED);
+ *   2. the announcement list, only if it is still the one worked out from, with its field revision;
+ *   3. an audit event naming the announcement items saved.
+ * If any step fails, nothing is saved. A plain statement cannot raise on its own, so a failed check casts a word to
+ * a number on purpose (ANNOUNCEMENTS_STALE, IMPORT_NOT_PREVIEWED): the error aborts the whole batch.
+ */
+export async function applyImportWithAnnouncements(input: {
+  importId: string;
+  adminId: string;
+  recruitmentId: string;
+  /** Field ids for cms_apply_import; null = announcements only (no field ticked, no held figures). */
+  fieldSelected: string[] | null;
+  override: { reason: string } | null;
+  payload: { record: Record<string, unknown>; revisions: unknown[]; claims: unknown[]; supersessions: unknown[] } | null;
+  announcements: AnnouncementSave;
+}): Promise<{ recruitmentId: string; replayed: boolean }> {
+  const a = input.announcements;
+  const revisionId = randomUUID();
+  const queries = [];
+  if (input.fieldSelected) {
+    queries.push(sql`
+      SELECT public.cms_apply_import(${input.importId}::uuid, ${input.adminId}::uuid, ${input.fieldSelected}::text[],
+                                     ${input.override ? JSON.stringify(input.override) : null}::jsonb,
+                                     ${JSON.stringify(input.payload)}::jsonb) AS result`);
+  } else {
+    queries.push(sql`
+      WITH m AS (
+        UPDATE recruitment_imports SET status = 'APPLIED', selected_items = ${a.itemIds}::text[],
+          result = ${JSON.stringify({ recruitmentId: input.recruitmentId, revisionIds: [revisionId], claimIds: [], selected: a.itemIds, announcementsOnly: true })}::jsonb,
+          applied_by = ${input.adminId}::uuid, applied_at = now()
+        WHERE import_id = ${input.importId}::uuid AND status = 'PREVIEWED' AND recruitment_id = ${input.recruitmentId}::uuid
+        RETURNING import_id)
+      SELECT CASE WHEN (SELECT count(*) FROM m) = 1 THEN 'ok'
+                  ELSE ('IMPORT_NOT_PREVIEWED ' || (SELECT count(*) FROM m))::int::text END AS ok`);
+  }
+  queries.push(sql`
+    WITH u AS (
+      UPDATE recruitments SET updates = ${JSON.stringify(a.after)}::jsonb, updated_at = now(), updated_by = ${input.adminId}::uuid
+      WHERE id = ${input.recruitmentId}::uuid AND draft_state IN ('DRAFT', 'APPROVED')
+        AND COALESCE(updates, '[]'::jsonb) = ${JSON.stringify(a.before)}::jsonb
+      RETURNING id),
+    r AS (
+      INSERT INTO field_revisions (id, recruitment_id, field_path, revised_by, revised_at, old_value, new_value, reason)
+      SELECT ${revisionId}::uuid, id, 'updates', ${input.adminId}::uuid, now(), ${JSON.stringify(a.before)}::jsonb, ${JSON.stringify(a.after)}::jsonb, ${a.reason}
+      FROM u RETURNING 1),
+    e AS (
+      INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+      SELECT id, ${input.adminId}::uuid, 'IMPORT_ANNOUNCEMENTS',
+             ${JSON.stringify({ importId: input.importId, items: a.itemIds, done: a.done, revisionId })}::jsonb
+      FROM u RETURNING 1)
+    SELECT CASE WHEN (SELECT count(*) FROM u) = 1 AND (SELECT count(*) FROM r) = 1 AND (SELECT count(*) FROM e) = 1 THEN 'ok'
+                ELSE ('ANNOUNCEMENTS_STALE ' || (SELECT count(*) FROM u))::int::text END AS ok`);
+  try {
+    const results = await sql.transaction(queries);
+    if (input.fieldSelected) {
+      const result = parse<{ recruitmentId: string; replayed?: boolean }>((results[0] as unknown as Array<{ result: unknown }>)[0].result);
+      return { recruitmentId: result.recruitmentId, replayed: result.replayed === true };
+    }
+    return { recruitmentId: input.recruitmentId, replayed: false };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes("ANNOUNCEMENTS_STALE")) {
+      throw new ImportApplyError("STALE", "The job's announcements, or whether it is open for editing, changed after this preview was made. Nothing was saved. Make a new preview.");
+    }
+    const code = Object.keys(APPLY_MESSAGES).find((k) => message.includes(k)) ?? "FAILED";
+    const detail = (e as { detail?: string }).detail;
+    throw new ImportApplyError(code, APPLY_MESSAGES[code] ?? "The import could not be applied. Nothing was saved.", detail ? (() => { try { return JSON.parse(detail); } catch { return detail; } })() : undefined);
+  }
+}
+
 // ─── Field states for the gate and the "Quality checks (optional)" list ─────
 
 export async function firstImportAt(recruitmentId: string): Promise<string | null> {

@@ -84,7 +84,8 @@ export interface ItemClaim {
 
 export interface ProposalItem {
   id: string;
-  kind: "FIELD" | "LINK";
+  /** ANNOUNCEMENT (CMS 2.0 U3): a new announcement or a supersession, saved through the announcement rules, not as a field. */
+  kind: "FIELD" | "LINK" | "ANNOUNCEMENT";
   fieldPath: string;
   label: string;
   value: unknown;
@@ -98,6 +99,10 @@ export interface ProposalItem {
   defaultTicked: boolean;
   flags: string[];
   current?: unknown;
+  /** CMS 2.0 R1, LN Update items only: each element the update adds, changes or removes in this field. */
+  changes?: Array<{ kind: "ADDED" | "CHANGED" | "REMOVED" | "NOTED"; element: string; detail: string }>;
+  /** CMS 2.0 R1: the item needs the owner's judgement (held, ambiguous, a removal, several stages…); never ticked by default. */
+  attention?: boolean;
 }
 
 export interface Proposal {
@@ -106,6 +111,17 @@ export interface Proposal {
   replacedInImport: Array<{ fieldPath: string; value: unknown; by: string }>;
   /** What the whole import lacks: no official notification or apply link, research only. */
   warnings: string[];
+  /** CMS 2.0 R1: set when the import came from an LN Update, for the grouped Update review. */
+  lnUpdate?: {
+    /** Lines of the text that were not read, with why. */
+    notRead: string[];
+    /** Notes needing the owner (ambiguous context, conflicts inside the text, values the editor refuses…). */
+    attention: string[];
+    /** Sections the text did not mention: kept exactly as they are. */
+    kept: string[];
+    /** The text's header, for the review's title line. */
+    header: { updateType?: string; source?: string; sourceDate?: string; sourceLink?: string; identity: string };
+  };
 }
 
 /** Deadlines that can have passed; a passed one is flagged, never changed. */
@@ -247,7 +263,7 @@ export function buildProposal(input: {
       if (seen.has(l.url)) continue;
       seen.add(l.url);
       const fieldPath = `links#${l.type}`;
-      const value = { type: l.type, label: l.label, url: l.url, official: l.official };
+      const value = { type: l.type, label: l.label, url: l.url, official: l.official, ...(l.appliesTo ? { appliesTo: l.appliesTo } : {}) };
       const blocking = l.flags.filter((f) => f !== "tracking removed");
       items.push({
         id: `l:${shortHash(fieldPath, value)}`,
