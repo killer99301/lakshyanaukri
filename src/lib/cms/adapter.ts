@@ -34,6 +34,34 @@ import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
 import { toPublicUpdates } from "@/lib/cms/announcements";
 import { EXPERIENCE_PREFIX } from "@/lib/eligibility-lines";
 import { fieldDef } from "@/lib/cms/importer/fields";
+import { isAggregatorHost } from "@/lib/public-link-labels";
+import { hostOf } from "@/lib/cms/importer/trusted-domains";
+import { feeOverlaps } from "@/lib/cms/importer/fee-table";
+
+/** U5: the same portal twice (case, "www.", a trailing slash) is one portal. */
+const portalKey = (url: string) => {
+  try { const u = new URL(url); return `${u.host.toLowerCase().replace(/^www\./, "")}${u.pathname.replace(/\/+$/, "")}${u.search}`; } catch { return url.trim(); }
+};
+
+/**
+ * U5: every distinct Apply Online portal of a job, in the order saved, with who each is for. A repeat of the same
+ * address is shown once (its "for whom" kept when the first had none); an aggregator page is never an Apply portal.
+ * Only when there is more than one, or one whose audience is stated: any other job keeps its page exactly as before.
+ */
+export function applyPortalsOf(links: PublishedRecruitmentSnapshot["links"]): Array<{ label: string; url: string; host: string | null; appliesTo?: string }> | undefined {
+  const seen = new Map<string, { label: string; url: string; host: string | null; appliesTo?: string }>();
+  for (const l of links) {
+    if (l.type !== "APPLY_ONLINE" || l.savedFrom) continue;
+    const host = hostOf(l.url);
+    if (isAggregatorHost(host)) continue;
+    const k = portalKey(l.url);
+    const had = seen.get(k);
+    if (had) { if (!had.appliesTo && l.appliesTo) had.appliesTo = l.appliesTo; continue; }
+    seen.set(k, { label: l.label, url: l.url, host, ...(l.appliesTo ? { appliesTo: l.appliesTo } : {}) });
+  }
+  // One portal is listed too when the notice says who it is for, so that is never hidden.
+  return seen.size > 1 || [...seen.values()].some((p) => p.appliesTo) ? [...seen.values()] : undefined;
+}
 
 // ─── Internal helpers ─────────────────────────────────────
 
@@ -161,6 +189,14 @@ export function snapshotToGovernmentRecruitment(
   // nor a superseded announcement's old wording (they stay in the record and its history).
   const updates = toPublicUpdates(snapshot.updates ? (snapshot.updates as UpdateRecord[]) : []);
 
+  // U5: the fee table as the notice gives it (category, amount or exemption, post, note), copied field by field.
+  const feeTable = Array.isArray(snapshot.financial.feeTable) && snapshot.financial.feeTable.length
+    ? snapshot.financial.feeTable.map((r) => ({ category: r.category, amount: r.amount, ...(r.exempt ? { exempt: true } : {}), ...(r.post ? { post: r.post } : {}), ...(r.note ? { note: r.note } : {}) }))
+    : undefined;
+  const applyPortals = applyPortalsOf(snapshot.links);
+  // Two rows giving the same candidates different fees are said on the page, never settled by guessing.
+  const feeTableOverlaps = feeTable ? feeOverlaps((snapshot.financial.feeTable ?? []).map((r) => ({ ...r, groups: r.groups as never, exceptGroups: r.exceptGroups as never }))) : [];
+
   // ─── Assemble ────────────────────────────────────────────
 
   return {
@@ -212,6 +248,9 @@ export function snapshotToGovernmentRecruitment(
     fee: feeRows.length > 0
       ? { rows: feeRows, modes: snapshot.financial.paymentModes }
       : undefined,
+    ...(feeTable ? { feeTable } : {}),
+    ...(feeTableOverlaps.length ? { feeTableOverlaps } : {}),
+    ...(applyPortals ? { applyPortals } : {}),
     payScale,
     ageLimit,
     eligibility:      eligibility && eligibility.length > 0 ? eligibility : undefined,

@@ -15,9 +15,32 @@
   --muted-foreground: #475569;
   --border: #e2e8f0;
   --border-warm: #fed7aa;
+
+  /* Premium design system (CMS 2.0, Nov 2026; docs/premium-redesign): status colours. Additive: nothing above
+     changes, so only components that use these names look different. Each state: text, tint, line. */
+  --ln-ink: #111827;
+  --ln-text: #273244;
+  --ln-muted: #5b6577;
+  --ln-line: #e7e4dc;
+  --ln-action: #1d4ed8;  --ln-action-soft: #ebf1ff;  --ln-action-line: #c4d4fb;
+  --ln-urgent: #b42318;  --ln-urgent-soft: #fdeceb;  --ln-urgent-line: #f5c2bd;
+  --ln-past: #5b6577;    --ln-past-soft: #f1f2f4;    --ln-past-line: #dcdfe4;
 }
 
 @theme inline {
+  --color-ln-ink: var(--ln-ink);
+  --color-ln-text: var(--ln-text);
+  --color-ln-muted: var(--ln-muted);
+  --color-ln-line: var(--ln-line);
+  --color-ln-action: var(--ln-action);
+  --color-ln-action-soft: var(--ln-action-soft);
+  --color-ln-action-line: var(--ln-action-line);
+  --color-ln-urgent: var(--ln-urgent);
+  --color-ln-urgent-soft: var(--ln-urgent-soft);
+  --color-ln-urgent-line: var(--ln-urgent-line);
+  --color-ln-past: var(--ln-past);
+  --color-ln-past-soft: var(--ln-past-soft);
+  --color-ln-past-line: var(--ln-past-line);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

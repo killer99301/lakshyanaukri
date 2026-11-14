@@ -108,7 +108,8 @@ export function replacementOf(u: UpdateRecord, list: readonly UpdateRecord[]): U
  * serialized into the job page's data, so the internal reason, the admin id and the old wording were in the
  * page source although never displayed). An explicit allowlist: only the fields a public page shows are copied,
  * so a field added to announcements later stays internal until it is added here on purpose.
- *   - current: id, date, type, title, description, sourceUrl, field, previousValue, newValue
+ *   - current: id, date, type, title, description, sourceUrl, field, previousValue, newValue, and (P1) event,
+ *     relevantUntil, action, each checked for shape
  *   - superseded: id, date, type, title, and the note's on / replacedBy / sourceUrl (never its reason or author,
  *     never the old description or values)
  * The stored record, the editor and the change history keep everything.
@@ -132,6 +133,14 @@ export function toPublicUpdates(list: readonly UpdateRecord[] | undefined | null
       ...(str(u.field) ? { field: u.field } : {}),
       ...(u.previousValue !== undefined ? { previousValue: u.previousValue } : {}),
       ...(u.newValue !== undefined ? { newValue: u.newValue } : {}),
+      // P1 (CMS 2.0, Nov 2026): what the "Important update" block needs, checked for shape. Only on current
+      // announcements: a superseded one is never promoted, so it carries none of them.
+      ...(u.event && EVENT_KINDS.has(u.event.kind) ? { event: { kind: u.event.kind, ...(str(u.event.stage) ? { stage: u.event.stage.slice(0, 120) } : {}) } } : {}),
+      ...(str(u.relevantUntil) && /^\d{4}-\d{2}-\d{2}$/.test(u.relevantUntil) ? { relevantUntil: u.relevantUntil } : {}),
+      ...(str(u.action) && ACTION_TYPES.has(u.action) ? { action: u.action } : {}),
     };
   });
 }
+
+const EVENT_KINDS = new Set<string>(["ADMIT_CARD", "RESULT", "ANSWER_KEY", "CUT_OFF", "EXAM_DATE", "POSTPONEMENT", "CANCELLATION", "EXTENSION", "CORRIGENDUM", "NEW_RECRUITMENT", "OTHER"]);
+const ACTION_TYPES = new Set<string>(["APPLY_ONLINE", "OFFICIAL_NOTIFICATION", "OFFICIAL_WEBSITE", "CORRIGENDUM", "ADMIT_CARD", "RESULT", "ANSWER_KEY", "CUT_OFF", "EXAM_NOTICE"]);

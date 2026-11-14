@@ -72,6 +72,11 @@ export type UpdateType =
   | "CANCELLATION"
   | "GENERAL_NOTICE";
 
+/** The kind of news an announcement carries (CMS 2.0 U3), from the LN Update's "Update type". */
+export type AnnouncementEventKind =
+  | "ADMIT_CARD" | "RESULT" | "ANSWER_KEY" | "CUT_OFF" | "EXAM_DATE" | "POSTPONEMENT" | "CANCELLATION"
+  | "EXTENSION" | "CORRIGENDUM" | "NEW_RECRUITMENT" | "OTHER";
+
 export interface UpdateRecord {
   id: string;
   date: string;                   // ISO date of the official notice
@@ -82,6 +87,14 @@ export interface UpdateRecord {
   field?: string;                 // which field changed: "totalVacancies"
   previousValue?: string;         // "1,230"
   newValue?: string;              // "1,186"
+  // CMS 2.0 U3 (Nov 2026), all optional and INTERNAL for now: written only from a reviewed LN Update, and not in
+  // the copy public pages receive (toPublicUpdates) until a public feature uses them on purpose.
+  /** Which of the job's official links the notice's button uses (an admit card, a result…). Never a guessed address. */
+  action?: "APPLY_ONLINE" | "OFFICIAL_NOTIFICATION" | "OFFICIAL_WEBSITE" | "CORRIGENDUM" | "ADMIT_CARD" | "RESULT" | "ANSWER_KEY" | "CUT_OFF" | "EXAM_NOTICE";
+  /** The last day the notice matters (YYYY-MM-DD), only when the notice itself says so. Never invented. */
+  relevantUntil?: string;
+  /** What kind of event the notice is, and for which stage, so a job's two admit cards stay two events. */
+  event?: { kind: AnnouncementEventKind; stage?: string };
   /**
    * Set when newer verified information replaced this announcement (Nov 2026). The entry is kept word for
    * word, but no longer shown as current: no banner, NEW badge, count or news line. Absent = current, as on
@@ -351,6 +364,18 @@ export interface GovernmentRecruitment extends BaseOpportunity {
   vacancyTotalComplete?: boolean;
   vacancyTotalBasis?: "STATED" | "ENTERED" | "CALCULATED";
   fee?: { rows: FeeRow[]; modes: string[] };
+  /**
+   * U5: the notice's fees category by category (and post by post), when the job has a fee table. Shown INSTEAD of
+   * the two summary rows in `fee`; jobs without one keep `fee` exactly as before. Never filled in or inferred.
+   */
+  feeTable?: Array<{ category: string; amount: number; exempt?: boolean; post?: string; note?: string }>;
+  /** U5: rows of that table giving the same candidates two different fees, in words. Shown as a caution, never resolved. */
+  feeTableOverlaps?: string[];
+  /**
+   * U5: every distinct Apply Online portal, with who each is for, when the job has more than one. Absent with one
+   * portal (the page is then unchanged). An aggregator page is never listed.
+   */
+  applyPortals?: Array<{ label: string; url: string; host: string | null; appliesTo?: string }>;
   /** Pay level or salary for the whole recruitment, as the notice states it. */
   payScale?: string;
   ageLimit?: AgeLimit;

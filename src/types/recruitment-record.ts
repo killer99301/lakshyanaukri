@@ -243,6 +243,10 @@ export interface ExamPatternPaper {
   totalQuestions?: number;
   totalMarks?: number;
   note?: string;                 // "Qualifying in nature"
+  /** The stage this paper belongs to, when its name is the paper's own ("Paper-I" of "Tier-II"). Optional (CMS 2.0 U2). */
+  stage?: string;
+  /** The post this paper is for, when papers differ by post. Optional (CMS 2.0 U2). */
+  post?: string;
 }
 
 /** One subject of the syllabus, optionally tied to a paper. */
@@ -250,6 +254,10 @@ export interface SyllabusSubject {
   paper?: string;                // "Tier-I" — matches ExamPatternPaper.name when it applies to one paper
   subject: string;               // "General Intelligence"
   topics: string[];
+  /** The stage, when `paper` also names the post ("Mains – IT Officer"). Optional (CMS 2.0 U2). */
+  stage?: string;
+  /** The post this subject's syllabus is for, when it differs by post. Optional (CMS 2.0 U2). */
+  post?: string;
 }
 
 // ─── Links and Documents ──────────────────────────────────
@@ -280,6 +288,8 @@ export interface CmsRecruitmentLink {
   savedFrom?: string;
   /** YYYY-MM-DD the copy was saved. Present whenever savedFrom is. */
   savedOn?: string;
+  /** Who uses this link, when a job has more than one of a kind ("ITI trade apprentices"). Optional (CMS 2.0 U2). */
+  appliesTo?: string;
 }
 
 export type RecruitmentDocumentType =
@@ -360,6 +370,34 @@ export interface FinancialInformation {
   feeSCST?: ProvenanceField<number | null>;
   paymentModes?: string[];
   payScale?: ProvenanceField<string>;
+  /**
+   * The fee of every category the notice names, post by post where it differs (CMS 2.0 U2). Optional: jobs
+   * without it keep feeGeneral and feeSCST exactly as before, and those two stay what public pages show.
+   */
+  feeTable?: ProvenanceField<FeeRow[]>;
+}
+
+/** Category groups a fee row can name. "all" = every candidate; "other" = a group named as written (see `category`). */
+export type FeeGroup = "general" | "obc" | "ews" | "sc" | "st" | "pwbd" | "women" | "esm" | "transgender" | "all" | "other";
+
+/** One fee as the notice writes it: "General/EWS/OBC: Rs. 750", "SC/ST/PwBD/Women: Nil". */
+export interface FeeRow {
+  /** The categories as written ("General/EWS/OBC"). */
+  category: string;
+  groups: FeeGroup[];
+  /** Rupees; 0 with `exempt` for "Nil" or "Exempted". */
+  amount: number;
+  exempt?: boolean;
+  /** Only when fees differ by post. */
+  post?: string;
+  note?: string;
+  /**
+   * U5 correction: the notice itself says this fee is for every category NOT given its own fee ("All candidates
+   * (except categories below)", "All candidates except SC/ST", "Other candidates"). Never set by inference.
+   */
+  residual?: boolean;
+  /** With `residual`: the categories the notice names as excepted. Absent = "the categories listed separately". */
+  exceptGroups?: FeeGroup[];
 }
 
 export interface SpecialConditions {

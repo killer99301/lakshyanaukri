@@ -73,6 +73,8 @@ export interface PublishedRecruitmentSnapshot {
     /** The notice gives no fee for this group: a real answer, shown as "Not specified". Absent on older snapshots. */
     feeGeneralNotSpecified?: boolean;
     feeSCSTNotSpecified?: boolean;
+    /** U5: the category-wise fee table, when the job has one (absent otherwise and on older snapshots). Copied field by field. */
+    feeTable?: Array<{ category: string; groups: string[]; amount: number; exempt?: boolean; post?: string; note?: string; residual?: boolean; exceptGroups?: string[] }>;
     payScale: string | null;
     paymentModes: string[];
   };
@@ -85,7 +87,7 @@ export interface PublishedRecruitmentSnapshot {
   /** SyllabusSubject[] — absent on snapshots published before the field existed. */
   syllabus?: unknown | null;
   howToApply: string[];
-  links: Array<{ type: string; label: string; url: string; official: boolean; savedFrom?: string; savedOn?: string }>;
+  links: Array<{ type: string; label: string; url: string; official: boolean; savedFrom?: string; savedOn?: string; /** U5: who this link is for. */ appliesTo?: string }>;
   documents: Array<{ type: string; label: string; url: string; official: boolean; datePublished?: string }>;
   classification: {
     shortDescription: string | null;
@@ -167,6 +169,14 @@ function buildSnapshot(record: RecruitmentRecord): PublishedRecruitmentSnapshot 
       feeSCST:      pv(record.financial.feeSCST),
       feeGeneralNotSpecified: record.financial.feeGeneral?.status === "NOT_SPECIFIED",
       feeSCSTNotSpecified:    record.financial.feeSCST?.status === "NOT_SPECIFIED",
+      // U5: only jobs with a fee table carry it, so every other page is unchanged.
+      ...(Array.isArray(record.financial.feeTable?.value) && record.financial.feeTable!.value!.length ? {
+        feeTable: record.financial.feeTable!.value!.map((r) => ({
+          category: r.category, groups: [...r.groups], amount: r.amount,
+          ...(r.exempt ? { exempt: true } : {}), ...(r.post ? { post: r.post } : {}), ...(r.note ? { note: r.note } : {}),
+          ...(r.residual ? { residual: true } : {}), ...(r.exceptGroups?.length ? { exceptGroups: [...r.exceptGroups] } : {}),
+        })),
+      } : {}),
       payScale:     pv(record.financial.payScale),
       paymentModes: record.financial.paymentModes ?? [],
     },
@@ -185,6 +195,7 @@ function buildSnapshot(record: RecruitmentRecord): PublishedRecruitmentSnapshot 
       url:      l.url,
       official: l.official,
       ...(l.savedFrom ? { savedFrom: l.savedFrom, savedOn: l.savedOn } : {}),
+      ...(l.appliesTo ? { appliesTo: l.appliesTo } : {}),
     })),
 
     documents: record.documents.map((d) => ({

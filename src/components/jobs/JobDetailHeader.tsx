@@ -11,12 +11,10 @@ import {
   Share2,
   Bookmark,
   ChevronRight,
-  AlertTriangle,
   Lock,
   Compass,
 } from "lucide-react";
 import { siteConfig } from "@/config/site";
-import { formatDate } from "@/lib/utils";
 import type { Opportunity } from "@/types";
 import { OrganizationLogo } from "@/components/common/OrganizationLogo";
 import {
@@ -25,13 +23,12 @@ import {
   deriveStatusBadge,
   getVacancyDisplay,
   pageUpdatedLabel,
-  getLatestUpdate,
-  isFreshUpdate,
   getCategoryBadgeClass,
   getCategoryLabel,
   getCurrentExamSummary,
 } from "@/lib/lifecycle";
-import { NewBadge } from "@/components/common/NewBadge";
+import { ImportantUpdateBlock } from "@/components/jobs/ImportantUpdateBlock";
+import { pickImportantUpdate } from "@/lib/important-update";
 import { ApplyLinkLaterNotice } from "@/components/jobs/ApplyLinkLaterNotice";
 import { NO_NOTICE_ADVICE, publicLinkWords } from "@/lib/public-link-labels";
 import { getDeadlineUrgency, formatDeadlineDate } from "@/lib/urgency";
@@ -61,7 +58,8 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
   const apply = publicLinkWords(job.organizationId, job.links.apply, "apply");
   // An aggregator is never the Apply button (P2); without an application link the website is named by its standing.
   const applyHref = job.links.apply && apply.asApply ? job.links.apply : job.type === "government" ? job.links.website : undefined;
-  const latestUpdate = getLatestUpdate(job);
+  const portals = job.type === "government" && job.applyPortals && job.applyPortals.length > 1 ? job.applyPortals.length : 0;
+  const important = pickImportantUpdate(job, now);
 
   const deadlineFormatted = formatDeadlineDate(closeDate);
 
@@ -111,57 +109,8 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
         </span>
       </nav>
 
-      {/* Prominent Latest Update / Corrigendum Banner */}
-      {latestUpdate && (
-        <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border-2 border-amber-400/80 rounded-2xl p-4 text-[#0F172A] shadow-xs space-y-2 relative overflow-hidden">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-amber-500 text-white shrink-0 mt-0.5 shadow-xs">
-                <AlertTriangle className="h-4.5 w-4.5" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/90 px-2 py-0.5 rounded-md">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
-                    </span>
-                    {isFreshUpdate(latestUpdate, now) && <NewBadge />}
-                    {/* "Official" only when the entry carries the official notice it came from. */}
-                    <span>Update • {latestUpdate.type.replace(/_/g, " ")}</span>
-                  </span>
-                  <span className="text-xs text-amber-950 font-extrabold">
-                    {latestUpdate.sourceUrl ? "Published" : "Updated"}: {formatDate(latestUpdate.date)}
-                  </span>
-                </div>
-                <h4 className="text-sm sm:text-base font-black text-[#0F172A] leading-snug">{latestUpdate.title}</h4>
-                <p className="text-xs text-[#334155] leading-relaxed font-medium">{latestUpdate.description}</p>
-                
-                <div className="pt-1">
-                  <a
-                    href="#updates-history"
-                    className="text-[11px] font-bold text-amber-800 hover:text-amber-950 underline inline-flex items-center gap-1"
-                  >
-                    <span>View all corrigenda & updates in history timeline ↓</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {latestUpdate.sourceUrl && (
-              <a
-                href={latestUpdate.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-amber-600 text-white font-extrabold text-xs shadow-xs hover:bg-amber-700 active:scale-95 transition-all shrink-0 cursor-pointer"
-              >
-                <span>Notice PDF</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
-          </div>
-        </div>
-      )}
+      {/* The most relevant current notice (P1): not simply the newest; every announcement stays in the history. */}
+      {important && <ImportantUpdateBlock item={important} now={now} />}
 
       {/* Main Header Card */}
       <div className="bg-white border border-[#E2E8F0] rounded-3xl p-5 sm:p-7 shadow-xs relative overflow-hidden">
@@ -281,7 +230,17 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
                     </a>
                   )}
 
-                  {applyHref && (
+                  {/* U5: several Apply portals: the button leads to the list on this page, where each says who it is for. */}
+                  {portals && (
+                    <a
+                      href="#apply-portals"
+                      data-apply-kind="portals"
+                      className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-[#EA580C] to-[#F95738] text-white font-extrabold text-sm shadow-md shadow-orange-500/20 hover:opacity-95 transition-all cursor-pointer"
+                    >
+                      <span>Apply Online · {portals} portals</span>
+                    </a>
+                  )}
+                  {applyHref && !portals && (
                     // Only a real application link is an Apply button; its words come from the registry (§1.3).
                     <a
                       href={applyHref}

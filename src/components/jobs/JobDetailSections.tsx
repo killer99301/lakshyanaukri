@@ -31,12 +31,16 @@ import { RecruitmentTimeline } from "@/components/jobs/RecruitmentTimeline";
 import { ExamPatternSection, SyllabusSection } from "@/components/jobs/ExamPatternSyllabus";
 import { EligibilityChecker } from "@/components/jobs/EligibilityChecker";
 import { EXPERIENCE_PREFIX } from "@/lib/eligibility-lines";
+import { ApplyPortals, FeeTableView, type PortalState } from "@/components/jobs/FeesAndPortals";
+import { getOpportunityApplicationStatus } from "@/lib/lifecycle";
 
 interface JobDetailSectionsProps {
   job: Opportunity;
+  /** The date the page is shown for (tests); today by default, as in JobDetailHeader. */
+  now?: Date;
 }
 
-export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => {
+export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now = new Date() }) => {
   const isGov = job.type === "government";
   const isPriv = job.type === "private";
   const isIntern = job.type === "internship";
@@ -614,14 +618,14 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
 
       {/* 6. Application Fee and Pay Section (Government only). Shown when either
           part is on record; a missing part never hides the other. */}
-      {isGov && (job.fee || job.payScale) && (
+      {isGov && (job.fee || job.payScale || job.feeTable) && (
         <section id="application-fee" className="bg-white border border-[#E2E8F0] rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
               <CreditCard className="h-5 w-5" />
             </div>
             <h2 className="text-lg font-black text-[#0F172A]">
-              {job.fee && job.payScale ? "Application Fee & Pay" : job.fee ? "Application Fee & Payment Modes" : "Pay Scale"}
+              {(job.fee || job.feeTable) && job.payScale ? "Application Fee & Pay" : job.fee || job.feeTable ? "Application Fee & Payment Modes" : "Pay Scale"}
             </h2>
           </div>
 
@@ -632,7 +636,15 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
             </div>
           )}
 
-          {job.fee && (
+          {/* U5: a job with the notice's fee table shows it, category by category, instead of the two summary rows. */}
+          {job.feeTable && <FeeTableView rows={job.feeTable} overlaps={job.feeTableOverlaps} />}
+          {job.feeTable && job.fee?.modes && job.fee.modes.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <span className="text-xs font-bold text-[#475569]">Accepted Payment Modes:</span>
+              {job.fee.modes.map((mode, i) => <span key={i} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">{mode}</span>)}
+            </div>
+          )}
+          {job.fee && !job.feeTable && (
           <div className="space-y-4">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
@@ -726,6 +738,13 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
           <h2 className="text-lg font-black text-[#0F172A]">{isGov && job.howToApply && job.howToApply.length > 0 ? "How to Apply Online Step-by-Step" : "How to Apply"}</h2>
         </div>
 
+        {/* U5: every Apply Online portal, with who each is for; live buttons only while applications are open. */}
+        {isGov && job.applyPortals && (() => {
+          const status = getOpportunityApplicationStatus(job, now);
+          const state: PortalState = status === "APPLICATIONS_CLOSED" ? "CLOSED" : status === "UPCOMING" ? "UPCOMING" : "OPEN";
+          return <ApplyPortals portals={job.applyPortals} state={state} opensOn={job.application.openDate} />;
+        })()}
+
         {isGov && job.howToApply && job.howToApply.length > 0 ? (
           <ol className="space-y-3">
             {job.howToApply.map((step, idx) => (
@@ -743,7 +762,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job }) => 
             {!job.links?.apply && job.type === "government" && job.applyLinkLater
               ? durableWords(job.applyLinkLater).join(" ")
               : job.links?.apply
-              ? "Apply through the application link given on this page. Read the notification first for the full steps."
+              ? isGov && job.applyPortals && job.applyPortals.length > 1 ? "Use the portal listed above for your post. Read the notification first for the full steps." : "Apply through the application link given on this page. Read the notification first for the full steps."
               : job.links && "notification" in job.links && job.links.notification
                 ? "The way to apply is given in the official notification. Read it before applying."
                 : "The way to apply has not been added here yet. Check the recruiting body's official notification."}
