@@ -19,6 +19,7 @@ import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { getRecruitmentById, persistUpdateAppend, persistUpdatesNote, UpdatesChangedError } from "@/lib/cms/repository";
 import { supersede, restore, updatesFingerprint } from "@/lib/cms/announcements";
 import { correctAnnouncement, type AnnouncementMeta } from "@/lib/cms/announcement-correction";
+import { isPublisher, notAPublisherMessage } from "@/lib/cms/publication-policy";
 import { todayInIndia } from "@/lib/cms/attention";
 import { randomUUID } from "node:crypto";
 import type { UpdateRecord, UpdateType } from "@/types";
@@ -163,6 +164,12 @@ export async function PATCH(
   }
   const action = body.action;
   if (action !== "supersede" && action !== "restore" && action !== "correct") return NextResponse.json({ error: "action must be supersede, restore or correct" }, { status: 400 });
+  // Correcting a notice's details is the owner's decision (15 Nov 2026): only the owner or an authorised publisher
+  // (CMS_PUBLISHERS, the same list that may publish), checked on the server before anything is read or written, so
+  // a direct request cannot bypass it. Supersede, restore and appends keep their existing rule.
+  if (action === "correct" && !isPublisher(auth.adminId)) {
+    return NextResponse.json({ error: notAPublisherMessage(auth.adminId).replace("can do this", "can correct an announcement"), code: "NOT_A_PUBLISHER" }, { status: 403 });
+  }
   const ids = Array.isArray(body.ids) ? body.ids.filter((x): x is string => typeof x === "string") : [];
   const reason = typeof body.reason === "string" ? body.reason : "";
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
