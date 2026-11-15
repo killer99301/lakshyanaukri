@@ -47,7 +47,7 @@ export default function TermsOfServicePage() {
               <h2>1. Informational Service Nature</h2>
             </div>
             <p>
-              LakshyaNaukri is an independent career information and exam intelligence aggregator. We provide factual updates, corrigenda tracking, and links directly to official government recruiting commissions (such as BPSC, SSC, RRB, UPSC, IBPS, and State PSCs).
+              LakshyaNaukri is an independent career information and exam intelligence aggregator. We provide factual updates, corrigenda tracking, and links to the websites of recruiting organisations (such as BPSC, SSC, RRB, UPSC, IBPS, and State PSCs) or to the authorised portals they use for applications, admit cards and results.
             </p>
             <p>
               LakshyaNaukri is not an official government entity and does not represent recruiting authorities directly.
@@ -60,7 +60,7 @@ export default function TermsOfServicePage() {
               <h2>2. Candidate Verification Responsibility</h2>
             </div>
             <p>
-              While our editorial engine and autonomous checkers strive for 100% accuracy and strict provenance against primary government gazettes, candidates must always verify application guidelines, fee rules, eligibility cutoffs, and exam dates on the official recruiting portal prior to final submission.
+              LakshyaNaukri prepares its information from official notices, authorised application portals, third-party sources and its own research. The site owner reviews each update before it is published, but errors, delays and omissions can happen, and we cannot guarantee that every detail is complete or current. Before you apply, pay a fee or travel to an exam, always check the application guidelines, fees, eligibility, cut-offs and dates in the recruiting authority&apos;s official notice or on its official portal.
             </p>
           </section>
 

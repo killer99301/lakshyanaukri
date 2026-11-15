@@ -191,7 +191,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs font-bold text-amber-800 hover:text-amber-950 underline flex items-center gap-1 cursor-pointer"
-                        title={docAccess.disclaimer}
+                        title="Open the linked notice"
                       >
                         <span>{docAccess.label}</span>
                         <ExternalLink className="h-3 w-3" />
@@ -398,7 +398,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-[11px] text-[#EA580C] hover:underline font-bold inline-flex items-center gap-1 mt-1 justify-end"
-                              title={stageDoc.disclaimer}
+                              title="Open the document for this exam stage"
                             >
                               <span>{stageDoc.label}</span>
                               <ExternalLink className="h-2.5 w-2.5" />

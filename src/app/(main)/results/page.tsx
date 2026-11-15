@@ -1,5 +1,5 @@
 import React from "react";
-import { Trophy, ShieldCheck, ArrowRight, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Trophy, Info, ArrowRight, ExternalLink, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
@@ -14,7 +14,7 @@ import { PreviousUpdates } from "@/components/updates/PreviousUpdates";
 export const metadata = {
   title: "Exam Results & Cutoff Marks 2026",
   description:
-    "Official exam results, merit lists, scorecards, and cutoff marks for UPSC, SSC, Banking, Railway, and State PSC competitive exams. Results are published as they are officially released.",
+    "Exam results, merit lists, scorecards and cut-off marks for UPSC, SSC, Banking, Railway and State PSC exams, with links to the official result pages. Always confirm details on the recruiting organisation's official website.",
 };
 
 const OFFICIAL_RESULT_PORTALS = [
@@ -68,7 +68,7 @@ export default async function ResultsPage() {
         <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden">
           <div className="max-w-2xl space-y-4 relative z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-black uppercase tracking-wider">
-              <Trophy className="h-3.5 w-3.5" /> Official Scorecards & Merit Lists
+              <Trophy className="h-3.5 w-3.5" /> Results &amp; Merit Lists
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
@@ -76,24 +76,25 @@ export default async function ResultsPage() {
             </h1>
 
             <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed">
-              Find instant results, merit lists, final marks, and category-wise cutoff announcements across national and state government examinations.
+              Find results, merit lists, final marks and category-wise cut-offs for national and state government examinations, with links to the official result pages.
             </p>
           </div>
         </div>
 
-        {/* Verification Status Banner */}
+        {/* Where result information comes from (Nov 2026: no verification guarantee; it said "Data Trust Guarantee"
+            and "cross-verification against government gazettes", which the site does not do) */}
         <div className="bg-white border border-[#E2E8F0] rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
-                <ShieldCheck className="h-5 w-5" />
+              <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
+                <Info className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
                 <h3 className="text-sm font-extrabold text-[#0F172A]">
-                  Data Trust Guarantee: Direct Verification in Progress
+                  Where result information comes from
                 </h3>
                 <p className="text-xs text-[#475569]">
-                  Results are published only after cross-verification against primary government gazettes.
+                  We gather result details from official notices, authorised portals, third-party websites and our own research, and review each update before publishing it. We link to the official result page wherever one is available. Always confirm important details on the recruiting organisation&apos;s official website before acting on them.
                 </p>
               </div>
             </div>

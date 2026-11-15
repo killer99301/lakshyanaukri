@@ -5,7 +5,8 @@
 //
 // 1. OFFICIAL_PDF       → Direct link to authoritative commission PDF
 // 2. OFFICIAL_PORTAL    → Official candidate login or board webpage
-// 3. VERIFIED_MIRROR    → Career Campus verified archive (never labelled official)
+// 3. VERIFIED_MIRROR    → a copy stored by LakshyaNaukri (never labelled official). The type name is historical:
+//                         no verification process stands behind it, so the public wording says "stored copy" (Nov 2026).
 // 4. UNAVAILABLE        → Explicitly indicated when no document exists
 //
 // Shared across: Results, Admit Cards, Answer Keys, Cutoffs,
@@ -28,8 +29,8 @@ export function resolveDocumentAccess(
     return {
       type: "OFFICIAL_PDF",
       url: source.officialPdfUrl.trim(),
-      label: source.customPdfLabel || "Official PDF Gazette",
-      badgeLabel: "Official PDF",
+      label: source.customPdfLabel || "Linked document",
+      badgeLabel: "PDF",
       badgeClass: "bg-emerald-50 text-emerald-800 border-emerald-200",
       isOfficial: true,
       isMirror: false,
@@ -37,7 +38,7 @@ export function resolveDocumentAccess(
       isAvailable: true,
       organization: source.organization || undefined,
       publishedDate: source.publishedDate || undefined,
-      disclaimer: `Authoritative official document published directly on ${org} server.`,
+      disclaimer: "Open the linked document",
     };
   }
 
@@ -46,8 +47,8 @@ export function resolveDocumentAccess(
     return {
       type: "OFFICIAL_PORTAL",
       url: source.officialPortalUrl.trim(),
-      label: source.customPortalLabel || "Official Commission Portal",
-      badgeLabel: "Official Portal",
+      label: source.customPortalLabel || "Linked portal",
+      badgeLabel: "Portal",
       badgeClass: "bg-blue-50 text-blue-800 border-blue-200",
       isOfficial: true,
       isMirror: false,
@@ -55,7 +56,7 @@ export function resolveDocumentAccess(
       isAvailable: true,
       organization: source.organization || undefined,
       publishedDate: source.publishedDate || undefined,
-      disclaimer: `Direct candidate login and notice portal on official ${org} server.`,
+      disclaimer: "Open the linked portal",
     };
   }
 
@@ -64,8 +65,8 @@ export function resolveDocumentAccess(
     return {
       type: "VERIFIED_MIRROR",
       url: source.mirrorUrl.trim(),
-      label: "LakshyaNaukri Verified Mirror",
-      badgeLabel: "Verified Mirror",
+      label: "LakshyaNaukri stored copy",
+      badgeLabel: "Stored copy",
       badgeClass: "bg-amber-50 text-amber-900 border-amber-300",
       isOfficial: false, // Invariant: Never label a mirror as official
       isMirror: true,
@@ -74,9 +75,9 @@ export function resolveDocumentAccess(
       organization: source.organization || undefined,
       publishedDate: source.publishedDate || undefined,
       mirrorVerifiedAt: source.mirrorVerifiedAt || undefined,
-      disclaimer: `LakshyaNaukri verified mirror archive. Verified and preserved from original ${org} publication${
-        source.publishedDate ? ` on ${source.publishedDate}` : ""
-      }.`,
+      disclaimer: `A copy of a ${org} document stored by LakshyaNaukri${
+        source.publishedDate ? `, dated ${source.publishedDate}` : ""
+      }. Check the official website for the current version.`,
     };
   }
 
@@ -93,6 +94,6 @@ export function resolveDocumentAccess(
     isAvailable: false,
     organization: source.organization || undefined,
     publishedDate: source.publishedDate || undefined,
-    disclaimer: `Official document or portal URL not yet published or released by ${org}.`,
+    disclaimer: "No document link has been added yet.",
   };
 }

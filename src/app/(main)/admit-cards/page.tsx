@@ -1,5 +1,5 @@
 import React from "react";
-import { Download, ShieldCheck, ArrowRight, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Download, Info, ArrowRight, ExternalLink, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
@@ -68,7 +68,7 @@ export default async function AdmitCardsPage() {
         <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden">
           <div className="max-w-2xl space-y-4 relative z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-wider">
-              <Download className="h-3.5 w-3.5" /> Official Direct Downloads
+              <Download className="h-3.5 w-3.5" /> Admit Cards &amp; Hall Tickets
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
@@ -76,7 +76,7 @@ export default async function AdmitCardsPage() {
             </h1>
 
             <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed">
-              Instant access to direct official download links for call letters, exam hall tickets, and city intimation slips across all competitive exams in India.
+              Find admit card, hall ticket and exam-city information links for government recruitment examinations. Always check the recruiting organisation&apos;s official notice before signing in.
             </p>
           </div>
         </div>
@@ -86,14 +86,14 @@ export default async function AdmitCardsPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
-                <ShieldCheck className="h-5 w-5" />
+                <Info className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
                 <h3 className="text-sm font-extrabold text-[#0F172A]">
                   Admit cards and download links
                 </h3>
                 <p className="text-xs text-[#475569]">
-                  We do not guess admit card links. All candidate login pages are sourced from official commission servers.
+                  We don&apos;t guess admit card links. A link here may go to the recruiting organisation&apos;s own website or to a portal it uses for applications and admit cards. Always check the official notice for the correct login page before entering your details.
                 </p>
               </div>
             </div>

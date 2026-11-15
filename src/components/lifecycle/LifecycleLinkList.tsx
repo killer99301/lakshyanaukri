@@ -145,8 +145,8 @@ export function LifecycleLinkGrid({ kind, items }: { kind: LifecycleKind; items:
         </div>
         <h3 className="text-sm font-extrabold text-[#0F172A]">{meta.empty}</h3>
         <p className="text-xs text-[#475569] max-w-md mx-auto leading-relaxed">
-          We list one only after its official link, or our saved copy of the official file, has been checked and added to the job. Until then, use the
-          official portals below, or open a job to see its current stage.
+          This list shows links that have been added to jobs on this site. Until one is added, use the official portals below, or open a job to see
+          its current stage.
         </p>
         <Link href="/jobs" className="inline-flex items-center gap-1 text-xs font-bold text-[#EA580C] hover:underline">
           <span>Browse jobs</span>
@@ -176,7 +176,7 @@ export function LifecycleHomeSection({ links }: { links: LifecycleLinks }) {
       <Container>
         <SectionHeading
           title="Results, Admit Cards & Answer Keys"
-          subtitle="Official links, and our saved copies where marked, added to a job only after they have been checked."
+          subtitle="Result, admit card and answer key links added to jobs on this site, newest first."
         />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-4">
           {columns.map(({ kind, items }) => {
@@ -200,7 +200,7 @@ export function LifecycleHomeSection({ links }: { links: LifecycleLinks }) {
                   <p className="text-xs text-[#475569] py-5 text-center leading-relaxed">
                     {meta.empty}
                     <br />
-                    <span className="text-slate-400">They appear here as official links are added.</span>
+                    <span className="text-slate-400">They appear here as links are added to jobs.</span>
                   </p>
                 ) : (
                   <ul className="divide-y divide-slate-100">

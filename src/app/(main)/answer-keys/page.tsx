@@ -1,5 +1,5 @@
 import React from "react";
-import { KeyRound, ShieldCheck, ArrowRight, ExternalLink, CheckCircle2 } from "lucide-react";
+import { KeyRound, Info, ArrowRight, ExternalLink, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
@@ -86,14 +86,14 @@ export default async function AnswerKeysPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600 shrink-0">
-                <ShieldCheck className="h-5 w-5" />
+                <Info className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
                 <h3 className="text-sm font-extrabold text-[#0F172A]">
                   Answer keys and source links
                 </h3>
                 <p className="text-xs text-[#475569]">
-                  Answer keys and response challenge links are published only from official authority releases.
+                  A link here may go to the recruiting organisation&apos;s own website or to a portal it uses for answer keys and objections. Always check the official notice for the answer key and the challenge dates before raising an objection.
                 </p>
               </div>
             </div>
