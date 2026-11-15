@@ -18,6 +18,7 @@ import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import type { ExamStage, UpdateRecord } from "@/types";
 import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, ExamPatternPaper, SyllabusSubject } from "@/types/recruitment-record";
 import { formatDate } from "@/lib/utils";
+import { metaChanges } from "@/lib/cms/announcement-correction";
 import { compareWithLibrary } from "@/lib/cms/library-compare";
 
 export interface LiveChange {
@@ -185,6 +186,14 @@ export function liveChanges(live: PublishedRecruitmentSnapshot, next: PublishedR
       // The same announcement, now superseded or current again (its own text never changes).
       if (Boolean(was.superseded) !== Boolean(u.superseded)) {
         out.push({ section: "Updates", label: `Update “${u.title}” (${formatDate(u.date)})`, before: was.superseded ? "Superseded" : "Current", after: u.superseded ? "Superseded: no longer shown as current" : "Current again" });
+      }
+      // Its details corrected (relevant until, kind): announcement corrections, 15 Nov 2026.
+      if (!u.superseded) {
+        for (const c of metaChanges(was, u)) {
+          const [what, change] = [c.slice(0, c.indexOf(":")), c.slice(c.indexOf(":") + 2)];
+          const [b, n] = change.split(" → ");
+          out.push({ section: "Updates", label: `Update “${u.title}” (${formatDate(u.date)}): ${what.toLowerCase()}`, before: b, after: n });
+        }
       }
       continue;
     }

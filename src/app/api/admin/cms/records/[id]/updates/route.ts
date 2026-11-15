@@ -18,6 +18,7 @@ import type { NextRequest } from "next/server";
 import { requireAdmin, validateOrigin } from "@/lib/auth/guard";
 import { getRecruitmentById, persistUpdateAppend, persistUpdatesNote, UpdatesChangedError } from "@/lib/cms/repository";
 import { supersede, restore, updatesFingerprint } from "@/lib/cms/announcements";
+import { correctAnnouncement, type AnnouncementMeta } from "@/lib/cms/announcement-correction";
 import { todayInIndia } from "@/lib/cms/attention";
 import { randomUUID } from "node:crypto";
 import type { UpdateRecord, UpdateType } from "@/types";
@@ -137,6 +138,9 @@ export async function POST(
 // design.md). Body: { action: "supersede" | "restore", ids, reason,
 // replacedBy?, sourceUrl?, expected } where `expected` is the fingerprint of
 // the announcement list the editor showed (updatesFingerprint).
+// Or correct one announcement's details (15 Nov 2026, announcement-
+// correction.ts): { action: "correct", id, set: { relevantUntil, eventKind,
+// eventStage }, was: the same as the page showed them, reason, expected }.
 // Same rules as an append: signed-in admin, own origin, job open for editing;
 // nothing public changes until the owner's reviewed publish. Never creates,
 // deletes or rewrites an announcement's own text; never posts anywhere.
@@ -151,14 +155,14 @@ export async function PATCH(
   if (!validateOrigin(request)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  let body: { action?: unknown; ids?: unknown; reason?: unknown; replacedBy?: unknown; sourceUrl?: unknown; expected?: unknown };
+  let body: { action?: unknown; ids?: unknown; reason?: unknown; replacedBy?: unknown; sourceUrl?: unknown; expected?: unknown; id?: unknown; set?: unknown; was?: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const action = body.action;
-  if (action !== "supersede" && action !== "restore") return NextResponse.json({ error: "action must be supersede or restore" }, { status: 400 });
+  if (action !== "supersede" && action !== "restore" && action !== "correct") return NextResponse.json({ error: "action must be supersede, restore or correct" }, { status: 400 });
   const ids = Array.isArray(body.ids) ? body.ids.filter((x): x is string => typeof x === "string") : [];
   const reason = typeof body.reason === "string" ? body.reason : "";
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
@@ -175,6 +179,21 @@ export async function PATCH(
       return NextResponse.json({ error: "The announcements changed since this page was loaded. Reload the page and try again.", code: "STALE" }, { status: 409 });
     }
 
+    if (action === "correct") {
+      const meta = (v: unknown): AnnouncementMeta => {
+        const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
+        const s = (x: unknown) => (typeof x === "string" ? x : "");
+        return { relevantUntil: s(o.relevantUntil), eventKind: s(o.eventKind), eventStage: s(o.eventStage) };
+      };
+      const stages = (record.examStages ?? []).map((s) => s.name).filter((n): n is string => typeof n === "string" && n !== "");
+      const fixed = correctAnnouncement(before, { id: typeof body.id === "string" ? body.id : "", set: meta(body.set), was: meta(body.was), reason, stages });
+      if (!fixed.ok) return NextResponse.json({ error: fixed.error, code: fixed.code }, { status: fixed.code === "STALE" ? 409 : fixed.code === "NOT_FOUND" ? 404 : 400 });
+      const target = before.find((u) => u.id === body.id)!;
+      const why = `Corrected “${target.title}” (${target.date}): ${fixed.changes.join("; ")}. ${reason.replace(/\s+/g, " ").trim()}`;
+      const { record: saved, revision } = await persistUpdatesNote(id, before, fixed.list, auth.adminId, why.slice(0, 500));
+      return NextResponse.json({ record: saved, revision, live: false, changes: fixed.changes });
+    }
+
     const result = action === "supersede"
       ? supersede(before, { ids, reason, replacedBy: str(body.replacedBy), sourceUrl: str(body.sourceUrl), on: todayInIndia(), by: auth.adminId })
       : restore(before, ids, reason);
@@ -186,7 +205,7 @@ export async function PATCH(
     return NextResponse.json({ record: saved, revision, live: false });
   } catch (err) {
     if (err instanceof UpdatesChangedError) return NextResponse.json({ error: err.message, code: "STALE" }, { status: 409 });
-    console.error("[CMS] announcement supersede error", err);
+    console.error("[CMS] announcement change error", err);
     return NextResponse.json({ error: "Failed to save the announcements" }, { status: 500 });
   }
 }

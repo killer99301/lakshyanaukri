@@ -16,6 +16,8 @@
 
 import { createHash } from "node:crypto";
 import type { RecruitmentRecord } from "@/types/recruitment-record";
+import type { UpdateRecord } from "@/types";
+import { metaChanges } from "@/lib/cms/announcement-correction";
 import { validateRecord } from "@/lib/cms/validation";
 import { canonicalJson, valueHash } from "@/lib/cms/importer/evidence-text";
 import { originFor, type OriginRole } from "@/lib/cms/importer/trusted-domains";
@@ -79,12 +81,16 @@ export interface PublicationReview {
   announcements: ReviewAnnouncement[];
   /** Present only when this publish supersedes or restores announcements already public. */
   supersessions?: ReviewSupersession[];
+  /** Present only when this publish corrects the details (relevant until, kind) of announcements already public. */
+  corrections?: ReviewCorrection[];
   reviewHash: string;
 }
 
 export interface ReviewAnnouncement { id: string; type: string; date: string; title: string }
 /** An announcement already public whose superseded note this publish adds or removes. */
 export interface ReviewSupersession { id: string; date: string; title: string; change: "SUPERSEDED" | "RESTORED" }
+/** An announcement already public whose details (relevant until, kind, stage) this publish changes. */
+export interface ReviewCorrection { id: string; date: string; title: string; changes: string[] }
 
 export interface ReviewInput {
   record: RecruitmentRecord;
@@ -107,6 +113,8 @@ export interface ReviewInput {
   publishedUpdateIds?: string[];
   /** Of those, the ones already superseded on the public page. */
   publishedSupersededIds?: string[];
+  /** Of those, their relevant-until and kind as published (announcement corrections, 15 Nov 2026). */
+  publishedUpdates?: Array<Pick<UpdateRecord, "id" | "relevantUntil" | "event">>;
 }
 
 // ─── Hosts ────────────────────────────────────────────────────
@@ -203,12 +211,20 @@ export function assembleReview(input: ReviewInput): PublicationReview {
   const supersessions: ReviewSupersession[] = (record.updates ?? [])
     .filter((u) => alreadyPublic.has(u.id) && Boolean(u.superseded) !== publicSuperseded.has(u.id))
     .map((u) => ({ id: u.id, date: u.date, title: u.title, change: u.superseded ? "SUPERSEDED" as const : "RESTORED" as const }));
+  // Announcements already public whose relevant-until or kind this publish corrects (their words never change).
+  const publishedMeta = new Map((input.publishedUpdates ?? []).filter((u) => u?.id).map((u) => [u.id, u]));
+  const corrections: ReviewCorrection[] = (record.updates ?? [])
+    .filter((u) => !u.superseded && publishedMeta.has(u.id))
+    .map((u) => ({ u, changes: metaChanges({ ...u, relevantUntil: publishedMeta.get(u.id)!.relevantUntil, event: publishedMeta.get(u.id)!.event }, u) }))
+    .filter((c) => c.changes.length > 0)
+    .map(({ u, changes }) => ({ id: u.id, date: u.date, title: u.title, changes }));
   const body = {
     recordId: record.id, title: record.identity.title.value ?? record.slug, today: input.today, imported: input.imported,
     freshness: input.freshness, ready, missing, conflicts, standing,
     links: { applyOnline, notification, officialSourceLink, markedOfficial }, warnings, hardRules, announcements,
     // Only present when there is something to say, so the review of every other job is exactly as before.
     ...(supersessions.length > 0 ? { supersessions } : {}),
+    ...(corrections.length > 0 ? { corrections } : {}),
   };
   const reviewHash = createHash("sha256").update(canonicalJson(body)).digest("hex");
   return { ...body, reviewHash };
@@ -317,13 +333,18 @@ export async function buildPublicationReview(record: RecruitmentRecord, today: s
   const live = await sql`
     SELECT snapshot->'updates' AS updates FROM published_recruitments
     WHERE recruitment_id = ${record.id}::uuid ORDER BY published_at DESC LIMIT 1`;
-  const publishedUpdates = (live[0]?.updates ?? []) as Array<{ id?: unknown; superseded?: unknown }>;
+  const publishedUpdates = (live[0]?.updates ?? []) as Array<{ id?: unknown; superseded?: unknown; relevantUntil?: unknown; event?: unknown }>;
   const publishedUpdateIds = Array.isArray(publishedUpdates) ? publishedUpdates.map((u) => String(u?.id ?? "")).filter(Boolean) : [];
   const publishedSupersededIds = Array.isArray(publishedUpdates) ? publishedUpdates.filter((u) => u?.superseded).map((u) => String(u?.id ?? "")).filter(Boolean) : [];
 
   return assembleReview({
     record, today, imported, freshness: fresh, standings, conflictValues, conflictKinds, eligibilityPart, applyDecision, officialDocuments,
     duplicates: dups.map((d) => ({ id: String(d.id), title: String(d.title ?? "") })), filled, publishedUpdateIds, publishedSupersededIds,
+    publishedUpdates: Array.isArray(publishedUpdates) ? publishedUpdates.filter((u) => u?.id).map((u) => ({
+      id: String(u.id),
+      ...(typeof u.relevantUntil === "string" && u.relevantUntil ? { relevantUntil: u.relevantUntil } : {}),
+      ...(u.event && typeof u.event === "object" && typeof (u.event as { kind?: unknown }).kind === "string" ? { event: u.event as UpdateRecord["event"] } : {}),
+    })) : [],
   });
 }
 

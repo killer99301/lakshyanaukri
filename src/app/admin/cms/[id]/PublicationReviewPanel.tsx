@@ -236,6 +236,18 @@ export function PublicationReviewPanel({ record, onJump, onPublished, onRefused 
         </div>
       )}
 
+      {(v.corrections ?? []).length > 0 && (
+        <div data-review-corrections>
+          {heading(`Announcements this publish corrects (${v.corrections!.length}): their words stay the same`)}
+          {v.corrections!.map((a) => (
+            <div key={a.id} data-correction={a.id} style={{ color: C.text, lineHeight: 1.5 }}>
+              • {a.title} <span style={{ color: C.muted }}>({a.date})</span>
+              {a.changes.map((c) => <div key={c} style={{ color: C.muted, paddingLeft: 12 }}>{c}</div>)}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div data-review-links>
         {heading("Links")}
         {linkLine("Apply Online", v.links.applyOnline)}
