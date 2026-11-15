@@ -89,6 +89,20 @@ export async function getAllVerifiedOpportunitiesWithCMS(
 }
 
 /**
+ * R3: the PUBLISHED CMS recruitments only (no static records), as public pages receive them: the published
+ * snapshot through the adapter, so announcements are the allowlisted public copy. Taken-down and archived jobs
+ * are left out by the query. An empty list when the CMS is unreachable (the archive then says it has nothing yet).
+ */
+export async function getPublishedCmsOpportunities(): Promise<Opportunity[]> {
+  try {
+    const { getAllPublishedSnapshots } = await import("@/lib/cms/public-repository");
+    return (await getAllPublishedSnapshots()).map(snapshotToGovernmentRecruitment);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Find an opportunity by its URL slug. Returns undefined if not found.
  * CMS-first: checks published_recruitments before the static repository.
  * Falls back to static records if the CMS is unreachable or has no match.

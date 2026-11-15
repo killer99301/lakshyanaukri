@@ -29,6 +29,11 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    // R3: the Latest updates archive (admit cards, results, exam dates… with their status).
+    title: "Latest Updates",
+    href: "/updates",
+  },
+  {
     title: "Results",
     href: "/results",
   },

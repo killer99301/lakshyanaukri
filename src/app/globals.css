@@ -25,6 +25,10 @@
   --ln-action: #1d4ed8;  --ln-action-soft: #ebf1ff;  --ln-action-line: #c4d4fb;
   --ln-urgent: #b42318;  --ln-urgent-soft: #fdeceb;  --ln-urgent-line: #f5c2bd;
   --ln-past: #5b6577;    --ln-past-soft: #f1f2f4;    --ln-past-line: #dcdfe4;
+  /* R3: current (open), tentative (soon) and superseded (void), from the same approved palette. */
+  --ln-open: #0f7a43;    --ln-open-soft: #e8f6ee;    --ln-open-line: #b9e3cb;
+  --ln-soon: #a15c00;    --ln-soon-soft: #fff5e0;    --ln-soon-line: #f5d79e;
+  --ln-void: #6b4fa3;    --ln-void-soft: #f3effa;    --ln-void-line: #dccff0;
 }
 
 @theme inline {
@@ -41,6 +45,15 @@
   --color-ln-past: var(--ln-past);
   --color-ln-past-soft: var(--ln-past-soft);
   --color-ln-past-line: var(--ln-past-line);
+  --color-ln-open: var(--ln-open);
+  --color-ln-open-soft: var(--ln-open-soft);
+  --color-ln-open-line: var(--ln-open-line);
+  --color-ln-soon: var(--ln-soon);
+  --color-ln-soon-soft: var(--ln-soon-soft);
+  --color-ln-soon-line: var(--ln-soon-line);
+  --color-ln-void: var(--ln-void);
+  --color-ln-void-soft: var(--ln-void-soft);
+  --color-ln-void-line: var(--ln-void-line);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

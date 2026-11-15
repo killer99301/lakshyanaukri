@@ -1,6 +1,8 @@
 "use client";
 // HomePageClient — interactive shell. Metadata is exported from page.tsx (server).
 
+import { ImportantNow } from "@/components/updates/ImportantNow";
+import type { FeedEntry } from "@/lib/updates-feed";
 import React, { useState, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -58,9 +60,11 @@ interface HomePageClientProps {
   lifecycleLinks: LifecycleLinks;
   /** The date the page was drawn on the server (India), YYYY-MM-DD. */
   renderedOn: string;
+  /** R3: the homepage's "Important now" (public fields only); empty hides the strip. */
+  importantNow?: FeedEntry[];
 }
 
-export default function HomePageClient({ opportunities, lifecycleLinks, renderedOn }: HomePageClientProps) {
+export default function HomePageClient({ opportunities, lifecycleLinks, renderedOn, importantNow = [] }: HomePageClientProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All India");
@@ -228,6 +232,9 @@ export default function HomePageClient({ opportunities, lifecycleLinks, rendered
           </div>
         </Container>
       </section>
+
+      {/* R3: the most important current notices, above the ticker; absent when there are none. */}
+      <ImportantNow entries={importantNow} />
 
       {/* ================================================== */}
       {/* IMPORTANT UPDATES TICKER */}

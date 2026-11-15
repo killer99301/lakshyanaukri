@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 import {
   Calendar,
@@ -153,6 +154,14 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
               {currentList.length} {currentList.length === 1 ? "Update" : "Updates"}
             </span>
           </div>
+          {/* R3: this recruitment's notices in the Latest updates archive, current and earlier, with their status. */}
+          {job.type === "government" && (
+            <p className="text-xs">
+              <Link href={`/updates?job=${job.slug}`} data-job-updates-link className="font-bold text-[#C2410C] hover:underline">
+                All updates for this recruitment ({currentList.length + correctedList.length}) →
+              </Link>
+            </p>
+          )}
 
           <div className="space-y-3.5">
             {/* Newest first, so the latest change is the first one read. */}

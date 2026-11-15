@@ -87,31 +87,26 @@ function stageOf(u: UpdateRecord, stages: readonly ExamStage[]): ExamStage | und
 // News about a stage's schedule: a newer one about the same stage replaces an older one as "current".
 const SCHEDULE: ReadonlySet<AnnouncementEventKind> = new Set(["ADMIT_CARD", "EXAM_DATE", "POSTPONEMENT", "CANCELLATION", "RESULT"]);
 
-/** The most relevant current announcement of a job, or null when none is relevant now. */
-export function pickImportantUpdate(job: Opportunity, now: Date): ImportantUpdate | null {
+/**
+ * Every dated, not-superseded announcement of a job, with whether it is still current by the rules above (R3: the
+ * same rules decide "Current" in the Latest updates archive, so the two can never disagree). `ended` says why one
+ * is no longer current: its known date passed, or a newer notice about the same stage replaced it. `tier` orders
+ * the current ones by urgency (1 = most urgent).
+ */
+export interface ClassifiedAnnouncement {
+  u: UpdateRecord; kind: AnnouncementEventKind; inferred: boolean; stage?: ExamStage;
+  current: boolean; ended?: "DATE" | "REPLACED"; tier: number;
+}
+
+export function classifyAnnouncements(job: Opportunity, now: Date): ClassifiedAnnouncement[] {
   const today = isoDay(now);
-  const where = (url: string) => { const host = hostOf(url); return { host, official: originFor(job.organizationId ?? "", host).role === "AUTHORITY" }; };
   const stages: readonly ExamStage[] = job.type === "government" ? job.examStages ?? [] : [];
   const list = currentUpdates(job.updates).filter((u) => u.date && !Number.isNaN(Date.parse(u.date)));
   const closeDate = job.type === "government" ? (job.application.extendedCloseDate || job.application.closeDate || "") : "";
-
-  type Cand = { u: UpdateRecord; kind: AnnouncementEventKind; inferred: boolean; stage?: ExamStage; tier: number };
-  const cands: Cand[] = [];
+  const out: ClassifiedAnnouncement[] = [];
   for (const u of list) {
     const { kind, inferred } = kindOf(u);
     const stage = stageOf(u, stages);
-    // Ended on a known date only.
-    if (u.relevantUntil && u.relevantUntil < today) continue;
-    if ((kind === "ADMIT_CARD" || kind === "EXAM_DATE") && stage) {
-      const end = lastDay(stage);
-      if (end && end < today) continue;
-    }
-    if (kind === "EXTENSION" && closeDate && closeDate < today) continue;
-    // Replaced: a newer current announcement about the same stage's schedule (both naming no stage counts too).
-    const key = stage ? norm(stage.name) : (u.event?.stage ? norm(u.event.stage) : "");
-    if (SCHEDULE.has(kind) && list.some((o) => o !== u && o.date > u.date && SCHEDULE.has(kindOf(o).kind)
-      && (stageOf(o, stages) ? norm(stageOf(o, stages)!.name) : (o.event?.stage ? norm(o.event.stage) : "")) === key)) continue;
-
     let tier: number;
     const soon = (s?: ExamStage) => !!s?.dateIso && lastDay(s)! >= today && s.dateIso <= addDays(today, 7);
     if (kind === "CANCELLATION" || kind === "POSTPONEMENT") tier = 1;
@@ -121,8 +116,28 @@ export function pickImportantUpdate(job: Opportunity, now: Date): ImportantUpdat
     else if (kind === "EXTENSION") tier = 4;
     else if (kind === "EXAM_DATE" || kind === "CORRIGENDUM" || kind === "NEW_RECRUITMENT") tier = 5;
     else tier = 6;
-    cands.push({ u, kind, inferred, stage, tier });
+    const base = { u, kind, inferred, ...(stage ? { stage } : {}), tier };
+    // Ended on a known date only.
+    const endedOnDate = (u.relevantUntil && u.relevantUntil < today)
+      || ((kind === "ADMIT_CARD" || kind === "EXAM_DATE") && !!stage && !!lastDay(stage) && lastDay(stage)! < today)
+      || (kind === "EXTENSION" && !!closeDate && closeDate < today);
+    if (endedOnDate) { out.push({ ...base, current: false, ended: "DATE" }); continue; }
+    // Replaced: a newer current announcement about the same stage's schedule (both naming no stage counts too).
+    const key = stage ? norm(stage.name) : (u.event?.stage ? norm(u.event.stage) : "");
+    if (SCHEDULE.has(kind) && list.some((o) => o !== u && o.date > u.date && SCHEDULE.has(kindOf(o).kind)
+      && (stageOf(o, stages) ? norm(stageOf(o, stages)!.name) : (o.event?.stage ? norm(o.event.stage) : "")) === key)) {
+      out.push({ ...base, current: false, ended: "REPLACED" });
+      continue;
+    }
+    out.push({ ...base, current: true });
   }
+  return out;
+}
+
+/** The most relevant current announcement of a job, or null when none is relevant now. */
+export function pickImportantUpdate(job: Opportunity, now: Date): ImportantUpdate | null {
+  const where = (url: string) => { const host = hostOf(url); return { host, official: originFor(job.organizationId ?? "", host).role === "AUTHORITY" }; };
+  const cands = classifyAnnouncements(job, now).filter((c) => c.current);
   if (cands.length === 0) return null;
   cands.sort((a, b) => a.tier - b.tier || (a.u.date < b.u.date ? 1 : a.u.date > b.u.date ? -1 : 0));
   const c = cands[0];
@@ -136,8 +151,21 @@ export function pickImportantUpdate(job: Opportunity, now: Date): ImportantUpdat
   if (c.stage) out.stage = { name: c.stage.name, ...(c.stage.dateDisplay || c.stage.dateIso ? { when: c.stage.dateDisplay?.trim() || c.stage.dateIso } : {}) };
   else if (c.u.event?.stage) out.stage = { name: c.u.event.stage };
 
-  // The button: the job's own official link of the right kind, only while it can still be used.
+  const button = announcementAction(job, c, now);
+  if (button.action) out.action = { ...button.action, ...where(button.action.url) };
+  else if (button.noAction) out.noAction = button.noAction;
+  return out;
+}
+
+/**
+ * The button for a current announcement: the job's own link of the right kind, only while it can still be used,
+ * never an aggregator; or why there is none, when a visitor might expect one. Shared by the job page and the
+ * Latest updates archive (R3).
+ */
+export function announcementAction(job: Opportunity, c: Pick<ClassifiedAnnouncement, "u" | "kind" | "stage">, now: Date): { action?: { label: string; url: string }; noAction?: string } {
+  const today = isoDay(now);
   const g = job.type === "government" ? job : null;
+  const closeDate = g ? (g.application.extendedCloseDate || g.application.closeDate || "") : "";
   const answerKey = (job.downloads ?? []).find((d) => d.kind === "answerKey" && !d.savedCopy)?.url;
   const linkFor: Record<string, [string | undefined, string]> = {
     ADMIT_CARD: [g?.links.admitCard, "Download admit card"], RESULT: [g?.links.result, "Check result"], CUT_OFF: [g?.links.result, "View cut-off"],
@@ -150,7 +178,10 @@ export function pickImportantUpdate(job: Opportunity, now: Date): ImportantUpdat
   const expired = (wanted === "ADMIT_CARD" && c.stage && lastDay(c.stage) && lastDay(c.stage)! < today)
     || (wanted === "APPLY_ONLINE" && closeDate && closeDate < today);
   // An aggregator is never the button (as for Apply on the rest of the page).
-  if (url && !expired && !isAggregatorHost(hostOf(url))) out.action = { label, url, ...where(url) };
-  else if (linkFor[wanted] && !url && wanted !== "OFFICIAL_WEBSITE") out.noAction = `${label.replace(/^(Download|Check|View) /, "").replace(/^./, (x) => x.toUpperCase())} link not on this page yet: check the official website.`;
-  return out;
+  if (url && !expired && !isAggregatorHost(hostOf(url))) return { action: { label, url } };
+  if (linkFor[wanted] && !url && wanted !== "OFFICIAL_WEBSITE") return { noAction: `${label.replace(/^(Download|Check|View) /, "").replace(/^./, (x) => x.toUpperCase())} link not on this page yet: check the official website.` };
+  return {};
 }
+
+/** A short status for an announcement's kind ("Admit card out", "Postponed"…). */
+export const statusOfKind = (kind: AnnouncementEventKind): string => STATUS[kind];

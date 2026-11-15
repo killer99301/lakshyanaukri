@@ -60,6 +60,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     },
     {
+      // R3: the Latest updates archive (page 1; filtered views are not listed).
+      url: `${baseUrl}/updates`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.8,
+    },
+    {
       url: `${baseUrl}/results`,
       lastModified: new Date(),
       changeFrequency: "daily",

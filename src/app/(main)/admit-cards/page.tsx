@@ -7,6 +7,9 @@ import { CardHover } from "@/components/common/motion/CardHover";
 import { OrganizationLogo } from "@/components/common/OrganizationLogo";
 import { getLifecycleLinks } from "@/lib/cms/lifecycle-links";
 import { LifecycleLinkGrid } from "@/components/lifecycle/LifecycleLinkList";
+import { getPublishedCmsOpportunities } from "@/lib/repository";
+import { buildFeed } from "@/lib/updates-feed";
+import { PreviousUpdates } from "@/components/updates/PreviousUpdates";
 
 export const metadata = {
   title: "Admit Cards & Hall Tickets 2026",
@@ -54,7 +57,9 @@ const OFFICIAL_ADMIT_CARD_PORTALS = [
 ];
 
 export default async function AdmitCardsPage() {
-  const links = await getLifecycleLinks();
+  // R3: the stored, reviewed notices of this kind (current and previous), beside the links above.
+  const [links, jobs] = await Promise.all([getLifecycleLinks(), getPublishedCmsOpportunities()]);
+  const feed = buildFeed(jobs, new Date());
   return (
     <div className="min-h-screen bg-[#F8FAFC] py-8 relative">
       <AmbientBackground />
@@ -115,6 +120,8 @@ export default async function AdmitCardsPage() {
           </div>
           <LifecycleLinkGrid kind="admitCard" items={links.admitCards} />
         </div>
+
+        <PreviousUpdates entries={feed} type="admit-card" noun="admit card" />
 
         {/* Official Board Admit Card Portals Directory */}
         <div className="space-y-4">
