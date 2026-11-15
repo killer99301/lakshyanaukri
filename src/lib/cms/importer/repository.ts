@@ -162,22 +162,111 @@ const APPLY_MESSAGES: Record<string, string> = {
   NOTHING_SELECTED: "Tick at least one item to apply.",
 };
 
+// ─── The job's editing state, inside the save's own transaction ─────
+//
+// A preview may be made against a live (PUBLISHED) job: making or discarding it never touches the job. Only a save
+// changes the job, and the job's editing state is settled INSIDE the save's transaction, as its first statement:
+//   - "open": the live job is opened for editing exactly as the "Open for editing" button does (PUBLISHED → DRAFT,
+//     the published version kept, a draftState field revision and a RECORD_REVERTED audit event), guarded on the
+//     state still being PUBLISHED;
+//   - "editable": the job must still be open for editing (DRAFT or APPROVED), and its row is locked.
+// If the guard fails, or anything after it fails, the whole transaction is rolled back: a failed save never leaves a
+// live job opened for editing. The preview's base revision is a fingerprint of the job's content, not of its editing
+// state, so opening the job never makes the preview stale; a real change to the job still does (cms_apply_import).
+
+/**
+ * What a preview was made against, besides the content revision (record_revision): the job's editing state, and a
+ * fingerprint of the parts the save writes that record_revision does not cover (links, exam stages, classification).
+ * Worked out by the database from its own jsonb (canonical text), so it is the same however the job was read.
+ * Read BEFORE the job itself when a preview is made: a change in between makes the save refuse, never pass.
+ */
+export interface JobBasis { draftState: string; uncoveredKey: string }
+
+export async function jobBasis(recruitmentId: string): Promise<JobBasis | null> {
+  const rows = await sql`
+    SELECT draft_state,
+           md5(coalesce(links, 'null'::jsonb)::text || '|' || coalesce(exam_stages, 'null'::jsonb)::text || '|' || coalesce(classification, 'null'::jsonb)::text) AS k
+    FROM recruitments WHERE id = ${recruitmentId}::uuid`;
+  return rows.length ? { draftState: String(rows[0].draft_state), uncoveredKey: String(rows[0].k) } : null;
+}
+
+/** How the save settles the job's editing state, checked against the preview's basis; null for a new job. */
+export type EditingStep =
+  | { kind: "open"; recruitmentId: string; importId: string; uncoveredKey: string }
+  | { kind: "editable"; recruitmentId: string; uncoveredKey: string };
+
+function editingStepQuery(step: EditingStep, adminId: string) {
+  // The row is locked first; then its state and the fingerprint are checked. A failed check casts a word to a number
+  // on purpose (with a subquery, so it is never evaluated early): the error aborts the whole transaction.
+  if (step.kind === "editable") {
+    return sql`
+      WITH j AS (
+        SELECT draft_state IN ('DRAFT', 'APPROVED') AS state_ok,
+               md5(coalesce(links, 'null'::jsonb)::text || '|' || coalesce(exam_stages, 'null'::jsonb)::text || '|' || coalesce(classification, 'null'::jsonb)::text) = ${step.uncoveredKey} AS key_ok
+        FROM recruitments WHERE id = ${step.recruitmentId}::uuid FOR UPDATE)
+      SELECT CASE WHEN NOT coalesce((SELECT state_ok FROM j), false) THEN ('EDITING_STATE_CHANGED ' || (SELECT count(*) FROM j))::int::text
+                  WHEN NOT (SELECT key_ok FROM j) THEN ('LINKS_OR_STAGES_CHANGED ' || (SELECT count(*) FROM j))::int::text
+                  ELSE 'ok' END AS ok`;
+  }
+  const revisionId = randomUUID();
+  return sql`
+    WITH j AS (
+      SELECT id, draft_state = 'PUBLISHED' AS state_ok,
+             md5(coalesce(links, 'null'::jsonb)::text || '|' || coalesce(exam_stages, 'null'::jsonb)::text || '|' || coalesce(classification, 'null'::jsonb)::text) = ${step.uncoveredKey} AS key_ok
+      FROM recruitments WHERE id = ${step.recruitmentId}::uuid FOR UPDATE),
+    u AS (
+      UPDATE recruitments SET draft_state = 'DRAFT', updated_at = now(), updated_by = ${adminId}::uuid
+      WHERE id = ${step.recruitmentId}::uuid AND draft_state = 'PUBLISHED' AND (SELECT state_ok AND key_ok FROM j)
+      RETURNING id, last_published_revision),
+    r AS (
+      INSERT INTO field_revisions (id, recruitment_id, field_path, revised_by, revised_at, old_value, new_value, reason)
+      SELECT ${revisionId}::uuid, id, 'draftState', ${adminId}::uuid, now(), '"PUBLISHED"'::jsonb, '"DRAFT"'::jsonb,
+             ${`Opened for editing to save an update (import ${step.importId})`}
+      FROM u RETURNING 1),
+    e AS (
+      INSERT INTO recruitment_audit_events (recruitment_id, admin_id, event_type, metadata)
+      SELECT id, ${adminId}::uuid, 'RECORD_REVERTED',
+             jsonb_build_object('adminId', ${adminId}::text, 'lastPublishedRevision', last_published_revision, 'via', 'import', 'importId', ${step.importId}::text)
+      FROM u RETURNING 1)
+    SELECT CASE WHEN NOT coalesce((SELECT state_ok FROM j), false) THEN ('EDITING_STATE_CHANGED ' || (SELECT count(*) FROM u))::int::text
+                WHEN NOT (SELECT key_ok FROM j) THEN ('LINKS_OR_STAGES_CHANGED ' || (SELECT count(*) FROM u))::int::text
+                WHEN (SELECT count(*) FROM u) = 1 AND (SELECT count(*) FROM r) = 1 AND (SELECT count(*) FROM e) = 1 THEN 'ok'
+                ELSE ('EDITING_STATE_CHANGED ' || (SELECT count(*) FROM u))::int::text END AS ok`;
+}
+
+const EDITING_STATE_MESSAGE = "Whether the job is live or open for editing changed while saving. Nothing was saved. Try saving again.";
+const UNCOVERED_MESSAGE = "The job's links, exam stages or classification were changed after this preview was made. Nothing was saved. Make a new preview.";
+
+/** The editing step's own refusals, as the save's answer (null: not one of them). */
+function editingRefusal(message: string): ImportApplyError | null {
+  if (message.includes("LINKS_OR_STAGES_CHANGED")) return new ImportApplyError("STALE", UNCOVERED_MESSAGE);
+  if (message.includes("EDITING_STATE_CHANGED")) return new ImportApplyError("STALE", EDITING_STATE_MESSAGE);
+  return null;
+}
+
 export async function applyImport(input: {
   importId: string;
   adminId: string;
   selected: string[];
   override: { reason: string } | null;
   payload: { record: Record<string, unknown>; revisions: unknown[]; claims: unknown[]; supersessions: unknown[] };
+  /** An existing job's editing state, settled in the same transaction; omitted for a new job. */
+  editing?: EditingStep;
 }): Promise<{ recruitmentId: string; replayed: boolean }> {
   try {
-    const rows = await sql`
+    const apply = sql`
       SELECT public.cms_apply_import(${input.importId}::uuid, ${input.adminId}::uuid, ${input.selected}::text[],
                                      ${input.override ? JSON.stringify(input.override) : null}::jsonb,
                                      ${JSON.stringify(input.payload)}::jsonb) AS result`;
+    const rows = input.editing
+      ? ((await sql.transaction([editingStepQuery(input.editing, input.adminId), apply]))[1] as unknown as Array<{ result: unknown }>)
+      : await apply;
     const result = parse<{ recruitmentId: string; replayed?: boolean }>(rows[0].result);
     return { recruitmentId: result.recruitmentId, replayed: result.replayed === true };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    const refusal = editingRefusal(message);
+    if (refusal) throw refusal;
     const code = Object.keys(APPLY_MESSAGES).find((k) => message.includes(k)) ?? "FAILED";
     const detail = (e as { detail?: string }).detail;
     throw new ImportApplyError(code, APPLY_MESSAGES[code] ?? "The import could not be applied. Nothing was saved.", detail ? (() => { try { return JSON.parse(detail); } catch { return detail; } })() : undefined);
@@ -214,10 +303,14 @@ export async function applyImportWithAnnouncements(input: {
   override: { reason: string } | null;
   payload: { record: Record<string, unknown>; revisions: unknown[]; claims: unknown[]; supersessions: unknown[] } | null;
   announcements: AnnouncementSave;
+  /** The job's editing state, settled first in the same transaction (a live job is opened for editing here). */
+  editing?: EditingStep;
 }): Promise<{ recruitmentId: string; replayed: boolean }> {
   const a = input.announcements;
   const revisionId = randomUUID();
   const queries = [];
+  if (input.editing) queries.push(editingStepQuery(input.editing, input.adminId));
+  const first = queries.length;
   if (input.fieldSelected) {
     queries.push(sql`
       SELECT public.cms_apply_import(${input.importId}::uuid, ${input.adminId}::uuid, ${input.fieldSelected}::text[],
@@ -254,12 +347,14 @@ export async function applyImportWithAnnouncements(input: {
   try {
     const results = await sql.transaction(queries);
     if (input.fieldSelected) {
-      const result = parse<{ recruitmentId: string; replayed?: boolean }>((results[0] as unknown as Array<{ result: unknown }>)[0].result);
+      const result = parse<{ recruitmentId: string; replayed?: boolean }>((results[first] as unknown as Array<{ result: unknown }>)[0].result);
       return { recruitmentId: result.recruitmentId, replayed: result.replayed === true };
     }
     return { recruitmentId: input.recruitmentId, replayed: false };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    const refusal = editingRefusal(message);
+    if (refusal) throw refusal;
     if (message.includes("ANNOUNCEMENTS_STALE")) {
       throw new ImportApplyError("STALE", "The job's announcements, or whether it is open for editing, changed after this preview was made. Nothing was saved. Make a new preview.");
     }

@@ -46,8 +46,11 @@ import { statesVacancyCount } from "@/lib/cms/importer/vacancy-count";
 import { fieldEvidence, type FieldEvidence } from "@/lib/cms/importer/field-evidence";
 import {
   ImportApplyError, appliedImportsFor, applyImport, applyImportWithAnnouncements, claimsFor, discardImport, fieldStates, fieldValue, findServerFetch, firstImportAt, getImport,
-  isImportedJob, recordDecision, retrievalsFor, revokeDecision, storePreview, type NewRetrieval,
+  isImportedJob, jobBasis, recordDecision, retrievalsFor, revokeDecision, storePreview, type EditingStep, type JobBasis, type NewRetrieval,
 } from "@/lib/cms/importer/repository";
+import { isPublisher, logPublicationRefusal, notAPublisherMessage } from "@/lib/cms/publication-policy";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const MAX_SOURCES = 4;
 export const MAX_TEXT_CHARS = 200_000;
@@ -223,7 +226,7 @@ export async function previewImport(opts: {
 }) {
   if (opts.sources.length === 0) throw new ImportInputError("Add at least one source");
   if (opts.sources.length > MAX_SOURCES) throw new ImportInputError(`At most ${MAX_SOURCES} sources in one import`);
-  const { record, organizationId, subject } = await resolveTarget(opts);
+  const { record, organizationId, subject, basis } = await resolveTarget(opts);
 
   // Read every source together, but through one gate: at most AI_CONCURRENCY
   // AI requests of this import at a time, and a request refused for load is
@@ -240,18 +243,26 @@ export async function previewImport(opts: {
     throw new ImportInputError(`No source could be read, so there is nothing to import: ${unavailable.map((u) => `${u.url} (${u.reason})`).join("; ")}. `
       + "Download the notice and upload it, or copy its text and paste it.");
   }
-  return assemblePreview({ ...opts, record, organizationId, read, unavailable, aiFetch: paced.fetch, aiStats: paced.stats });
+  return assemblePreview({ ...opts, record, organizationId, basis, read, unavailable, aiFetch: paced.fetch, aiStats: paced.stats });
 }
 
 /** The job an import goes into: an existing job open for editing, or a new one with an organisation, title and year. */
-export async function resolveTarget(opts: { mode: "NEW" | "EXISTING"; recruitmentId?: string; newJob?: NewJobInput }): Promise<{ record: RecruitmentRecord | null; organizationId: string; subject: string }> {
+export async function resolveTarget(opts: { mode: "NEW" | "EXISTING"; recruitmentId?: string; newJob?: NewJobInput }): Promise<{ record: RecruitmentRecord | null; organizationId: string; subject: string; basis: JobBasis | null }> {
   let record: RecruitmentRecord | null = null;
   let organizationId: string;
   let subject: string;
+  let basis: JobBasis | null = null;
   if (opts.mode === "EXISTING") {
+    // What the preview is made against (its editing state and the parts record_revision does not cover), read
+    // BEFORE the job: a change in between makes the save refuse, never pass (repository, EditingStep).
+    basis = opts.recruitmentId && UUID_RE.test(opts.recruitmentId) ? await jobBasis(opts.recruitmentId) : null;
     record = opts.recruitmentId ? await getRecruitmentById(opts.recruitmentId) : null;
     if (!record) throw new ImportInputError("Job not found", 404);
-    if (record.draftState !== "DRAFT" && record.draftState !== "APPROVED") throw new ImportInputError("Open the job for editing before importing into it", 409);
+    // A live job can be reviewed against: making (or discarding) a preview never touches the job. Saving opens it for
+    // editing, in the save's own transaction (applyImportFlow). An archived job takes no imports.
+    if (record.draftState !== "DRAFT" && record.draftState !== "APPROVED" && record.draftState !== "PUBLISHED") {
+      throw new ImportInputError("This job is archived, so nothing can be imported into it", 409);
+    }
     organizationId = record.identity.organizationId;
     subject = `${record.identity.title.value ?? ""} — ${record.identity.organizationName}`;
   } else {
@@ -262,7 +273,7 @@ export async function resolveTarget(opts: { mode: "NEW" | "EXISTING"; recruitmen
     organizationId = j.organizationId;
     subject = `${j.title} — ${j.organizationName}`;
   }
-  return { record, organizationId, subject };
+  return { record, organizationId, subject, basis };
 }
 
 /** A source as read: what came in (with its fingerprint and size, when not computed here from its bytes) and its reading. */
@@ -289,6 +300,8 @@ export interface ReadInput {
 export async function assemblePreview(opts: {
   adminId: string; mode: "NEW" | "EXISTING"; newJob?: NewJobInput; apiKey: string | undefined;
   record: RecruitmentRecord | null; organizationId: string; read: ReadInput[];
+  /** An existing job: what the preview is made against (resolveTarget), checked again by the save. */
+  basis?: JobBasis | null;
   /** Sources by address that could not be fetched or read: said, never read. */
   unavailable?: UnavailableSource[];
   aiFetch?: typeof fetch; aiStats?: { sent: number; retried: number; failed: number };
@@ -659,6 +672,7 @@ export async function assemblePreview(opts: {
     meta: {
       mode: opts.mode,
       newJob: opts.newJob ?? null,
+      ...(opts.basis ? { basis: opts.basis } : {}),
       sources: sources.map((s) => ({ ...s.summary, method: s.retrieval.method, originUrl: s.retrieval.originUrl,
         notFound: s.reading.notFound, refused: s.reading.refused, summary: s.reading.summary,
         ...(s.reading.articleSkipped ? { articleSkipped: s.reading.articleSkipped } : {}),
@@ -708,14 +722,37 @@ export async function applyImportFlow(opts: {
   if (imp.status !== "PREVIEWED") throw new ImportInputError("This import was discarded or has expired", 409);
   if (Date.now() - Date.parse(imp.createdAt) > 7 * 86_400_000) throw new ImportInputError("This preview is more than 7 days old. Make a new one.", 409);
 
-  const meta = (imp.proposal as unknown as { meta: { newJob: NewJobInput | null; sources: Array<{ label: string }> } }).meta;
+  const meta = (imp.proposal as unknown as { meta: { newJob: NewJobInput | null; sources: Array<{ label: string }>; basis?: JobBasis } }).meta;
   let record: RecruitmentRecord;
   let slug: string | undefined;
   let annWrite: { before: unknown[]; after: unknown[]; done: string[] } | null = null;
+  let editing: EditingStep | undefined;
   if (imp.mode === "EXISTING") {
     const r = await getRecruitmentById(imp.recruitmentId!);
     if (!r) throw new ImportInputError("Job not found", 404);
     record = r;
+    // The job's editing state is settled inside the save's transaction (repository, EditingStep). A live job is
+    // opened for editing there, as "Open for editing" does, which only the owner or an authorised publisher may do.
+    // What the preview was made against. A preview stored before this check existed has none: made again.
+    const basis = meta.basis;
+    if (!basis) throw new ImportInputError("This preview was made before the current checks. Make a new preview.", 409);
+    const madeLive = basis.draftState === "PUBLISHED";
+    // A preview made on a job open for editing is never saved into a job published since: the published version
+    // is what the owner last approved, so the update is reviewed again against it (a new preview).
+    if (record.draftState === "PUBLISHED" && !madeLive) {
+      throw new ImportApplyError("STALE", "The job was published after this preview was made. Nothing was saved. Make a new preview.");
+    }
+    if (record.draftState === "PUBLISHED") {
+      if (!isPublisher(opts.adminId)) {
+        await logPublicationRefusal({ recruitmentId: record.id, adminId: opts.adminId, action: "REVERT", reason: "NOT_A_PUBLISHER" });
+        throw new ImportInputError(`This job is live, and saving opens it for editing. ${notAPublisherMessage(opts.adminId)}`, 403);
+      }
+      editing = { kind: "open", recruitmentId: record.id, importId: opts.importId, uncoveredKey: basis.uncoveredKey };
+    } else if (record.draftState === "DRAFT" || record.draftState === "APPROVED") {
+      editing = { kind: "editable", recruitmentId: record.id, uncoveredKey: basis.uncoveredKey };
+    } else {
+      throw new ImportInputError("This job is archived, so nothing can be saved into it", 409);
+    }
     // Worked out before anything is saved, so a foreseeable refusal saves nothing at all.
     if (annItems.length) {
       const check = announcementWrite(record.updates ?? [], annItems.map((i) => i.value as AnnouncementValue), { adminId: opts.adminId, today: indiaToday(), stagesTicked: stagesTicked(fieldSelected) });
@@ -765,16 +802,23 @@ export async function applyImportFlow(opts: {
       importId: opts.importId, adminId: opts.adminId, recruitmentId: record.id, fieldSelected: fieldsToo ? fieldSelected : null,
       override: opts.override, payload: fieldsToo ? payload : null,
       announcements: { ...annWrite, itemIds: annItems.map((i) => i.id), reason: `LN Update (import ${opts.importId}): ${done.join("; ")}`.slice(0, 500) },
+      editing,
     }).catch((err) => committedAnyway(opts.importId, err));
-    return { ...result, announcements: { saved: true, done } };
+    return { ...result, ...openedFlag(editing, result), announcements: { saved: true, done } };
   }
   if (imp.mode === "EXISTING" && annItems.length && fieldSelected.length === 0 && heldTables === 0) {
-    // Every ticked announcement is already on the job (saved before): nothing to write.
+    // Every ticked announcement is already on the job (saved before): nothing to write, and a live job stays as it is.
     return { recruitmentId: record.id, replayed: true, announcements: { saved: true, done: [] } };
   }
-  const result = await applyImport({ importId: opts.importId, adminId: opts.adminId, selected: fieldSelected, override: opts.override, payload })
+  const result = await applyImport({ importId: opts.importId, adminId: opts.adminId, selected: fieldSelected, override: opts.override, payload, editing })
     .catch((err) => committedAnyway(opts.importId, err));
-  return annItems.length ? { ...result, announcements: { saved: true, done: imp.mode === "NEW" ? annItems.map((i) => i.label) : [] } } : result;
+  const out = { ...result, ...openedFlag(editing, result) };
+  return annItems.length ? { ...out, announcements: { saved: true, done: imp.mode === "NEW" ? annItems.map((i) => i.label) : [] } } : out;
+}
+
+/** Said on the saved screen: this save opened the live job for editing (visitors keep the live version). */
+function openedFlag(editing: EditingStep | undefined, result: { replayed: boolean }): { openedForEditing?: true } {
+  return editing?.kind === "open" && !result.replayed ? { openedForEditing: true } : {};
 }
 
 /**

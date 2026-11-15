@@ -2022,6 +2022,12 @@ export default function CmsRecordEditorPage() {
             <ImporterLink href={`/admin/cms/import?record=${record.id}`} style={{ color: C.accent, textDecoration: "none" }}>Smart intake: fill this job from an article, notice, screenshot or link →</ImporterLink>
           </div>
         )}
+        {/* A live job can be reviewed against without opening it: nothing changes until the update is saved. */}
+        {record.draftState === "PUBLISHED" && (
+          <div data-live-intake style={{ marginBottom: 12, fontSize: 12 }}>
+            <ImporterLink href={`/admin/cms/import?record=${record.id}`} style={{ color: C.accent, textDecoration: "none" }}>Paste an LN Update or a notice and review it: the live job stays as it is until you save →</ImporterLink>
+          </div>
+        )}
 
         {record.draftState !== "ARCHIVED" && (
           <PublishChecklist record={record} onJump={jumpTo} importChecks={importChecks} />

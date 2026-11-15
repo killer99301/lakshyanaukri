@@ -10,6 +10,7 @@ import Link from "next/link";
 import { C, PANEL, badge, inputStyle, primaryBtn, quietBtn, readableDates, showValue } from "./ui";
 import { VacancyTableReview, type VacancyTableNote } from "./VacancyTableReview";
 import { ScanPageImage } from "./ScanPage";
+import { LiveSaveNote } from "./UpdateReview";
 import { analyseVacancyTable, type VacancyTable } from "@/lib/vacancy-table";
 import type { ReadingCoverage } from "@/lib/cms/importer/article";
 import { POSITIVE_FLAG, fieldDef, isPositiveFlag } from "@/lib/cms/importer/fields";
@@ -93,6 +94,8 @@ export function ReviewPanel(props: {
   title: string;
   organization: string;
   existing: boolean;
+  /** The job is live: saving opens it for editing in the same step (nothing changes before the save). */
+  live?: boolean;
   items: ReviewItem[];
   sources: ReviewSource[];
   /** The AI requests this preview made (resends included). */
@@ -332,13 +335,14 @@ export function ReviewPanel(props: {
           </label>
         )}
         {props.err && <div role="alert" style={{ color: C.red, fontSize: 13 }}>{props.err}</div>}
+        {props.live && <LiveSaveNote />}
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           {/* Held vacancy figures alone can be saved (G1): the sources and the figures stay with the job, and the figures are
               added only from its vacancy editor ("Held from Smart intake"), where they are reviewed and checked as before. */}
           <button data-save-import onClick={props.onSave} disabled={props.busy || (ticked.size === 0 && held.length === 0) || (props.needsVerifiedConfirm && !props.confirmVerified)} style={{ ...primaryBtn, opacity: props.busy || (ticked.size === 0 && held.length === 0) ? 0.6 : 1 }}>
             {props.busy ? "Saving…" : ticked.size === 0 && held.length > 0
-              ? `${props.existing ? "Save to the job's draft" : "Save as draft"} (no values; keep the held vacancy figures)`
-              : `${props.existing ? "Save to the job's draft" : "Save as draft"} (${ticked.size} value${ticked.size === 1 ? "" : "s"})`}
+              ? `${props.live ? "Open for editing and save" : props.existing ? "Save to the job's draft" : "Save as draft"} (no values; keep the held vacancy figures)`
+              : `${props.live ? "Open for editing and save" : props.existing ? "Save to the job's draft" : "Save as draft"} (${ticked.size} value${ticked.size === 1 ? "" : "s"})`}
           </button>
           <span style={{ fontSize: 12, color: C.muted }}>
             {ticked.size === 0 && held.length > 0

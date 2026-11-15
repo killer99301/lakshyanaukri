@@ -60,6 +60,8 @@ const shown = (v: unknown, path: string) => (v === undefined || v === null || v 
 export function UpdateReview(props: {
   title: string;
   existing: boolean;
+  /** The job is live: saving opens it for editing in the same step (nothing changes before the save). */
+  live?: boolean;
   items: Item[];
   sources: ReviewSource[];
   summary: UpdateSummary;
@@ -219,14 +221,24 @@ export function UpdateReview(props: {
           </label>
         )}
         {props.err && <div role="alert" style={{ color: C.red, fontSize: 13 }}>{props.err}</div>}
+        {props.live && <LiveSaveNote />}
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "space-between" }}>
           <span style={{ fontSize: 12, color: C.muted }}><b style={{ color: C.text }}>{ticked.size} of {offered.length} ticked</b> · saved together as Pending, or not at all · nothing is published or sent to Telegram from here</span>
           <button data-save-import onClick={props.onSave} disabled={props.busy || (ticked.size === 0 && held.length === 0) || (props.needsVerifiedConfirm && !props.confirmVerified)}
             style={{ ...primaryBtn, opacity: props.busy || ticked.size === 0 ? 0.6 : 1 }}>
-            {props.busy ? "Saving…" : props.existing ? "Save to the job's draft" : "Save as draft"}
+            {props.busy ? "Saving…" : props.live ? "Open for editing and save" : props.existing ? "Save to the job's draft" : "Save as draft"}
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Said beside the save of an update to a live job: the job changes only when this is saved. */
+export function LiveSaveNote() {
+  return (
+    <div data-live-save-note style={{ fontSize: 12, color: C.text, lineHeight: 1.5 }}>
+      <b>This job is live.</b> Nothing has changed on it yet. Saving opens it for editing and saves the ticked changes together, or does neither. Visitors keep seeing the live version until you publish. To leave the job as it is, go back without saving.
     </div>
   );
 }

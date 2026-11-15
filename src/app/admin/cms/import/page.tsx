@@ -233,7 +233,7 @@ function Importer() {
   // An LN Update opens in the grouped Update review (CMS 2.0 R1); the classic review stays one click away.
   const [classic, setClassic] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
-  const [applied, setApplied] = useState<{ recruitmentId: string; replayed: boolean; announcements?: { saved: boolean; done: string[]; error?: string } } | null>(null);
+  const [applied, setApplied] = useState<{ recruitmentId: string; replayed: boolean; openedForEditing?: boolean; announcements?: { saved: boolean; done: string[]; error?: string } } | null>(null);
   // A long document's reading (stage B2.3): its id is in the address (?job=…), so a reload or a return carries on.
   const jobParam = params.get("job");
   const [reading, setReading] = useState<{ id: string; files: Map<number, File> } | null>(() => (jobParam ? { id: jobParam, files: new Map() } : null));
@@ -415,6 +415,7 @@ function Importer() {
       {on === null ? <div style={{ color: C.muted, fontSize: 13 }}>Checking the importer switch…</div> : on === false ? null : applied ? (
         <div data-import-applied style={{ ...PANEL, padding: 18, color: C.text, fontSize: 14, lineHeight: 1.6 }}>
           <div style={{ fontWeight: 700, color: C.green }}>{applied.replayed ? "This was already saved." : "Saved as a draft."} Nothing is published or verified.</div>
+          {applied.openedForEditing && <div data-import-opened style={{ color: C.text, fontSize: 13 }}>The job was live, so it was opened for editing to save this. Visitors keep seeing the live version until you publish.</div>}
           {applied.announcements && (applied.announcements.saved
             ? applied.announcements.done.length > 0 && <div data-import-announcements style={{ color: C.text, fontSize: 13 }}>Announcements: {applied.announcements.done.join("; ")}. They go live only with your reviewed publish.</div>
             : <div role="alert" data-import-announcements style={{ color: C.amber, fontSize: 13 }}>The job&apos;s fields were saved, but the announcements were not: {applied.announcements.error} Save again to retry them, or use the job&apos;s Announcements section.</div>)}
@@ -438,8 +439,11 @@ function Importer() {
               <div style={{ color: C.text, fontSize: 14 }}>
                 <span style={labelStyle}>Importing into</span>
                 <strong>{job?.title || "…"}</strong>
-                {job && job.draftState !== "DRAFT" && job.draftState !== "APPROVED" && (
-                  <div role="alert" style={{ color: C.amber, fontSize: 12, marginTop: 6 }}>This job is live. Open it for editing on its page first.</div>
+                {job && job.draftState === "PUBLISHED" && (
+                  <div role="note" data-import-live style={{ color: C.muted, fontSize: 12, marginTop: 6 }}>This job is live. You can read an update and review it now: nothing changes on the job until you save. Saving opens it for editing; visitors keep seeing the live version until you publish.</div>
+                )}
+                {job && job.draftState !== "DRAFT" && job.draftState !== "APPROVED" && job.draftState !== "PUBLISHED" && (
+                  <div role="alert" style={{ color: C.amber, fontSize: 12, marginTop: 6 }}>This job is archived, so nothing can be imported into it.</div>
                 )}
               </div>
             ) : (
@@ -482,6 +486,7 @@ function Importer() {
             <UpdateReview
               title={recordId ? job?.title ?? "" : newJob.title || readingTitle}
               existing={!!recordId}
+              live={!!recordId && job?.draftState === "PUBLISHED"}
               items={items}
               sources={preview.proposal.meta.sources}
               summary={preview.proposal.lnUpdate}
@@ -505,6 +510,7 @@ function Importer() {
               title={recordId ? job?.title ?? "" : newJob.title || readingTitle}
               organization={recordId ? "" : newJob.organizationName}
               existing={!!recordId}
+              live={!!recordId && job?.draftState === "PUBLISHED"}
               items={items}
               sources={preview.proposal.meta.sources}
               aiRequests={preview.proposal.meta.aiRequests}

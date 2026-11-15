@@ -246,9 +246,17 @@ Apply Online: https://ibpsreg.ibps.in/synthetic${year}/index.php
     // The invariant: published ⇔ approval row; and if published, it is exactly the reviewed state, and the other
     // change did not land afterwards (a published job is not editable) — or it landed before and the publish was refused.
     const published = pub.status === 200;
+    // Since 14 Nov 2026 an import may be reviewed against a live job and saved: the save opens the job for editing in
+    // its own transaction (never writing into the live version). So an import that lands after the publish is
+    // correct only if it opened the job (DRAFT, a RECORD_REVERTED event from the import) and the publication is
+    // still exactly the reviewed state. An edit still cannot land on a live job.
+    const after = (await pg.query("SELECT draft_state, last_published_revision FROM recruitments WHERE id = $1", [j])).rows[0] as { draft_state: string; last_published_revision: string | null };
+    const openedByImport = (await pg.query("SELECT 1 FROM recruitment_audit_events WHERE recruitment_id = $1 AND event_type = 'RECORD_REVERTED' AND metadata->>'via' = 'import'", [j])).rows.length === 1;
+    const reviewedOnly = !!pubRow && !!appr && pubRow.source_record_revision === appr.recordRevision && appr.recordRevision === rj.review.freshness.recordRevision;
     const ok = published
-      ? !!pubRow && !!appr && pubRow.source_record_revision === appr.recordRevision && appr.recordRevision === rj.review.freshness.recordRevision
-        && nowFresh.recordRevision === rj.review.freshness.recordRevision && nowFresh.claimSeq === rj.review.freshness.claimSeq && other !== 200
+      ? reviewedOnly && (other !== 200
+        ? nowFresh.recordRevision === rj.review.freshness.recordRevision && nowFresh.claimSeq === rj.review.freshness.claimSeq
+        : !editing && openedByImport && after.draft_state === "DRAFT" && after.last_published_revision === rj.review.freshness.recordRevision)
       : !pubRow && !appr && pub.status === 409;
     if (!ok) bad++;
   }

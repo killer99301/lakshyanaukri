@@ -153,7 +153,7 @@ export async function createReadingJob(opts: {
     if (!/^[0-9a-f]{64}$/.test(s.sha256)) throw new JobError(`${s.fileName}: the file's fingerprint is missing`);
   }
   try {
-    await resolveTarget(opts); // the job exists and is open for editing, or the new job is complete
+    await resolveTarget(opts); // the job exists (live or open for editing, not archived), or the new job is complete
   } catch (err) {
     if (err instanceof ImportInputError) throw new JobError(err.message, err.status);
     throw err;
@@ -615,7 +615,7 @@ async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; a
   const taskRows = await sql`SELECT task_no, source_no, kind, first_page, last_page, status, result, reason FROM recruitment_import_job_tasks WHERE job_id = ${opts.jobId} ORDER BY task_no`;
   const mode = job.mode as "NEW" | "EXISTING";
   const newJob = (job.new_job as NewJobInput | null) ?? undefined;
-  const { record, organizationId } = await resolveTarget({ mode, recruitmentId: (job.recruitment_id as string | null) ?? undefined, newJob });
+  const { record, organizationId, basis } = await resolveTarget({ mode, recruitmentId: (job.recruitment_id as string | null) ?? undefined, newJob });
   const parsed = (v: unknown) => (typeof v === "string" ? JSON.parse(v) : v);
   const scans = await scanPagesOf(opts.jobId);
   const transcribed = await transcriptionsOf(opts.jobId);
@@ -669,7 +669,7 @@ async function buildJobPreview(job: J, opts: { adminId: string; jobId: string; a
   }
   const paced = retryingFetch(opts.fetchFn ?? ((input, init) => globalThis.fetch(input, init)));
   const out = await assemblePreview({
-    adminId: opts.adminId, mode, newJob, apiKey: opts.apiKey, record, organizationId, read,
+    adminId: opts.adminId, mode, newJob, apiKey: opts.apiKey, record, organizationId, basis, read,
     aiFetch: paced.fetch, aiStats: { sent: Number(job.ai_sent) + paced.stats.sent, retried: Number(job.ai_retried), failed: Number(job.ai_failed) },
   });
   const unreadLines = (out.proposal.meta.sources as Array<{ vacancyTables?: { coverage?: { unreadLines?: unknown[] } } | null }>)
