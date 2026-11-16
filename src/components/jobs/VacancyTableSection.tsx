@@ -16,6 +16,7 @@
 
 import React, { useMemo } from "react";
 import { analyseVacancyTable, type Figure, type VacancyTable, type VacancyTableRow } from "@/lib/vacancy-table";
+import { ScrollTable } from "@/components/ui/ScrollTable";
 
 const fmt = (n: number) => n.toLocaleString("en-IN");
 const plural = (n: number, one: string, many = /[^aeiou]y$/.test(one) ? `${one.slice(0, -1)}ies` : `${one}s`) => `${fmt(n)} ${n === 1 ? one : many}`;
@@ -128,7 +129,7 @@ export function VacancyTableSection({ table }: { table: VacancyTable }) {
                   <summary className="cursor-pointer select-none text-xs font-bold text-purple-700 hover:text-purple-900">
                     Show {detailWords}-wise vacancies ({plural(rows.length, unitWord)})
                   </summary>
-                  <div className="mt-2 overflow-x-auto rounded-xl border border-slate-100">
+                  <ScrollTable label={`${g.name}: ${detailWords}-wise vacancies`} className="mt-2 rounded-xl border border-slate-100">
                     <table className="w-full text-left text-[11px] sm:text-xs">
                       <thead>
                         <tr className="bg-slate-50 text-[#475569]">
@@ -162,7 +163,7 @@ export function VacancyTableSection({ table }: { table: VacancyTable }) {
                         })}
                       </tbody>
                     </table>
-                  </div>
+                  </ScrollTable>
                   {horizontal.length > 0 && <p className="mt-1 text-[11px] text-slate-500">* Already counted in the categories; not added to the total.</p>}
                 </details>
               )}

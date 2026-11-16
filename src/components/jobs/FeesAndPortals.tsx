@@ -6,6 +6,7 @@
 import React from "react";
 import { ExternalLink, Lock } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { ScrollTable } from "@/components/ui/ScrollTable";
 
 type FeeRow = { category: string; amount: number; exempt?: boolean; post?: string; note?: string };
 
@@ -33,7 +34,7 @@ export function FeeTableView({ rows, overlaps }: { rows: FeeRow[]; overlaps?: st
           {postWise && (
             <h3 data-fee-post className="text-sm font-black text-[#0F172A]">{g.post ? `For ${g.post}` : "For all posts"}</h3>
           )}
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <ScrollTable label={g.post ? `Application fee for ${g.post}` : "Application fee"} className="rounded-xl border border-slate-200">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-slate-50 text-[#475569] border-b border-slate-200">
@@ -53,7 +54,7 @@ export function FeeTableView({ rows, overlaps }: { rows: FeeRow[]; overlaps?: st
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollTable>
         </div>
       ))}
       <p className="text-xs font-semibold text-[#475569]">As given in the notice. A category not listed here is not covered by this table: check the notice.</p>

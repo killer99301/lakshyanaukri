@@ -21,6 +21,7 @@ export const JobsToolbar: React.FC<JobsToolbarProps> = ({
   setViewMode,
   onOpenMobileFilters,
 }) => {
+  const sortId = React.useId();
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3.5 shadow-2xs flex flex-wrap items-center justify-between gap-3">
       {/* Left Results Count */}
@@ -48,11 +49,14 @@ export const JobsToolbar: React.FC<JobsToolbarProps> = ({
 
         {/* Sort Selector */}
         <div className="flex items-center gap-1.5 text-xs text-[#475569]">
-          <span className="font-semibold hidden sm:inline">Sort by:</span>
+          {/* The visible label is hidden on phones, so the select also carries the same words as its own name. */}
+          <label htmlFor={sortId} className="font-semibold hidden sm:inline">Sort by:</label>
           <select
+            id={sortId}
+            aria-label="Sort by"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="h-8 pl-2.5 pr-7 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/20 appearance-none cursor-pointer"
+            className="h-8 pl-2.5 pr-7 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-[#0F172A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F172A] focus-visible:ring-offset-2 appearance-none cursor-pointer"
           >
             <option value="latest">Latest</option>
             <option value="deadline">Closing Soon</option>

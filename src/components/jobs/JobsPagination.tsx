@@ -23,14 +23,16 @@ export const JobsPagination: React.FC<JobsPaginationProps> = ({
   const pages = Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1);
 
   return (
-    <div className={cn("flex items-center justify-center gap-1.5 pt-4", className)}>
+    <nav aria-label="Job list pages" className={cn("flex items-center justify-center gap-1.5 pt-4", className)}>
       {/* Previous Button */}
       <button
+        type="button"
+        aria-label="Previous page"
         disabled={currentPage === 1}
         onClick={() => onPageChange(currentPage - 1)}
         className="h-8 w-8 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:text-[#0F172A] hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
       </button>
 
       {/* Page Number Buttons */}
@@ -39,6 +41,9 @@ export const JobsPagination: React.FC<JobsPaginationProps> = ({
         return (
           <button
             key={p}
+            type="button"
+            aria-label={`Page ${p}`}
+            aria-current={isActive ? "page" : undefined}
             onClick={() => onPageChange(p)}
             className={cn(
               "h-8 w-8 rounded-xl text-xs font-bold transition-all cursor-pointer",
@@ -53,11 +58,14 @@ export const JobsPagination: React.FC<JobsPaginationProps> = ({
       })}
 
       {/* Ellipsis if totalPages > 5 */}
-      {totalPages > 5 && <span className="text-xs text-slate-400 font-bold px-1">...</span>}
+      {totalPages > 5 && <span aria-hidden="true" className="text-xs text-slate-400 font-bold px-1">...</span>}
 
       {/* Total Pages Button if totalPages > 5 */}
       {totalPages > 5 && (
         <button
+          type="button"
+          aria-label={`Page ${totalPages}`}
+          aria-current={currentPage === totalPages ? "page" : undefined}
           onClick={() => onPageChange(totalPages)}
           className={cn(
             "h-8 min-w-8 px-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors",
@@ -72,12 +80,14 @@ export const JobsPagination: React.FC<JobsPaginationProps> = ({
 
       {/* Next Button */}
       <button
+        type="button"
+        aria-label="Next page"
         disabled={currentPage === totalPages}
         onClick={() => onPageChange(currentPage + 1)}
         className="h-8 w-8 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:text-[#0F172A] hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </button>
-    </div>
+    </nav>
   );
 };

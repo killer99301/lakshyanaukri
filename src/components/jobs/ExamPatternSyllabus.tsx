@@ -2,6 +2,7 @@ import React from "react";
 import { BookOpen, ClipboardList, Sparkles } from "lucide-react";
 import type { ExamPatternPaper, SyllabusSubject } from "@/types/recruitment-record";
 import { siteConfig } from "@/config/site";
+import { ScrollTable } from "@/components/ui/ScrollTable";
 
 // ═══════════════════════════════════════════════════════════
 // Exam pattern and syllabus on a job page
@@ -68,7 +69,7 @@ export function ExamPatternSection({ papers, noWrittenExam }: { papers?: ExamPat
               </div>
 
               {paper.sections.length > 0 && (
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <ScrollTable label={`${paper.name}: exam pattern`} className="rounded-2xl border border-slate-200">
                   <table className="w-full text-left text-xs sm:text-sm">
                     <thead>
                       <tr className="bg-slate-50 text-[#475569] border-b border-slate-200">
@@ -87,7 +88,7 @@ export function ExamPatternSection({ papers, noWrittenExam }: { papers?: ExamPat
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </ScrollTable>
               )}
 
               {paper.negativeMarking && (

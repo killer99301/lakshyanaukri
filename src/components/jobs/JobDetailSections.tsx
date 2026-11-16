@@ -24,6 +24,7 @@ import { formatDate } from "@/lib/utils";
 import { stageGroups } from "@/lib/exam-stage-kind";
 import { vacancyCategoryTable } from "@/lib/vacancy-categories";
 import { VacancyTableSection } from "@/components/jobs/VacancyTableSection";
+import { ScrollTable } from "@/components/ui/ScrollTable";
 import { durableWords } from "@/lib/cms/importer/link-later";
 import { MuhuratPrompt } from "@/components/jobs/MuhuratCard";
 import { PrepareToApply } from "@/components/tools/PrepareToApply";
@@ -271,7 +272,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
         {/* What's next and the dated path, from the same dates and stages as the table below */}
         <RecruitmentTimeline job={job} />
 
-        <div className="overflow-x-auto">
+        <ScrollTable label="Important dates">
           <table className="w-full text-left text-xs sm:text-sm">
             <thead>
               <tr className="bg-slate-50 text-[#475569] border-b border-slate-200">
@@ -413,7 +414,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollTable>
       </section>
 
       {/* 4. Vacancies Breakdown Section */}
@@ -434,7 +435,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
         {vacancyTable && <VacancyTableSection table={vacancyTable} />}
 
         {isGov && !vacancyTable && job.vacancyBreakdown && job.vacancyBreakdown.length > 0 && (
-          <div className="overflow-x-auto">
+          <ScrollTable label="Post-wise vacancies">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
                 <tr className="bg-slate-50 text-[#475569] border-b border-slate-200">
@@ -453,13 +454,13 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollTable>
         )}
 
         {isGov && !vacancyTable && categoryTable && (
           <div className="space-y-2">
             <h3 className="text-sm font-extrabold text-[#0F172A]">Category-wise vacancies</h3>
-            <div className="overflow-x-auto">
+            <ScrollTable label="Category-wise vacancies">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-slate-50 text-[#475569] border-b border-slate-200">
@@ -480,7 +481,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollTable>
             <p className="text-[11px] font-medium text-slate-500">
               {categoryTable.hasHorizontal
                 ? "Women, Ex-Servicemen and PwBD seats are often counted within the category numbers. – means not given. Please check the official notification."
@@ -655,7 +656,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
           )}
           {job.fee && !job.feeTable && (
           <div className="space-y-4">
-            <div className="overflow-x-auto">
+            <ScrollTable label="Application fee">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-slate-50 text-[#475569] border-b border-slate-200">
@@ -674,7 +675,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollTable>
 
             {feeCategoriesNote(job.fee.rows) && (
               <p data-fee-categories-note className="text-xs font-semibold text-[#475569]">{feeCategoriesNote(job.fee.rows)}</p>
