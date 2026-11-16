@@ -61,3 +61,20 @@ test("HR05 every destination is still in both: same items, sub-items from the sa
     assert.match(src, /item\.items\?\.map/);
   }
 });
+
+test("HR09 reaching xl (1280 px) closes an open menu, moving focus to a visible desktop link, never a hidden button", () => {
+  assert.match(mobile, /const DESKTOP_QUERY = "\(min-width: 80rem\)";/, "Tailwind's xl, the same breakpoint as the CSS");
+  assert.match(mobile, /const desktop = window\.matchMedia\(DESKTOP_QUERY\);/);
+  assert.ok(mobile.includes('desktop.addEventListener("change", close);') && mobile.includes('window.addEventListener("resize", close);'), "checked on every media change and on every resize");
+  assert.ok(mobile.includes('return () => { desktop.removeEventListener("change", close); window.removeEventListener("resize", close); };'), "both listeners removed");
+  assert.ok(mobile.indexOf("    close();\n") > 0 || mobile.indexOf("    close();\r\n") > 0, "checked at once when the menu opens");
+  assert.match(mobile, /if \(focusWasInMenu\) \{/);
+  assert.match(mobile, /\.find\(\(el\) => !panel\.current\?\.contains\(el\) && visible\(el\)\)/, "a visible desktop control");
+});
+
+test("HR10 defensive: the lock and the Tab cycle act only while the menu button is visible", () => {
+  assert.match(mobile, /if \(!isOpen \|\| !visible\(toggle\.current\)\) return;\s*const root = document\.documentElement;/);
+  assert.match(mobile, /if \(!visible\(toggle\.current\)\) \{ setIsOpen\(false\); return; \}/, "keyboard left alone, menu closed");
+  const esc = mobile.indexOf('if (e.key === "Escape")');
+  assert.ok(esc > mobile.indexOf("if (!visible(toggle.current)) { setIsOpen(false); return; }"), "Escape refocuses the button only after the visibility check");
+});

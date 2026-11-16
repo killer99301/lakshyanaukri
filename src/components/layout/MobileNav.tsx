@@ -9,6 +9,9 @@ import { MAIN_NAV_ITEMS } from "@/lib/constants";
 import { Button } from "../ui/Button";
 import { siteConfig } from "@/config/site";
 
+// Tailwind's xl breakpoint (80rem = 1280 px): from here the desktop link row (MainNav) is shown and this menu is hidden.
+const DESKTOP_QUERY = "(min-width: 80rem)";
+
 export const MobileNav: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
@@ -22,11 +25,39 @@ export const MobileNav: React.FC = () => {
   const [openedOn, setOpenedOn] = useState(pathname);
   if (pathname !== openedOn) { setOpenedOn(pathname); if (isOpen) setIsOpen(false); }
 
-  // While open, the page behind does not scroll (16 Nov 2026): the page root's overflow is locked and put back exactly
-  // as it was on close, Escape, navigation or unmount. The page's scroll position is kept (overflow: hidden does not
-  // move it). The panel scrolls on its own, and overscroll-contain stops its scrolling from carrying on to the page.
+  // The menu is only in use while its button is on screen (below xl). From xl the CSS hides it, but the component
+  // stays mounted, so an open menu would keep the page locked and the Tab cycle pointing at a hidden button
+  // (16 Nov 2026: menu open, then a tablet rotated or a window widened past 1280 px). So:
+  //   - reaching xl closes the menu, and if focus was in it, focus moves to the first visible link of the desktop row;
+  //   - the lock and the Tab cycle only act while the button is visible (defensive), and focus is never sent to a
+  //     hidden button.
+  const visible = (el: Element | null | undefined): el is HTMLElement => !!el && el.getClientRects().length > 0;
   useEffect(() => {
     if (!isOpen) return;
+    const desktop = window.matchMedia(DESKTOP_QUERY);
+    const close = () => {
+      if (!desktop.matches) return;
+      const active = document.activeElement;
+      const focusWasInMenu = !!active && (active === toggle.current || !!panel.current?.contains(active));
+      setIsOpen(false);
+      if (focusWasInMenu) {
+        const firstDesktop = Array.from(document.querySelectorAll<HTMLElement>('header nav[aria-label="Main"] a[href], header nav[aria-label="Main"] button'))
+          .find((el) => !panel.current?.contains(el) && visible(el));
+        if (firstDesktop) firstDesktop.focus(); else (active as HTMLElement).blur();
+      }
+    };
+    close();
+    // The media-query change and, as a fallback, any resize (some browsers report one but not the other).
+    desktop.addEventListener("change", close);
+    window.addEventListener("resize", close);
+    return () => { desktop.removeEventListener("change", close); window.removeEventListener("resize", close); };
+  }, [isOpen]);
+
+  // While open, the page behind does not scroll (16 Nov 2026): the page root's overflow is locked and put back exactly
+  // as it was on close, Escape, navigation, reaching xl or unmount. The page's scroll position is kept (overflow: hidden
+  // does not move it). The panel scrolls on its own, and overscroll-contain stops its scrolling from carrying on to the page.
+  useEffect(() => {
+    if (!isOpen || !visible(toggle.current)) return;
     const root = document.documentElement;
     const before = root.style.overflow;
     root.style.overflow = "hidden";
@@ -45,6 +76,8 @@ export const MobileNav: React.FC = () => {
         .filter((el) => el.getClientRects().length > 0),
     ];
     const onKey = (e: KeyboardEvent) => {
+      // The menu is not in use (its button is hidden): close it and leave the keyboard alone.
+      if (!visible(toggle.current)) { setIsOpen(false); return; }
       if (e.key === "Escape") { setIsOpen(false); toggle.current?.focus(); return; }
       if (e.key !== "Tab") return;
       const list = focusables();
