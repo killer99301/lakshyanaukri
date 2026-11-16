@@ -4,7 +4,7 @@
 //
 //   npx tsx --tsconfig tsconfig.json tests/cms/site-polish.test.tsx
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { suite, test, assert } from "../intelligence/suite";
@@ -74,14 +74,13 @@ test("SP06 the page drawn in advance is the unfiltered list, not a loading line"
   assert.match(src, /<Suspense fallback=\{<JobsPageContent opportunities=\{opportunities\} searchParams=\{NO_PARAMS\} \/>\}>/);
 });
 
-suite("The channel strip fails safe");
-test("SP07 hidden until the page is known to have no Apply button on screen, on every page", () => {
-  const src = readFileSync("src/components/layout/ChannelStrip.tsx", "utf8");
-  assert.match(src, /useState<"unknown" \| "inView" \| "clear">\("unknown"\)/, "starts unknown");
-  assert.match(src, /const stepAside = applyState !== "clear";/, "only a known-clear page shows it");
-  assert.match(src, /setApplyState\("unknown"\)/, "unknown again when leaving a page");
-  assert.match(src, /querySelectorAll\("\[data-apply-kind\], \[data-keep-clear\]"\)/, "Apply buttons and marked controls");
-  assert.match(readFileSync("src/app/(main)/HomePageClient.tsx", "utf8"), /data-home-quick-actions data-keep-clear/, "the homepage's two main buttons are kept clear");
+suite("The channel links never cover the page");
+test("SP07 no floating channel strip: the links are an in-page card above the footer (16 Nov 2026)", () => {
+  // The floating strip used to step aside for Apply buttons; it was removed because it covered the text being read.
+  assert.ok(!existsSync("src/components/layout/ChannelStrip.tsx"), "the floating strip is gone");
+  const layout = readFileSync("src/app/(main)/layout.tsx", "utf8");
+  assert.ok(!/ChannelStrip/.test(layout), "not mounted");
+  assert.ok(layout.indexOf("<ChannelCard />") > layout.indexOf("</main>") && layout.indexOf("<ChannelCard />") < layout.indexOf("<Footer />"), "card between page and footer");
 });
 
 suite("Application Tools");

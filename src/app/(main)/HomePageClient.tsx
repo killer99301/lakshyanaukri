@@ -213,7 +213,7 @@ export default function HomePageClient({ opportunities, lifecycleLinks, rendered
             </div>
 
             {/* The two main ways in: jobs taking applications, and the jobs this visitor can apply for */}
-            <div className="flex flex-wrap gap-2.5 pt-1" data-home-quick-actions data-keep-clear>
+            <div className="flex flex-wrap gap-2.5 pt-1" data-home-quick-actions>
               <Link
                 href="/jobs?status=open"
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0F172A] text-white text-sm font-bold hover:bg-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/50 shadow-sm"
