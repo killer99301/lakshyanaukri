@@ -35,7 +35,7 @@ export default function TermsOfServicePage() {
             Terms of Service
           </h1>
           <p className="text-xs sm:text-sm text-[#475569] font-medium leading-relaxed">
-            Effective Date: August 2026 • Last updated: August 21, 2026
+            Effective Date: August 2026 • Last updated: November 16, 2026
           </p>
         </div>
 
