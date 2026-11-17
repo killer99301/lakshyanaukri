@@ -14,7 +14,8 @@
 //   - ageLimit: AgeCriteria → AgeLimit (relaxations → relaxation rename).
 //   - eligibility: CmsRecruitmentPost[] → string[] (post field per item).
 //   - selectionProcess: CmsSelectionInformation → string[] (stage names).
-//   - vacancyBreakdown: VacancyRow[] shared type — cast directly.
+//   - vacancyBreakdown / vacancyTable: public copies only (public-vacancies.ts): figures, names and
+//     categories; never a row's source line, retrieval id, reading method or a reviewer's note.
 //   - provenance.lastVerifiedAt = the day a person actually checked the job
 //     (the import checks in force, or the record's own verified date); empty
 //     when nobody has. Never the projection time, which is pageUpdatedAt (G1).
@@ -32,6 +33,7 @@ import type { AgeCriteria, CmsRecruitmentPost, CmsSelectionInformation, ExamPatt
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import { lifecycleLinksOf } from "@/lib/cms/lifecycle-links";
 import { toPublicUpdates } from "@/lib/cms/announcements";
+import { toPublicVacancyTable, toPublicVacancyBreakdown } from "@/lib/cms/public-vacancies";
 import { EXPERIENCE_PREFIX } from "@/lib/eligibility-lines";
 import { fieldDef } from "@/lib/cms/importer/fields";
 import { isAggregatorHost } from "@/lib/public-link-labels";
@@ -164,8 +166,9 @@ export function snapshotToGovernmentRecruitment(
 
   const examStages = (snapshot.examStages ?? []) as ExamStage[];
 
+  // Public copies only: no source lines, retrieval ids or reviewer notes reach a browser (public-vacancies.ts).
   const vacancyBreakdown = snapshot.vacancies.breakdown
-    ? (snapshot.vacancies.breakdown as VacancyRow[])
+    ? toPublicVacancyBreakdown(snapshot.vacancies.breakdown as VacancyRow[])
     : undefined;
 
   const ageLimit = snapshot.age
@@ -241,7 +244,7 @@ export function snapshotToGovernmentRecruitment(
     examStages,
     vacancyBreakdown,
     ...(snapshot.vacancies.table ? {
-      vacancyTable: snapshot.vacancies.table,
+      vacancyTable: toPublicVacancyTable(snapshot.vacancies.table),
       ...(snapshot.vacancies.totalComplete !== undefined ? { vacancyTotalComplete: snapshot.vacancies.totalComplete } : {}),
       ...(snapshot.vacancies.totalBasis ? { vacancyTotalBasis: snapshot.vacancies.totalBasis } : {}),
     } : {}),
