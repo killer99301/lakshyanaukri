@@ -14,6 +14,9 @@ import {
   getOpportunityApplicationStatus,
   getOpportunityCloseDate,
   getDaysRemaining,
+  daysBetween,
+  dayOf,
+  indiaDay,
 } from "./lifecycle";
 
 // ─── Filter Counts ──────────────────────────────────────
@@ -443,13 +446,14 @@ const NEW_FOR_DAYS = 7;
 /**
  * True for a job that went live here in the last week and can still be
  * applied for. A closed job is never shown as new.
+ *
+ * Counted in India calendar days (React #418 follow-up, Nov 2026): New from the India day the job went live (day 0)
+ * through day 7; not from day 8, nor for a missing, unreadable or future date. Counting whole days keeps the badge
+ * the same on the server and in every browser, which work from the page's India date rather than the exact hour.
  */
 export function isNewlyAdded(opp: Opportunity, now: Date): boolean {
-  if (!opp.addedAt) return false;
-  const added = new Date(opp.addedAt).getTime();
-  if (Number.isNaN(added)) return false;
-  const ageDays = (now.getTime() - added) / 86_400_000;
-  if (ageDays < 0 || ageDays > NEW_FOR_DAYS) return false;
+  const ageDays = daysBetween(dayOf(opp.addedAt), indiaDay(now));
+  if (Number.isNaN(ageDays) || ageDays < 0 || ageDays > NEW_FOR_DAYS) return false;
   return getOpportunityApplicationStatus(opp, now) !== "APPLICATIONS_CLOSED";
 }
 
