@@ -16,6 +16,7 @@ import { searchOpportunities, closestMatches, spellingSuggestion, textSearch, ge
 import type { Opportunity, FilterState } from "@/types";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
+import { useIndiaNow } from "@/lib/india-today";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -155,9 +156,9 @@ function JobsPageContent({ opportunities, searchParams }: JobsPageClientProps & 
     [opportunities],
   );
 
-  // Canonical Dynamic Filtering & Sorting Logic via searchOpportunities
+  // Canonical Dynamic Filtering & Sorting Logic via searchOpportunities (today in India: the page's date while hydrating).
+  const now = useIndiaNow();
   const filteredJobs = useMemo(() => {
-    const now = new Date();
     return searchOpportunities(
       scopedJobs,
       searchQuery,
@@ -166,14 +167,14 @@ function JobsPageContent({ opportunities, searchParams }: JobsPageClientProps & 
       sortBy,
       now
     );
-  }, [scopedJobs, searchQuery, selectedLocation, filters, sortBy]);
+  }, [scopedJobs, searchQuery, selectedLocation, filters, sortBy, now]);
 
   // Nothing matched every word: offer the jobs that match most of them
   // (still within the chosen location and filters) rather than a dead end.
   const closestJobs = useMemo(() => {
     if (filteredJobs.length > 0 || !searchQuery.trim()) return [];
-    return searchOpportunities(closestMatches(scopedJobs, searchQuery), "", selectedLocation, filters, sortBy, new Date());
-  }, [scopedJobs, filteredJobs, searchQuery, selectedLocation, filters, sortBy]);
+    return searchOpportunities(closestMatches(scopedJobs, searchQuery), "", selectedLocation, filters, sortBy, now);
+  }, [scopedJobs, filteredJobs, searchQuery, selectedLocation, filters, sortBy, now]);
   const showingClosest = closestJobs.length > 0;
   // No full match: the query as the site's own jobs spell it, when that finds something ("Did you mean …").
   const suggestion = useMemo(

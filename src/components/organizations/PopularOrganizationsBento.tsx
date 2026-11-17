@@ -5,9 +5,10 @@ import { SectionHeading } from "../ui/SectionHeading";
 import { Container } from "../ui/Container";
 import { jobsLinkCount } from "@/lib/filters";
 import type { Opportunity } from "@/types";
+import { useIndiaNow } from "@/lib/india-today";
 
 export const PopularOrganizationsBento: React.FC<{ opportunities?: Opportunity[] }> = ({ opportunities = [] }) => {
-  const now = new Date();
+  const now = useIndiaNow();
   return (
     <section className="bg-white py-10 border-y border-[#E2E8F0]">
       <Container>

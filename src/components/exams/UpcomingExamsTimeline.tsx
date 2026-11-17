@@ -5,6 +5,7 @@ import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { SectionHeading } from "../ui/SectionHeading";
 import { Container } from "../ui/Container";
+import { dateBadgeParts } from "@/lib/utils";
 
 export const UpcomingExamsTimeline: React.FC = () => {
   return (
@@ -23,10 +24,7 @@ export const UpcomingExamsTimeline: React.FC = () => {
 
           <div className="space-y-3">
             {UPCOMING_EXAMS.map((ue) => {
-              const hasValidDate = Boolean(ue.examDateIso && !isNaN(new Date(ue.examDateIso).getTime()));
-              const dateObj = hasValidDate ? new Date(ue.examDateIso) : null;
-              const monthStr = dateObj ? dateObj.toLocaleString("en-US", { month: "short" }).toUpperCase() : "TBA";
-              const dayStr = dateObj ? dateObj.getDate().toString() : "—";
+              const { month: monthStr, day: dayStr } = dateBadgeParts(ue.examDateIso);
 
               return (
                 <Card

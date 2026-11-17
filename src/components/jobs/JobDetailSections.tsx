@@ -35,6 +35,7 @@ import { EligibilityChecker } from "@/components/jobs/EligibilityChecker";
 import { EXPERIENCE_PREFIX } from "@/lib/eligibility-lines";
 import { ApplyPortals, FeeTableView, type PortalState } from "@/components/jobs/FeesAndPortals";
 import { getOpportunityApplicationStatus } from "@/lib/lifecycle";
+import { useIndiaNow } from "@/lib/india-today";
 
 interface JobDetailSectionsProps {
   job: Opportunity;
@@ -42,7 +43,9 @@ interface JobDetailSectionsProps {
   now?: Date;
 }
 
-export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now = new Date() }) => {
+export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now: nowProp }) => {
+  const today = useIndiaNow();
+  const now = nowProp ?? today;
   const isGov = job.type === "government";
   const isPriv = job.type === "private";
   const isIntern = job.type === "internship";
@@ -179,7 +182,7 @@ export const JobDetailSections: React.FC<JobDetailSectionsProps> = ({ job, now =
                 <div key={item.id} className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/80 space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
-                      {isFreshUpdate(item, new Date()) && <NewBadge />}
+                      {isFreshUpdate(item, now) && <NewBadge />}
                       <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded">
                         {item.type}
                       </span>

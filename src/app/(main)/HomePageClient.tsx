@@ -3,7 +3,7 @@
 
 import { ImportantNow } from "@/components/updates/ImportantNow";
 import type { FeedEntry } from "@/lib/updates-feed";
-import React, { useState, useMemo, useSyncExternalStore } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -46,34 +46,28 @@ import {
 
 import { sortOpportunities, textSearch } from "@/lib/filters";
 import { homeOpportunities } from "@/lib/home-priorities";
-
-// The visitor's own date once the page runs; the server's (India) date while it is drawn, so both agree.
-const noSubscription = () => () => {};
-const localDay = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+import { useIndiaToday } from "@/lib/india-today";
+import { noonInIndia } from "@/lib/lifecycle";
 
 interface HomePageClientProps {
   opportunities: Opportunity[];
   /** Official result, admit card and answer key links from published jobs. */
   lifecycleLinks: LifecycleLinks;
-  /** The date the page was drawn on the server (India), YYYY-MM-DD. */
-  renderedOn: string;
   /** R3: the homepage's "Important now" (public fields only); empty hides the strip. */
   importantNow?: FeedEntry[];
 }
 
-export default function HomePageClient({ opportunities, lifecycleLinks, renderedOn, importantNow = [] }: HomePageClientProps) {
+export default function HomePageClient({ opportunities, lifecycleLinks, importantNow = [] }: HomePageClientProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All India");
 
   // Newest additions lead the page; search chips are offered only if they find something.
-  const latestFirst = useMemo(() => sortOpportunities(opportunities, "latest", new Date()), [opportunities]);
-  // Notices taking applications lead; closed ones are listed apart. Worked out on the visitor's own date.
-  const today = useSyncExternalStore(noSubscription, localDay, () => renderedOn);
-  const priorities = useMemo(() => homeOpportunities(opportunities, new Date(`${today}T12:00:00`)), [opportunities, today]);
+  // Today in India: the page's own date while it is drawn and hydrated, then the visitor's current India date.
+  const today = useIndiaToday();
+  const latestFirst = useMemo(() => sortOpportunities(opportunities, "latest", noonInIndia(today)), [opportunities, today]);
+  // Notices taking applications lead; closed ones are listed apart.
+  const priorities = useMemo(() => homeOpportunities(opportunities, noonInIndia(today)), [opportunities, today]);
   const popularSearches = useMemo(
     () => [...POPULAR_SEARCHES, "SSC CHSL", "Graduate"].filter((term) => textSearch(opportunities, term).length > 0).slice(0, 7),
     [opportunities],

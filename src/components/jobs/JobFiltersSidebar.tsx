@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Filter, RotateCcw, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getFilterCounts } from "@/lib/filters";
+import { useIndiaNow } from "@/lib/india-today";
 import { getAllVerifiedOpportunities } from "@/lib/repository";
 import { StateFilterSection } from "@/components/jobs/StateFilterSection";
 import type { Opportunity, FilterState, Category, Qualification, Experience, ApplicationStatus } from "@/types";
@@ -26,10 +27,12 @@ export const JobFiltersSidebar: React.FC<JobFiltersSidebarProps> = ({
   handleResetFilters,
   allJobs = getAllVerifiedOpportunities(),
   className,
-  now = new Date(),
+  now: nowProp,
   location,
   onLocationChange,
 }) => {
+  const today = useIndiaNow();
+  const now = nowProp ?? today;
   const [openSections, setOpenSections] = useState({
     opportunityTypes: true,
     category: true,

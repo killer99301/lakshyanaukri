@@ -5,7 +5,6 @@ import { siteConfig } from "@/config/site";
 import { getAllVerifiedOpportunitiesWithCMS, getPublishedCmsOpportunities } from "@/lib/repository";
 import { buildFeed, importantNow } from "@/lib/updates-feed";
 import { getLifecycleLinks } from "@/lib/cms/lifecycle-links";
-import { indiaToday } from "@/lib/home-priorities";
 import HomePageClient from "./HomePageClient";
 
 export const metadata: Metadata = {
@@ -50,7 +49,6 @@ export default async function HomePage() {
   // R3: "Important now", from published recruitments' reviewed announcements only (the job page's own rule).
   const now = new Date();
   const important = importantNow(cmsJobs, buildFeed(cmsJobs, now), now);
-  // India's date when the page is drawn: open/closed is worked out on it until the visitor's own date takes over.
-  const renderedOn = indiaToday();
-  return <HomePageClient opportunities={opportunities} lifecycleLinks={lifecycleLinks} renderedOn={renderedOn} importantNow={important} />;
+  // Open/closed is worked out on India's date: the layout's TodayProvider gives the page's own date while it hydrates.
+  return <HomePageClient opportunities={opportunities} lifecycleLinks={lifecycleLinks} importantNow={important} />;
 }

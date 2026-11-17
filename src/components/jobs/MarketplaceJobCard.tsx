@@ -27,6 +27,7 @@ import { getDeadlineUrgency, formatDeadlineDate } from "@/lib/urgency";
 import { cn } from "@/lib/utils";
 import { isNewlyAdded } from "@/lib/filters";
 import { NewBadge } from "@/components/common/NewBadge";
+import { useIndiaNow } from "@/lib/india-today";
 
 interface MarketplaceJobCardProps {
   job: Opportunity;
@@ -41,8 +42,10 @@ export const MarketplaceJobCard: React.FC<MarketplaceJobCardProps> = ({
   isBookmarked = false,
   onToggleBookmark,
   className,
-  now = new Date(),
+  now: nowProp,
 }) => {
+  const today = useIndiaNow();
+  const now = nowProp ?? today;
   const [saved, setSaved] = useState(isBookmarked);
   
   const closeDate = getOpportunityCloseDate(job);

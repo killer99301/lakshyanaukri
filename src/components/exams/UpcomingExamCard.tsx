@@ -3,17 +3,15 @@ import { ExternalLink } from "lucide-react";
 import { UpcomingExamItem } from "@/types/job";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
+import { dateBadgeParts } from "@/lib/utils";
 
 export interface UpcomingExamRowProps {
   exam: UpcomingExamItem;
 }
 
 export const UpcomingExamRow: React.FC<UpcomingExamRowProps> = ({ exam }) => {
-  // Parse month & day for timeline badge
-  const hasValidDate = Boolean(exam.examDateIso && !isNaN(new Date(exam.examDateIso).getTime()));
-  const dateObj = hasValidDate ? new Date(exam.examDateIso) : null;
-  const monthStr = dateObj ? dateObj.toLocaleString("en-US", { month: "short" }).toUpperCase() : "TBA";
-  const dayStr = dateObj ? dateObj.getDate().toString() : "—";
+  // Month & day for the timeline badge, as written (the same day on the server and in every browser)
+  const { month: monthStr, day: dayStr } = dateBadgeParts(exam.examDateIso);
 
   return (
     <Card className="p-3 sm:p-4 flex items-center justify-between gap-3 bg-white border-[#E2E8F0] hover:border-[#FED7AA] hover:shadow-xs transition-all duration-200 group">

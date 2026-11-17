@@ -16,6 +16,7 @@ import {
 } from "@/lib/lifecycle";
 import { NewBadge } from "@/components/common/NewBadge";
 import { getDeadlineUrgency, formatDeadlineDate } from "@/lib/urgency";
+import { useIndiaNow } from "@/lib/india-today";
 
 export interface JobCardProps {
   job: Opportunity;
@@ -28,8 +29,10 @@ export const JobCard: React.FC<JobCardProps> = ({
   job,
   isFeatured = false,
   className,
-  now = new Date(),
+  now: nowProp,
 }) => {
+  const today = useIndiaNow();
+  const now = nowProp ?? today;
   const closeDate = getOpportunityCloseDate(job);
   const isDeadlineKnown = Boolean(closeDate);
   const daysRemaining = isDeadlineKnown ? getDaysRemaining(closeDate, now) : 0;

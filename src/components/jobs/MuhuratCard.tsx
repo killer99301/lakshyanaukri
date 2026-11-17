@@ -4,6 +4,7 @@ import React from "react";
 import { ChevronRight, Compass, ExternalLink } from "lucide-react";
 import type { Opportunity } from "@/types";
 import { getOpportunityApplicationStatus } from "@/lib/lifecycle";
+import { useIndiaNow } from "@/lib/india-today";
 import { siteConfig } from "@/config/site";
 
 // ═══════════════════════════════════════════════════════════
@@ -26,9 +27,9 @@ interface MuhuratLink {
 }
 
 /** The links to offer for this job, or none if it is not an open notice. Decided in the browser, so a cached page stops showing them once the last date has passed. */
-function linksFor(job: Opportunity): MuhuratLink[] {
+function linksFor(job: Opportunity, now: Date): MuhuratLink[] {
   if (job.type !== "government") return [];
-  if (getOpportunityApplicationStatus(job, new Date()) === "APPLICATIONS_CLOSED") return [];
+  if (getOpportunityApplicationStatus(job, now) === "APPLICATIONS_CLOSED") return [];
   const { anantamarg } = siteConfig.ecosystem;
   const links: MuhuratLink[] = [];
   if (anantamarg.formMuhuratLive) links.push({ label: "Best muhurat to fill the form", href: anantamarg.muhuratUrl });
@@ -38,7 +39,7 @@ function linksFor(job: Opportunity): MuhuratLink[] {
 
 /** One compact line, shown under the how-to-apply steps. */
 export function MuhuratPrompt({ job, className }: { job: Opportunity; className?: string }) {
-  const links = linksFor(job);
+  const links = linksFor(job, useIndiaNow());
   if (links.length === 0) return null;
   return (
     <div className={`bg-[#FFF7ED] border border-[#FED7AA] rounded-2xl px-4 py-3 ${className ?? ""}`}>
@@ -68,7 +69,7 @@ export function MuhuratPrompt({ job, className }: { job: Opportunity; className?
 
 /** The sidebar card on a job page. */
 export function MuhuratCard({ job }: { job: Opportunity }) {
-  const links = linksFor(job);
+  const links = linksFor(job, useIndiaNow());
   if (links.length === 0) return null;
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-3xl p-5 shadow-xs space-y-3">

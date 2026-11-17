@@ -32,6 +32,7 @@ import { pickImportantUpdate } from "@/lib/important-update";
 import { ApplyLinkLaterNotice } from "@/components/jobs/ApplyLinkLaterNotice";
 import { NO_NOTICE_ADVICE, publicLinkWords } from "@/lib/public-link-labels";
 import { getDeadlineUrgency, formatDeadlineDate } from "@/lib/urgency";
+import { useIndiaNow } from "@/lib/india-today";
 
 interface JobDetailHeaderProps {
   job: Opportunity;
@@ -44,8 +45,10 @@ export const JobDetailHeader: React.FC<JobDetailHeaderProps> = ({
   job,
   isBookmarked,
   onToggleBookmark,
-  now = new Date(),
+  now: nowProp,
 }) => {
+  const today = useIndiaNow();
+  const now = nowProp ?? today;
   const closeDate = getOpportunityCloseDate(job);
   const daysRemaining = getDaysRemaining(closeDate, now);
   const urgency = getDeadlineUrgency(daysRemaining, true);

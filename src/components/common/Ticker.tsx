@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge } from "../ui/Badge";
 import { deriveStatusBadge, getVacancyDisplay } from "@/lib/lifecycle";
 import type { Opportunity } from "@/types";
+import { useIndiaNow } from "@/lib/india-today";
 
 export interface TickerItem {
   id: string;
@@ -19,7 +20,7 @@ interface TickerProps {
 }
 
 export const Ticker: React.FC<TickerProps> = ({ opportunities = [] }) => {
-  const now = new Date();
+  const now = useIndiaNow();
 
   // Built from the jobs themselves, so it can never drift from what the job pages say.
   const items: TickerItem[] = [

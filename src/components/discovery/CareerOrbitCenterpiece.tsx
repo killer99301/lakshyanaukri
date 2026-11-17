@@ -32,6 +32,7 @@ import {
 import { jobsLinkCount } from "@/lib/filters";
 import type { Opportunity } from "@/types";
 import { cn } from "@/lib/utils";
+import { useIndiaNow } from "@/lib/india-today";
 
 type TabType = "categories" | "states" | "qualifications" | "roles";
 
@@ -186,7 +187,7 @@ export const CareerOrbitCenterpiece: React.FC<{ opportunities?: Opportunity[] }>
 
   // Each tile says how many jobs it leads to. A tile with none is dimmed and
   // opens the full list instead of an empty results page.
-  const now = new Date();
+  const now = useIndiaNow();
   const activeItems = getActiveItems().map((item) => {
     const count = jobsLinkCount(opportunities, item.href, now);
     if (count === null) return { ...item, empty: false, counted: false };

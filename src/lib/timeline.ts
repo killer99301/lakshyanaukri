@@ -13,6 +13,7 @@
 import type { ExamStage, Opportunity } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { isMilestone } from "@/lib/exam-stage-kind";
+import { indiaDay } from "@/lib/lifecycle";
 
 export type TimelineState =
   | "done"       // happened
@@ -41,7 +42,8 @@ export interface TimelineEvent {
 }
 
 const isIso = (v: string | undefined): v is string => !!v && /^\d{4}-\d{2}-\d{2}/.test(v);
-const dayOf = (d: Date): string => d.toISOString().slice(0, 10);
+// Today is India's date (lifecycle.ts), not the server's UTC date: the two differ from 00:00 to 05:30 IST.
+const dayOf = (d: Date): string => indiaDay(d);
 
 const STAGE_NOTES: Partial<Record<ExamStage["status"], string>> = {
   ADMIT_CARD_OUT: "Admit card released",

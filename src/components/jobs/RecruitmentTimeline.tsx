@@ -5,6 +5,7 @@ import { ArrowRight, Check, Clock, HelpCircle } from "lucide-react";
 import type { Opportunity } from "@/types";
 import { buildTimeline, whatsNext, type TimelineState } from "@/lib/timeline";
 import { cn } from "@/lib/utils";
+import { useIndiaNow } from "@/lib/india-today";
 
 const DOT: Record<TimelineState, string> = {
   done: "bg-emerald-500 border-emerald-500 text-white",
@@ -27,7 +28,7 @@ const STATE_NOTE: Partial<Record<TimelineState, string>> = {
  * on by itself as dates pass.
  */
 export function RecruitmentTimeline({ job }: { job: Opportunity }) {
-  const now = new Date();
+  const now = useIndiaNow();
   const events = buildTimeline(job, now);
   const next = whatsNext(job, now);
   if (events.length === 0) return null;

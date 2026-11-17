@@ -29,6 +29,18 @@ export function formatDate(dateString: string): string {
 }
 
 /**
+ * Month and day for a calendar badge ("AUG", "21"), read from the date as written, like formatDate: no time-zone
+ * arithmetic, so a date-only value is the same day on the server and in every browser (west of UTC, new Date("2026-08-21")
+ * falls on 20 Aug). { month: "TBA", day: "—" } when there is no readable date.
+ */
+export function dateBadgeParts(dateString: string | undefined): { month: string; day: string } {
+  const plain = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(dateString ?? "");
+  const month = plain ? MONTHS_SHORT[Number(plain[2]) - 1] : undefined;
+  if (!plain || !month || Number.isNaN(Date.parse(`${plain[1]}-${plain[2]}-${plain[3]}T00:00:00Z`))) return { month: "TBA", day: "—" };
+  return { month: month.toUpperCase(), day: String(Number(plain[3])) };
+}
+
+/**
  * Formats a number with Indian commas (e.g., 12500 -> "12,500")
  */
 export function formatNumber(num: number): string {

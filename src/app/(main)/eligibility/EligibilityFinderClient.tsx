@@ -14,14 +14,10 @@ import { DobFields } from "@/components/common/DobFields";
 import { PageReveal } from "@/components/common/motion/PageReveal";
 import { AmbientBackground } from "@/components/common/motion/AmbientBackground";
 import { cn, formatDate } from "@/lib/utils";
+import { useIndiaToday } from "@/lib/india-today";
 
 const field = "h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/40";
 const label = "block text-[11px] font-bold uppercase tracking-wider text-[#475569] mb-1";
-
-const todayIso = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-};
 
 const GROUPS: Record<FinderVerdict, { title: string; blurb: string; tone: string; icon: React.ReactNode }> = {
   ELIGIBLE: {
@@ -97,7 +93,8 @@ export default function EligibilityFinderClient({ jobs }: { jobs: FinderJob[] })
   const [asked, setAsked] = useState(false);
   const [showRuledOut, setShowRuledOut] = useState(false);
 
-  const today = todayIso();
+  // Today in India: the page's own date while it hydrates, then the visitor's current India date.
+  const today = useIndiaToday();
   // Closed jobs are left out; one with no last date on record is kept.
   const openJobs = useMemo(() => jobs.filter((j) => !j.closeDate || j.closeDate >= today), [jobs, today]);
   const problem = dobProblem(dob, today);
@@ -118,8 +115,7 @@ export default function EligibilityFinderClient({ jobs }: { jobs: FinderJob[] })
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight mt-3">Which jobs can I apply for?</h1>
           <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed mt-2 max-w-2xl">
             Tell us your date of birth, category and qualification. We check your age on each notice’s own cut-off date, across all{" "}
-            {/* Counted on the visitor's own date, which can differ from the server's by a day. */}
-            <span suppressHydrationWarning>{openJobs.length}</span> jobs open or opening soon.
+            {openJobs.length} jobs open or opening soon.
           </p>
         </div>
 

@@ -9,12 +9,14 @@ import Link from "next/link";
 import { Calculator, ChevronRight, ImageUp, PenLine } from "lucide-react";
 import type { Opportunity } from "@/types";
 import { getOpportunityApplicationStatus } from "@/lib/lifecycle";
+import { useIndiaNow } from "@/lib/india-today";
 
 const linkClass =
   "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-[#0F172A] hover:border-[#FED7AA] hover:bg-[#FFF7ED] hover:text-[#EA580C] transition-colors";
 
 export function PrepareToApply({ job }: { job: Opportunity }) {
-  if (getOpportunityApplicationStatus(job, new Date()) === "APPLICATIONS_CLOSED") return null;
+  const now = useIndiaNow();
+  if (getOpportunityApplicationStatus(job, now) === "APPLICATIONS_CLOSED") return null;
   return (
     <div data-prepare-to-apply className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
       <div>

@@ -19,22 +19,86 @@ import { formatDate } from "@/lib/utils";
 import { isSelectionStage } from "@/lib/exam-stage-kind";
 
 // ─── Date Helpers ────────────────────────────────────────
+//
+// One date model (Nov 2026, React #418): every recruitment date is a calendar day in India, and "today" is India's
+// date, for every visitor and on the server alike. A notice's "last date 17 Nov" is 17 Nov in Asia/Kolkata whether
+// the page is drawn on a server running in UTC or read in New York. Before this, days were cut in the machine's own
+// time zone: a UTC server and an Indian browser disagreed between 00:00 and 05:30 IST, and west of UTC a date-only
+// deadline ("2026-11-17" = UTC midnight) fell on the previous day, so a job read as closed on its last day.
+// India has one time zone and no daylight saving, so the offset is fixed.
 
-/**
- * Strip time component from a Date, returning midnight in local timezone.
- */
-export function stripTime(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const DAY_MS = 86_400_000;
+const INDIA_OFFSET_MS = 5.5 * 3_600_000;
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** India's calendar day at an instant, as YYYY-MM-DD ("" for an invalid date). */
+export function indiaDay(at: Date): string {
+  const t = at.getTime();
+  return Number.isNaN(t) ? "" : new Date(t + INDIA_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 /**
- * Calculate calendar-day difference between two dates.
+ * The India calendar day a stored date stands for, as YYYY-MM-DD ("" when it cannot be read). A date-only value is
+ * that day as written. A value with a time and a zone ("…T17:00:00+05:30", "…Z") is the India day of that instant;
+ * one with a time but no zone is read as India's own wall-clock time, so its day is the date written. Only the day
+ * is used: lifecycle rules are by calendar day, as before.
+ */
+export function dayOf(value: string | Date | null | undefined): string {
+  if (value instanceof Date) return indiaDay(value);
+  if (typeof value !== "string") return "";
+  const s = value.trim();
+  const head = s.slice(0, 10);
+  const midnight = Date.parse(`${head}T00:00:00Z`);
+  if (!ISO_DAY.test(head) || Number.isNaN(midnight) || new Date(midnight).toISOString().slice(0, 10) !== head) return "";
+  if (s.length === 10) return head;
+  if (/(?:z|[+-]\d{2}:?\d{2})$/i.test(s)) {
+    const t = Date.parse(s);
+    return Number.isNaN(t) ? "" : indiaDay(new Date(t));
+  }
+  return head;
+}
+
+/** Whole days from one India day to another (positive = `to` is later); NaN when either is missing. */
+export function daysBetween(fromDay: string, toDay: string): number {
+  if (!fromDay || !toDay) return NaN;
+  return Math.round((Date.parse(`${toDay}T00:00:00Z`) - Date.parse(`${fromDay}T00:00:00Z`)) / DAY_MS);
+}
+
+/** The instant the next India day starts (00:00 IST) after `at`. */
+export function nextIndiaMidnight(at: Date): Date {
+  return new Date(Date.parse(`${indiaDay(new Date(at.getTime() + DAY_MS))}T00:00:00Z`) - INDIA_OFFSET_MS);
+}
+
+/** Noon in India on a given India day: a stable instant standing for that whole day. */
+export function noonInIndia(day: string): Date {
+  return new Date(Date.parse(`${day}T12:00:00Z`) - INDIA_OFFSET_MS);
+}
+
+/**
+ * Midnight of a date's India calendar day (as an instant). Kept for existing callers; lifecycle rules use India days.
+ */
+export function stripTime(d: Date): Date {
+  const day = indiaDay(d);
+  return day ? new Date(Date.parse(`${day}T00:00:00Z`) - INDIA_OFFSET_MS) : new Date(NaN);
+}
+
+/**
+ * Calculate calendar-day difference between two dates, by India's calendar.
  * Positive = target is in the future; negative = target is in the past.
  */
 export function diffCalendarDays(from: Date, to: Date): number {
-  const fromMidnight = stripTime(from);
-  const toMidnight = stripTime(to);
-  return Math.round((toMidnight.getTime() - fromMidnight.getTime()) / (1000 * 60 * 60 * 24));
+  return daysBetween(indiaDay(from), indiaDay(to));
+}
+
+/** Upcoming, open, closing soon (last 7 days) or closed, by India calendar days; an unreadable date is never decided. */
+function windowStatus(openValue: string, closeValue: string, now: Date): ApplicationStatus {
+  const today = indiaDay(now);
+  const toOpen = daysBetween(today, dayOf(openValue));
+  const toClose = daysBetween(today, dayOf(closeValue));
+  if (toOpen > 0) return "UPCOMING";
+  if (toClose < 0) return "APPLICATIONS_CLOSED";
+  if (toClose <= 7) return "CLOSING_SOON";
+  return "OPEN";
 }
 
 // ─── Application Lifecycle ──────────────────────────────
@@ -47,14 +111,7 @@ export function deriveApplicationStatus(
   window: ApplicationWindow,
   now: Date
 ): ApplicationStatus {
-  const open = stripTime(new Date(window.openDate));
-  const close = stripTime(new Date(window.extendedCloseDate || window.closeDate));
-  const today = stripTime(now);
-
-  if (today < open) return "UPCOMING";
-  if (today > close) return "APPLICATIONS_CLOSED";
-  if (diffCalendarDays(today, close) <= 7) return "CLOSING_SOON";
-  return "OPEN";
+  return windowStatus(window.openDate, window.extendedCloseDate || window.closeDate, now);
 }
 
 /**
@@ -69,7 +126,7 @@ export function getEffectiveCloseDate(window: ApplicationWindow): string {
  * Returns raw number (can be negative) — urgency layer handles display.
  */
 export function getDaysRemaining(deadlineIso: string, now: Date): number {
-  return diffCalendarDays(now, new Date(deadlineIso));
+  return daysBetween(indiaDay(now), dayOf(deadlineIso));
 }
 
 // ─── Exam Lifecycle ─────────────────────────────────────
@@ -104,7 +161,7 @@ export function currentExamStage(stages: ExamStage[], now: Date): ExamStage | un
     .sort((a, b) => a.order - b.order);
   // A stage running over several days is still ahead until its last day (SAIL's walk-in, Nov 2026).
   const ahead = activeStages.find(
-    (s) => (s.status === "SCHEDULED" || s.status === "ADMIT_CARD_OUT") && s.dateIso && diffCalendarDays(now, new Date(lastDayOf(s))) >= 0,
+    (s) => (s.status === "SCHEDULED" || s.status === "ADMIT_CARD_OUT") && s.dateIso && daysBetween(indiaDay(now), dayOf(lastDayOf(s))) >= 0,
   );
   return ahead ?? activeStages[activeStages.length - 1];
 }
@@ -118,7 +175,8 @@ export function lastDayOf(s: Pick<ExamStage, "dateIso" | "dateEndIso">): string 
 export function isUnderWay(s: Pick<ExamStage, "dateIso" | "dateEndIso" | "status">, now: Date): boolean {
   if (!s.dateIso || !s.dateEndIso || s.dateEndIso <= s.dateIso) return false;
   if (s.status !== "SCHEDULED" && s.status !== "ADMIT_CARD_OUT") return false;
-  return diffCalendarDays(now, new Date(s.dateIso)) <= 0 && diffCalendarDays(now, new Date(s.dateEndIso)) >= 0;
+  const today = indiaDay(now);
+  return daysBetween(today, dayOf(s.dateIso)) <= 0 && daysBetween(today, dayOf(s.dateEndIso)) >= 0;
 }
 
 /**
@@ -262,14 +320,7 @@ export function getOpportunityApplicationStatus(
     return deriveApplicationStatus(opp.application, now);
   }
   // For private/internship: simple open/close date comparison
-  const open = stripTime(new Date(opp.application.openDate));
-  const close = stripTime(new Date(opp.application.closeDate));
-  const today = stripTime(now);
-
-  if (today < open) return "UPCOMING";
-  if (today > close) return "APPLICATIONS_CLOSED";
-  if (diffCalendarDays(today, close) <= 7) return "CLOSING_SOON";
-  return "OPEN";
+  return windowStatus(opp.application.openDate, opp.application.closeDate, now);
 }
 
 // ─── Derived Status Badge ────────────────────────────────
@@ -389,9 +440,7 @@ export function deriveStatusBadge(opp: Opportunity, now: Date): StatusBadgeInfo 
   if (!opp.postDate) {
     return { label: "Open", badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200", isClosed: false };
   }
-  const postDate = stripTime(new Date(opp.postDate));
-  const today = stripTime(now);
-  const daysSincePost = diffCalendarDays(postDate, today);
+  const daysSincePost = daysBetween(dayOf(opp.postDate), indiaDay(now));
   if (daysSincePost <= 7) {
     return {
       label: "Newly Announced",
@@ -432,9 +481,8 @@ export const UPDATE_FRESH_DAYS = 3;
  * the future, or one that cannot be read, is never fresh.
  */
 export function isFreshUpdate(update: Pick<UpdateRecord, "date">, now: Date): boolean {
-  const then = new Date(update.date);
-  if (Number.isNaN(then.getTime())) return false;
-  const age = diffCalendarDays(stripTime(then), stripTime(now));
+  const age = daysBetween(dayOf(update.date), indiaDay(now));
+  if (Number.isNaN(age)) return false;
   return age >= 0 && age <= UPDATE_FRESH_DAYS;
 }
 

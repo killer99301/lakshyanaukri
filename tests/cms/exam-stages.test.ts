@@ -127,8 +127,10 @@ test("TL01 application dates then stages, with done / next / upcoming", () => {
     ["Tier-II", "unknown", "To be announced"],
   ].map(([l, s, d]) => [l, s, (d as string).replace("Sept", tl[0].dateText.includes("Sept") ? "Sept" : "Sep")]));
   assert.equal(tl[4].tentative, true);
-  // The last date itself still counts as upcoming on that day.
-  assert.equal(buildTimeline(job({}), new Date("2026-10-07T20:00:00Z"))[1].state, "next");
+  // The last date itself still counts as upcoming on that day: India's day (React #418 fix, Nov 2026). 20:00 UTC on
+  // 7 Oct, used here before, is already 01:30 IST on 8 Oct; 23:30 IST is still the last day, 00:01 IST the day after.
+  assert.equal(buildTimeline(job({}), new Date("2026-10-07T18:00:00Z"))[1].state, "next");
+  assert.equal(buildTimeline(job({}), new Date("2026-10-07T18:31:00Z"))[1].state, "done");
   // An extension replaces the last date and is labelled.
   const ext = buildTimeline(job({ application: { openDate: "2026-09-07", closeDate: "2026-10-07", extendedCloseDate: "2026-10-14" } }), NOW);
   assert.deepEqual([ext[1].label, ext[1].dateIso], ["Last date to apply (extended)", "2026-10-14"]);
