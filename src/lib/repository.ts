@@ -12,6 +12,7 @@ import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
 import { PRIVATE_JOBS } from "@/data/private";
 import { INTERNSHIPS } from "@/data/internships";
 import { snapshotToGovernmentRecruitment } from "@/lib/cms/adapter";
+import { readPublicData } from "@/lib/public-data-error";
 // public-repository imports db.ts which throws at module-init when DATABASE_URL is
 // absent (e.g. in the browser). Import it dynamically inside the two async functions
 // that need it so the client bundle for "use client" components never includes db.ts.
@@ -69,52 +70,48 @@ export function getAllVerifiedOpportunities(): Opportunity[] {
  * Uses a single batch query — no N+1. Safe for server-side use only (async, touches DB).
  *
  * The `loader` parameter is for testing only — pass a mock to avoid DB calls.
- * Falls back to static-only on DB failure.
+ * A database failure throws PublicDataUnavailableError (it used to return the static records only, which are
+ * empty, so a page rendered during an outage was cached with no jobs). No published job is not an error.
  */
 export async function getAllVerifiedOpportunitiesWithCMS(
   loader?: () => Promise<PublishedRecruitmentSnapshot[]>,
 ): Promise<Opportunity[]> {
   const staticOps = assembleVerifiedDataset();
-  try {
-    const getSnapshots = loader ?? (async () => {
-      const { getAllPublishedSnapshots } = await import("@/lib/cms/public-repository");
-      return getAllPublishedSnapshots();
-    });
-    const snapshots = await getSnapshots();
-    const cmsOps = snapshots.map(snapshotToGovernmentRecruitment);
-    return [...cmsOps, ...staticOps];
-  } catch {
-    return staticOps;
-  }
+  const getSnapshots = loader ?? (async () => {
+    const { getAllPublishedSnapshots } = await import("@/lib/cms/public-repository");
+    return getAllPublishedSnapshots();
+  });
+  const snapshots = await readPublicData("published jobs", getSnapshots);
+  const cmsOps = snapshots.map(snapshotToGovernmentRecruitment);
+  return [...cmsOps, ...staticOps];
 }
 
 /**
  * R3: the PUBLISHED CMS recruitments only (no static records), as public pages receive them: the published
  * snapshot through the adapter, so announcements are the allowlisted public copy. Taken-down and archived jobs
- * are left out by the query. An empty list when the CMS is unreachable (the archive then says it has nothing yet).
+ * are left out by the query. An empty list only when nothing is published; a database failure throws
+ * PublicDataUnavailableError instead of looking like an empty archive.
  */
 export async function getPublishedCmsOpportunities(): Promise<Opportunity[]> {
-  try {
+  const snapshots = await readPublicData("published jobs", async () => {
     const { getAllPublishedSnapshots } = await import("@/lib/cms/public-repository");
-    return (await getAllPublishedSnapshots()).map(snapshotToGovernmentRecruitment);
-  } catch {
-    return [];
-  }
+    return getAllPublishedSnapshots();
+  });
+  return snapshots.map(snapshotToGovernmentRecruitment);
 }
 
 /**
  * Find an opportunity by its URL slug. Returns undefined if not found.
- * CMS-first: checks published_recruitments before the static repository.
- * Falls back to static records if the CMS is unreachable or has no match.
+ * CMS-first: checks published_recruitments before the static repository; a slug the CMS does not have is
+ * looked up in the static records (undefined, so a normal 404, when neither has it). A database failure throws
+ * PublicDataUnavailableError: it used to fall through to "not found", and the job page was cached as a 404.
  */
 export async function getBySlug(slug: string): Promise<Opportunity | undefined> {
-  try {
+  const snapshot = await readPublicData("published job by slug", async () => {
     const { getPublishedBySlug } = await import("@/lib/cms/public-repository");
-    const snapshot = await getPublishedBySlug(slug);
-    if (snapshot) return snapshotToGovernmentRecruitment(snapshot);
-  } catch {
-    // DB unavailable — fall through to static
-  }
+    return getPublishedBySlug(slug);
+  });
+  if (snapshot) return snapshotToGovernmentRecruitment(snapshot);
   return assembleVerifiedDataset().find((opp) => opp.slug === slug);
 }
 

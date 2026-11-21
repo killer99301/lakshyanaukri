@@ -11,8 +11,8 @@
 //  R05  static records (private/internship) are merged alongside CMS records
 //  R06  APPROVED/DRAFT records excluded — only PUBLISHED snapshots accepted
 //        (enforcement is in the loader/query; adapter receives what loader sends)
-//  R07  on DB/loader failure: falls back to static-only, no throw
-//  R08  on DB/loader failure: static private/internship records still returned
+//  R07  on DB/loader failure: throws PublicDataUnavailableError (no silent empty list; Nov 2026 freshness hardening)
+//  R08  a genuinely empty published set is NOT a failure: returns [] without throwing
 //  R09  result type = Opportunity[] (GovernmentRecruitment satisfies Opportunity)
 //  R10  no db.ts import required at module load time (client-safe module shape)
 // ═══════════════════════════════════════════════════════════
@@ -142,26 +142,19 @@ test("R06 — only snapshots the loader returns are included (publication guard 
   assert.equal(result[0].id, "pub-1");
 });
 
-test("R07 — on loader failure: does not throw, returns static-only", async () => {
-  const failLoader = async (): Promise<PublishedRecruitmentSnapshot[]> => {
-    throw new Error("DB connection refused");
-  };
-  // Should not throw
-  const result = await getAllVerifiedOpportunitiesWithCMS(failLoader);
-  // Static arrays are both empty, so result is []
-  assert.ok(Array.isArray(result));
-  assert.equal(result.length, 0); // 0 static records currently
+test("R07 — on loader failure: throws PublicDataUnavailableError instead of returning an empty list", async () => {
+  // Before Nov 2026 this returned the static records (empty), so a page rendered during an outage was cached with
+  // no jobs. Now the failure reaches the render, which then is not cached as a good page.
+  for (const msg of ["DB connection refused", "Neon timeout"]) {
+    const failLoader = async (): Promise<PublishedRecruitmentSnapshot[]> => { throw new Error(msg); };
+    await assert.rejects(getAllVerifiedOpportunitiesWithCMS(failLoader), (e: Error) =>
+      e.name === "PublicDataUnavailableError" && e.message.includes(msg));
+  }
 });
 
-test("R08 — on loader failure: static records still returned if they existed", async () => {
-  // This test verifies the fallback path returns assembleVerifiedDataset().
-  // Since PRIVATE_JOBS=[] and INTERNSHIPS=[], fallback is empty.
-  // The structural guarantee: no throw, returns array.
-  const failLoader = async (): Promise<PublishedRecruitmentSnapshot[]> => {
-    throw new Error("Neon timeout");
-  };
-  const result = await getAllVerifiedOpportunitiesWithCMS(failLoader);
-  assert.ok(Array.isArray(result));
+test("R08 — a genuinely empty published set is not a failure: [] without throwing", async () => {
+  const result = await getAllVerifiedOpportunitiesWithCMS(makeLoader([]));
+  assert.deepEqual(result, []);
 });
 
 test("R09 — result elements satisfy Opportunity type (type: 'government')", async () => {

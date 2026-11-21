@@ -11,6 +11,7 @@
 // Any other link is ignored, so the site never lists a third-party page.
 
 import type { PublishedRecruitmentSnapshot } from "@/lib/cms/projector";
+import { readPublicData } from "@/lib/public-data-error";
 
 export type LifecycleKind = "result" | "admitCard" | "answerKey";
 
@@ -120,12 +121,14 @@ export function lifecycleLinksFrom(snapshots: PublishedRecruitmentSnapshot[]): L
   return { results: of("result"), admitCards: of("admitCard"), answerKeys: of("answerKey") };
 }
 
-/** Reads the lists for a page. Never throws: an unreachable database shows empty lists. */
+/**
+ * Reads the lists for a page. Empty lists only when no published job has such a link; a database failure throws
+ * PublicDataUnavailableError (it used to show empty lists, and the page was cached that way).
+ */
 export async function getLifecycleLinks(): Promise<LifecycleLinks> {
-  try {
+  const snapshots = await readPublicData("published jobs (lifecycle links)", async () => {
     const { getAllPublishedSnapshots } = await import("@/lib/cms/public-repository");
-    return lifecycleLinksFrom(await getAllPublishedSnapshots());
-  } catch {
-    return EMPTY_LIFECYCLE_LINKS;
-  }
+    return getAllPublishedSnapshots();
+  });
+  return lifecycleLinksFrom(snapshots);
 }

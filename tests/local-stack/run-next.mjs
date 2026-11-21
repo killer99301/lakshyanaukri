@@ -46,7 +46,8 @@ const env = {
   TELEGRAM_BOT_TOKEN: "",
   TELEGRAM_CHANNEL_ID: "",
   TELEGRAM_ADMIN_CHAT_ID: "",
-  CRON_SECRET: "",
+  // Empty (every cron call refused) unless a test passes its own throwaway value; never the real secret.
+  CRON_SECRET: process.env.TEST_CRON_SECRET ?? "",
   ADMIN_ALLOWED_ORIGINS: base,
   ADMIN_OTP_HMAC_KEY: "local-test-hmac-key-not-a-secret",
   CMS_PUBLISHERS: publishers,
